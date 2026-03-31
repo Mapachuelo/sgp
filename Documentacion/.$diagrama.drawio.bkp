@@ -1014,7 +1014,7 @@
         <mxCell id="wtixjdmUu8wrwln7y3G4-494" parent="wtixjdmUu8wrwln7y3G4-480" style="rhombus;whiteSpace=wrap;html=1;" value="¿Tienes cuenta?" vertex="1">
           <mxGeometry height="140" width="140" x="320" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="wtixjdmUu8wrwln7y3G4-495" parent="wtixjdmUu8wrwln7y3G4-480" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de registro&lt;div&gt;registro y rol&lt;/div&gt;" vertex="1">
+        <mxCell id="wtixjdmUu8wrwln7y3G4-495" parent="wtixjdmUu8wrwln7y3G4-480" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de registro&lt;div&gt;cliente&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="640" y="130" as="geometry" />
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-496" edge="1" parent="wtixjdmUu8wrwln7y3G4-480" source="wtixjdmUu8wrwln7y3G4-497" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wtixjdmUu8wrwln7y3G4-502">
