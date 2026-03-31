@@ -57,7 +57,7 @@ El SGP es un **producto independiente** que se integrará con los sistemas exter
 | **F1** | Gestión de Clientes | Registro, actualización y borrado de datos personales. |
 | **F2** | Reservas Online | Selección de servicio, hora y generación de QR. |
 | **F3** | Validación en Entrada | Escaneo del QR con control de horarios. |
-| **F4** | Pagos Integrados | Pago previo o al momento del servicio vía tarjeta/PayPal. |
+| **F4** | Pagos en efectivo | Pago previo a la hora de atender cliente. |
 | **F5** | Reportes Administrativos | Ventas, ocupación y métricas de uso. |
 
 ### 2.3 Características de los Usuarios  
