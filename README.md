@@ -11,6 +11,10 @@ Pago mediante qr
 Acceso biometrico o qr - si
 facturación electronica
 
+# Formato ieee 830
+
+[Formato ieee 830](Documentacion/formato_ieee830.md)
+
 ## Prompts
 ### Investigación de páginas web de peluquerías en Colombia
 Eres un analista de software que toma toda la información y las funcionaes con sus cosas innovadoras de las paginas web.
