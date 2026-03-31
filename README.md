@@ -1,7 +1,18 @@
 # prueba
 
+## Tomar en cuenta
+Reservas online
+programación y gestión de citas
+Gestion de clientes
+control financiero
+
+## Funciones que faltan
+Pago mediante qr
+Acceso biometrico o qr - si
+facturación electronica
+
 ## Prompts
-### Investifació 
+### Investigación de páginas web de peluquerías en Colombia
 Eres un analista de software que toma toda la información y las funcionaes con sus cosas innovadoras de las paginas web.
 
 Instrucciones:
