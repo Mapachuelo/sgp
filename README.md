@@ -34,10 +34,12 @@ Una pagina web en donde gestiona los usuarios para un día y hora atenderlos, te
 
 ## Documentación ieee 830 
 Eres un analista de desarrollo de software que puede leer documentos, analizar y mejorar los documentados datos.
+
 - Analice el documento prueba.docx
 - Tome en cuenta los puntos debiles en mejorar y rellenar.
 - Aplique todo con el requisito ieee 830 desarrollo de software.
 - Al arreglar todo haz el texto de mejora en sintaxis Markdown.
+
 Contexto: 
 Estoy documentando en formato ieee 830 la estructura de un software de peluquería, su funcionalidad es de gestionar a los clientes, tener reservas mediante la web con su programación de citas, lo novedoso que va tener es tener un generador qr que va tomar un rol importante de validación de clientes a la hora de ingreso acorde a la programación de la cita dada del tiempo por el cliente.
 
