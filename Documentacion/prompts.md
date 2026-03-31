@@ -1,4 +1,4 @@
-### Investigación de páginas web de peluquerías en Colombia
+## Investigación de páginas web de peluquerías en Colombia
 Eres un analista de software que toma toda la información y las funcionaes con sus cosas innovadoras de las paginas web.
 
 Instrucciones:
