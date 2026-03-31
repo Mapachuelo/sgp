@@ -159,5 +159,5 @@ El SGP es un **producto independiente** que se integrará con los sistemas exter
 | **RF1** | Registro de Cliente | F1 | Gestión de Clientes | ✅ Vinculado |
 | **RF2** | Reserva de Cita | F2 | Reservas Online | ✅ Vinculado |
 | **RF3** | Validación en Entrada | F3 | Validación en Entrada | ✅ Vinculado |
-| **RF4*** | Registro de Cobro Efectivo | F4* | Cobro Manual en Local | ✅ Vinculado |
+| **RF4** | Registro de Cobro Efectivo | F4* | Cobro Manual en Local | ✅ Vinculado |
 | **RF5** | Generación de Reportes | F5 | Reportes Administrativos | ✅ Vinculado |
