@@ -269,7 +269,7 @@
           <mxGeometry height="30" width="30" x="250" y="485" as="geometry" />
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-170" parent="wtixjdmUu8wrwln7y3G4-23" style="swimlane;whiteSpace=wrap;html=1;" value="Ingreso de reserva" vertex="1">
-          <mxGeometry height="810" width="460" x="950" y="820" as="geometry" />
+          <mxGeometry height="810" width="460" x="960" y="820" as="geometry" />
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-171" parent="wtixjdmUu8wrwln7y3G4-170" style="ellipse;html=1;shape=startState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
           <mxGeometry height="30" width="30" x="100" y="60" as="geometry" />
@@ -279,17 +279,17 @@
             <mxPoint x="115" y="150" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="wtixjdmUu8wrwln7y3G4-175" edge="1" parent="wtixjdmUu8wrwln7y3G4-170" source="wtixjdmUu8wrwln7y3G4-173" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wtixjdmUu8wrwln7y3G4-174">
+        <mxCell id="wtixjdmUu8wrwln7y3G4-376" edge="1" parent="wtixjdmUu8wrwln7y3G4-170" source="wtixjdmUu8wrwln7y3G4-173" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wtixjdmUu8wrwln7y3G4-174">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-173" parent="wtixjdmUu8wrwln7y3G4-170" style="rounded=1;whiteSpace=wrap;html=1;" value="Reservar" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="140" as="geometry" />
         </mxCell>
-        <mxCell id="wtixjdmUu8wrwln7y3G4-177" edge="1" parent="wtixjdmUu8wrwln7y3G4-170" source="wtixjdmUu8wrwln7y3G4-174" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wtixjdmUu8wrwln7y3G4-176">
+        <mxCell id="wtixjdmUu8wrwln7y3G4-377" edge="1" parent="wtixjdmUu8wrwln7y3G4-170" source="wtixjdmUu8wrwln7y3G4-174" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="wtixjdmUu8wrwln7y3G4-374">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-174" parent="wtixjdmUu8wrwln7y3G4-170" style="rounded=1;whiteSpace=wrap;html=1;" value="Mes, Semana, Día y hora" vertex="1">
-          <mxGeometry height="60" width="120" x="55" y="250" as="geometry" />
+          <mxGeometry height="60" width="120" x="55" y="240" as="geometry" />
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-179" edge="1" parent="wtixjdmUu8wrwln7y3G4-170" source="wtixjdmUu8wrwln7y3G4-176" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="wtixjdmUu8wrwln7y3G4-178">
           <mxGeometry relative="1" as="geometry" />
@@ -336,6 +336,16 @@
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-189" parent="wtixjdmUu8wrwln7y3G4-170" style="rounded=1;whiteSpace=wrap;html=1;" value="Codigo qr" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="wtixjdmUu8wrwln7y3G4-378" edge="1" parent="wtixjdmUu8wrwln7y3G4-170" source="wtixjdmUu8wrwln7y3G4-374" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="wtixjdmUu8wrwln7y3G4-176">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="280" y="390" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wtixjdmUu8wrwln7y3G4-374" parent="wtixjdmUu8wrwln7y3G4-170" style="rounded=1;whiteSpace=wrap;html=1;" value="Elegir peluquero" vertex="1">
+          <mxGeometry height="60" width="120" x="220" y="240" as="geometry" />
         </mxCell>
         <mxCell id="wtixjdmUu8wrwln7y3G4-283" parent="1" style="swimlane;whiteSpace=wrap;html=1;" value="Empl,eado" vertex="1">
           <mxGeometry height="1680" width="1840" x="321" y="60" as="geometry" />
