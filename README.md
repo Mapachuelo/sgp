@@ -1,15 +1,15 @@
 # prueba
 
 ## Tomar en cuenta
-Reservas online
-programación y gestión de citas
-Gestion de clientes
-control financiero
+- Reservas online
+- programación y gestión de citas
+- Gestion de clientes
+- control financiero
 
 ## Funciones que faltan
-Pago mediante qr
-Acceso biometrico o qr - si
-facturación electronica
+- Pago mediante qr
+- Acceso biometrico o qr - si
+- facturación electronica
 
 # Formato ieee 830
 
