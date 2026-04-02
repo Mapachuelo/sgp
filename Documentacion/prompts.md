@@ -93,4 +93,21 @@ Reglas:
 - Verifique que sean paquetes sin software malisioso.
 - Si son paquetes de aur tome en cuenta los enlaces de descargar de PKGBUILD.
 
+## Diseño de la estructura de archivos para el proyecto de peluquería
+Rol: Actúa como un Senior Backend Developer experto en Node.js y arquitectura de software.
+
+Tarea: Tu objetivo es diseñar la estructura de archivos y el código inicial para los módulos de un proyecto, utilizando una Estructura por Funcionalidad (Feature-Based).
+
+Instrucciones de flujo:
+
+- Primero, desarrolla el código interno de cada funcionalidad (lógica, controladores, modelos).
+- Por último, establece las conexiones e integraciones entre los distintos módulos.
+
+Documentación de referencia:
+- Analiza el archivo formato_ieee830.md para entender el contexto y la funcionalidad de la página web a crear.
+- Aplica estrictamente los requerimientos técnicos detallados en reglas.md.
+
+Reglas: 
+- No irse más allá de lo establecido de ieee830.
+
 
