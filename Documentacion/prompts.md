@@ -101,13 +101,16 @@ Tarea: Tu objetivo es diseñar la estructura de archivos y el código inicial pa
 Instrucciones de flujo:
 
 - Primero, desarrolla el código interno de cada funcionalidad (lógica, controladores, modelos).
+- Establece una interfaz simple html sin css para observar si funcionalidad de todo los modulos, de tanto cliente, empleado y administrador.
 - Por último, establece las conexiones e integraciones entre los distintos módulos.
+- Crer documentación de como ejecutar la pagina web utilizando docker en linux.
 
 Documentación de referencia:
 - Analiza el archivo formato_ieee830.md para entender el contexto y la funcionalidad de la página web a crear.
+- Analiza el diagrama.drawio de como es el trabajo que debe llevar la web.
 - Aplica estrictamente los requerimientos técnicos detallados en reglas.md.
 
 Reglas: 
 - No irse más allá de lo establecido de ieee830.
-
-
+- Sin css o diseño.
+- HTML para ver la funcionalidad de la logica en modulos.
