@@ -130,5 +130,5 @@ npm run dev
 
 ## Referencia funcional
 
-- Documento IEEE830: Documentacion/formato_ieee830.md
-- Diagrama de flujo: Documentacion/diagrama.drawio
+- [Documento IEEE830](Documentacion/formato_ieee830.md)
+- [Diagrama de flujo:](Documentacion/diagrama.drawio)
