@@ -1,0 +1,7 @@
+- Tecnologías a usar: Nodejs, postgresql, docker.
+- Requisitos:
+  - El proyecto debe ser desarrollado utilizando Nodejs.
+  - La base de datos debe ser postgresql.
+  - El proyecto debe ser dockerizado para facilitar su despliegue y ejecución.
+  - siempre utilizar javascript, no usar typescript.
+  - El proyecto debe ser desarrollado siguiendo las mejores prácticas de desarrollo de software, incluyendo la modularidad, la reutilización de código y la documentación adecuada.
