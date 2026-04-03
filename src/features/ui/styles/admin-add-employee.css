@@ -1,0 +1,235 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap");
+
+:root {
+  --ink-900: #2f1b17;
+  --ink-700: #4b2f28;
+  --brand-900: #422822;
+  --brand-700: #694238;
+  --accent: #d97f6a;
+  --accent-strong: #b95f49;
+  --line: #d8b6a5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Outfit", sans-serif;
+  color: var(--ink-900);
+  background:
+    radial-gradient(circle at 9% 8%, #f9d7c7 0%, rgba(249, 215, 199, 0) 45%),
+    radial-gradient(circle at 90% 6%, #f5d0c1 0%, rgba(245, 208, 193, 0) 45%),
+    linear-gradient(145deg, #fffefc 0%, #f8ece5 65%, #f1ddd2 100%);
+  min-height: 100vh;
+}
+
+.admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 3vw, 2.6rem);
+  background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);
+}
+
+.admin-brand {
+  text-decoration: none;
+  color: #fff;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  font-weight: 800;
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.admin-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.62rem 0.95rem;
+  text-decoration: none;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.admin-btn.ghost {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(66, 40, 34, 0.24);
+  color: var(--ink-900);
+}
+
+.admin-btn.solid {
+  background: var(--accent);
+  color: #27120e;
+}
+
+.admin-btn.solid:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.admin-layout {
+  width: min(1480px, 95vw);
+  margin: 1.2rem auto;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(320px, 0.52fr) minmax(640px, 1fr);
+}
+
+.admin-panel {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(66, 40, 34, 0.2);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 14px 40px rgba(66, 40, 34, 0.08);
+}
+
+.form-panel h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+}
+
+.helper {
+  margin: 0.4rem 0 0.8rem;
+  color: var(--ink-700);
+}
+
+label {
+  display: block;
+  margin-top: 0.66rem;
+  margin-bottom: 0.32rem;
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.62rem;
+  font-family: "Outfit", sans-serif;
+}
+
+.block {
+  width: 100%;
+  margin-top: 0.8rem;
+}
+
+.list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.list-head h2 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.2vw, 2rem);
+}
+
+.table-shell {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(66, 40, 34, 0.2);
+  border-radius: 12px;
+  overflow: auto;
+  background: #fff;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 820px;
+}
+
+th,
+td {
+  border: 1px solid rgba(66, 40, 34, 0.16);
+  padding: 0.45rem;
+  text-align: left;
+}
+
+th {
+  background: #f4e5dd;
+}
+
+td {
+  font-size: 0.86rem;
+}
+
+.temp-password {
+  margin: 0.8rem 0 0;
+  border: 1px dashed #dd9f8d;
+  border-radius: 10px;
+  background: #fff4ef;
+  color: #6b2b1f;
+  font-family: "JetBrains Mono", monospace;
+  padding: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.feedback {
+  margin: 0.9rem 0 0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0.6rem;
+  font-weight: 700;
+}
+
+.feedback.ok {
+  color: #0d4024;
+  background: #e6f5eb;
+  border-color: #9fd7b2;
+}
+
+.feedback.warn {
+  color: #651b14;
+  background: #fee9e5;
+  border-color: #f1b4a8;
+}
+
+.feedback.info {
+  color: #143d69;
+  background: #e6f1fb;
+  border-color: #abcaf0;
+}
+
+.output-panel {
+  width: min(1480px, 95vw);
+  margin: 0 auto 1.3rem;
+}
+
+pre {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #211411;
+  color: #ffe8dd;
+  padding: 0.9rem;
+  overflow: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 1140px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-topbar {
+    flex-wrap: wrap;
+  }
+}

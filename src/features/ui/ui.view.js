@@ -20,6 +20,22 @@ ${script}
 </html>`;
 }
 
+function clientDocument(title, stylesheetPath, body, scriptPath) {
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <link rel="stylesheet" href="${stylesheetPath}" />
+  </head>
+  <body>
+    ${body}
+    <script src="${scriptPath}"></script>
+  </body>
+</html>`;
+}
+
 function commonScript(roleKey) {
   return `
 const TOKEN_KEY = "${roleKey}_token";
@@ -77,191 +93,473 @@ function homeView() {
 
 function clientView() {
   const body = `
-<section>
-  <h2>Registro cliente</h2>
-  <input id="c_name" placeholder="Nombre" />
-  <input id="c_email" placeholder="Email" />
-  <input id="c_phone" placeholder="Telefono" />
-  <input id="c_password" placeholder="Password" type="password" />
-  <button id="registerBtn">Registrar</button>
-</section>
-<section>
-  <h2>Login cliente</h2>
-  <input id="l_email" placeholder="Email" />
-  <input id="l_password" placeholder="Password" type="password" />
-  <button id="loginBtn">Login</button>
-  <button id="meBtn">Ver mi perfil</button>
-</section>
-<section>
-  <h2>Actualizar perfil</h2>
-  <input id="u_name" placeholder="Nuevo nombre" />
-  <input id="u_phone" placeholder="Nuevo telefono" />
-  <button id="updateProfileBtn">Actualizar perfil</button>
-  <button id="deleteProfileBtn">Eliminar perfil</button>
-</section>
-<section>
-  <h2>Reservar cita</h2>
-  <input id="r_service" placeholder="Servicio" />
-  <input id="r_stylist" placeholder="Peluquero" />
-  <input id="r_startsAt" placeholder="2026-12-30T14:00:00Z" />
-  <input id="r_count" placeholder="Cantidad clientes" value="1" />
-  <button id="reserveBtn">Crear reserva</button>
-  <button id="myReservationsBtn">Mis reservas</button>
-</section>
-<section>
-  <h2>Disponibilidad</h2>
-  <input id="a_date" placeholder="YYYY-MM-DD" />
-  <button id="availabilityBtn">Ver cupos ocupados</button>
-</section>
-<section>
-  <h2>Tiempo real</h2>
-  <button id="wsBtn">Conectar websocket</button>
+<header class="topbar">
+  <a class="brand" href="/ui/client">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
+    <button id="navLoginBtn" class="btn accent" type="button">Login</button>
+    <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="dashboard-wrap">
+  <section class="hero panel">
+    <p class="eyebrow">Gestion para clientes</p>
+    <h1>Reserva tu cita en menos pasos</h1>
+    <p>
+      Este dashboard sigue el flujo del diagrama: ingresar al sitio, validar acceso,
+      revisar cupos del calendario y avanzar a reserva.
+    </p>
+    <div class="hero-actions">
+      <a class="btn accent" href="/ui/client/calendar">Ver calendario</a>
+      <button id="loadProfileBtn" class="btn ghost" type="button">Validar sesion</button>
+    </div>
+    <p id="authBadge" class="badge">Sesion no iniciada</p>
+  </section>
+
+  <section id="loginSection" class="auth-grid">
+    <article id="registerCard" class="panel">
+      <h2>Registro cliente</h2>
+      <label>Nombre</label>
+      <input id="registerName" type="text" placeholder="Nombre completo" />
+      <label>Email</label>
+      <input id="registerEmail" type="email" placeholder="nombre@email.com" />
+      <label>Telefono</label>
+      <input id="registerPhone" type="text" placeholder="+56 9 1234 5678" />
+      <label>Password</label>
+      <input id="registerPassword" type="password" placeholder="Minimo 6 caracteres" />
+      <button id="registerBtn" class="btn accent block" type="button">Crear cuenta</button>
+    </article>
+
+    <article class="panel">
+      <h2>Login cliente</h2>
+      <label>Email</label>
+      <input id="loginEmail" type="email" placeholder="nombre@email.com" />
+      <label>Password</label>
+      <input id="loginPassword" type="password" placeholder="Tu password" />
+      <button id="loginBtn" class="btn accent block" type="button">Iniciar sesion</button>
+      <button id="goCalendarBtn" class="btn ghost block" type="button">Ir al calendario</button>
+    </article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Cupos de referencia</h2>
+      <div class="inline-actions">
+        <input id="availabilityDate" type="date" />
+        <button id="availabilityBtn" class="btn ghost" type="button">Actualizar</button>
+      </div>
+    </div>
+    <ul id="availabilityList" class="availability-list"></ul>
+  </section>
+
+  <section class="panel feedback-panel">
+    <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
+    <pre id="apiOutput"></pre>
+  </section>
+</main>
+`;
+
+  return clientDocument(
+    "SGP - Dashboard Cliente",
+    "/ui-assets/styles/client-dashboard.css",
+    body,
+    "/ui-assets/scripts/client-dashboard.js"
+  );
+}
+
+function clientCalendarView() {
+  const body = `
+<header class="topbar">
+  <a class="brand" href="/ui/client">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/client">Dashboard</a>
+    <button id="navLoginBtn" class="btn accent" type="button">Login</button>
+    <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="calendar-layout">
+  <section class="calendar-main panel">
+    <div class="calendar-title-wrap">
+      <h1>Calendario de disponibilidad</h1>
+      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
+    </div>
+
+    <div class="calendar-toolbar">
+      <label for="weekStart">Inicio del rango</label>
+      <input id="weekStart" type="date" />
+      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+    </div>
+
+    <div class="legend-row">
+      <span class="legend available">Disponible</span>
+      <span class="legend reserved">Reservado</span>
+    </div>
+
+    <div class="calendar-shell">
+      <table>
+        <thead id="calendarHead"></thead>
+        <tbody id="calendarBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="booking-panel panel">
+    <h2>Ingreso de reserva</h2>
+    <p id="selectedSlotText" class="selected-slot">Selecciona un horario disponible.</p>
+
+    <label>Servicio</label>
+    <input id="serviceName" type="text" placeholder="Corte, Barba, Color" />
+
+    <label>Peluquero</label>
+    <select id="stylistName">
+      <option value="">Selecciona un peluquero</option>
+      <option value="Paola">Paola</option>
+      <option value="Sergio">Sergio</option>
+      <option value="Camila">Camila</option>
+      <option value="Max">Max</option>
+    </select>
+
+    <label>Cantidad de clientes</label>
+    <input id="clientCount" type="number" min="1" value="1" />
+
+    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="myReservationsBtn" class="btn ghost block" type="button">Mis reservas</button>
+    <a id="goLoginLink" class="inline-link hidden" href="/ui/client#loginSection">Ir a login</a>
+
+    <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
+    <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
+
+    <h3>Mis ultimas reservas</h3>
+    <ul id="myReservationsList" class="reservations-list"></ul>
+  </aside>
+</main>
+
+<section class="panel api-output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
 </section>
 `;
 
-  const script = `${commonScript("client")}
-byId("registerBtn").onclick = () => callApi("/api/auth/register", "POST", {
-  name: byId("c_name").value,
-  email: byId("c_email").value,
-  phone: byId("c_phone").value,
-  password: byId("c_password").value
-});
-
-byId("loginBtn").onclick = async () => {
-  const result = await callApi("/api/auth/login", "POST", {
-    email: byId("l_email").value,
-    password: byId("l_password").value
-  });
-  if (result.ok) {
-    setToken(result.data.token);
-  }
-};
-
-byId("meBtn").onclick = () => callApi("/api/auth/me", "GET");
-
-byId("updateProfileBtn").onclick = () => callApi("/api/clients/me", "PUT", {
-  name: byId("u_name").value,
-  phone: byId("u_phone").value
-});
-
-byId("deleteProfileBtn").onclick = () => callApi("/api/clients/me", "DELETE");
-
-byId("reserveBtn").onclick = () => callApi("/api/reservations", "POST", {
-  serviceName: byId("r_service").value,
-  stylistName: byId("r_stylist").value,
-  startsAt: byId("r_startsAt").value,
-  clientCount: Number(byId("r_count").value || 1)
-});
-
-byId("myReservationsBtn").onclick = () => callApi("/api/reservations/me", "GET");
-
-byId("availabilityBtn").onclick = () => callApi("/api/reservations/availability?date=" + encodeURIComponent(byId("a_date").value), "GET");
-
-byId("wsBtn").onclick = () => {
-  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(protocol + "//" + location.host + "/ws");
-  ws.onmessage = (event) => {
-    try {
-      setOutput(JSON.parse(event.data));
-    } catch (_error) {
-      setOutput(event.data);
-    }
-  };
-};`;
-
-  return baseDocument("SGP - Cliente", body, script);
+  return clientDocument(
+    "SGP - Calendario Cliente",
+    "/ui-assets/styles/client-calendar.css",
+    body,
+    "/ui-assets/scripts/client-calendar.js"
+  );
 }
 
 function employeeView() {
   const body = `
-<section>
-  <h2>Login empleado</h2>
-  <input id="e_email" placeholder="Email" />
-  <input id="e_password" placeholder="Password" type="password" />
-  <button id="e_loginBtn">Login</button>
-</section>
-<section>
-  <h2>Operaciones</h2>
-  <button id="clientsBtn">Listar clientes</button>
-  <button id="reservationsBtn">Listar reservas</button>
-</section>
-<section>
-  <h2>Validar QR</h2>
-  <input id="qr_token" placeholder="QR token" />
-  <button id="validateQrBtn">Validar ingreso</button>
-</section>
-<section>
-  <h2>Cobro manual</h2>
-  <input id="p_reservation" placeholder="Reservation ID" />
-  <input id="p_amount" placeholder="Monto" />
-  <button id="manualPayBtn">Registrar cobro efectivo</button>
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
+    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="emp-dashboard-wrap">
+  <section class="emp-panel hero">
+    <p class="eyebrow">Sitio web empleado</p>
+    <h1>Panel de control de empleados</h1>
+    <p>Gestiona reservas, revisa calendario de clientes y valida ingresos con QR.</p>
+    <div class="hero-actions">
+      <a class="emp-btn solid" href="/ui/employee/calendar">Abrir calendario</a>
+      <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar clientes</a>
+    </div>
+    <p id="sessionBadge" class="badge">Sesion no iniciada</p>
+  </section>
+
+  <section id="loginCard" class="emp-panel login-card">
+    <h2>Ingreso de empleado</h2>
+    <label>Email</label>
+    <input id="loginEmail" type="email" placeholder="empleado@email.com" />
+    <label>Password</label>
+    <input id="loginPassword" type="password" placeholder="Tu password" />
+    <button id="loginBtn" class="emp-btn solid block" type="button">Iniciar sesion</button>
+    <p class="help-text">Solo cuentas con rol empleado pueden acceder a las secciones.</p>
+  </section>
+
+  <section class="emp-panel stats-grid">
+    <article>
+      <h3>Reservas activas</h3>
+      <p id="activeReservationsCount">-</p>
+    </article>
+    <article>
+      <h3>Clientes registrados</h3>
+      <p id="clientsCount">-</p>
+    </article>
+    <article>
+      <h3>Check-in hoy</h3>
+      <p id="todayCheckinCount">-</p>
+    </article>
+  </section>
+
+  <section class="emp-panel feedback-wrap">
+    <p id="dashboardFeedback" class="feedback info">Conecta tu sesion para sincronizar datos.</p>
+    <pre id="apiOutput"></pre>
+  </section>
+</main>
+`;
+
+  return clientDocument(
+    "SGP - Empleado Dashboard",
+    "/ui-assets/styles/employee-dashboard.css",
+    body,
+    "/ui-assets/scripts/employee-dashboard.js"
+  );
+}
+
+function employeeCalendarView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="emp-calendar-layout">
+  <section class="emp-panel calendar-panel">
+    <div class="panel-head">
+      <h1>Calendario de clientes</h1>
+      <div class="inline-controls">
+        <label for="weekStart">Inicio</label>
+        <input id="weekStart" type="date" />
+        <button id="refreshCalendarBtn" class="emp-btn ghost" type="button">Actualizar</button>
+      </div>
+    </div>
+    <p class="helper">Vista por semana de citas reservadas para el equipo.</p>
+    <div class="calendar-shell">
+      <table>
+        <thead id="calendarHead"></thead>
+        <tbody id="calendarBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="emp-panel side-panel">
+    <h2>Citas del dia</h2>
+    <input id="dayFilter" type="date" />
+    <ul id="dayReservationsList" class="day-list"></ul>
+    <p id="calendarFeedback" class="feedback info">Inicia sesion para consultar reservas.</p>
+  </aside>
+</main>
+
+<section class="emp-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
 </section>
 `;
 
-  const script = `${commonScript("employee")}
-byId("e_loginBtn").onclick = async () => {
-  const result = await callApi("/api/auth/login", "POST", {
-    email: byId("e_email").value,
-    password: byId("e_password").value
-  });
-  if (result.ok) {
-    setToken(result.data.token);
-  }
-};
+  return clientDocument(
+    "SGP - Empleado Calendario",
+    "/ui-assets/styles/employee-calendar.css",
+    body,
+    "/ui-assets/scripts/employee-calendar.js"
+  );
+}
 
-byId("clientsBtn").onclick = () => callApi("/api/clients", "GET");
-byId("reservationsBtn").onclick = () => callApi("/api/reservations", "GET");
+function employeeVerifyClientsView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
+    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
 
-byId("validateQrBtn").onclick = () => callApi("/api/checkin/validate", "POST", {
-  qrToken: byId("qr_token").value
-});
+<main class="verify-layout">
+  <section class="emp-panel verify-main">
+    <div class="panel-head">
+      <h1>Verificar clientes</h1>
+      <div class="inline-controls">
+        <label for="weekStart">Semana</label>
+        <input id="weekStart" type="date" />
+        <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
+      </div>
+    </div>
+    <p class="helper">Horario de 06:00 a 22:00 en bloques de 30 minutos.</p>
+    <div class="calendar-shell">
+      <table>
+        <thead id="verifyHead"></thead>
+        <tbody id="verifyBody"></tbody>
+      </table>
+    </div>
+  </section>
 
-byId("manualPayBtn").onclick = () => callApi("/api/payments/manual", "POST", {
-  reservationId: Number(byId("p_reservation").value),
-  amount: Number(byId("p_amount").value)
-});`;
+  <aside class="emp-panel config-panel">
+    <h2>Configuracion laboral</h2>
+    <p>Define dias no laborales y rango de trabajo por dia.</p>
+    <div id="workConfigList" class="config-list"></div>
+    <button id="saveConfigBtn" class="emp-btn solid block" type="button">Guardar configuracion</button>
+    <button id="resetConfigBtn" class="emp-btn ghost block" type="button">Restablecer</button>
+    <p id="verifyFeedback" class="feedback info">La configuracion se guarda localmente en el navegador.</p>
+  </aside>
+</main>
 
-  return baseDocument("SGP - Empleado", body, script);
+<section class="emp-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
+</section>
+`;
+
+  return clientDocument(
+    "SGP - Verificar Clientes",
+    "/ui-assets/styles/employee-verify-clients.css",
+    body,
+    "/ui-assets/scripts/employee-verify-clients.js"
+  );
+}
+
+function employeeValidateQrView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
+    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="qr-layout">
+  <section class="emp-panel scanner-panel">
+    <h1>Validacion QR</h1>
+    <p class="helper">Solo empleado autenticado puede validar el ingreso.</p>
+    <div class="camera-box">
+      <video id="cameraPreview" autoplay playsinline muted></video>
+    </div>
+    <div class="scan-actions">
+      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
+      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
+    </div>
+  </section>
+
+  <aside class="emp-panel side-panel">
+    <h2>Validacion manual</h2>
+    <label>Token QR</label>
+    <input id="qrTokenInput" type="text" placeholder="Pega o escanea el token" />
+    <button id="validateBtn" class="emp-btn solid block" type="button">Validar ingreso</button>
+    <p id="qrFeedback" class="feedback info">Esperando lectura de QR.</p>
+    <h3>Ultima validacion</h3>
+    <div id="lastValidationCard" class="last-validation">Sin validaciones recientes.</div>
+  </aside>
+</main>
+
+<section class="emp-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
+</section>
+`;
+
+  return clientDocument(
+    "SGP - Validacion QR",
+    "/ui-assets/styles/employee-validate-qr.css",
+    body,
+    "/ui-assets/scripts/employee-validate-qr.js"
+  );
 }
 
 function adminView() {
   const body = `
-<section>
-  <h2>Login administrador</h2>
-  <input id="a_email" placeholder="Email" />
-  <input id="a_password" placeholder="Password" type="password" />
-  <button id="a_loginBtn">Login</button>
-</section>
-<section>
-  <h2>Reportes administrativos</h2>
-  <input id="r_date" placeholder="YYYY-MM-DD" />
-  <button id="salesBtn">Ventas del dia</button>
-  <button id="occupancyBtn">Ocupacion del dia</button>
-  <button id="recurrentBtn">Clientes recurrentes</button>
+<header class="admin-topbar">
+  <a class="admin-brand" href="/ui/admin">Prueba</a>
+  <nav class="admin-nav">
+    <a class="admin-btn ghost" href="/ui/admin">Ingreso empleado</a>
+    <a class="admin-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
+    <a class="admin-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
+    <a class="admin-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="admin-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="admin-layout">
+  <section class="admin-panel form-panel">
+    <h1>Ingreso empleado</h1>
+    <p class="helper">Solo administradores pueden crear empleados.</p>
+
+    <div id="loginCard" class="login-card">
+      <h2>Login administrador</h2>
+      <label>Email</label>
+      <input id="adminEmail" type="email" placeholder="admin@sgp.local" />
+      <label>Password</label>
+      <input id="adminPassword" type="password" placeholder="Tu password" />
+      <button id="loginBtn" class="admin-btn solid block" type="button">Iniciar sesion</button>
+    </div>
+
+    <form id="employeeForm" class="hidden">
+      <label>Nombre</label>
+      <input id="firstName" type="text" placeholder="Nombre" />
+      <label>Apellido</label>
+      <input id="lastName" type="text" placeholder="Apellido" />
+      <label>Numero</label>
+      <input id="phone" type="text" placeholder="Numero de telefono" />
+      <label>Identificacion</label>
+      <input id="identification" type="text" placeholder="ID empleado" />
+      <label>Correo</label>
+      <input id="email" type="email" placeholder="correo@dominio.com" />
+      <button id="createEmployeeBtn" class="admin-btn solid block" type="submit">Agregar empleado</button>
+    </form>
+
+    <p id="adminFeedback" class="feedback info">Inicia sesion para administrar empleados.</p>
+  </section>
+
+  <section class="admin-panel list-panel">
+    <div class="list-head">
+      <h2>Lista empleado</h2>
+      <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
+    </div>
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Numero</th>
+            <th>Identificacion</th>
+            <th>Correo</th>
+          </tr>
+        </thead>
+        <tbody id="employeesTableBody"></tbody>
+      </table>
+    </div>
+    <p id="tempPasswordHint" class="temp-password hidden"></p>
+  </section>
+</main>
+
+<section class="admin-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
 </section>
 `;
 
-  const script = `${commonScript("admin")}
-byId("a_loginBtn").onclick = async () => {
-  const result = await callApi("/api/auth/login", "POST", {
-    email: byId("a_email").value,
-    password: byId("a_password").value
-  });
-  if (result.ok) {
-    setToken(result.data.token);
-  }
-};
-
-byId("salesBtn").onclick = () => callApi("/api/reports/daily-sales?date=" + encodeURIComponent(byId("r_date").value), "GET");
-byId("occupancyBtn").onclick = () => callApi("/api/reports/occupancy?date=" + encodeURIComponent(byId("r_date").value), "GET");
-byId("recurrentBtn").onclick = () => callApi("/api/reports/recurrent-clients?limit=20", "GET");`;
-
-  return baseDocument("SGP - Administrador", body, script);
+  return clientDocument(
+    "SGP - Administrador Empleados",
+    "/ui-assets/styles/admin-add-employee.css",
+    body,
+    "/ui-assets/scripts/admin-add-employee.js"
+  );
 }
 
 module.exports = {
   homeView,
   clientView,
+  clientCalendarView,
   employeeView,
+  employeeCalendarView,
+  employeeVerifyClientsView,
+  employeeValidateQrView,
   adminView
 };

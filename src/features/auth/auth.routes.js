@@ -1,9 +1,14 @@
 const express = require("express");
-const { requireAuth } = require("../../shared/middlewares/auth.middleware");
+const {
+  requireAuth,
+  requireRole
+} = require("../../shared/middlewares/auth.middleware");
 const {
   registerController,
   loginController,
-  meController
+  meController,
+  createEmployeeByAdminController,
+  listEmployeesByAdminController
 } = require("./auth.controller");
 
 const router = express.Router();
@@ -11,5 +16,7 @@ const router = express.Router();
 router.post("/register", registerController);
 router.post("/login", loginController);
 router.get("/me", requireAuth, meController);
+router.get("/employees", requireAuth, requireRole("admin"), listEmployeesByAdminController);
+router.post("/employees", requireAuth, requireRole("admin"), createEmployeeByAdminController);
 
 module.exports = { authRouter: router };

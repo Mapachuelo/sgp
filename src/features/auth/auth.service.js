@@ -1,8 +1,17 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const { env } = require("../../config/env");
 const { HttpError } = require("../../shared/httpError");
-const { createUser, findUserByEmail, findUserById } = require("./auth.model");
+const {
+  createUser,
+  findUserByEmail,
+  findUserByPhone,
+  findUserById,
+  findEmployeeByIdentification,
+  listEmployees,
+  createEmployeeWithProfile
+} = require("./auth.model");
 
 const PUBLIC_REGISTRATION_ROLE = "client";
 
@@ -88,8 +97,66 @@ async function getMe(userId) {
   return user;
 }
 
+function normalizeText(input) {
+  return (input || "").trim();
+}
+
+function generateTemporaryPassword() {
+  return "Emp#" + crypto.randomBytes(4).toString("hex");
+}
+
+async function createEmployeeByAdmin(input) {
+  const firstName = normalizeText(input.firstName);
+  const lastName = normalizeText(input.lastName);
+  const phone = normalizeText(input.phone);
+  const identification = normalizeText(input.identification);
+  const email = normalizeText(input.email).toLowerCase();
+
+  if (!firstName || !lastName || !phone || !identification || !email) {
+    throw new HttpError(400, "firstName, lastName, phone, identification y email son obligatorios");
+  }
+
+  const emailTaken = await findUserByEmail(email);
+  if (emailTaken) {
+    throw new HttpError(409, "El correo ya existe");
+  }
+
+  const phoneTaken = await findUserByPhone(phone);
+  if (phoneTaken) {
+    throw new HttpError(409, "El numero de telefono ya existe");
+  }
+
+  const identificationTaken = await findEmployeeByIdentification(identification);
+  if (identificationTaken) {
+    throw new HttpError(409, "La identificacion ya existe");
+  }
+
+  const temporaryPassword = generateTemporaryPassword();
+  const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+
+  const employee = await createEmployeeWithProfile({
+    firstName,
+    lastName,
+    phone,
+    identification,
+    email,
+    passwordHash
+  });
+
+  return {
+    employee,
+    temporaryPassword
+  };
+}
+
+async function getEmployeesByAdmin() {
+  return listEmployees();
+}
+
 module.exports = {
   register,
   login,
-  getMe
+  getMe,
+  createEmployeeByAdmin,
+  getEmployeesByAdmin
 };

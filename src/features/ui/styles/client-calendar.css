@@ -1,0 +1,321 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap");
+
+:root {
+  --ink-900: #2f1b17;
+  --ink-700: #4b2f28;
+  --paper: #fff8f3;
+  --brand-900: #422822;
+  --brand-700: #6d443a;
+  --accent: #d97f6a;
+  --accent-strong: #b65d47;
+  --line: #d8b6a5;
+  --available-bg: #f0fbf5;
+  --available-line: #85c7a1;
+  --reserved-bg: #fee9e4;
+  --reserved-line: #e59e90;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--ink-900);
+  font-family: "Outfit", sans-serif;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.84)),
+    repeating-linear-gradient(
+      -45deg,
+      #f3dfd5,
+      #f3dfd5 16px,
+      #f7e9e1 16px,
+      #f7e9e1 32px
+    );
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 3vw, 2.5rem);
+  background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);
+}
+
+.brand {
+  color: #fff;
+  text-decoration: none;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.62rem 0.92rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn.accent {
+  background: var(--accent);
+  color: #28120f;
+}
+
+.btn.accent:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.btn.ghost {
+  background: rgba(255, 255, 255, 0.93);
+  color: var(--ink-900);
+  border: 1px solid rgba(66, 40, 34, 0.24);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.panel {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(66, 40, 34, 0.2);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 14px 40px rgba(66, 40, 34, 0.08);
+}
+
+.calendar-layout {
+  width: min(1400px, 95vw);
+  margin: 1.2rem auto;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(640px, 1fr) minmax(280px, 350px);
+}
+
+.calendar-title-wrap h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.6vw, 2.2rem);
+}
+
+.calendar-title-wrap p {
+  margin: 0.3rem 0 0.8rem;
+  color: var(--ink-700);
+}
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.calendar-toolbar input,
+.booking-panel input,
+.booking-panel select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem;
+  font-family: "Outfit", sans-serif;
+  width: 100%;
+}
+
+.calendar-toolbar input {
+  width: 180px;
+}
+
+.legend-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.9rem 0;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.legend.available {
+  background: var(--available-bg);
+  border-color: var(--available-line);
+}
+
+.legend.reserved {
+  background: var(--reserved-bg);
+  border-color: var(--reserved-line);
+}
+
+.calendar-shell {
+  overflow: auto;
+  border: 1px solid rgba(66, 40, 34, 0.22);
+  border-radius: 12px;
+  background: #fff;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 980px;
+}
+
+th,
+td {
+  border: 1px solid rgba(66, 40, 34, 0.15);
+  text-align: center;
+  padding: 0.45rem;
+  white-space: nowrap;
+}
+
+th {
+  background: #f4e4db;
+  font-size: 0.9rem;
+}
+
+.slot-btn {
+  width: 100%;
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 0.42rem 0.35rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.slot-btn.available {
+  background: var(--available-bg);
+  border-color: var(--available-line);
+  color: #1f5b39;
+  cursor: pointer;
+}
+
+.slot-btn.available:hover {
+  background: #ddf5e8;
+}
+
+.slot-btn.reserved {
+  background: var(--reserved-bg);
+  border-color: var(--reserved-line);
+  color: #7f2d22;
+  cursor: not-allowed;
+}
+
+.booking-panel {
+  display: grid;
+  align-content: start;
+  gap: 0.52rem;
+}
+
+.booking-panel h2,
+.booking-panel h3 {
+  margin: 0;
+}
+
+.selected-slot {
+  margin: 0;
+  border-radius: 10px;
+  border: 1px dashed var(--line);
+  background: #fff;
+  padding: 0.6rem;
+  color: var(--ink-700);
+}
+
+.block {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.inline-link {
+  font-size: 0.9rem;
+  color: var(--brand-700);
+}
+
+.feedback {
+  margin: 0.4rem 0 0;
+  border-radius: 10px;
+  padding: 0.65rem;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.feedback.ok {
+  color: #0d4024;
+  background: #e6f5eb;
+  border-color: #9fd7b2;
+}
+
+.feedback.warn {
+  color: #651b14;
+  background: #fee9e5;
+  border-color: #f1b4a8;
+}
+
+.feedback.info {
+  color: #143d69;
+  background: #e6f1fb;
+  border-color: #abcaf0;
+}
+
+.qr-image {
+  width: 100%;
+  max-width: 180px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.5rem;
+  background: #fff;
+}
+
+.reservations-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.api-output-panel {
+  width: min(1400px, 95vw);
+  margin: 0 auto 1.2rem;
+}
+
+pre {
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #1e130f;
+  color: #ffe8dd;
+  padding: 0.9rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  overflow: auto;
+  font-family: "JetBrains Mono", monospace;
+}
+
+@media (max-width: 1100px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 740px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+}
