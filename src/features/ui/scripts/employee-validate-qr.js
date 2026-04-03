@@ -87,8 +87,8 @@
 
   async function ensureEmployeeSession() {
     const profile = await callApi("/api/auth/me", "GET");
-    if (!profile.data || profile.data.role !== "employee") {
-      throw new Error("Acceso restringido a empleados");
+    if (!profile.data || (profile.data.role !== "employee" && profile.data.role !== "admin")) {
+      throw new Error("Acceso restringido a empleados y administradores");
     }
     byId("logoutBtn").classList.remove("hidden");
   }

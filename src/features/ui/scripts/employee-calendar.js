@@ -67,8 +67,8 @@
     return payload;
   }
 
-  function isEmployee(user) {
-    return user && user.role === "employee";
+  function canUseEmployeeArea(user) {
+    return user && (user.role === "employee" || user.role === "admin");
   }
 
   function toDateKey(date) {
@@ -223,8 +223,8 @@
 
   async function ensureEmployeeSession() {
     const profile = await callApi("/api/auth/me", "GET");
-    if (!isEmployee(profile.data)) {
-      throw new Error("Acceso restringido a empleados");
+    if (!canUseEmployeeArea(profile.data)) {
+      throw new Error("Acceso restringido a empleados y administradores");
     }
   }
 

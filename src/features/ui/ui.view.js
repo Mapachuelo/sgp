@@ -474,37 +474,83 @@ function employeeValidateQrView() {
 
 function adminView() {
   const body = `
-<section>
-  <h2>Login administrador</h2>
-  <input id="a_email" placeholder="Email" />
-  <input id="a_password" placeholder="Password" type="password" />
-  <button id="a_loginBtn">Login</button>
-</section>
-<section>
-  <h2>Reportes administrativos</h2>
-  <input id="r_date" placeholder="YYYY-MM-DD" />
-  <button id="salesBtn">Ventas del dia</button>
-  <button id="occupancyBtn">Ocupacion del dia</button>
-  <button id="recurrentBtn">Clientes recurrentes</button>
+<header class="admin-topbar">
+  <a class="admin-brand" href="/ui/admin">Prueba</a>
+  <nav class="admin-nav">
+    <a class="admin-btn ghost" href="/ui/admin">Ingreso empleado</a>
+    <a class="admin-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
+    <a class="admin-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
+    <a class="admin-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="admin-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="admin-layout">
+  <section class="admin-panel form-panel">
+    <h1>Ingreso empleado</h1>
+    <p class="helper">Solo administradores pueden crear empleados.</p>
+
+    <div id="loginCard" class="login-card">
+      <h2>Login administrador</h2>
+      <label>Email</label>
+      <input id="adminEmail" type="email" placeholder="admin@sgp.local" />
+      <label>Password</label>
+      <input id="adminPassword" type="password" placeholder="Tu password" />
+      <button id="loginBtn" class="admin-btn solid block" type="button">Iniciar sesion</button>
+    </div>
+
+    <form id="employeeForm" class="hidden">
+      <label>Nombre</label>
+      <input id="firstName" type="text" placeholder="Nombre" />
+      <label>Apellido</label>
+      <input id="lastName" type="text" placeholder="Apellido" />
+      <label>Numero</label>
+      <input id="phone" type="text" placeholder="Numero de telefono" />
+      <label>Identificacion</label>
+      <input id="identification" type="text" placeholder="ID empleado" />
+      <label>Correo</label>
+      <input id="email" type="email" placeholder="correo@dominio.com" />
+      <button id="createEmployeeBtn" class="admin-btn solid block" type="submit">Agregar empleado</button>
+    </form>
+
+    <p id="adminFeedback" class="feedback info">Inicia sesion para administrar empleados.</p>
+  </section>
+
+  <section class="admin-panel list-panel">
+    <div class="list-head">
+      <h2>Lista empleado</h2>
+      <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
+    </div>
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Numero</th>
+            <th>Identificacion</th>
+            <th>Correo</th>
+          </tr>
+        </thead>
+        <tbody id="employeesTableBody"></tbody>
+      </table>
+    </div>
+    <p id="tempPasswordHint" class="temp-password hidden"></p>
+  </section>
+</main>
+
+<section class="admin-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
 </section>
 `;
 
-  const script = `${commonScript("admin")}
-byId("a_loginBtn").onclick = async () => {
-  const result = await callApi("/api/auth/login", "POST", {
-    email: byId("a_email").value,
-    password: byId("a_password").value
-  });
-  if (result.ok) {
-    setToken(result.data.token);
-  }
-};
-
-byId("salesBtn").onclick = () => callApi("/api/reports/daily-sales?date=" + encodeURIComponent(byId("r_date").value), "GET");
-byId("occupancyBtn").onclick = () => callApi("/api/reports/occupancy?date=" + encodeURIComponent(byId("r_date").value), "GET");
-byId("recurrentBtn").onclick = () => callApi("/api/reports/recurrent-clients?limit=20", "GET");`;
-
-  return baseDocument("SGP - Administrador", body, script);
+  return clientDocument(
+    "SGP - Administrador Empleados",
+    "/ui-assets/styles/admin-add-employee.css",
+    body,
+    "/ui-assets/scripts/admin-add-employee.js"
+  );
 }
 
 module.exports = {

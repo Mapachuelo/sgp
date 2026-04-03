@@ -1,5 +1,11 @@
 const { asyncHandler } = require("../../shared/asyncHandler");
-const { getMe, login, register } = require("./auth.service");
+const {
+  getMe,
+  login,
+  register,
+  createEmployeeByAdmin,
+  getEmployeesByAdmin
+} = require("./auth.service");
 
 const registerController = asyncHandler(async (req, res) => {
   const data = await register(req.body);
@@ -16,8 +22,20 @@ const meController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
+const createEmployeeByAdminController = asyncHandler(async (req, res) => {
+  const data = await createEmployeeByAdmin(req.body);
+  res.status(201).json({ ok: true, data });
+});
+
+const listEmployeesByAdminController = asyncHandler(async (_req, res) => {
+  const data = await getEmployeesByAdmin();
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   registerController,
   loginController,
-  meController
+  meController,
+  createEmployeeByAdminController,
+  listEmployeesByAdminController
 };

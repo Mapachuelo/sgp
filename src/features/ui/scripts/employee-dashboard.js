@@ -65,8 +65,8 @@
     return payload;
   }
 
-  function isEmployee(user) {
-    return user && user.role === "employee";
+  function canUseEmployeeArea(user) {
+    return user && (user.role === "employee" || user.role === "admin");
   }
 
   function formatDateKey(date) {
@@ -76,10 +76,10 @@
   async function loadStats() {
     try {
       const profilePayload = await callApi("/api/auth/me", "GET");
-      if (!isEmployee(profilePayload.data)) {
+      if (!canUseEmployeeArea(profilePayload.data)) {
         clearToken();
         setSessionUi(false);
-        setFeedback("Esta seccion es solo para empleados.", "warn");
+        setFeedback("Esta seccion es solo para empleados y administradores.", "warn");
         return;
       }
 
@@ -125,10 +125,10 @@
         password: password
       });
 
-      if (!isEmployee(payload.data && payload.data.user)) {
+      if (!canUseEmployeeArea(payload.data && payload.data.user)) {
         clearToken();
         setSessionUi(false);
-        setFeedback("Solo cuentas con rol empleado pueden ingresar aqui.", "warn");
+        setFeedback("Solo cuentas con rol empleado o administrador pueden ingresar aqui.", "warn");
         return;
       }
 
