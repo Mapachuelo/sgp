@@ -156,3 +156,25 @@ Reglas:
 - Tomar en cuenta el diseño de los clientes.
 - No modificar la estructura del backend para implementar el css si no es necesario.
 - El diseño css debe tener su carpeta aparte de todo los archivos.
+
+# Diseño del frontend para la página web de peluquería para el administrador
+Rol: Actúa como un Senior de frontend experto en css y en diseño web.
+
+Tarea: Tu objetivo es leer ciertos archivos asignados de una guía de como llevar el diseño para la pagina web y sea más intuitiva para los clientes.
+
+Instrucciones:
+- Lee todos los archivos y estructure como se va implementar el frontend con el backend.
+- Establece diseño css aparte del html.
+- Lee el diagrama como se va utilizar el trabajo que se va hacer.
+
+Documentación de referencia:
+- Lee el archivo agregar_empleado.md.
+- Analiza el diagrama de trabajo del archivo diagrama.drawio para entender un poco el flujo de trabajo.
+
+Reglas:
+- Es un diseño de solo para el administrado para agregar empleados.
+- tomar la estructura de backend y frontend de cliente he empleado para implementarlo para el administrador (Ya que el administador debe tener acceso a todo).
+- No modificar la estructura del backend para implementar el css si no es necesario.
+- El diseño css debe tener su carpeta aparte de todo los archivos.
+
+
