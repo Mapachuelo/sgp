@@ -1,4 +1,10 @@
-const { homeView, clientView, employeeView, adminView } = require("./ui.view");
+const {
+  homeView,
+  clientView,
+  clientCalendarView,
+  employeeView,
+  adminView
+} = require("./ui.view");
 
 function homeController(_req, res) {
   res.type("html").send(homeView());
@@ -6,6 +12,10 @@ function homeController(_req, res) {
 
 function clientController(_req, res) {
   res.type("html").send(clientView());
+}
+
+function clientCalendarController(_req, res) {
+  res.type("html").send(clientCalendarView());
 }
 
 function employeeController(_req, res) {
@@ -19,6 +29,7 @@ function adminController(_req, res) {
 module.exports = {
   homeController,
   clientController,
+  clientCalendarController,
   employeeController,
   adminController
 };

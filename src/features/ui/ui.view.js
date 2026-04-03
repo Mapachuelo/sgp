@@ -20,6 +20,22 @@ ${script}
 </html>`;
 }
 
+function clientDocument(title, stylesheetPath, body, scriptPath) {
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <link rel="stylesheet" href="${stylesheetPath}" />
+  </head>
+  <body>
+    ${body}
+    <script src="${scriptPath}"></script>
+  </body>
+</html>`;
+}
+
 function commonScript(roleKey) {
   return `
 const TOKEN_KEY = "${roleKey}_token";
@@ -77,99 +93,161 @@ function homeView() {
 
 function clientView() {
   const body = `
-<section>
-  <h2>Registro cliente</h2>
-  <input id="c_name" placeholder="Nombre" />
-  <input id="c_email" placeholder="Email" />
-  <input id="c_phone" placeholder="Telefono" />
-  <input id="c_password" placeholder="Password" type="password" />
-  <button id="registerBtn">Registrar</button>
-</section>
-<section>
-  <h2>Login cliente</h2>
-  <input id="l_email" placeholder="Email" />
-  <input id="l_password" placeholder="Password" type="password" />
-  <button id="loginBtn">Login</button>
-  <button id="meBtn">Ver mi perfil</button>
-</section>
-<section>
-  <h2>Actualizar perfil</h2>
-  <input id="u_name" placeholder="Nuevo nombre" />
-  <input id="u_phone" placeholder="Nuevo telefono" />
-  <button id="updateProfileBtn">Actualizar perfil</button>
-  <button id="deleteProfileBtn">Eliminar perfil</button>
-</section>
-<section>
-  <h2>Reservar cita</h2>
-  <input id="r_service" placeholder="Servicio" />
-  <input id="r_stylist" placeholder="Peluquero" />
-  <input id="r_startsAt" placeholder="2026-12-30T14:00:00Z" />
-  <input id="r_count" placeholder="Cantidad clientes" value="1" />
-  <button id="reserveBtn">Crear reserva</button>
-  <button id="myReservationsBtn">Mis reservas</button>
-</section>
-<section>
-  <h2>Disponibilidad</h2>
-  <input id="a_date" placeholder="YYYY-MM-DD" />
-  <button id="availabilityBtn">Ver cupos ocupados</button>
-</section>
-<section>
-  <h2>Tiempo real</h2>
-  <button id="wsBtn">Conectar websocket</button>
+<header class="topbar">
+  <a class="brand" href="/ui/client">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
+    <button id="navLoginBtn" class="btn accent" type="button">Login</button>
+    <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="dashboard-wrap">
+  <section class="hero panel">
+    <p class="eyebrow">Gestion para clientes</p>
+    <h1>Reserva tu cita en menos pasos</h1>
+    <p>
+      Este dashboard sigue el flujo del diagrama: ingresar al sitio, validar acceso,
+      revisar cupos del calendario y avanzar a reserva.
+    </p>
+    <div class="hero-actions">
+      <a class="btn accent" href="/ui/client/calendar">Ver calendario</a>
+      <button id="loadProfileBtn" class="btn ghost" type="button">Validar sesion</button>
+    </div>
+    <p id="authBadge" class="badge">Sesion no iniciada</p>
+  </section>
+
+  <section id="loginSection" class="auth-grid">
+    <article id="registerCard" class="panel">
+      <h2>Registro cliente</h2>
+      <label>Nombre</label>
+      <input id="registerName" type="text" placeholder="Nombre completo" />
+      <label>Email</label>
+      <input id="registerEmail" type="email" placeholder="nombre@email.com" />
+      <label>Telefono</label>
+      <input id="registerPhone" type="text" placeholder="+56 9 1234 5678" />
+      <label>Password</label>
+      <input id="registerPassword" type="password" placeholder="Minimo 6 caracteres" />
+      <button id="registerBtn" class="btn accent block" type="button">Crear cuenta</button>
+    </article>
+
+    <article class="panel">
+      <h2>Login cliente</h2>
+      <label>Email</label>
+      <input id="loginEmail" type="email" placeholder="nombre@email.com" />
+      <label>Password</label>
+      <input id="loginPassword" type="password" placeholder="Tu password" />
+      <button id="loginBtn" class="btn accent block" type="button">Iniciar sesion</button>
+      <button id="goCalendarBtn" class="btn ghost block" type="button">Ir al calendario</button>
+    </article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Cupos de referencia</h2>
+      <div class="inline-actions">
+        <input id="availabilityDate" type="date" />
+        <button id="availabilityBtn" class="btn ghost" type="button">Actualizar</button>
+      </div>
+    </div>
+    <ul id="availabilityList" class="availability-list"></ul>
+  </section>
+
+  <section class="panel feedback-panel">
+    <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
+    <pre id="apiOutput"></pre>
+  </section>
+</main>
+`;
+
+  return clientDocument(
+    "SGP - Dashboard Cliente",
+    "/ui-assets/styles/client-dashboard.css",
+    body,
+    "/ui-assets/scripts/client-dashboard.js"
+  );
+}
+
+function clientCalendarView() {
+  const body = `
+<header class="topbar">
+  <a class="brand" href="/ui/client">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/client">Dashboard</a>
+    <button id="navLoginBtn" class="btn accent" type="button">Login</button>
+    <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="calendar-layout">
+  <section class="calendar-main panel">
+    <div class="calendar-title-wrap">
+      <h1>Calendario de disponibilidad</h1>
+      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
+    </div>
+
+    <div class="calendar-toolbar">
+      <label for="weekStart">Inicio del rango</label>
+      <input id="weekStart" type="date" />
+      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+    </div>
+
+    <div class="legend-row">
+      <span class="legend available">Disponible</span>
+      <span class="legend reserved">Reservado</span>
+    </div>
+
+    <div class="calendar-shell">
+      <table>
+        <thead id="calendarHead"></thead>
+        <tbody id="calendarBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="booking-panel panel">
+    <h2>Ingreso de reserva</h2>
+    <p id="selectedSlotText" class="selected-slot">Selecciona un horario disponible.</p>
+
+    <label>Servicio</label>
+    <input id="serviceName" type="text" placeholder="Corte, Barba, Color" />
+
+    <label>Peluquero</label>
+    <select id="stylistName">
+      <option value="">Selecciona un peluquero</option>
+      <option value="Paola">Paola</option>
+      <option value="Sergio">Sergio</option>
+      <option value="Camila">Camila</option>
+      <option value="Max">Max</option>
+    </select>
+
+    <label>Cantidad de clientes</label>
+    <input id="clientCount" type="number" min="1" value="1" />
+
+    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="myReservationsBtn" class="btn ghost block" type="button">Mis reservas</button>
+    <a id="goLoginLink" class="inline-link hidden" href="/ui/client#loginSection">Ir a login</a>
+
+    <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
+    <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
+
+    <h3>Mis ultimas reservas</h3>
+    <ul id="myReservationsList" class="reservations-list"></ul>
+  </aside>
+</main>
+
+<section class="panel api-output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
 </section>
 `;
 
-  const script = `${commonScript("client")}
-byId("registerBtn").onclick = () => callApi("/api/auth/register", "POST", {
-  name: byId("c_name").value,
-  email: byId("c_email").value,
-  phone: byId("c_phone").value,
-  password: byId("c_password").value
-});
-
-byId("loginBtn").onclick = async () => {
-  const result = await callApi("/api/auth/login", "POST", {
-    email: byId("l_email").value,
-    password: byId("l_password").value
-  });
-  if (result.ok) {
-    setToken(result.data.token);
-  }
-};
-
-byId("meBtn").onclick = () => callApi("/api/auth/me", "GET");
-
-byId("updateProfileBtn").onclick = () => callApi("/api/clients/me", "PUT", {
-  name: byId("u_name").value,
-  phone: byId("u_phone").value
-});
-
-byId("deleteProfileBtn").onclick = () => callApi("/api/clients/me", "DELETE");
-
-byId("reserveBtn").onclick = () => callApi("/api/reservations", "POST", {
-  serviceName: byId("r_service").value,
-  stylistName: byId("r_stylist").value,
-  startsAt: byId("r_startsAt").value,
-  clientCount: Number(byId("r_count").value || 1)
-});
-
-byId("myReservationsBtn").onclick = () => callApi("/api/reservations/me", "GET");
-
-byId("availabilityBtn").onclick = () => callApi("/api/reservations/availability?date=" + encodeURIComponent(byId("a_date").value), "GET");
-
-byId("wsBtn").onclick = () => {
-  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(protocol + "//" + location.host + "/ws");
-  ws.onmessage = (event) => {
-    try {
-      setOutput(JSON.parse(event.data));
-    } catch (_error) {
-      setOutput(event.data);
-    }
-  };
-};`;
-
-  return baseDocument("SGP - Cliente", body, script);
+  return clientDocument(
+    "SGP - Calendario Cliente",
+    "/ui-assets/styles/client-calendar.css",
+    body,
+    "/ui-assets/scripts/client-calendar.js"
+  );
 }
 
 function employeeView() {
@@ -262,6 +340,7 @@ byId("recurrentBtn").onclick = () => callApi("/api/reports/recurrent-clients?lim
 module.exports = {
   homeView,
   clientView,
+  clientCalendarView,
   employeeView,
   adminView
 };
