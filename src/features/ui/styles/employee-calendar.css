@@ -1,0 +1,217 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap");
+
+:root {
+  --ink-900: #2f1b17;
+  --ink-700: #4b2f28;
+  --brand-900: #422822;
+  --accent: #d97f6a;
+  --line: #d8b6a5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Outfit", sans-serif;
+  color: var(--ink-900);
+  background: linear-gradient(160deg, #fffdfb 0%, #f8ece5 60%, #f1ddd2 100%);
+}
+
+.emp-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 3vw, 2.6rem);
+  background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);
+}
+
+.emp-brand {
+  text-decoration: none;
+  color: #fff;
+  font-weight: 800;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+}
+
+.emp-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.emp-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.62rem 0.9rem;
+  text-decoration: none;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emp-btn.ghost {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(66, 40, 34, 0.24);
+  color: var(--ink-900);
+}
+
+.emp-calendar-layout {
+  width: min(1400px, 95vw);
+  margin: 1.2rem auto;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(700px, 1fr) minmax(280px, 350px);
+}
+
+.emp-panel {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(66, 40, 34, 0.2);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 14px 40px rgba(66, 40, 34, 0.08);
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.panel-head h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.4vw, 2.1rem);
+}
+
+.inline-controls {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.helper {
+  margin: 0.45rem 0 0.8rem;
+  color: var(--ink-700);
+}
+
+input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem;
+  font-family: "Outfit", sans-serif;
+}
+
+.calendar-shell {
+  border: 1px solid rgba(66, 40, 34, 0.2);
+  border-radius: 12px;
+  overflow: auto;
+  background: #fff;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 960px;
+}
+
+th,
+td {
+  border: 1px solid rgba(66, 40, 34, 0.16);
+  padding: 0.42rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+th {
+  background: #f4e5dd;
+}
+
+td {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.74rem;
+}
+
+td.empty {
+  color: #8f7a72;
+}
+
+td.booked {
+  background: #fef1ec;
+  color: #6f2d21;
+}
+
+.side-panel h2 {
+  margin-top: 0;
+}
+
+.day-list {
+  margin: 0.8rem 0 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.feedback {
+  margin: 0.9rem 0 0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0.6rem;
+  font-weight: 700;
+}
+
+.feedback.ok {
+  color: #0d4024;
+  background: #e6f5eb;
+  border-color: #9fd7b2;
+}
+
+.feedback.warn {
+  color: #651b14;
+  background: #fee9e5;
+  border-color: #f1b4a8;
+}
+
+.feedback.info {
+  color: #143d69;
+  background: #e6f1fb;
+  border-color: #abcaf0;
+}
+
+.output-panel {
+  width: min(1400px, 95vw);
+  margin: 0 auto 1.3rem;
+}
+
+pre {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #211411;
+  color: #ffe8dd;
+  padding: 0.85rem;
+  overflow: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 1120px) {
+  .emp-calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .emp-topbar {
+    flex-wrap: wrap;
+  }
+}

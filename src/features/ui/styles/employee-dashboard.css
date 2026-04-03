@@ -1,0 +1,242 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Chivo+Mono:wght@500&display=swap");
+
+:root {
+  --ink-900: #2f1b17;
+  --ink-700: #4b2f28;
+  --paper: #fff8f3;
+  --brand-900: #422822;
+  --brand-700: #694238;
+  --accent: #d97f6a;
+  --accent-strong: #b95f49;
+  --line: #d8b6a5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Outfit", sans-serif;
+  color: var(--ink-900);
+  background:
+    radial-gradient(circle at 8% 8%, #f8d7c5 0%, rgba(248, 215, 197, 0) 45%),
+    radial-gradient(circle at 90% 4%, #f5cfbf 0%, rgba(245, 207, 191, 0) 45%),
+    linear-gradient(150deg, #fffefc 0%, #f9ece5 65%, #f2ddd2 100%);
+  min-height: 100vh;
+}
+
+.emp-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 3vw, 2.6rem);
+  background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);
+}
+
+.emp-brand {
+  text-decoration: none;
+  color: #fff;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.emp-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.emp-dashboard-wrap {
+  width: min(1200px, 95vw);
+  margin: 1.4rem auto 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.emp-panel {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(66, 40, 34, 0.2);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 14px 40px rgba(66, 40, 34, 0.08);
+}
+
+.hero h1 {
+  margin: 0.25rem 0 0.6rem;
+  font-size: clamp(1.7rem, 2.9vw, 2.4rem);
+}
+
+.hero p {
+  margin: 0;
+  color: var(--ink-700);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 700;
+  color: var(--brand-700);
+}
+
+.hero-actions {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  margin-top: 0.9rem;
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #f8ebe3;
+  padding: 0.35rem 0.8rem;
+  font-weight: 600;
+}
+
+.login-card {
+  max-width: 440px;
+}
+
+label {
+  display: block;
+  margin-top: 0.66rem;
+  margin-bottom: 0.32rem;
+  color: var(--ink-700);
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  padding: 0.66rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-family: "Outfit", sans-serif;
+}
+
+.help-text {
+  margin: 0.7rem 0 0;
+  color: var(--ink-700);
+  font-size: 0.9rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.stats-grid article {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.8rem;
+}
+
+.stats-grid h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ink-700);
+}
+
+.stats-grid p {
+  margin: 0.4rem 0 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.feedback-wrap {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.feedback {
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0.65rem;
+  font-weight: 700;
+}
+
+.feedback.ok {
+  color: #0d4024;
+  background: #e6f5eb;
+  border-color: #9fd7b2;
+}
+
+.feedback.warn {
+  color: #651b14;
+  background: #fee9e5;
+  border-color: #f1b4a8;
+}
+
+.feedback.info {
+  color: #143d69;
+  background: #e6f1fb;
+  border-color: #abcaf0;
+}
+
+pre {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #211411;
+  color: #ffe8dd;
+  padding: 0.9rem;
+  font-family: "Chivo Mono", monospace;
+  font-size: 0.82rem;
+  overflow: auto;
+}
+
+.emp-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.62rem 0.95rem;
+  text-decoration: none;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.emp-btn.solid {
+  background: var(--accent);
+  color: #27120d;
+}
+
+.emp-btn.solid:hover {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.emp-btn.ghost {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(66, 40, 34, 0.24);
+  color: var(--ink-900);
+}
+
+.block {
+  width: 100%;
+  margin-top: 0.8rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-width: 880px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .emp-topbar {
+    flex-wrap: wrap;
+  }
+}
