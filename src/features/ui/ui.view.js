@@ -584,6 +584,37 @@ function adminView() {
     </div>
     <p id="tempPasswordHint" class="temp-password hidden"></p>
   </section>
+
+  <div id="editUserModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editUserTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="editUserTitle">Editar perfil registrado</h2>
+        <button id="closeEditUserBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <p id="editUserSubtitle" class="helper">Ajusta numero, correo y password del perfil seleccionado.</p>
+
+      <form id="editUserForm">
+        <input id="editUserId" type="hidden" />
+
+        <label>Identificacion (fija)</label>
+        <input id="editIdentification" type="text" readonly />
+
+        <label>Numero</label>
+        <input id="editPhone" type="text" placeholder="Nuevo numero" />
+
+        <label>Correo</label>
+        <input id="editEmail" type="email" placeholder="Nuevo correo" />
+
+        <label>Password</label>
+        <input id="editPassword" type="text" placeholder="Minimo 6 caracteres" />
+
+        <div class="modal-actions">
+          <button id="cancelEditUserBtn" class="admin-btn ghost" type="button">Cancelar</button>
+          <button id="saveEditUserBtn" class="admin-btn solid" type="submit">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </main>
 
 <section class="admin-panel output-panel">

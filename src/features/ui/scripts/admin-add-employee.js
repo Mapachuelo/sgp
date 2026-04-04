@@ -199,6 +199,7 @@
       editBtn.dataset.employeePhone = row.phone || "";
       editBtn.dataset.employeeEmail = row.email || "";
       editBtn.dataset.employeeRole = row.role || "";
+      editBtn.dataset.employeeIdentification = row.identification || "";
       editBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
       editBtn.disabled = !row.id;
       actions.appendChild(editBtn);
@@ -272,48 +273,54 @@
   }
 
   async function updateEmployee(employeeId, currentPhone, currentEmail, employeeRole, employeeName) {
+    void employeeRole;
+    void employeeName;
     if (!employeeId) {
       setFeedback("No se pudo identificar el usuario a editar.", "warn");
       return;
     }
 
-    const phone = window.prompt(
-      "Nuevo numero para " + (employeeName || "usuario") + ":",
-      currentPhone || ""
-    );
-    if (phone === null) {
+    byId("editUserId").value = String(employeeId);
+    byId("editPhone").value = String(currentPhone || "");
+    byId("editEmail").value = String(currentEmail || "");
+    byId("editPassword").value = "";
+
+    const modal = byId("editUserModal");
+    modal.classList.remove("hidden");
+  }
+
+  function closeEditModal() {
+    byId("editUserModal").classList.add("hidden");
+    byId("editUserForm").reset();
+  }
+
+  async function saveEditFromModal(event) {
+    event.preventDefault();
+
+    const employeeId = byId("editUserId").value;
+    const phone = byId("editPhone").value.trim();
+    const email = byId("editEmail").value.trim();
+    const password = byId("editPassword").value.trim();
+
+    if (!employeeId || !phone || !email || !password) {
+      setFeedback("Completa numero, correo y password para guardar.", "warn");
       return;
     }
 
-    const email = window.prompt(
-      "Nuevo correo para " + (employeeName || "usuario") + ":",
-      currentEmail || ""
-    );
-    if (email === null) {
-      return;
-    }
-
-    const password = window.prompt(
-      "Nueva password para " + (employeeName || "usuario") + " (minimo 6):",
-      ""
-    );
-    if (password === null) {
-      return;
-    }
-
-    if (String(password).trim().length < 6) {
+    if (password.length < 6) {
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
 
     try {
       await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "PUT", {
-        phone: String(phone).trim(),
-        email: String(email).trim(),
-        password: String(password).trim()
+        phone: phone,
+        email: email,
+        password: password
       });
+      closeEditModal();
       await loadEmployees();
-      setFeedback("Usuario " + (employeeRole || "") + " actualizado correctamente.", "ok");
+      setFeedback("Perfil actualizado correctamente.", "ok");
     } catch (error) {
       setFeedback(error.message, "warn");
     }
@@ -443,6 +450,13 @@
     }
 
     if (target.classList.contains("edit-employee-btn")) {
+      byId("editIdentification").value = target.dataset.employeeIdentification || "";
+      byId("editUserSubtitle").textContent =
+        "Editando: " +
+        (target.dataset.employeeName || "Usuario") +
+        " (rol " +
+        (target.dataset.employeeRole || "") +
+        ")";
       updateEmployee(
         target.dataset.employeeId,
         target.dataset.employeePhone,
@@ -469,6 +483,15 @@
     setTempPasswordHint("");
     renderEmployees([]);
     setFeedback("Sesion cerrada.", "info");
+  });
+
+  byId("editUserForm").addEventListener("submit", saveEditFromModal);
+  byId("closeEditUserBtn").addEventListener("click", closeEditModal);
+  byId("cancelEditUserBtn").addEventListener("click", closeEditModal);
+  byId("editUserModal").addEventListener("click", function (event) {
+    if (event.target === byId("editUserModal")) {
+      closeEditModal();
+    }
   });
 
   if (!getToken()) {
