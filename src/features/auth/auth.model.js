@@ -6,8 +6,14 @@ async function ensureEmployeeProfileTable(queryable = db) {
       user_id INT PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
       last_name VARCHAR(120) NOT NULL,
       identification VARCHAR(80) NOT NULL UNIQUE,
+      assigned_password VARCHAR(255),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+
+  await queryable.query(`
+    ALTER TABLE employee_profile
+    ADD COLUMN IF NOT EXISTS assigned_password VARCHAR(255)
   `);
 }
 
@@ -93,6 +99,7 @@ async function listEmployees() {
         ep.last_name,
         u.phone,
         ep.identification,
+        ep.assigned_password,
         u.email,
         u.role,
         u.created_at
@@ -112,7 +119,8 @@ async function createEmployeeWithProfile({
   phone,
   identification,
   email,
-  passwordHash
+  passwordHash,
+  assignedPassword
 }) {
   return db.withTransaction(async (client) => {
     await ensureEmployeeProfileTable(client);
@@ -130,10 +138,10 @@ async function createEmployeeWithProfile({
 
     await client.query(
       `
-        INSERT INTO employee_profile (user_id, last_name, identification)
-        VALUES ($1, $2, $3)
+        INSERT INTO employee_profile (user_id, last_name, identification, assigned_password)
+        VALUES ($1, $2, $3, $4)
       `,
-      [user.id, lastName, identification]
+      [user.id, lastName, identification, assignedPassword]
     );
 
     return {
@@ -142,6 +150,7 @@ async function createEmployeeWithProfile({
       last_name: lastName,
       phone: user.phone,
       identification,
+      assigned_password: assignedPassword,
       email: user.email,
       role: user.role,
       created_at: user.created_at

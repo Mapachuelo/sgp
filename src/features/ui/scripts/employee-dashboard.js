@@ -96,10 +96,18 @@
 
       setRoleUi(profilePayload.data);
 
-      const clientsPayload = await callApi("/api/clients", "GET");
       const reservationsPayload = await callApi("/api/reservations", "GET");
 
       const reservations = reservationsPayload.data || [];
+      const uniqueClients = new Set(
+        reservations
+          .map(function (reservation) {
+            return reservation.client_id;
+          })
+          .filter(function (clientId) {
+            return clientId !== null && clientId !== undefined;
+          })
+      );
       const todayKey = formatDateKey(new Date());
 
       const active = reservations.filter(function (reservation) {
@@ -115,7 +123,7 @@
       }).length;
 
       byId("activeReservationsCount").textContent = String(active);
-      byId("clientsCount").textContent = String((clientsPayload.data || []).length);
+      byId("clientsCount").textContent = String(uniqueClients.size);
       byId("todayCheckinCount").textContent = String(checkinToday);
 
       setSessionUi(true);

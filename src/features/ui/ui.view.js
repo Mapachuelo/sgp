@@ -485,10 +485,10 @@ function adminView() {
 <header class="admin-topbar">
   <a class="admin-brand" href="/ui/admin">Prueba</a>
   <nav class="admin-nav">
-    <a class="admin-btn ghost" href="/ui/admin">Ingreso empleado</a>
-    <a class="admin-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
-    <a class="admin-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="admin-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
+    <a class="admin-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
+    <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
+    <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
     <button id="logoutBtn" class="admin-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -518,6 +518,8 @@ function adminView() {
       <input id="identification" type="text" placeholder="ID empleado" />
       <label>Correo</label>
       <input id="email" type="email" placeholder="correo@dominio.com" />
+      <label>Password asignada</label>
+      <input id="password" type="text" placeholder="Minimo 6 caracteres" />
       <button id="createEmployeeBtn" class="admin-btn solid block" type="submit">Agregar empleado</button>
     </form>
 
@@ -538,6 +540,7 @@ function adminView() {
             <th>Numero</th>
             <th>Identificacion</th>
             <th>Correo</th>
+            <th>Password</th>
             <th>Accion</th>
           </tr>
         </thead>
@@ -562,6 +565,167 @@ function adminView() {
   );
 }
 
+function adminCalendarView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/admin">Prueba</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
+    <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
+    <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="emp-calendar-layout">
+  <section class="emp-panel calendar-panel">
+    <div class="panel-head">
+      <h1>Calendario de clientes</h1>
+      <div class="inline-controls">
+        <label for="weekStart">Inicio</label>
+        <input id="weekStart" type="date" />
+        <button id="refreshCalendarBtn" class="emp-btn ghost" type="button">Actualizar</button>
+      </div>
+    </div>
+    <p class="helper">Vista por semana de citas reservadas para el equipo.</p>
+    <div class="calendar-shell">
+      <table>
+        <thead id="calendarHead"></thead>
+        <tbody id="calendarBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="emp-panel side-panel">
+    <h2>Citas del dia</h2>
+    <input id="dayFilter" type="date" />
+    <ul id="dayReservationsList" class="day-list"></ul>
+    <p id="calendarFeedback" class="feedback info">Inicia sesion para consultar reservas.</p>
+  </aside>
+</main>
+
+<section class="emp-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
+</section>
+`;
+
+  return clientDocument(
+    "SGP - Administrador Calendario",
+    "/ui-assets/styles/employee-calendar.css",
+    body,
+    "/ui-assets/scripts/employee-calendar.js"
+  );
+}
+
+function adminVerifyClientsView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/admin">Prueba</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
+    <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
+    <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="verify-layout">
+  <section class="emp-panel verify-main">
+    <div class="panel-head">
+      <h1>Verificar clientes</h1>
+      <div class="inline-controls">
+        <label for="weekStart">Semana</label>
+        <input id="weekStart" type="date" />
+        <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
+      </div>
+    </div>
+    <p class="helper">Horario de 06:00 a 22:00 en bloques de 30 minutos.</p>
+    <div class="calendar-shell">
+      <table>
+        <thead id="verifyHead"></thead>
+        <tbody id="verifyBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="emp-panel config-panel">
+    <h2>Configuracion laboral</h2>
+    <p>Define dias no laborales y rango de trabajo por dia.</p>
+    <div id="workConfigList" class="config-list"></div>
+    <button id="saveConfigBtn" class="emp-btn solid block" type="button">Guardar configuracion</button>
+    <button id="resetConfigBtn" class="emp-btn ghost block" type="button">Restablecer</button>
+    <p id="verifyFeedback" class="feedback info">La configuracion se guarda localmente en el navegador.</p>
+  </aside>
+</main>
+
+<section class="emp-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
+</section>
+`;
+
+  return clientDocument(
+    "SGP - Administrador Verificar Clientes",
+    "/ui-assets/styles/employee-verify-clients.css",
+    body,
+    "/ui-assets/scripts/employee-verify-clients.js"
+  );
+}
+
+function adminValidateQrView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/admin">Prueba</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
+    <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
+    <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="qr-layout">
+  <section class="emp-panel scanner-panel">
+    <h1>Validacion QR</h1>
+    <p class="helper">Solo administrador autenticado puede validar el ingreso.</p>
+    <div class="camera-box">
+      <video id="cameraPreview" autoplay playsinline muted></video>
+    </div>
+    <div class="scan-actions">
+      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
+      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
+    </div>
+  </section>
+
+  <aside class="emp-panel side-panel">
+    <h2>Validacion manual</h2>
+    <label>Token QR</label>
+    <input id="qrTokenInput" type="text" placeholder="Pega o escanea el token" />
+    <button id="validateBtn" class="emp-btn solid block" type="button">Validar ingreso</button>
+    <p id="qrFeedback" class="feedback info">Esperando lectura de QR.</p>
+    <h3>Ultima validacion</h3>
+    <div id="lastValidationCard" class="last-validation">Sin validaciones recientes.</div>
+  </aside>
+</main>
+
+<section class="emp-panel output-panel">
+  <h2>Salida API</h2>
+  <pre id="apiOutput"></pre>
+</section>
+`;
+
+  return clientDocument(
+    "SGP - Administrador Validacion QR",
+    "/ui-assets/styles/employee-validate-qr.css",
+    body,
+    "/ui-assets/scripts/employee-validate-qr.js"
+  );
+}
+
 module.exports = {
   homeView,
   clientView,
@@ -570,5 +734,8 @@ module.exports = {
   employeeCalendarView,
   employeeVerifyClientsView,
   employeeValidateQrView,
-  adminView
+  adminView,
+  adminCalendarView,
+  adminVerifyClientsView,
+  adminValidateQrView
 };

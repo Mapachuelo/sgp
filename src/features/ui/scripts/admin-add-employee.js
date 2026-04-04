@@ -12,7 +12,6 @@
 
   function setToken(token) {
     localStorage.setItem(ADMIN_TOKEN_KEY, token);
-    localStorage.setItem(EMPLOYEE_TOKEN_KEY, token);
   }
 
   function clearToken() {
@@ -105,9 +104,16 @@
     if (!data.email) {
       missing.push("correo");
     }
+    if (!data.password) {
+      missing.push("password");
+    }
 
     if (missing.length > 0) {
       return "Completa los campos: " + missing.join(", ");
+    }
+
+    if (data.password.length < 6) {
+      return "La password asignada debe tener al menos 6 caracteres";
     }
 
     return "";
@@ -119,7 +125,8 @@
       lastName: byId("lastName").value.trim(),
       phone: byId("phone").value.trim(),
       identification: byId("identification").value.trim(),
-      email: byId("email").value.trim()
+      email: byId("email").value.trim(),
+      password: byId("password").value
     };
   }
 
@@ -129,6 +136,7 @@
     byId("phone").value = "";
     byId("identification").value = "";
     byId("email").value = "";
+    byId("password").value = "";
   }
 
   function renderEmployees(rows) {
@@ -138,7 +146,7 @@
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 6;
+      td.colSpan = 7;
       td.textContent = "Sin empleados registrados.";
       tr.appendChild(td);
       body.appendChild(tr);
@@ -167,6 +175,10 @@
       const email = document.createElement("td");
       email.textContent = row.email || "";
       tr.appendChild(email);
+
+      const assignedPassword = document.createElement("td");
+      assignedPassword.textContent = row.assigned_password || "No asignada";
+      tr.appendChild(assignedPassword);
 
       const actions = document.createElement("td");
       const deleteBtn = document.createElement("button");
@@ -216,7 +228,6 @@
 
   async function createEmployee(event) {
     event.preventDefault();
-    setTempPasswordHint("");
 
     const data = getFormData();
     const validationMessage = validateForm(data);
@@ -227,16 +238,10 @@
     }
 
     try {
-      const payload = await callApi("/api/auth/employees", "POST", data);
+      await callApi("/api/auth/employees", "POST", data);
       clearForm();
       await loadEmployees();
       setFeedback("Empleado agregado correctamente.", "ok");
-
-      if (payload.data && payload.data.temporaryPassword) {
-        setTempPasswordHint(
-          "Password temporal del nuevo empleado: " + payload.data.temporaryPassword
-        );
-      }
     } catch (error) {
       setFeedback(error.message, "warn");
     }

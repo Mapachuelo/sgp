@@ -1,5 +1,7 @@
 (function () {
-  const TOKEN_KEY = "employee_token";
+  const isAdminContext = window.location.pathname.startsWith("/ui/admin");
+  const TOKEN_KEY = isAdminContext ? "admin_token" : "employee_token";
+  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
@@ -19,6 +21,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    if (isAdminContext) {
+      localStorage.removeItem("employee_token");
+    }
   }
 
   function setOutput(payload) {
@@ -78,7 +83,15 @@
   }
 
   function canUseEmployeeArea(user) {
-    return user && (user.role === "employee" || user.role === "admin");
+    if (!user) {
+      return false;
+    }
+
+    if (isAdminContext) {
+      return user.role === "admin";
+    }
+
+    return user.role === "employee" || user.role === "admin";
   }
 
   function toDateKey(date) {
@@ -259,7 +272,7 @@
       setRoleUi(null);
       setFeedback(error.message, "warn");
       if (String(error.message).toLowerCase().includes("token")) {
-        window.location.href = "/ui/employee";
+        window.location.href = HOME_PATH;
       }
     }
   }
@@ -268,7 +281,7 @@
   byId("dayFilter").addEventListener("change", renderDayReservations);
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
-    window.location.href = "/ui/employee";
+    window.location.href = HOME_PATH;
   });
 
   const today = new Date();
@@ -276,7 +289,7 @@
   byId("dayFilter").value = toDateInput(today);
 
   if (!getToken()) {
-    window.location.href = "/ui/employee";
+    window.location.href = HOME_PATH;
   } else {
     refreshData();
   }

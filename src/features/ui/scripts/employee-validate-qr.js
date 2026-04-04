@@ -1,5 +1,7 @@
 (function () {
-  const TOKEN_KEY = "employee_token";
+  const isAdminContext = window.location.pathname.startsWith("/ui/admin");
+  const TOKEN_KEY = isAdminContext ? "admin_token" : "employee_token";
+  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
 
   const state = {
     stream: null,
@@ -17,6 +19,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    if (isAdminContext) {
+      localStorage.removeItem("employee_token");
+    }
   }
 
   function setOutput(payload) {
@@ -97,13 +102,18 @@
 
   async function ensureEmployeeSession() {
     const profile = await callApi("/api/auth/me", "GET");
-    if (!profile.data || (profile.data.role !== "employee" && profile.data.role !== "admin")) {
+    const user = profile.data;
+    const allowed = isAdminContext
+      ? Boolean(user && user.role === "admin")
+      : Boolean(user && (user.role === "employee" || user.role === "admin"));
+
+    if (!allowed) {
       throw new Error("Acceso restringido a empleados y administradores");
     }
 
-    setRoleUi(profile.data);
+    setRoleUi(user);
     byId("logoutBtn").classList.remove("hidden");
-    return profile.data;
+    return user;
   }
 
   async function validateToken(qrToken) {
@@ -207,18 +217,18 @@
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
     stopCamera();
-    window.location.href = "/ui/employee";
+    window.location.href = HOME_PATH;
   });
 
   window.addEventListener("beforeunload", stopCamera);
 
   if (!getToken()) {
-    window.location.href = "/ui/employee";
+    window.location.href = HOME_PATH;
   } else {
     ensureEmployeeSession().catch(function (error) {
       setRoleUi(null);
       setFeedback(error.message, "warn");
-      window.location.href = "/ui/employee";
+      window.location.href = HOME_PATH;
     });
   }
 })();

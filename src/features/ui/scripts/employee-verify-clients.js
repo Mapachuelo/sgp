@@ -1,5 +1,7 @@
 (function () {
-  const TOKEN_KEY = "employee_token";
+  const isAdminContext = window.location.pathname.startsWith("/ui/admin");
+  const TOKEN_KEY = isAdminContext ? "admin_token" : "employee_token";
+  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
   const SETTINGS_KEY = "employee_verify_schedule_v1";
   const START_HOUR = 6;
   const END_HOUR = 22;
@@ -8,7 +10,6 @@
   const state = {
     days: [],
     reservations: [],
-    clientsMap: {},
     scheduleConfig: {}
   };
 
@@ -22,6 +23,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    if (isAdminContext) {
+      localStorage.removeItem("employee_token");
+    }
   }
 
   function setOutput(payload) {
@@ -154,11 +158,16 @@
 
   async function ensureEmployeeSession() {
     const profile = await callApi("/api/auth/me", "GET");
-    if (!profile.data || (profile.data.role !== "employee" && profile.data.role !== "admin")) {
+    const user = profile.data;
+    const allowed = isAdminContext
+      ? Boolean(user && user.role === "admin")
+      : Boolean(user && (user.role === "employee" || user.role === "admin"));
+
+    if (!allowed) {
       throw new Error("Acceso restringido a empleados y administradores");
     }
 
-    return profile.data;
+    return user;
   }
 
   function buildDayRange(startText) {
@@ -298,7 +307,6 @@
         cell.className = "booked";
 
         reservations.forEach(function (reservation) {
-          const isValidClient = Boolean(state.clientsMap[String(reservation.client_id)]);
           const rowWrap = document.createElement("div");
           rowWrap.className = "reservation-item";
 
@@ -306,7 +314,7 @@
           text.textContent = reservation.service_name + " / Cliente #" + reservation.client_id;
           rowWrap.appendChild(text);
 
-          if (isValidClient) {
+          if (reservation.qr_token) {
             const button = document.createElement("button");
             button.type = "button";
             button.className = "verify-btn";
@@ -330,14 +338,7 @@
     setRoleUi(currentUser);
 
     const reservationsPayload = await callApi("/api/reservations", "GET");
-    const clientsPayload = await callApi("/api/clients", "GET");
-
     state.reservations = reservationsPayload.data || [];
-    state.clientsMap = {};
-
-    (clientsPayload.data || []).forEach(function (client) {
-      state.clientsMap[String(client.id)] = client;
-    });
   }
 
   async function refreshAll() {
@@ -353,7 +354,7 @@
       setRoleUi(null);
       setFeedback(error.message, "warn");
       if (String(error.message).toLowerCase().includes("token")) {
-        window.location.href = "/ui/employee";
+        window.location.href = HOME_PATH;
       }
     }
   }
@@ -406,7 +407,7 @@
   });
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
-    window.location.href = "/ui/employee";
+    window.location.href = HOME_PATH;
   });
 
   byId("verifyBody").addEventListener("click", function (event) {
@@ -427,7 +428,7 @@
   state.scheduleConfig = readLocalSchedule();
 
   if (!getToken()) {
-    window.location.href = "/ui/employee";
+    window.location.href = HOME_PATH;
   } else {
     refreshAll();
   }

@@ -12,7 +12,7 @@ const {
 
 const router = express.Router();
 
-router.get("/", requireAuth, requireRole("admin", "employee"), listClientsController);
+router.get("/", requireAuth, requireRole("admin"), listClientsController);
 router.get("/me", requireAuth, requireRole("client"), getMyProfileController);
 router.put("/me", requireAuth, requireRole("client"), updateMyProfileController);
 router.delete("/me", requireAuth, requireRole("client"), deleteMyProfileController);

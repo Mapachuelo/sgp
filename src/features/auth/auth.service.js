@@ -1,6 +1,5 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const { env } = require("../../config/env");
 const { HttpError } = require("../../shared/httpError");
 const {
@@ -103,19 +102,23 @@ function normalizeText(input) {
   return (input || "").trim();
 }
 
-function generateTemporaryPassword() {
-  return "Emp#" + crypto.randomBytes(4).toString("hex");
-}
-
 async function createEmployeeByAdmin(input) {
   const firstName = normalizeText(input.firstName);
   const lastName = normalizeText(input.lastName);
   const phone = normalizeText(input.phone);
   const identification = normalizeText(input.identification);
   const email = normalizeText(input.email).toLowerCase();
+  const password = normalizeText(input.password);
 
-  if (!firstName || !lastName || !phone || !identification || !email) {
-    throw new HttpError(400, "firstName, lastName, phone, identification y email son obligatorios");
+  if (!firstName || !lastName || !phone || !identification || !email || !password) {
+    throw new HttpError(
+      400,
+      "firstName, lastName, phone, identification, email y password son obligatorios"
+    );
+  }
+
+  if (password.length < 6) {
+    throw new HttpError(400, "La password asignada debe tener al menos 6 caracteres");
   }
 
   const emailTaken = await findUserByEmail(email);
@@ -133,8 +136,7 @@ async function createEmployeeByAdmin(input) {
     throw new HttpError(409, "La identificacion ya existe");
   }
 
-  const temporaryPassword = generateTemporaryPassword();
-  const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+  const passwordHash = await bcrypt.hash(password, 10);
 
   const employee = await createEmployeeWithProfile({
     firstName,
@@ -142,13 +144,11 @@ async function createEmployeeByAdmin(input) {
     phone,
     identification,
     email,
-    passwordHash
+    passwordHash,
+    assignedPassword: password
   });
 
-  return {
-    employee,
-    temporaryPassword
-  };
+  return { employee };
 }
 
 async function getEmployeesByAdmin() {
