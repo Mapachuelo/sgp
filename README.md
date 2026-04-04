@@ -65,7 +65,6 @@ Estas paginas permiten ejecutar las operaciones y ver respuesta JSON en pantalla
 En la raiz del proyecto:
 
 ```bash
-export APP_PORT=3001
 docker compose up --build
 ```
 
