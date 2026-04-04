@@ -325,7 +325,7 @@
 
     const reservationsPayload = await callApi("/api/reservations", "GET");
     const schedulePayload = await callApi(
-      "/api/reservations/work-schedule?start=" +
+      "/api/reservations/work-schedule/editable?start=" +
         encodeURIComponent(byId("weekStart").value) +
         "&days=" +
         encodeURIComponent(String(DAY_COUNT)),

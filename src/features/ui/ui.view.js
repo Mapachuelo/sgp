@@ -210,15 +210,13 @@ function clientCalendarView() {
     <p id="selectedSlotText" class="selected-slot">Selecciona un horario disponible.</p>
 
     <label>Servicio</label>
-    <input id="serviceName" type="text" placeholder="Corte, Barba, Color" />
+    <select id="serviceName">
+      <option value="">Selecciona un servicio</option>
+    </select>
 
     <label>Peluquero</label>
     <select id="stylistName">
-      <option value="">Selecciona un peluquero</option>
-      <option value="Paola">Paola</option>
-      <option value="Sergio">Sergio</option>
-      <option value="Camila">Camila</option>
-      <option value="Max">Max</option>
+      <option value="__any__">Cualquier peluquero</option>
     </select>
 
     <label>Cantidad de clientes</label>
@@ -256,6 +254,7 @@ function employeeView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -267,10 +266,10 @@ function employeeView() {
   <section class="emp-panel hero">
     <p class="eyebrow">Sitio web empleado</p>
     <h1>Panel de control de empleados</h1>
-    <p>Gestiona reservas, verifica clientes y valida ingresos con QR.</p>
+    <p>Gestiona reservas, calendario de disponibilidad y valida ingresos con QR.</p>
     <div class="hero-actions">
-      <a class="emp-btn solid" href="/ui/employee/verify-clients">Verificar clientes</a>
-      <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validar QR</a>
+      <a class="emp-btn solid" href="/ui/employee/calendar">Abrir calendario</a>
+      <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar clientes</a>
     </div>
     <p id="sessionBadge" class="badge">Sesion no iniciada</p>
   </section>
@@ -317,28 +316,34 @@ function employeeView() {
 
 function employeeCalendarView() {
   const body = `
-<header class="emp-topbar">
-  <a class="emp-brand" href="/ui/employee">Prueba</a>
-  <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
-    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
+<header class="topbar">
+  <a class="brand" href="/ui/employee">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
+    <a class="btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
-<main class="emp-calendar-layout">
-  <section class="emp-panel calendar-panel">
-    <div class="panel-head">
-      <h1>Calendario de clientes</h1>
-      <div class="inline-controls">
-        <label for="weekStart">Inicio</label>
-        <input id="weekStart" type="date" />
-        <button id="refreshCalendarBtn" class="emp-btn ghost" type="button">Actualizar</button>
-      </div>
+<main class="calendar-layout">
+  <section class="calendar-main panel">
+    <div class="calendar-title-wrap">
+      <h1>Calendario de disponibilidad</h1>
+      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
     </div>
-    <p class="helper">Vista por semana de citas reservadas para el equipo.</p>
+
+    <div class="calendar-toolbar">
+      <label for="weekStart">Inicio del rango</label>
+      <input id="weekStart" type="date" />
+      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+    </div>
+
+    <div class="legend-row">
+      <span class="legend available">Disponible</span>
+      <span class="legend reserved">Reservado</span>
+    </div>
+
     <div class="calendar-shell">
       <table>
         <thead id="calendarHead"></thead>
@@ -347,25 +352,45 @@ function employeeCalendarView() {
     </div>
   </section>
 
-  <aside class="emp-panel side-panel">
-    <h2>Citas del dia</h2>
-    <input id="dayFilter" type="date" />
-    <ul id="dayReservationsList" class="day-list"></ul>
-    <p id="calendarFeedback" class="feedback info">Inicia sesion para consultar reservas.</p>
+  <aside class="booking-panel panel">
+    <h2>Ingreso de reserva</h2>
+    <p id="selectedSlotText" class="selected-slot">Selecciona un horario disponible.</p>
+
+    <label>Servicio</label>
+    <select id="serviceName">
+      <option value="">Selecciona un servicio</option>
+    </select>
+
+    <label>Peluquero</label>
+    <select id="stylistName">
+      <option value="__any__">Cualquier peluquero</option>
+    </select>
+
+    <label>Cantidad de clientes</label>
+    <input id="clientCount" type="number" min="1" value="1" />
+
+    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
+
+    <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol empleado.</p>
+    <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
+
+    <h3>Ultimas reservas</h3>
+    <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
 
-<section class="emp-panel output-panel">
+<section class="panel api-output-panel">
   <h2>Salida API</h2>
   <pre id="apiOutput"></pre>
 </section>
 `;
 
   return clientDocument(
-    "SGP - Empleado Calendario",
-    "/ui-assets/styles/employee-calendar.css",
+    "SGP - Calendario Empleado",
+    "/ui-assets/styles/client-calendar.css",
     body,
-    "/ui-assets/scripts/employee-calendar.js"
+    "/ui-assets/scripts/client-calendar.js"
   );
 }
 
@@ -375,6 +400,7 @@ function employeeVerifyClientsView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -431,6 +457,7 @@ function employeeValidateQrView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -482,7 +509,6 @@ function adminView() {
   <a class="admin-brand" href="/ui/admin">Prueba</a>
   <nav class="admin-nav">
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
-    <a class="admin-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
     <button id="logoutBtn" class="admin-btn ghost hidden" type="button">Cerrar sesion</button>
@@ -491,8 +517,8 @@ function adminView() {
 
 <main class="admin-layout">
   <section class="admin-panel form-panel">
-    <h1>Ingreso empleado</h1>
-    <p class="helper">Solo administradores pueden crear empleados.</p>
+    <h1>Ingreso empleado y administrador</h1>
+    <p class="helper">Solo administradores pueden registrar usuarios internos.</p>
 
     <div id="loginCard" class="login-card">
       <h2>Login administrador</h2>
@@ -504,6 +530,11 @@ function adminView() {
     </div>
 
     <form id="employeeForm" class="hidden">
+      <label>Rol</label>
+      <select id="role">
+        <option value="employee">Empleado</option>
+        <option value="admin">Administrador</option>
+      </select>
       <label>Nombre</label>
       <input id="firstName" type="text" placeholder="Nombre" />
       <label>Apellido</label>
@@ -520,11 +551,18 @@ function adminView() {
     </form>
 
     <p id="adminFeedback" class="feedback info">Inicia sesion para administrar empleados.</p>
+
+    <hr />
+    <h2>Servicios disponibles</h2>
+    <label>Nuevo servicio</label>
+    <input id="serviceNameInput" type="text" placeholder="Corte clasico" />
+    <button id="addServiceBtn" class="admin-btn ghost block" type="button">Agregar servicio</button>
+    <ul id="servicesList"></ul>
   </section>
 
   <section class="admin-panel list-panel">
     <div class="list-head">
-      <h2>Lista empleado</h2>
+      <h2>Lista registrados</h2>
       <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
     </div>
     <div class="table-shell">
@@ -536,6 +574,7 @@ function adminView() {
             <th>Numero</th>
             <th>Identificacion</th>
             <th>Correo</th>
+            <th>Rol</th>
             <th>Password</th>
             <th>Accion</th>
           </tr>
@@ -563,28 +602,34 @@ function adminView() {
 
 function adminCalendarView() {
   const body = `
-<header class="emp-topbar">
-  <a class="emp-brand" href="/ui/admin">Prueba</a>
-  <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
-    <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
-    <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
+<header class="topbar">
+  <a class="brand" href="/ui/admin">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/admin">Gestion empleados</a>
+    <a class="btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
+    <a class="btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
-<main class="emp-calendar-layout">
-  <section class="emp-panel calendar-panel">
-    <div class="panel-head">
-      <h1>Calendario de clientes</h1>
-      <div class="inline-controls">
-        <label for="weekStart">Inicio</label>
-        <input id="weekStart" type="date" />
-        <button id="refreshCalendarBtn" class="emp-btn ghost" type="button">Actualizar</button>
-      </div>
+<main class="calendar-layout">
+  <section class="calendar-main panel">
+    <div class="calendar-title-wrap">
+      <h1>Calendario de disponibilidad</h1>
+      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
     </div>
-    <p class="helper">Vista por semana de citas reservadas para el equipo.</p>
+
+    <div class="calendar-toolbar">
+      <label for="weekStart">Inicio del rango</label>
+      <input id="weekStart" type="date" />
+      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+    </div>
+
+    <div class="legend-row">
+      <span class="legend available">Disponible</span>
+      <span class="legend reserved">Reservado</span>
+    </div>
+
     <div class="calendar-shell">
       <table>
         <thead id="calendarHead"></thead>
@@ -593,25 +638,45 @@ function adminCalendarView() {
     </div>
   </section>
 
-  <aside class="emp-panel side-panel">
-    <h2>Citas del dia</h2>
-    <input id="dayFilter" type="date" />
-    <ul id="dayReservationsList" class="day-list"></ul>
-    <p id="calendarFeedback" class="feedback info">Inicia sesion para consultar reservas.</p>
+  <aside class="booking-panel panel">
+    <h2>Ingreso de reserva</h2>
+    <p id="selectedSlotText" class="selected-slot">Selecciona un horario disponible.</p>
+
+    <label>Servicio</label>
+    <select id="serviceName">
+      <option value="">Selecciona un servicio</option>
+    </select>
+
+    <label>Peluquero</label>
+    <select id="stylistName">
+      <option value="__any__">Cualquier peluquero</option>
+    </select>
+
+    <label>Cantidad de clientes</label>
+    <input id="clientCount" type="number" min="1" value="1" />
+
+    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
+
+    <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol administrador.</p>
+    <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
+
+    <h3>Ultimas reservas</h3>
+    <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
 
-<section class="emp-panel output-panel">
+<section class="panel api-output-panel">
   <h2>Salida API</h2>
   <pre id="apiOutput"></pre>
 </section>
 `;
 
   return clientDocument(
-    "SGP - Administrador Calendario",
-    "/ui-assets/styles/employee-calendar.css",
+    "SGP - Calendario Administrador",
+    "/ui-assets/styles/client-calendar.css",
     body,
-    "/ui-assets/scripts/employee-calendar.js"
+    "/ui-assets/scripts/client-calendar.js"
   );
 }
 
@@ -621,7 +686,6 @@ function adminVerifyClientsView() {
   <a class="emp-brand" href="/ui/admin">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
-    <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
@@ -677,7 +741,6 @@ function adminValidateQrView() {
   <a class="emp-brand" href="/ui/admin">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
-    <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>

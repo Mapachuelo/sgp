@@ -9,14 +9,27 @@ const {
   listReservationsController,
   availabilityController,
   getWorkScheduleController,
+  getEditableWorkScheduleController,
   saveWorkScheduleController,
-  resetWorkScheduleController
+  resetWorkScheduleController,
+  listServicesController,
+  createServiceController,
+  deleteServiceController
 } = require("./reservations.controller");
 
 const router = express.Router();
 
 router.get("/availability", availabilityController);
+router.get("/services", listServicesController);
+router.post("/services", requireAuth, requireRole("admin"), createServiceController);
+router.delete("/services/:serviceId", requireAuth, requireRole("admin"), deleteServiceController);
 router.get("/work-schedule", getWorkScheduleController);
+router.get(
+  "/work-schedule/editable",
+  requireAuth,
+  requireRole("employee", "admin"),
+  getEditableWorkScheduleController
+);
 router.put("/work-schedule", requireAuth, requireRole("employee", "admin"), saveWorkScheduleController);
 router.delete(
   "/work-schedule",

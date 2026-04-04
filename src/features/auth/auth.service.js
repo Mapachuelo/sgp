@@ -9,7 +9,10 @@ const {
   findUserById,
   findEmployeeByIdentification,
   listEmployees,
-  createEmployeeWithProfile,
+  createStaffWithProfile,
+  listStylists,
+  updateUserById,
+  updateAssignedPasswordByUserId,
   countPaymentsByStylistId,
   deleteUserById
 } = require("./auth.model");
@@ -102,6 +105,18 @@ function normalizeText(input) {
   return (input || "").trim();
 }
 
+function normalizeRole(inputRole) {
+  const role = String(inputRole || "")
+    .trim()
+    .toLowerCase();
+
+  if (role !== "employee" && role !== "admin") {
+    throw new HttpError(400, "role debe ser employee o admin");
+  }
+
+  return role;
+}
+
 async function createEmployeeByAdmin(input) {
   const firstName = normalizeText(input.firstName);
   const lastName = normalizeText(input.lastName);
@@ -109,6 +124,7 @@ async function createEmployeeByAdmin(input) {
   const identification = normalizeText(input.identification);
   const email = normalizeText(input.email).toLowerCase();
   const password = normalizeText(input.password);
+  const role = normalizeRole(input.role || "employee");
 
   if (!firstName || !lastName || !phone || !identification || !email || !password) {
     throw new HttpError(
@@ -138,21 +154,26 @@ async function createEmployeeByAdmin(input) {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const employee = await createEmployeeWithProfile({
+  const user = await createStaffWithProfile({
     firstName,
     lastName,
     phone,
     identification,
     email,
+    role,
     passwordHash,
     assignedPassword: password
   });
 
-  return { employee };
+  return { user };
 }
 
 async function getEmployeesByAdmin() {
   return listEmployees();
+}
+
+async function getStylistsForCalendar() {
+  return listStylists();
 }
 
 function parseEmployeeId(employeeIdInput) {
@@ -164,16 +185,20 @@ function parseEmployeeId(employeeIdInput) {
   return employeeId;
 }
 
-async function deleteEmployeeByAdmin(employeeIdInput) {
+async function deleteEmployeeByAdmin(employeeIdInput, actorUserId) {
   const employeeId = parseEmployeeId(employeeIdInput);
+
+  if (Number(actorUserId) === employeeId) {
+    throw new HttpError(400, "No puedes eliminar tu propio usuario administrador");
+  }
 
   const user = await findUserById(employeeId);
   if (!user) {
     throw new HttpError(404, "Empleado no encontrado");
   }
 
-  if (user.role !== "employee") {
-    throw new HttpError(400, "Solo se pueden eliminar usuarios con rol empleado");
+  if (user.role !== "employee" && user.role !== "admin") {
+    throw new HttpError(400, "Solo se pueden eliminar usuarios con rol empleado o admin");
   }
 
   const paymentsCount = await countPaymentsByStylistId(employeeId);
@@ -192,11 +217,66 @@ async function deleteEmployeeByAdmin(employeeIdInput) {
   return deletedEmployee;
 }
 
+async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) {
+  const userId = parseEmployeeId(employeeIdInput);
+  const phone = normalizeText(input.phone);
+  const email = normalizeText(input.email).toLowerCase();
+  const password = normalizeText(input.password);
+
+  if (!phone || !email || !password) {
+    throw new HttpError(400, "phone, email y password son obligatorios");
+  }
+
+  if (password.length < 6) {
+    throw new HttpError(400, "La password debe tener al menos 6 caracteres");
+  }
+
+  const existingUser = await findUserById(userId);
+  if (!existingUser) {
+    throw new HttpError(404, "Usuario no encontrado");
+  }
+
+  if (existingUser.role !== "employee" && existingUser.role !== "admin") {
+    throw new HttpError(400, "Solo se pueden editar usuarios con rol employee o admin");
+  }
+
+  if (Number(actorUserId) === userId && existingUser.role === "admin") {
+    throw new HttpError(400, "No puedes editar tu propio usuario administrador desde esta vista");
+  }
+
+  const emailTaken = await findUserByEmail(email);
+  if (emailTaken && Number(emailTaken.id) !== userId) {
+    throw new HttpError(409, "El correo ya existe");
+  }
+
+  const phoneTaken = await findUserByPhone(phone);
+  if (phoneTaken && Number(phoneTaken.id) !== userId) {
+    throw new HttpError(409, "El numero de telefono ya existe");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const updatedUser = await updateUserById(userId, {
+    phone,
+    email,
+    passwordHash
+  });
+
+  if (!updatedUser) {
+    throw new HttpError(404, "Usuario no encontrado");
+  }
+
+  await updateAssignedPasswordByUserId(userId, password);
+
+  return updatedUser;
+}
+
 module.exports = {
   register,
   login,
   getMe,
   createEmployeeByAdmin,
   getEmployeesByAdmin,
-  deleteEmployeeByAdmin
+  deleteEmployeeByAdmin,
+  updateRegisteredUserByAdmin,
+  getStylistsForCalendar
 };

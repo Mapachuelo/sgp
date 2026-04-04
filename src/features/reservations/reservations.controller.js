@@ -5,8 +5,13 @@ const {
   getAllReservations,
   getAvailabilityByDate,
   getWorkScheduleRange,
+  getWorkScheduleRangeByStylist,
+  getEditableWorkScheduleForUser,
   saveWorkSchedule,
-  resetWorkScheduleRange
+  resetWorkScheduleRange,
+  listServicesForCalendar,
+  createServiceByAdmin,
+  deleteServiceByAdmin
 } = require("./reservations.service");
 
 const createReservationController = asyncHandler(async (req, res) => {
@@ -30,17 +35,40 @@ const availabilityController = asyncHandler(async (req, res) => {
 });
 
 const getWorkScheduleController = asyncHandler(async (req, res) => {
-  const data = await getWorkScheduleRange(req.query.start, req.query.days);
+  const stylistId = req.query.stylistId;
+  const data = stylistId
+    ? await getWorkScheduleRangeByStylist(req.query.start, req.query.days, stylistId)
+    : await getWorkScheduleRange(req.query.start, req.query.days);
+  res.json({ ok: true, data });
+});
+
+const getEditableWorkScheduleController = asyncHandler(async (req, res) => {
+  const data = await getEditableWorkScheduleForUser(req.query.start, req.query.days, req.auth);
   res.json({ ok: true, data });
 });
 
 const saveWorkScheduleController = asyncHandler(async (req, res) => {
-  const data = await saveWorkSchedule(req.body.entries, req.auth.sub);
+  const data = await saveWorkSchedule(req.body.entries, req.auth);
   res.json({ ok: true, data });
 });
 
 const resetWorkScheduleController = asyncHandler(async (req, res) => {
-  const data = await resetWorkScheduleRange(req.query.start, req.query.days);
+  const data = await resetWorkScheduleRange(req.query.start, req.query.days, req.auth);
+  res.json({ ok: true, data });
+});
+
+const listServicesController = asyncHandler(async (_req, res) => {
+  const data = await listServicesForCalendar();
+  res.json({ ok: true, data });
+});
+
+const createServiceController = asyncHandler(async (req, res) => {
+  const data = await createServiceByAdmin(req.body, req.auth.sub);
+  res.status(201).json({ ok: true, data });
+});
+
+const deleteServiceController = asyncHandler(async (req, res) => {
+  const data = await deleteServiceByAdmin(req.params.serviceId);
   res.json({ ok: true, data });
 });
 
@@ -50,6 +78,10 @@ module.exports = {
   listReservationsController,
   availabilityController,
   getWorkScheduleController,
+  getEditableWorkScheduleController,
   saveWorkScheduleController,
-  resetWorkScheduleController
+  resetWorkScheduleController,
+  listServicesController,
+  createServiceController,
+  deleteServiceController
 };

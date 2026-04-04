@@ -89,6 +89,10 @@
   function validateForm(data) {
     const missing = [];
 
+    if (!data.role) {
+      missing.push("rol");
+    }
+
     if (!data.firstName) {
       missing.push("nombre");
     }
@@ -121,6 +125,7 @@
 
   function getFormData() {
     return {
+      role: byId("role").value,
       firstName: byId("firstName").value.trim(),
       lastName: byId("lastName").value.trim(),
       phone: byId("phone").value.trim(),
@@ -131,6 +136,7 @@
   }
 
   function clearForm() {
+    byId("role").value = "employee";
     byId("firstName").value = "";
     byId("lastName").value = "";
     byId("phone").value = "";
@@ -146,7 +152,7 @@
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 7;
+      td.colSpan = 8;
       td.textContent = "Sin empleados registrados.";
       tr.appendChild(td);
       body.appendChild(tr);
@@ -176,17 +182,34 @@
       email.textContent = row.email || "";
       tr.appendChild(email);
 
+      const role = document.createElement("td");
+      role.textContent = row.role || "";
+      tr.appendChild(role);
+
       const assignedPassword = document.createElement("td");
       assignedPassword.textContent = row.assigned_password || "No asignada";
       tr.appendChild(assignedPassword);
 
       const actions = document.createElement("td");
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "admin-btn ghost edit-employee-btn";
+      editBtn.textContent = "Editar";
+      editBtn.dataset.employeeId = String(row.id || "");
+      editBtn.dataset.employeePhone = row.phone || "";
+      editBtn.dataset.employeeEmail = row.email || "";
+      editBtn.dataset.employeeRole = row.role || "";
+      editBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
+      editBtn.disabled = !row.id;
+      actions.appendChild(editBtn);
+
       const deleteBtn = document.createElement("button");
       deleteBtn.type = "button";
       deleteBtn.className = "admin-btn ghost delete-employee-btn";
       deleteBtn.textContent = "Eliminar";
       deleteBtn.dataset.employeeId = String(row.id || "");
       deleteBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
+      deleteBtn.dataset.employeeRole = row.role || "";
       deleteBtn.disabled = !row.id;
       actions.appendChild(deleteBtn);
       tr.appendChild(actions);
@@ -220,6 +243,7 @@
       setToken(payload.data.token);
       setSessionUi(true);
       await loadEmployees();
+      await loadServices();
       setFeedback("Sesion de administrador iniciada.", "ok");
     } catch (error) {
       setFeedback(error.message, "warn");
@@ -247,14 +271,66 @@
     }
   }
 
-  async function deleteEmployee(employeeId, employeeName) {
+  async function updateEmployee(employeeId, currentPhone, currentEmail, employeeRole, employeeName) {
+    if (!employeeId) {
+      setFeedback("No se pudo identificar el usuario a editar.", "warn");
+      return;
+    }
+
+    const phone = window.prompt(
+      "Nuevo numero para " + (employeeName || "usuario") + ":",
+      currentPhone || ""
+    );
+    if (phone === null) {
+      return;
+    }
+
+    const email = window.prompt(
+      "Nuevo correo para " + (employeeName || "usuario") + ":",
+      currentEmail || ""
+    );
+    if (email === null) {
+      return;
+    }
+
+    const password = window.prompt(
+      "Nueva password para " + (employeeName || "usuario") + " (minimo 6):",
+      ""
+    );
+    if (password === null) {
+      return;
+    }
+
+    if (String(password).trim().length < 6) {
+      setFeedback("La password debe tener al menos 6 caracteres.", "warn");
+      return;
+    }
+
+    try {
+      await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "PUT", {
+        phone: String(phone).trim(),
+        email: String(email).trim(),
+        password: String(password).trim()
+      });
+      await loadEmployees();
+      setFeedback("Usuario " + (employeeRole || "") + " actualizado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function deleteEmployee(employeeId, employeeName, employeeRole) {
     if (!employeeId) {
       setFeedback("No se pudo identificar el empleado a eliminar.", "warn");
       return;
     }
 
     const accepted = window.confirm(
-      "Eliminar al empleado " + (employeeName || "seleccionado") + " de la base de datos?"
+      "Eliminar al usuario " +
+        (employeeName || "seleccionado") +
+        " (rol " +
+        (employeeRole || "") +
+        ") de la base de datos?"
     );
     if (!accepted) {
       return;
@@ -270,6 +346,76 @@
     }
   }
 
+  function renderServices(services) {
+    const list = byId("servicesList");
+    list.innerHTML = "";
+
+    if (!services || services.length === 0) {
+      const item = document.createElement("li");
+      item.textContent = "Sin servicios registrados.";
+      list.appendChild(item);
+      return;
+    }
+
+    services.forEach(function (service) {
+      const item = document.createElement("li");
+      item.textContent = service.name + " ";
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "admin-btn ghost delete-service-btn";
+      removeBtn.textContent = "Eliminar";
+      removeBtn.dataset.serviceId = String(service.id || "");
+      removeBtn.dataset.serviceName = service.name || "";
+      item.appendChild(removeBtn);
+
+      list.appendChild(item);
+    });
+  }
+
+  async function loadServices() {
+    const payload = await callApi("/api/reservations/services", "GET");
+    renderServices(payload.data || []);
+  }
+
+  async function addService() {
+    const name = byId("serviceNameInput").value.trim();
+    if (!name) {
+      setFeedback("Debes ingresar un nombre de servicio.", "warn");
+      return;
+    }
+
+    try {
+      await callApi("/api/reservations/services", "POST", { name: name });
+      byId("serviceNameInput").value = "";
+      await loadServices();
+      setFeedback("Servicio agregado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function deleteService(serviceId, serviceName) {
+    if (!serviceId) {
+      return;
+    }
+
+    const accepted = window.confirm(
+      "Eliminar el servicio \"" + (serviceName || "") + "\"?"
+    );
+    if (!accepted) {
+      return;
+    }
+
+    try {
+      await callApi("/api/reservations/services/" + encodeURIComponent(serviceId), "DELETE");
+      await loadServices();
+      setFeedback("Servicio eliminado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
   byId("loginBtn").addEventListener("click", loginAdmin);
   byId("employeeForm").addEventListener("submit", createEmployee);
   byId("refreshEmployeesBtn").addEventListener("click", function () {
@@ -277,9 +423,33 @@
       setFeedback(error.message, "warn");
     });
   });
+  byId("addServiceBtn").addEventListener("click", addService);
+  byId("servicesList").addEventListener("click", function (event) {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (!target.classList.contains("delete-service-btn")) {
+      return;
+    }
+
+    deleteService(target.dataset.serviceId, target.dataset.serviceName);
+  });
   byId("employeesTableBody").addEventListener("click", function (event) {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (target.classList.contains("edit-employee-btn")) {
+      updateEmployee(
+        target.dataset.employeeId,
+        target.dataset.employeePhone,
+        target.dataset.employeeEmail,
+        target.dataset.employeeRole,
+        target.dataset.employeeName
+      );
       return;
     }
 
@@ -287,7 +457,11 @@
       return;
     }
 
-    deleteEmployee(target.dataset.employeeId, target.dataset.employeeName);
+    deleteEmployee(
+      target.dataset.employeeId,
+      target.dataset.employeeName,
+      target.dataset.employeeRole
+    );
   });
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
@@ -303,7 +477,7 @@
     ensureAdminSession()
       .then(function () {
         setSessionUi(true);
-        return loadEmployees();
+        return Promise.all([loadEmployees(), loadServices()]);
       })
       .then(function () {
         setFeedback("Sesion de administrador activa.", "ok");

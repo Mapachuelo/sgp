@@ -105,7 +105,7 @@ async function listEmployees() {
         u.created_at
       FROM app_user u
       LEFT JOIN employee_profile ep ON ep.user_id = u.id
-      WHERE u.role = 'employee'
+      WHERE u.role IN ('employee', 'admin')
       ORDER BY u.created_at DESC
     `
   );
@@ -113,12 +113,13 @@ async function listEmployees() {
   return result.rows;
 }
 
-async function createEmployeeWithProfile({
+async function createStaffWithProfile({
   firstName,
   lastName,
   phone,
   identification,
   email,
+  role,
   passwordHash,
   assignedPassword
 }) {
@@ -128,10 +129,10 @@ async function createEmployeeWithProfile({
     const userResult = await client.query(
       `
         INSERT INTO app_user (name, email, phone, role, password_hash)
-        VALUES ($1, $2, $3, 'employee', $4)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id, name, email, phone, role, created_at
       `,
-      [firstName, email, phone, passwordHash]
+      [firstName, email, phone, role, passwordHash]
     );
 
     const user = userResult.rows[0];
@@ -156,6 +157,48 @@ async function createEmployeeWithProfile({
       created_at: user.created_at
     };
   });
+}
+
+async function listStylists() {
+  const result = await db.query(
+    `
+      SELECT id, name
+      FROM app_user
+      WHERE role = 'employee'
+      ORDER BY name ASC
+    `
+  );
+
+  return result.rows;
+}
+
+async function updateUserById(id, { phone, email, passwordHash }) {
+  const result = await db.query(
+    `
+      UPDATE app_user
+      SET phone = $2,
+          email = $3,
+          password_hash = $4
+      WHERE id = $1
+      RETURNING id, name, email, phone, role, created_at
+    `,
+    [id, phone, email, passwordHash]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function updateAssignedPasswordByUserId(userId, assignedPassword) {
+  await ensureEmployeeProfileTable();
+
+  await db.query(
+    `
+      UPDATE employee_profile
+      SET assigned_password = $2
+      WHERE user_id = $1
+    `,
+    [userId, assignedPassword]
+  );
 }
 
 async function countPaymentsByStylistId(stylistId) {
@@ -191,7 +234,10 @@ module.exports = {
   createUser,
   findEmployeeByIdentification,
   listEmployees,
-  createEmployeeWithProfile,
+  createStaffWithProfile,
+  listStylists,
+  updateUserById,
+  updateAssignedPasswordByUserId,
   countPaymentsByStylistId,
   deleteUserById
 };
