@@ -29,6 +29,16 @@
     element.className = "feedback " + tone;
   }
 
+  function setRoleUi(user) {
+    const adminLink = byId("adminAccessLink");
+    if (!adminLink) {
+      return;
+    }
+
+    const isAdmin = Boolean(user && user.role === "admin");
+    adminLink.classList.toggle("hidden", !isAdmin);
+  }
+
   function setScanButtons(scanning) {
     byId("startScanBtn").disabled = scanning;
     byId("stopScanBtn").disabled = !scanning;
@@ -90,7 +100,10 @@
     if (!profile.data || (profile.data.role !== "employee" && profile.data.role !== "admin")) {
       throw new Error("Acceso restringido a empleados y administradores");
     }
+
+    setRoleUi(profile.data);
     byId("logoutBtn").classList.remove("hidden");
+    return profile.data;
   }
 
   async function validateToken(qrToken) {
@@ -203,6 +216,7 @@
     window.location.href = "/ui/employee";
   } else {
     ensureEmployeeSession().catch(function (error) {
+      setRoleUi(null);
       setFeedback(error.message, "warn");
       window.location.href = "/ui/employee";
     });

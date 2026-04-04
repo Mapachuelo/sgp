@@ -35,6 +35,16 @@
     byId("logoutBtn").classList.toggle("hidden", !logged);
   }
 
+  function setRoleUi(user) {
+    const adminLink = byId("adminAccessLink");
+    if (!adminLink) {
+      return;
+    }
+
+    const isAdmin = Boolean(user && user.role === "admin");
+    adminLink.classList.toggle("hidden", !isAdmin);
+  }
+
   async function callApi(path, method, body) {
     const headers = {
       "Content-Type": "application/json"
@@ -226,11 +236,14 @@
     if (!canUseEmployeeArea(profile.data)) {
       throw new Error("Acceso restringido a empleados y administradores");
     }
+
+    return profile.data;
   }
 
   async function refreshData() {
     try {
-      await ensureEmployeeSession();
+      const currentUser = await ensureEmployeeSession();
+      setRoleUi(currentUser);
 
       const startText = byId("weekStart").value;
       state.days = buildDayRange(startText);
@@ -243,6 +256,7 @@
       setFeedback("Calendario actualizado.", "ok");
       setSessionUi(true);
     } catch (error) {
+      setRoleUi(null);
       setFeedback(error.message, "warn");
       if (String(error.message).toLowerCase().includes("token")) {
         window.location.href = "/ui/employee";

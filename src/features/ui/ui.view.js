@@ -255,9 +255,11 @@ function employeeView() {
 <header class="emp-topbar">
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -320,8 +322,10 @@ function employeeCalendarView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -374,7 +378,9 @@ function employeeVerifyClientsView() {
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
+    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -430,6 +436,8 @@ function employeeValidateQrView() {
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -530,6 +538,7 @@ function adminView() {
             <th>Numero</th>
             <th>Identificacion</th>
             <th>Correo</th>
+            <th>Accion</th>
           </tr>
         </thead>
         <tbody id="employeesTableBody"></tbody>

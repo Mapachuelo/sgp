@@ -4,7 +4,8 @@ const {
   login,
   register,
   createEmployeeByAdmin,
-  getEmployeesByAdmin
+  getEmployeesByAdmin,
+  deleteEmployeeByAdmin
 } = require("./auth.service");
 
 const registerController = asyncHandler(async (req, res) => {
@@ -32,10 +33,16 @@ const listEmployeesByAdminController = asyncHandler(async (_req, res) => {
   res.json({ ok: true, data });
 });
 
+const deleteEmployeeByAdminController = asyncHandler(async (req, res) => {
+  const data = await deleteEmployeeByAdmin(req.params.employeeId);
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   registerController,
   loginController,
   meController,
   createEmployeeByAdminController,
-  listEmployeesByAdminController
+  listEmployeesByAdminController,
+  deleteEmployeeByAdminController
 };

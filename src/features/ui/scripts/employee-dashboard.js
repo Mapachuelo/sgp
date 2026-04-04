@@ -33,6 +33,16 @@
     byId("sessionBadge").textContent = logged ? "Sesion iniciada" : "Sesion no iniciada";
   }
 
+  function setRoleUi(user) {
+    const adminLink = byId("adminAccessLink");
+    if (!adminLink) {
+      return;
+    }
+
+    const isAdmin = Boolean(user && user.role === "admin");
+    adminLink.classList.toggle("hidden", !isAdmin);
+  }
+
   async function callApi(path, method, body) {
     const headers = {
       "Content-Type": "application/json"
@@ -79,9 +89,12 @@
       if (!canUseEmployeeArea(profilePayload.data)) {
         clearToken();
         setSessionUi(false);
+        setRoleUi(null);
         setFeedback("Esta seccion es solo para empleados y administradores.", "warn");
         return;
       }
+
+      setRoleUi(profilePayload.data);
 
       const clientsPayload = await callApi("/api/clients", "GET");
       const reservationsPayload = await callApi("/api/reservations", "GET");
@@ -108,6 +121,7 @@
       setSessionUi(true);
       setFeedback("Datos de empleado sincronizados.", "ok");
     } catch (error) {
+      setRoleUi(null);
       setFeedback(error.message, "warn");
       byId("activeReservationsCount").textContent = "-";
       byId("clientsCount").textContent = "-";
@@ -147,6 +161,7 @@
   });
 
   setSessionUi(Boolean(getToken()));
+  setRoleUi(null);
   if (getToken()) {
     loadStats();
   }

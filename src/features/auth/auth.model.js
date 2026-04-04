@@ -149,6 +149,32 @@ async function createEmployeeWithProfile({
   });
 }
 
+async function countPaymentsByStylistId(stylistId) {
+  const result = await db.query(
+    `
+      SELECT COUNT(*)::INT AS total
+      FROM payment
+      WHERE stylist_id = $1
+    `,
+    [stylistId]
+  );
+
+  return result.rows[0] ? result.rows[0].total : 0;
+}
+
+async function deleteUserById(id) {
+  const result = await db.query(
+    `
+      DELETE FROM app_user
+      WHERE id = $1
+      RETURNING id, name, email, phone, role, created_at
+    `,
+    [id]
+  );
+
+  return result.rows[0] || null;
+}
+
 module.exports = {
   findUserByEmail,
   findUserByPhone,
@@ -156,5 +182,7 @@ module.exports = {
   createUser,
   findEmployeeByIdentification,
   listEmployees,
-  createEmployeeWithProfile
+  createEmployeeWithProfile,
+  countPaymentsByStylistId,
+  deleteUserById
 };

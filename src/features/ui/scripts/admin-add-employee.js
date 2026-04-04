@@ -138,7 +138,7 @@
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5;
+      td.colSpan = 6;
       td.textContent = "Sin empleados registrados.";
       tr.appendChild(td);
       body.appendChild(tr);
@@ -167,6 +167,17 @@
       const email = document.createElement("td");
       email.textContent = row.email || "";
       tr.appendChild(email);
+
+      const actions = document.createElement("td");
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "admin-btn ghost delete-employee-btn";
+      deleteBtn.textContent = "Eliminar";
+      deleteBtn.dataset.employeeId = String(row.id || "");
+      deleteBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
+      deleteBtn.disabled = !row.id;
+      actions.appendChild(deleteBtn);
+      tr.appendChild(actions);
 
       body.appendChild(tr);
     });
@@ -231,12 +242,47 @@
     }
   }
 
+  async function deleteEmployee(employeeId, employeeName) {
+    if (!employeeId) {
+      setFeedback("No se pudo identificar el empleado a eliminar.", "warn");
+      return;
+    }
+
+    const accepted = window.confirm(
+      "Eliminar al empleado " + (employeeName || "seleccionado") + " de la base de datos?"
+    );
+    if (!accepted) {
+      return;
+    }
+
+    try {
+      await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "DELETE");
+      setTempPasswordHint("");
+      await loadEmployees();
+      setFeedback("Empleado eliminado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
   byId("loginBtn").addEventListener("click", loginAdmin);
   byId("employeeForm").addEventListener("submit", createEmployee);
   byId("refreshEmployeesBtn").addEventListener("click", function () {
     loadEmployees().catch(function (error) {
       setFeedback(error.message, "warn");
     });
+  });
+  byId("employeesTableBody").addEventListener("click", function (event) {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (!target.classList.contains("delete-employee-btn")) {
+      return;
+    }
+
+    deleteEmployee(target.dataset.employeeId, target.dataset.employeeName);
   });
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();

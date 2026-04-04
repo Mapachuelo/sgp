@@ -1,17 +1,8 @@
 (function () {
   const TOKEN_KEY = "client_token";
-  const DAY_COUNT = 9;
-  const SLOT_TIMES = [
-    "08:00",
-    "08:30",
-    "09:00",
-    "09:30",
-    "10:00",
-    "10:30",
-    "11:00",
-    "11:30",
-    "12:00"
-  ];
+  const START_HOUR = 6;
+  const END_HOUR = 22;
+  const DAY_COUNT = 7;
 
   const state = {
     days: [],
@@ -66,6 +57,18 @@
     const hours = String(parsed.getHours()).padStart(2, "0");
     const minutes = String(parsed.getMinutes()).padStart(2, "0");
     return hours + ":" + minutes;
+  }
+
+  function getSlots() {
+    const slots = [];
+    for (let hour = START_HOUR; hour <= END_HOUR; hour += 1) {
+      slots.push(String(hour).padStart(2, "0") + ":00");
+      if (hour !== END_HOUR) {
+        slots.push(String(hour).padStart(2, "0") + ":30");
+      }
+    }
+
+    return slots;
   }
 
   function setAuthUi() {
@@ -157,7 +160,7 @@
 
     head.appendChild(headRow);
 
-    SLOT_TIMES.forEach(function (slot) {
+    getSlots().forEach(function (slot) {
       const row = document.createElement("tr");
       const slotTitle = document.createElement("th");
       slotTitle.textContent = slot;

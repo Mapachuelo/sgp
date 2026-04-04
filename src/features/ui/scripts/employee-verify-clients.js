@@ -34,6 +34,16 @@
     element.className = "feedback " + tone;
   }
 
+  function setRoleUi(user) {
+    const adminLink = byId("adminAccessLink");
+    if (!adminLink) {
+      return;
+    }
+
+    const isAdmin = Boolean(user && user.role === "admin");
+    adminLink.classList.toggle("hidden", !isAdmin);
+  }
+
   function toDateKey(date) {
     return date.toISOString().slice(0, 10);
   }
@@ -147,6 +157,8 @@
     if (!profile.data || (profile.data.role !== "employee" && profile.data.role !== "admin")) {
       throw new Error("Acceso restringido a empleados y administradores");
     }
+
+    return profile.data;
   }
 
   function buildDayRange(startText) {
@@ -314,7 +326,8 @@
   }
 
   async function loadData() {
-    await ensureEmployeeSession();
+    const currentUser = await ensureEmployeeSession();
+    setRoleUi(currentUser);
 
     const reservationsPayload = await callApi("/api/reservations", "GET");
     const clientsPayload = await callApi("/api/clients", "GET");
@@ -337,6 +350,7 @@
       renderCalendar();
       setFeedback("Calendario de verificacion actualizado.", "ok");
     } catch (error) {
+      setRoleUi(null);
       setFeedback(error.message, "warn");
       if (String(error.message).toLowerCase().includes("token")) {
         window.location.href = "/ui/employee";

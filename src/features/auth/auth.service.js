@@ -10,7 +10,9 @@ const {
   findUserById,
   findEmployeeByIdentification,
   listEmployees,
-  createEmployeeWithProfile
+  createEmployeeWithProfile,
+  countPaymentsByStylistId,
+  deleteUserById
 } = require("./auth.model");
 
 const PUBLIC_REGISTRATION_ROLE = "client";
@@ -153,10 +155,48 @@ async function getEmployeesByAdmin() {
   return listEmployees();
 }
 
+function parseEmployeeId(employeeIdInput) {
+  const employeeId = Number(employeeIdInput);
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    throw new HttpError(400, "employeeId debe ser un numero entero positivo");
+  }
+
+  return employeeId;
+}
+
+async function deleteEmployeeByAdmin(employeeIdInput) {
+  const employeeId = parseEmployeeId(employeeIdInput);
+
+  const user = await findUserById(employeeId);
+  if (!user) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  if (user.role !== "employee") {
+    throw new HttpError(400, "Solo se pueden eliminar usuarios con rol empleado");
+  }
+
+  const paymentsCount = await countPaymentsByStylistId(employeeId);
+  if (paymentsCount > 0) {
+    throw new HttpError(
+      409,
+      "No se puede eliminar el empleado porque tiene pagos asociados"
+    );
+  }
+
+  const deletedEmployee = await deleteUserById(employeeId);
+  if (!deletedEmployee) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  return deletedEmployee;
+}
+
 module.exports = {
   register,
   login,
   getMe,
   createEmployeeByAdmin,
-  getEmployeesByAdmin
+  getEmployeesByAdmin,
+  deleteEmployeeByAdmin
 };
