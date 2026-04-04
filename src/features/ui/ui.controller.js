@@ -6,7 +6,10 @@ const {
   employeeCalendarView,
   employeeVerifyClientsView,
   employeeValidateQrView,
-  adminView
+  adminView,
+  adminCalendarView,
+  adminVerifyClientsView,
+  adminValidateQrView
 } = require("./ui.view");
 
 function homeController(_req, res) {
@@ -41,6 +44,18 @@ function adminController(_req, res) {
   res.type("html").send(adminView());
 }
 
+function adminCalendarController(_req, res) {
+  res.type("html").send(adminCalendarView());
+}
+
+function adminVerifyClientsController(_req, res) {
+  res.type("html").send(adminVerifyClientsView());
+}
+
+function adminValidateQrController(_req, res) {
+  res.type("html").send(adminValidateQrView());
+}
+
 module.exports = {
   homeController,
   clientController,
@@ -49,5 +64,8 @@ module.exports = {
   employeeCalendarController,
   employeeVerifyClientsController,
   employeeValidateQrController,
-  adminController
+  adminController,
+  adminCalendarController,
+  adminVerifyClientsController,
+  adminValidateQrController
 };

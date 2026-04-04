@@ -4,7 +4,10 @@ const {
   login,
   register,
   createEmployeeByAdmin,
-  getEmployeesByAdmin
+  getEmployeesByAdmin,
+  deleteEmployeeByAdmin,
+  updateRegisteredUserByAdmin,
+  getStylistsForCalendar
 } = require("./auth.service");
 
 const registerController = asyncHandler(async (req, res) => {
@@ -32,10 +35,28 @@ const listEmployeesByAdminController = asyncHandler(async (_req, res) => {
   res.json({ ok: true, data });
 });
 
+const deleteEmployeeByAdminController = asyncHandler(async (req, res) => {
+  const data = await deleteEmployeeByAdmin(req.params.employeeId, req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const updateRegisteredUserByAdminController = asyncHandler(async (req, res) => {
+  const data = await updateRegisteredUserByAdmin(req.params.employeeId, req.body, req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const stylistsController = asyncHandler(async (_req, res) => {
+  const data = await getStylistsForCalendar();
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   registerController,
   loginController,
   meController,
   createEmployeeByAdminController,
-  listEmployeesByAdminController
+  listEmployeesByAdminController,
+  deleteEmployeeByAdminController,
+  updateRegisteredUserByAdminController,
+  stylistsController
 };

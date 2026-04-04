@@ -1,6 +1,5 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const { env } = require("../../config/env");
 const { HttpError } = require("../../shared/httpError");
 const {
@@ -10,7 +9,12 @@ const {
   findUserById,
   findEmployeeByIdentification,
   listEmployees,
-  createEmployeeWithProfile
+  createStaffWithProfile,
+  listStylists,
+  updateUserById,
+  updateAssignedPasswordByUserId,
+  countPaymentsByStylistId,
+  deleteUserById
 } = require("./auth.model");
 
 const PUBLIC_REGISTRATION_ROLE = "client";
@@ -101,8 +105,16 @@ function normalizeText(input) {
   return (input || "").trim();
 }
 
-function generateTemporaryPassword() {
-  return "Emp#" + crypto.randomBytes(4).toString("hex");
+function normalizeRole(inputRole) {
+  const role = String(inputRole || "")
+    .trim()
+    .toLowerCase();
+
+  if (role !== "employee" && role !== "admin") {
+    throw new HttpError(400, "role debe ser employee o admin");
+  }
+
+  return role;
 }
 
 async function createEmployeeByAdmin(input) {
@@ -111,9 +123,18 @@ async function createEmployeeByAdmin(input) {
   const phone = normalizeText(input.phone);
   const identification = normalizeText(input.identification);
   const email = normalizeText(input.email).toLowerCase();
+  const password = normalizeText(input.password);
+  const role = normalizeRole(input.role || "employee");
 
-  if (!firstName || !lastName || !phone || !identification || !email) {
-    throw new HttpError(400, "firstName, lastName, phone, identification y email son obligatorios");
+  if (!firstName || !lastName || !phone || !identification || !email || !password) {
+    throw new HttpError(
+      400,
+      "firstName, lastName, phone, identification, email y password son obligatorios"
+    );
+  }
+
+  if (password.length < 6) {
+    throw new HttpError(400, "La password asignada debe tener al menos 6 caracteres");
   }
 
   const emailTaken = await findUserByEmail(email);
@@ -131,26 +152,122 @@ async function createEmployeeByAdmin(input) {
     throw new HttpError(409, "La identificacion ya existe");
   }
 
-  const temporaryPassword = generateTemporaryPassword();
-  const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+  const passwordHash = await bcrypt.hash(password, 10);
 
-  const employee = await createEmployeeWithProfile({
+  const user = await createStaffWithProfile({
     firstName,
     lastName,
     phone,
     identification,
     email,
-    passwordHash
+    role,
+    passwordHash,
+    assignedPassword: password
   });
 
-  return {
-    employee,
-    temporaryPassword
-  };
+  return { user };
 }
 
 async function getEmployeesByAdmin() {
   return listEmployees();
+}
+
+async function getStylistsForCalendar() {
+  return listStylists();
+}
+
+function parseEmployeeId(employeeIdInput) {
+  const employeeId = Number(employeeIdInput);
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    throw new HttpError(400, "employeeId debe ser un numero entero positivo");
+  }
+
+  return employeeId;
+}
+
+async function deleteEmployeeByAdmin(employeeIdInput, actorUserId) {
+  const employeeId = parseEmployeeId(employeeIdInput);
+
+  if (Number(actorUserId) === employeeId) {
+    throw new HttpError(400, "No puedes eliminar tu propio usuario administrador");
+  }
+
+  const user = await findUserById(employeeId);
+  if (!user) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  if (user.role !== "employee" && user.role !== "admin") {
+    throw new HttpError(400, "Solo se pueden eliminar usuarios con rol empleado o admin");
+  }
+
+  const paymentsCount = await countPaymentsByStylistId(employeeId);
+  if (paymentsCount > 0) {
+    throw new HttpError(
+      409,
+      "No se puede eliminar el empleado porque tiene pagos asociados"
+    );
+  }
+
+  const deletedEmployee = await deleteUserById(employeeId);
+  if (!deletedEmployee) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  return deletedEmployee;
+}
+
+async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) {
+  const userId = parseEmployeeId(employeeIdInput);
+  const phone = normalizeText(input.phone);
+  const email = normalizeText(input.email).toLowerCase();
+  const password = normalizeText(input.password);
+
+  if (!phone || !email || !password) {
+    throw new HttpError(400, "phone, email y password son obligatorios");
+  }
+
+  if (password.length < 6) {
+    throw new HttpError(400, "La password debe tener al menos 6 caracteres");
+  }
+
+  const existingUser = await findUserById(userId);
+  if (!existingUser) {
+    throw new HttpError(404, "Usuario no encontrado");
+  }
+
+  if (existingUser.role !== "employee" && existingUser.role !== "admin") {
+    throw new HttpError(400, "Solo se pueden editar usuarios con rol employee o admin");
+  }
+
+  if (Number(actorUserId) === userId && existingUser.role === "admin") {
+    throw new HttpError(400, "No puedes editar tu propio usuario administrador desde esta vista");
+  }
+
+  const emailTaken = await findUserByEmail(email);
+  if (emailTaken && Number(emailTaken.id) !== userId) {
+    throw new HttpError(409, "El correo ya existe");
+  }
+
+  const phoneTaken = await findUserByPhone(phone);
+  if (phoneTaken && Number(phoneTaken.id) !== userId) {
+    throw new HttpError(409, "El numero de telefono ya existe");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const updatedUser = await updateUserById(userId, {
+    phone,
+    email,
+    passwordHash
+  });
+
+  if (!updatedUser) {
+    throw new HttpError(404, "Usuario no encontrado");
+  }
+
+  await updateAssignedPasswordByUserId(userId, password);
+
+  return updatedUser;
 }
 
 module.exports = {
@@ -158,5 +275,8 @@ module.exports = {
   login,
   getMe,
   createEmployeeByAdmin,
-  getEmployeesByAdmin
+  getEmployeesByAdmin,
+  deleteEmployeeByAdmin,
+  updateRegisteredUserByAdmin,
+  getStylistsForCalendar
 };

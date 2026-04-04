@@ -88,12 +88,12 @@ Si el puerto 3000 ya esta ocupado en tu Linux, cambia APP_PORT al valor que nece
 El script db/init.sql crea:
 
 - Admin: admin@sgp.local
-- Empleado: empleado@sgp.local
+- Empleado: empleado@gmail.com
 
 Las contrasenas estan definidas con hash bcrypt en la base inicial.
 
 - Password admin: admin123
-- Password empleado: empleado123
+- Password empleado: 123456
 
 ### 5. Detener el entorno
 

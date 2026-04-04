@@ -12,7 +12,6 @@
 
   function setToken(token) {
     localStorage.setItem(ADMIN_TOKEN_KEY, token);
-    localStorage.setItem(EMPLOYEE_TOKEN_KEY, token);
   }
 
   function clearToken() {
@@ -90,6 +89,10 @@
   function validateForm(data) {
     const missing = [];
 
+    if (!data.role) {
+      missing.push("rol");
+    }
+
     if (!data.firstName) {
       missing.push("nombre");
     }
@@ -105,9 +108,16 @@
     if (!data.email) {
       missing.push("correo");
     }
+    if (!data.password) {
+      missing.push("password");
+    }
 
     if (missing.length > 0) {
       return "Completa los campos: " + missing.join(", ");
+    }
+
+    if (data.password.length < 6) {
+      return "La password asignada debe tener al menos 6 caracteres";
     }
 
     return "";
@@ -115,20 +125,24 @@
 
   function getFormData() {
     return {
+      role: byId("role").value,
       firstName: byId("firstName").value.trim(),
       lastName: byId("lastName").value.trim(),
       phone: byId("phone").value.trim(),
       identification: byId("identification").value.trim(),
-      email: byId("email").value.trim()
+      email: byId("email").value.trim(),
+      password: byId("password").value
     };
   }
 
   function clearForm() {
+    byId("role").value = "employee";
     byId("firstName").value = "";
     byId("lastName").value = "";
     byId("phone").value = "";
     byId("identification").value = "";
     byId("email").value = "";
+    byId("password").value = "";
   }
 
   function renderEmployees(rows) {
@@ -138,7 +152,7 @@
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5;
+      td.colSpan = 8;
       td.textContent = "Sin empleados registrados.";
       tr.appendChild(td);
       body.appendChild(tr);
@@ -167,6 +181,39 @@
       const email = document.createElement("td");
       email.textContent = row.email || "";
       tr.appendChild(email);
+
+      const role = document.createElement("td");
+      role.textContent = row.role || "";
+      tr.appendChild(role);
+
+      const assignedPassword = document.createElement("td");
+      assignedPassword.textContent = row.assigned_password || "No asignada";
+      tr.appendChild(assignedPassword);
+
+      const actions = document.createElement("td");
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "admin-btn ghost edit-employee-btn";
+      editBtn.textContent = "Editar";
+      editBtn.dataset.employeeId = String(row.id || "");
+      editBtn.dataset.employeePhone = row.phone || "";
+      editBtn.dataset.employeeEmail = row.email || "";
+      editBtn.dataset.employeeRole = row.role || "";
+      editBtn.dataset.employeeIdentification = row.identification || "";
+      editBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
+      editBtn.disabled = !row.id;
+      actions.appendChild(editBtn);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "admin-btn ghost delete-employee-btn";
+      deleteBtn.textContent = "Eliminar";
+      deleteBtn.dataset.employeeId = String(row.id || "");
+      deleteBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
+      deleteBtn.dataset.employeeRole = row.role || "";
+      deleteBtn.disabled = !row.id;
+      actions.appendChild(deleteBtn);
+      tr.appendChild(actions);
 
       body.appendChild(tr);
     });
@@ -197,6 +244,7 @@
       setToken(payload.data.token);
       setSessionUi(true);
       await loadEmployees();
+      await loadServices();
       setFeedback("Sesion de administrador iniciada.", "ok");
     } catch (error) {
       setFeedback(error.message, "warn");
@@ -205,7 +253,6 @@
 
   async function createEmployee(event) {
     event.preventDefault();
-    setTempPasswordHint("");
 
     const data = getFormData();
     const validationMessage = validateForm(data);
@@ -216,16 +263,161 @@
     }
 
     try {
-      const payload = await callApi("/api/auth/employees", "POST", data);
+      await callApi("/api/auth/employees", "POST", data);
       clearForm();
       await loadEmployees();
       setFeedback("Empleado agregado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
 
-      if (payload.data && payload.data.temporaryPassword) {
-        setTempPasswordHint(
-          "Password temporal del nuevo empleado: " + payload.data.temporaryPassword
-        );
-      }
+  async function updateEmployee(employeeId, currentPhone, currentEmail, employeeRole, employeeName) {
+    void employeeRole;
+    void employeeName;
+    if (!employeeId) {
+      setFeedback("No se pudo identificar el usuario a editar.", "warn");
+      return;
+    }
+
+    byId("editUserId").value = String(employeeId);
+    byId("editPhone").value = String(currentPhone || "");
+    byId("editEmail").value = String(currentEmail || "");
+    byId("editPassword").value = "";
+
+    const modal = byId("editUserModal");
+    modal.classList.remove("hidden");
+  }
+
+  function closeEditModal() {
+    byId("editUserModal").classList.add("hidden");
+    byId("editUserForm").reset();
+  }
+
+  async function saveEditFromModal(event) {
+    event.preventDefault();
+
+    const employeeId = byId("editUserId").value;
+    const phone = byId("editPhone").value.trim();
+    const email = byId("editEmail").value.trim();
+    const password = byId("editPassword").value.trim();
+
+    if (!employeeId || !phone || !email || !password) {
+      setFeedback("Completa numero, correo y password para guardar.", "warn");
+      return;
+    }
+
+    if (password.length < 6) {
+      setFeedback("La password debe tener al menos 6 caracteres.", "warn");
+      return;
+    }
+
+    try {
+      await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "PUT", {
+        phone: phone,
+        email: email,
+        password: password
+      });
+      closeEditModal();
+      await loadEmployees();
+      setFeedback("Perfil actualizado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function deleteEmployee(employeeId, employeeName, employeeRole) {
+    if (!employeeId) {
+      setFeedback("No se pudo identificar el empleado a eliminar.", "warn");
+      return;
+    }
+
+    const accepted = window.confirm(
+      "Eliminar al usuario " +
+        (employeeName || "seleccionado") +
+        " (rol " +
+        (employeeRole || "") +
+        ") de la base de datos?"
+    );
+    if (!accepted) {
+      return;
+    }
+
+    try {
+      await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "DELETE");
+      setTempPasswordHint("");
+      await loadEmployees();
+      setFeedback("Empleado eliminado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  function renderServices(services) {
+    const list = byId("servicesList");
+    list.innerHTML = "";
+
+    if (!services || services.length === 0) {
+      const item = document.createElement("li");
+      item.textContent = "Sin servicios registrados.";
+      list.appendChild(item);
+      return;
+    }
+
+    services.forEach(function (service) {
+      const item = document.createElement("li");
+      item.textContent = service.name + " ";
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "admin-btn ghost delete-service-btn";
+      removeBtn.textContent = "Eliminar";
+      removeBtn.dataset.serviceId = String(service.id || "");
+      removeBtn.dataset.serviceName = service.name || "";
+      item.appendChild(removeBtn);
+
+      list.appendChild(item);
+    });
+  }
+
+  async function loadServices() {
+    const payload = await callApi("/api/reservations/services", "GET");
+    renderServices(payload.data || []);
+  }
+
+  async function addService() {
+    const name = byId("serviceNameInput").value.trim();
+    if (!name) {
+      setFeedback("Debes ingresar un nombre de servicio.", "warn");
+      return;
+    }
+
+    try {
+      await callApi("/api/reservations/services", "POST", { name: name });
+      byId("serviceNameInput").value = "";
+      await loadServices();
+      setFeedback("Servicio agregado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function deleteService(serviceId, serviceName) {
+    if (!serviceId) {
+      return;
+    }
+
+    const accepted = window.confirm(
+      "Eliminar el servicio \"" + (serviceName || "") + "\"?"
+    );
+    if (!accepted) {
+      return;
+    }
+
+    try {
+      await callApi("/api/reservations/services/" + encodeURIComponent(serviceId), "DELETE");
+      await loadServices();
+      setFeedback("Servicio eliminado correctamente.", "ok");
     } catch (error) {
       setFeedback(error.message, "warn");
     }
@@ -238,6 +430,53 @@
       setFeedback(error.message, "warn");
     });
   });
+  byId("addServiceBtn").addEventListener("click", addService);
+  byId("servicesList").addEventListener("click", function (event) {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (!target.classList.contains("delete-service-btn")) {
+      return;
+    }
+
+    deleteService(target.dataset.serviceId, target.dataset.serviceName);
+  });
+  byId("employeesTableBody").addEventListener("click", function (event) {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    if (target.classList.contains("edit-employee-btn")) {
+      byId("editIdentification").value = target.dataset.employeeIdentification || "";
+      byId("editUserSubtitle").textContent =
+        "Editando: " +
+        (target.dataset.employeeName || "Usuario") +
+        " (rol " +
+        (target.dataset.employeeRole || "") +
+        ")";
+      updateEmployee(
+        target.dataset.employeeId,
+        target.dataset.employeePhone,
+        target.dataset.employeeEmail,
+        target.dataset.employeeRole,
+        target.dataset.employeeName
+      );
+      return;
+    }
+
+    if (!target.classList.contains("delete-employee-btn")) {
+      return;
+    }
+
+    deleteEmployee(
+      target.dataset.employeeId,
+      target.dataset.employeeName,
+      target.dataset.employeeRole
+    );
+  });
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
     setSessionUi(false);
@@ -246,13 +485,22 @@
     setFeedback("Sesion cerrada.", "info");
   });
 
+  byId("editUserForm").addEventListener("submit", saveEditFromModal);
+  byId("closeEditUserBtn").addEventListener("click", closeEditModal);
+  byId("cancelEditUserBtn").addEventListener("click", closeEditModal);
+  byId("editUserModal").addEventListener("click", function (event) {
+    if (event.target === byId("editUserModal")) {
+      closeEditModal();
+    }
+  });
+
   if (!getToken()) {
     setSessionUi(false);
   } else {
     ensureAdminSession()
       .then(function () {
         setSessionUi(true);
-        return loadEmployees();
+        return Promise.all([loadEmployees(), loadServices()]);
       })
       .then(function () {
         setFeedback("Sesion de administrador activa.", "ok");

@@ -1,6 +1,7 @@
 (function () {
-  const TOKEN_KEY = "employee_token";
-  const SETTINGS_KEY = "employee_verify_schedule_v1";
+  const isAdminContext = window.location.pathname.startsWith("/ui/admin");
+  const TOKEN_KEY = isAdminContext ? "admin_token" : "employee_token";
+  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
@@ -8,7 +9,6 @@
   const state = {
     days: [],
     reservations: [],
-    clientsMap: {},
     scheduleConfig: {}
   };
 
@@ -22,6 +22,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    if (isAdminContext) {
+      localStorage.removeItem("employee_token");
+    }
   }
 
   function setOutput(payload) {
@@ -32,6 +35,20 @@
     const element = byId("verifyFeedback");
     element.textContent = message;
     element.className = "feedback " + tone;
+  }
+
+  function setSessionUi(logged) {
+    byId("logoutBtn").classList.toggle("hidden", !logged);
+  }
+
+  function setRoleUi(user) {
+    const adminLink = byId("adminAccessLink");
+    if (!adminLink) {
+      return;
+    }
+
+    const isAdmin = Boolean(user && user.role === "admin");
+    adminLink.classList.toggle("hidden", !isAdmin);
   }
 
   function toDateKey(date) {
@@ -92,24 +109,6 @@
     return slotMinutes >= parseTimeToMinutes(config.start) && slotMinutes <= parseTimeToMinutes(config.end);
   }
 
-  function readLocalSchedule() {
-    try {
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) {
-        return {};
-      }
-
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch (_error) {
-      return {};
-    }
-  }
-
-  function writeLocalSchedule() {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.scheduleConfig));
-  }
-
   async function callApi(path, method, body) {
     const headers = {
       "Content-Type": "application/json"
@@ -144,9 +143,16 @@
 
   async function ensureEmployeeSession() {
     const profile = await callApi("/api/auth/me", "GET");
-    if (!profile.data || (profile.data.role !== "employee" && profile.data.role !== "admin")) {
+    const user = profile.data;
+    const allowed = isAdminContext
+      ? Boolean(user && user.role === "admin")
+      : Boolean(user && (user.role === "employee" || user.role === "admin"));
+
+    if (!allowed) {
       throw new Error("Acceso restringido a empleados y administradores");
     }
+
+    return user;
   }
 
   function buildDayRange(startText) {
@@ -286,7 +292,6 @@
         cell.className = "booked";
 
         reservations.forEach(function (reservation) {
-          const isValidClient = Boolean(state.clientsMap[String(reservation.client_id)]);
           const rowWrap = document.createElement("div");
           rowWrap.className = "reservation-item";
 
@@ -294,7 +299,7 @@
           text.textContent = reservation.service_name + " / Cliente #" + reservation.client_id;
           rowWrap.appendChild(text);
 
-          if (isValidClient) {
+          if (reservation.qr_token) {
             const button = document.createElement("button");
             button.type = "button";
             button.className = "verify-btn";
@@ -314,16 +319,32 @@
   }
 
   async function loadData() {
-    await ensureEmployeeSession();
+    const currentUser = await ensureEmployeeSession();
+    setRoleUi(currentUser);
+    setSessionUi(true);
 
     const reservationsPayload = await callApi("/api/reservations", "GET");
-    const clientsPayload = await callApi("/api/clients", "GET");
+    const schedulePayload = await callApi(
+      "/api/reservations/work-schedule/editable?start=" +
+        encodeURIComponent(byId("weekStart").value) +
+        "&days=" +
+        encodeURIComponent(String(DAY_COUNT)),
+      "GET"
+    );
 
     state.reservations = reservationsPayload.data || [];
-    state.clientsMap = {};
+    state.scheduleConfig = {};
 
-    (clientsPayload.data || []).forEach(function (client) {
-      state.clientsMap[String(client.id)] = client;
+    (schedulePayload.data || []).forEach(function (entry) {
+      if (!entry || !entry.date) {
+        return;
+      }
+
+      state.scheduleConfig[entry.date] = {
+        offDay: Boolean(entry.offDay),
+        start: entry.start || "06:00",
+        end: entry.end || "22:00"
+      };
     });
   }
 
@@ -337,9 +358,11 @@
       renderCalendar();
       setFeedback("Calendario de verificacion actualizado.", "ok");
     } catch (error) {
+      setSessionUi(false);
+      setRoleUi(null);
       setFeedback(error.message, "warn");
       if (String(error.message).toLowerCase().includes("token")) {
-        window.location.href = "/ui/employee";
+        window.location.href = HOME_PATH;
       }
     }
   }
@@ -379,20 +402,47 @@
   byId("reloadBtn").addEventListener("click", refreshAll);
   byId("saveConfigBtn").addEventListener("click", function () {
     updateConfigFromForm();
-    writeLocalSchedule();
-    renderCalendar();
-    setFeedback("Configuracion guardada.", "ok");
+    callApi("/api/reservations/work-schedule", "PUT", {
+      entries: state.days.map(function (day) {
+        const dayKey = toDateKey(day);
+        const config = getDayConfig(dayKey);
+        return {
+          date: dayKey,
+          offDay: Boolean(config.offDay),
+          start: config.start,
+          end: config.end
+        };
+      })
+    })
+      .then(function () {
+        setFeedback("Configuracion guardada.", "ok");
+        return refreshAll();
+      })
+      .catch(function (error) {
+        setFeedback(error.message, "warn");
+      });
   });
   byId("resetConfigBtn").addEventListener("click", function () {
-    state.scheduleConfig = {};
-    localStorage.removeItem(SETTINGS_KEY);
-    renderConfigPanel();
-    renderCalendar();
-    setFeedback("Configuracion restablecida.", "info");
+    callApi(
+      "/api/reservations/work-schedule?start=" +
+        encodeURIComponent(byId("weekStart").value) +
+        "&days=" +
+        encodeURIComponent(String(DAY_COUNT)),
+      "DELETE"
+    )
+      .then(function () {
+        state.scheduleConfig = {};
+        setFeedback("Configuracion restablecida.", "info");
+        return refreshAll();
+      })
+      .catch(function (error) {
+        setFeedback(error.message, "warn");
+      });
   });
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
-    window.location.href = "/ui/employee";
+    setSessionUi(false);
+    window.location.href = HOME_PATH;
   });
 
   byId("verifyBody").addEventListener("click", function (event) {
@@ -410,10 +460,10 @@
 
   const today = new Date();
   byId("weekStart").value = toDateInputValue(today);
-  state.scheduleConfig = readLocalSchedule();
+  setSessionUi(Boolean(getToken()));
 
   if (!getToken()) {
-    window.location.href = "/ui/employee";
+    window.location.href = HOME_PATH;
   } else {
     refreshAll();
   }

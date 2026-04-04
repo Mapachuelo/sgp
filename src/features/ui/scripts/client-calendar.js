@@ -1,22 +1,30 @@
 (function () {
-  const TOKEN_KEY = "client_token";
-  const DAY_COUNT = 9;
-  const SLOT_TIMES = [
-    "08:00",
-    "08:30",
-    "09:00",
-    "09:30",
-    "10:00",
-    "10:30",
-    "11:00",
-    "11:30",
-    "12:00"
-  ];
+  const path = window.location.pathname;
+  const isClientContext = path.startsWith("/ui/client");
+  const isAdminContext = path.startsWith("/ui/admin");
+  const TOKEN_KEY = isClientContext
+    ? "client_token"
+    : isAdminContext
+      ? "admin_token"
+      : "employee_token";
+  const HOME_PATH = isClientContext
+    ? "/ui/client"
+    : isAdminContext
+      ? "/ui/admin"
+      : "/ui/employee";
+  const LOGIN_PATH = HOME_PATH;
+  const ANY_STYLIST_VALUE = "__any__";
+  const START_HOUR = 6;
+  const END_HOUR = 22;
+  const DAY_COUNT = 7;
 
   const state = {
     days: [],
     availabilityByDate: {},
-    selectedSlot: null
+    workScheduleByDate: {},
+    selectedSlot: null,
+    stylists: [],
+    selectedStylist: ANY_STYLIST_VALUE
   };
 
   function byId(id) {
@@ -24,11 +32,20 @@
   }
 
   function setOutput(data) {
-    byId("apiOutput").textContent = JSON.stringify(data, null, 2);
+    const output = byId("apiOutput");
+    if (!output) {
+      return;
+    }
+
+    output.textContent = JSON.stringify(data, null, 2);
   }
 
   function setFeedback(message, tone) {
     const feedback = byId("calendarFeedback");
+    if (!feedback) {
+      return;
+    }
+
     feedback.textContent = message;
     feedback.className = "feedback " + tone;
   }
@@ -39,6 +56,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    if (isAdminContext) {
+      localStorage.removeItem("employee_token");
+    }
   }
 
   function toDateInputValue(date) {
@@ -68,12 +88,63 @@
     return hours + ":" + minutes;
   }
 
+  function getSlots() {
+    const slots = [];
+    for (let hour = START_HOUR; hour <= END_HOUR; hour += 1) {
+      slots.push(String(hour).padStart(2, "0") + ":00");
+      if (hour !== END_HOUR) {
+        slots.push(String(hour).padStart(2, "0") + ":30");
+      }
+    }
+
+    return slots;
+  }
+
+  function defaultSchedule() {
+    return {
+      offDay: false,
+      start: "06:00",
+      end: "22:00"
+    };
+  }
+
+  function toMinutes(timeText) {
+    const parts = String(timeText || "00:00").split(":");
+    return Number(parts[0]) * 60 + Number(parts[1]);
+  }
+
+  function isSlotInsideWorkingHours(slot, config) {
+    const slotMinutes = toMinutes(slot);
+    return slotMinutes >= toMinutes(config.start) && slotMinutes <= toMinutes(config.end);
+  }
+
   function setAuthUi() {
     const hasToken = Boolean(getToken());
-    byId("navLoginBtn").classList.toggle("hidden", hasToken);
-    byId("navLogoutBtn").classList.toggle("hidden", !hasToken);
-    byId("goLoginLink").classList.toggle("hidden", hasToken);
-    byId("reserveBtn").disabled = !hasToken || !state.selectedSlot;
+    const loginBtn = byId("navLoginBtn");
+    const logoutBtn = byId("navLogoutBtn");
+    const loginLink = byId("goLoginLink");
+    const reserveBtn = byId("reserveBtn");
+    const myReservationsBtn = byId("myReservationsBtn");
+
+    if (loginBtn) {
+      loginBtn.classList.toggle("hidden", hasToken || !isClientContext);
+    }
+
+    if (logoutBtn) {
+      logoutBtn.classList.toggle("hidden", !hasToken);
+    }
+
+    if (loginLink) {
+      loginLink.classList.toggle("hidden", hasToken || !isClientContext);
+    }
+
+    if (myReservationsBtn) {
+      myReservationsBtn.classList.toggle("hidden", !isClientContext);
+    }
+
+    if (reserveBtn) {
+      reserveBtn.disabled = !isClientContext || !hasToken || !state.selectedSlot;
+    }
   }
 
   async function callApi(path, method, body) {
@@ -128,6 +199,10 @@
 
   function updateSelectedSlotLabel() {
     const el = byId("selectedSlotText");
+    if (!el) {
+      return;
+    }
+
     if (!state.selectedSlot) {
       el.textContent = "Selecciona un horario disponible.";
       return;
@@ -157,7 +232,7 @@
 
     head.appendChild(headRow);
 
-    SLOT_TIMES.forEach(function (slot) {
+    getSlots().forEach(function (slot) {
       const row = document.createElement("tr");
       const slotTitle = document.createElement("th");
       slotTitle.textContent = slot;
@@ -165,8 +240,25 @@
 
       state.days.forEach(function (day) {
         const dayKey = getDateKey(day);
+        const schedule = state.workScheduleByDate[dayKey] || defaultSchedule();
         const reservedSlots = state.availabilityByDate[dayKey] || {};
-        const stylists = reservedSlots[slot] || [];
+        const bookedStylists = reservedSlots[slot] || [];
+        const selectedStylist = state.selectedStylist;
+        const selectedStylistName = state.stylists
+          .filter(function (entry) {
+            return String(entry.id) === String(selectedStylist);
+          })
+          .map(function (entry) {
+            return entry.name;
+          })[0];
+
+        let isOccupied = false;
+        if (selectedStylist && selectedStylist !== ANY_STYLIST_VALUE) {
+          isOccupied = Boolean(selectedStylistName && bookedStylists.includes(selectedStylistName));
+        } else {
+          isOccupied =
+            state.stylists.length === 0 || bookedStylists.length >= Math.max(state.stylists.length, 1);
+        }
 
         const cell = document.createElement("td");
         const button = document.createElement("button");
@@ -175,11 +267,19 @@
         button.dataset.time = slot;
         button.className = "slot-btn";
 
-        if (stylists.length > 0) {
+        if (schedule.offDay) {
+          button.classList.add("reserved");
+          button.textContent = "No laboral";
+          button.disabled = true;
+        } else if (!isSlotInsideWorkingHours(slot, schedule)) {
+          button.classList.add("reserved");
+          button.textContent = "Fuera horario";
+          button.disabled = true;
+        } else if (isOccupied) {
           button.classList.add("reserved");
           button.textContent = "Ocupado";
           button.disabled = true;
-          cell.title = stylists.join(", ");
+          cell.title = bookedStylists.join(", ");
         } else {
           button.classList.add("available");
           button.textContent = "Reservar";
@@ -216,6 +316,37 @@
     return dayMap;
   }
 
+  async function fetchWorkScheduleRange(startDate, daysCount) {
+    const params = new URLSearchParams({
+      start: startDate,
+      days: String(daysCount)
+    });
+
+    if (state.selectedStylist && state.selectedStylist !== ANY_STYLIST_VALUE) {
+      params.set("stylistId", String(state.selectedStylist));
+    }
+
+    const payload = await callApi(
+      "/api/reservations/work-schedule?" + params.toString(),
+      "GET"
+    );
+
+    const map = {};
+    (payload.data || []).forEach(function (entry) {
+      if (!entry || !entry.date) {
+        return;
+      }
+
+      map[entry.date] = {
+        offDay: Boolean(entry.offDay),
+        start: entry.start || "06:00",
+        end: entry.end || "22:00"
+      };
+    });
+
+    return map;
+  }
+
   async function refreshCalendar() {
     const startValue = byId("weekStart").value;
     if (!startValue) {
@@ -225,6 +356,13 @@
 
     state.days = buildDateRange(startValue, DAY_COUNT);
     state.availabilityByDate = {};
+    state.workScheduleByDate = {};
+
+    try {
+      state.workScheduleByDate = await fetchWorkScheduleRange(startValue, DAY_COUNT);
+    } catch (error) {
+      setFeedback("No se pudo cargar configuracion laboral: " + error.message, "warn");
+    }
 
     const promises = state.days.map(async function (day) {
       const dayKey = getDateKey(day);
@@ -242,12 +380,62 @@
     setFeedback("Calendario actualizado.", "ok");
   }
 
+  async function loadCatalogs() {
+    const [stylistsPayload, servicesPayload] = await Promise.all([
+      callApi("/api/auth/stylists", "GET"),
+      callApi("/api/reservations/services", "GET")
+    ]);
+
+    state.stylists = stylistsPayload.data || [];
+
+    const stylistSelect = byId("stylistName");
+    if (stylistSelect) {
+      stylistSelect.innerHTML = "";
+
+      const anyOption = document.createElement("option");
+      anyOption.value = ANY_STYLIST_VALUE;
+      anyOption.textContent = "Cualquier peluquero";
+      stylistSelect.appendChild(anyOption);
+
+      state.stylists.forEach(function (stylist) {
+        const option = document.createElement("option");
+        option.value = String(stylist.id);
+        option.textContent = stylist.name;
+        stylistSelect.appendChild(option);
+      });
+
+      state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
+    }
+
+    const serviceSelect = byId("serviceName");
+    if (serviceSelect) {
+      serviceSelect.innerHTML = "";
+
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.textContent = "Selecciona un servicio";
+      serviceSelect.appendChild(defaultOption);
+
+      (servicesPayload.data || []).forEach(function (service) {
+        const option = document.createElement("option");
+        option.value = service.name;
+        option.textContent = service.name;
+        serviceSelect.appendChild(option);
+      });
+    }
+  }
+
   function toIsoFromSelection(selection) {
     const localDate = new Date(selection.date + "T" + selection.time + ":00");
     return localDate.toISOString();
   }
 
   async function createReservation() {
+    if (!isClientContext) {
+      setFeedback("Solo clientes pueden confirmar reservas.", "warn");
+      return;
+    }
+
     if (!state.selectedSlot) {
       setFeedback("Selecciona un horario para reservar.", "warn");
       return;
@@ -260,10 +448,10 @@
     }
 
     const serviceName = byId("serviceName").value.trim();
-    const stylistName = byId("stylistName").value;
+    const stylistId = byId("stylistName").value;
     const clientCount = Number(byId("clientCount").value || 1);
 
-    if (!serviceName || !stylistName) {
+    if (!serviceName || !stylistId) {
       setFeedback("Servicio y peluquero son obligatorios.", "warn");
       return;
     }
@@ -271,7 +459,7 @@
     try {
       const payload = await callApi("/api/reservations", "POST", {
         serviceName: serviceName,
-        stylistName: stylistName,
+        stylistId: stylistId,
         startsAt: toIsoFromSelection(state.selectedSlot),
         clientCount: clientCount
       });
@@ -294,7 +482,18 @@
 
   async function loadMyReservations() {
     const list = byId("myReservationsList");
+    if (!list) {
+      return;
+    }
+
     list.innerHTML = "";
+
+    if (!isClientContext) {
+      const item = document.createElement("li");
+      item.textContent = "Reservas visibles solo para rol cliente.";
+      list.appendChild(item);
+      return;
+    }
 
     if (!getToken()) {
       const item = document.createElement("li");
@@ -362,20 +561,54 @@
 
   byId("refreshCalendarBtn").addEventListener("click", refreshCalendar);
   byId("reserveBtn").addEventListener("click", createReservation);
-  byId("myReservationsBtn").addEventListener("click", loadMyReservations);
-  byId("navLoginBtn").addEventListener("click", function () {
-    location.href = "/ui/client#loginSection";
-  });
-  byId("navLogoutBtn").addEventListener("click", function () {
-    clearToken();
-    setAuthUi();
-    setFeedback("Sesion cerrada.", "info");
-    byId("qrImage").classList.add("hidden");
-  });
+  const myReservationsBtn = byId("myReservationsBtn");
+  if (myReservationsBtn) {
+    myReservationsBtn.addEventListener("click", loadMyReservations);
+  }
+
+  const navLoginBtn = byId("navLoginBtn");
+  if (navLoginBtn) {
+    navLoginBtn.addEventListener("click", function () {
+      location.href = LOGIN_PATH;
+    });
+  }
+
+  const navLogoutBtn = byId("navLogoutBtn");
+  if (navLogoutBtn) {
+    navLogoutBtn.addEventListener("click", function () {
+      clearToken();
+      setAuthUi();
+      setFeedback("Sesion cerrada.", "info");
+      const qrImage = byId("qrImage");
+      if (qrImage) {
+        qrImage.classList.add("hidden");
+      }
+
+      if (!isClientContext) {
+        window.location.href = HOME_PATH;
+      }
+    });
+  }
+
+  const stylistSelect = byId("stylistName");
+  if (stylistSelect) {
+    stylistSelect.addEventListener("change", function () {
+      state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
+      refreshCalendar();
+    });
+  }
 
   byId("weekStart").value = toDateInputValue(new Date());
   updateSelectedSlotLabel();
   setAuthUi();
-  refreshCalendar();
-  loadMyReservations();
+  loadCatalogs()
+    .then(function () {
+      return refreshCalendar();
+    })
+    .then(function () {
+      return loadMyReservations();
+    })
+    .catch(function (error) {
+      setFeedback(error.message, "warn");
+    });
 })();
