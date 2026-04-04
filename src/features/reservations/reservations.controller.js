@@ -3,7 +3,10 @@ const {
   reserveAppointment,
   getMyReservations,
   getAllReservations,
-  getAvailabilityByDate
+  getAvailabilityByDate,
+  getWorkScheduleRange,
+  saveWorkSchedule,
+  resetWorkScheduleRange
 } = require("./reservations.service");
 
 const createReservationController = asyncHandler(async (req, res) => {
@@ -26,9 +29,27 @@ const availabilityController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
+const getWorkScheduleController = asyncHandler(async (req, res) => {
+  const data = await getWorkScheduleRange(req.query.start, req.query.days);
+  res.json({ ok: true, data });
+});
+
+const saveWorkScheduleController = asyncHandler(async (req, res) => {
+  const data = await saveWorkSchedule(req.body.entries, req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const resetWorkScheduleController = asyncHandler(async (req, res) => {
+  const data = await resetWorkScheduleRange(req.query.start, req.query.days);
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   createReservationController,
   myReservationsController,
   listReservationsController,
-  availabilityController
+  availabilityController,
+  getWorkScheduleController,
+  saveWorkScheduleController,
+  resetWorkScheduleController
 };

@@ -256,11 +256,10 @@ function employeeView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -268,10 +267,10 @@ function employeeView() {
   <section class="emp-panel hero">
     <p class="eyebrow">Sitio web empleado</p>
     <h1>Panel de control de empleados</h1>
-    <p>Gestiona reservas, revisa calendario de clientes y valida ingresos con QR.</p>
+    <p>Gestiona reservas, verifica clientes y valida ingresos con QR.</p>
     <div class="hero-actions">
-      <a class="emp-btn solid" href="/ui/employee/calendar">Abrir calendario</a>
-      <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar clientes</a>
+      <a class="emp-btn solid" href="/ui/employee/verify-clients">Verificar clientes</a>
+      <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validar QR</a>
     </div>
     <p id="sessionBadge" class="badge">Sesion no iniciada</p>
   </section>
@@ -322,11 +321,10 @@ function employeeCalendarView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -377,7 +375,6 @@ function employeeVerifyClientsView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -434,7 +431,6 @@ function employeeValidateQrView() {
   <a class="emp-brand" href="/ui/employee">Prueba</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -574,7 +570,7 @@ function adminCalendarView() {
     <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -628,7 +624,7 @@ function adminVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/admin/calendar">Ver calendario</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 

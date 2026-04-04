@@ -7,6 +7,7 @@
   const state = {
     days: [],
     availabilityByDate: {},
+    workScheduleByDate: {},
     selectedSlot: null
   };
 
@@ -69,6 +70,24 @@
     }
 
     return slots;
+  }
+
+  function defaultSchedule() {
+    return {
+      offDay: false,
+      start: "06:00",
+      end: "22:00"
+    };
+  }
+
+  function toMinutes(timeText) {
+    const parts = String(timeText || "00:00").split(":");
+    return Number(parts[0]) * 60 + Number(parts[1]);
+  }
+
+  function isSlotInsideWorkingHours(slot, config) {
+    const slotMinutes = toMinutes(slot);
+    return slotMinutes >= toMinutes(config.start) && slotMinutes <= toMinutes(config.end);
   }
 
   function setAuthUi() {
@@ -168,6 +187,7 @@
 
       state.days.forEach(function (day) {
         const dayKey = getDateKey(day);
+        const schedule = state.workScheduleByDate[dayKey] || defaultSchedule();
         const reservedSlots = state.availabilityByDate[dayKey] || {};
         const stylists = reservedSlots[slot] || [];
 
@@ -178,7 +198,15 @@
         button.dataset.time = slot;
         button.className = "slot-btn";
 
-        if (stylists.length > 0) {
+        if (schedule.offDay) {
+          button.classList.add("reserved");
+          button.textContent = "No laboral";
+          button.disabled = true;
+        } else if (!isSlotInsideWorkingHours(slot, schedule)) {
+          button.classList.add("reserved");
+          button.textContent = "Fuera horario";
+          button.disabled = true;
+        } else if (stylists.length > 0) {
           button.classList.add("reserved");
           button.textContent = "Ocupado";
           button.disabled = true;
@@ -219,6 +247,31 @@
     return dayMap;
   }
 
+  async function fetchWorkScheduleRange(startDate, daysCount) {
+    const payload = await callApi(
+      "/api/reservations/work-schedule?start=" +
+        encodeURIComponent(startDate) +
+        "&days=" +
+        encodeURIComponent(String(daysCount)),
+      "GET"
+    );
+
+    const map = {};
+    (payload.data || []).forEach(function (entry) {
+      if (!entry || !entry.date) {
+        return;
+      }
+
+      map[entry.date] = {
+        offDay: Boolean(entry.offDay),
+        start: entry.start || "06:00",
+        end: entry.end || "22:00"
+      };
+    });
+
+    return map;
+  }
+
   async function refreshCalendar() {
     const startValue = byId("weekStart").value;
     if (!startValue) {
@@ -228,6 +281,13 @@
 
     state.days = buildDateRange(startValue, DAY_COUNT);
     state.availabilityByDate = {};
+    state.workScheduleByDate = {};
+
+    try {
+      state.workScheduleByDate = await fetchWorkScheduleRange(startValue, DAY_COUNT);
+    } catch (error) {
+      setFeedback("No se pudo cargar configuracion laboral: " + error.message, "warn");
+    }
 
     const promises = state.days.map(async function (day) {
       const dayKey = getDateKey(day);
