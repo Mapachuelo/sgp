@@ -1,4 +1,6 @@
 - Tecnologías a usar: Nodejs, postgresql, docker.
+- No utilizar frameworks de css, solo css puro.
+- utilizar css separado de todos los archivos.
 - Requisitos:
   - El proyecto debe ser desarrollado utilizando Nodejs.
   - La base de datos debe ser postgresql.
