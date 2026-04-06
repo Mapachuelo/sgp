@@ -195,3 +195,22 @@ Instrucciones:
 Reglas: 
 - No cambiar el diseño establecido del css, solo necesario para lo requerido en la parte de Instrucciones.
 - Leer la skills contexto.md" y me colocaba login anteriores viejos, no los arctuales con las instrucciones dadas para el cambio.
+
+# Dar un cambio de diseño a la página web de peluquería
+Eres un desarrollador Senio Frontend Developer encargado de dar un diseño visual bueno a las paginas web para los usuarios y más para los clientes.
+
+Tarea: Ver todos los archivos y hacer un cambio de diseño a la pagina web.
+
+Contexto: La pagina web es de una peluquería.
+
+Requerimientos:
+- Leer el archivo src.zip
+- Darle un diseño css a los archivos, la ruta del diseño es "src/features/ui/styles".
+
+Reglas: 
+- Siempre utilizar css, no frameworks. 
+- Los diseños nuevos y los cambios siempre deben hacerse en "src/features/ui/styles", no en otros archivos, solo archivos extensiones con css.
+- Utilizar los colores establecido de los archivos "styles".
+
+
+
