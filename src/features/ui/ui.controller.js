@@ -1,5 +1,6 @@
 const {
   homeView,
+  loginView,
   clientView,
   clientCalendarView,
   employeeView,
@@ -14,6 +15,10 @@ const {
 
 function homeController(_req, res) {
   res.type("html").send(homeView());
+}
+
+function loginController(_req, res) {
+  res.type("html").send(loginView());
 }
 
 function clientController(_req, res) {
@@ -58,6 +63,7 @@ function adminValidateQrController(_req, res) {
 
 module.exports = {
   homeController,
+  loginController,
   clientController,
   clientCalendarController,
   employeeController,

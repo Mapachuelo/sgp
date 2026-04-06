@@ -177,4 +177,21 @@ Reglas:
 - No modificar la estructura del backend para implementar el css si no es necesario.
 - El diseño css debe tener su carpeta aparte de todo los archivos.
 
+# Unir los modulos login y dashboard para la página web de peluquería
+Tu rol es un Senior nodejs developer encargado de unir diferentes modulos en uno mismo.
 
+Tarea: Tu trabajo va ser conectar diferentes modulos en uno mismo con despliegue de multiples opciones de rol para cada usuario con su cuenta.
+
+Instrucciones:
+- Crear un dashboard para todo los roles, un inicio main del predeterminado al entrar a la web, ten la pagina en blanco, no agregue nada.
+
+- Un nuevo usuario o usuario registrado sin logearse con una cuenta al entrar al dashboard arriba en las opciones de botones, solo se va ver reflejaro 2 opciones "ver calendario" y "iniciar sessión".
+
+- En la opción de "iniciar sessión" la persona debe elegir que rol va escoger, si es "cliente", "empleado" o "administrador", dependiendo de la opción debe regitrarse con su cuenta asignada si es "empleado" o "administrador", si es un cliente nuevo, debe haber una opción debajo de crear nueva cuenta, la creación de una nueva cuenta debe tener lo escencial para registrarse, por ejemplo, nombre, apellido, numero, correo y contraseña para uno volver a iniciar sessión, los datos deben ser validos para crearse la cuenta del cliente, al crear una nueva cuenta el cliente, inicia sessión y el usuario puede ya hacer lo asinado con su rol.
+
+- los logins anteriores de clientes, empleado y administrador borrarlos, que el dashboard nuevo este en blanco.
+- utilizar el diseño css establecido.
+
+Reglas: 
+- No cambiar el diseño establecido del css, solo necesario para lo requerido en la parte de Instrucciones.
+- Leer la skills contexto.md" y me colocaba login anteriores viejos, no los arctuales con las instrucciones dadas para el cambio.

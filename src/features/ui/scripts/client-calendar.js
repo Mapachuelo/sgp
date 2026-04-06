@@ -2,17 +2,17 @@
   const path = window.location.pathname;
   const isClientContext = path.startsWith("/ui/client");
   const isAdminContext = path.startsWith("/ui/admin");
-  const TOKEN_KEY = isClientContext
-    ? "client_token"
-    : isAdminContext
-      ? "admin_token"
-      : "employee_token";
+  const TOKEN_KEY = "sgp_token";
   const HOME_PATH = isClientContext
     ? "/ui/client"
     : isAdminContext
       ? "/ui/admin"
       : "/ui/employee";
-  const LOGIN_PATH = HOME_PATH;
+  const LOGIN_PATH = isClientContext
+    ? "/ui/login?role=client"
+    : isAdminContext
+      ? "/ui/login?role=admin"
+      : "/ui/login?role=employee";
   const ANY_STYLIST_VALUE = "__any__";
   const START_HOUR = 6;
   const END_HOUR = 22;
@@ -56,9 +56,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
-    if (isAdminContext) {
-      localStorage.removeItem("employee_token");
-    }
+    localStorage.removeItem("client_token");
+    localStorage.removeItem("employee_token");
+    localStorage.removeItem("admin_token");
   }
 
   function toDateInputValue(date) {
@@ -178,6 +178,31 @@
     }
 
     return payload;
+  }
+
+  async function ensureRoleSessionIfNeeded() {
+    if (isClientContext) {
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      throw new Error("Sesion requerida");
+    }
+
+    const profile = await callApi("/api/auth/me", "GET");
+    const user = profile.data;
+
+    if (isAdminContext) {
+      if (!user || user.role !== "admin") {
+        throw new Error("Acceso restringido a administradores");
+      }
+      return;
+    }
+
+    if (!user || (user.role !== "employee" && user.role !== "admin")) {
+      throw new Error("Acceso restringido a empleados y administradores");
+    }
   }
 
   function buildDateRange(startValue, count) {
@@ -585,7 +610,7 @@
       }
 
       if (!isClientContext) {
-        window.location.href = HOME_PATH;
+        window.location.href = LOGIN_PATH;
       }
     });
   }
@@ -601,14 +626,28 @@
   byId("weekStart").value = toDateInputValue(new Date());
   updateSelectedSlotLabel();
   setAuthUi();
-  loadCatalogs()
-    .then(function () {
-      return refreshCalendar();
-    })
-    .then(function () {
-      return loadMyReservations();
-    })
-    .catch(function (error) {
-      setFeedback(error.message, "warn");
-    });
+
+  const boot = function () {
+    loadCatalogs()
+      .then(function () {
+        return refreshCalendar();
+      })
+      .then(function () {
+        return loadMyReservations();
+      })
+      .catch(function (error) {
+        setFeedback(error.message, "warn");
+      });
+  };
+
+  if (isClientContext) {
+    boot();
+  } else {
+    ensureRoleSessionIfNeeded()
+      .then(boot)
+      .catch(function (error) {
+        setFeedback(error.message, "warn");
+        window.location.href = LOGIN_PATH;
+      });
+  }
 })();

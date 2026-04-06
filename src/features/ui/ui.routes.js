@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   homeController,
+  loginController,
   clientController,
   clientCalendarController,
   employeeController,
@@ -16,6 +17,7 @@ const {
 const router = express.Router();
 
 router.get("/", homeController);
+router.get("/ui/login", loginController);
 router.get("/ui/client", clientController);
 router.get("/ui/client/calendar", clientCalendarController);
 router.get("/ui/employee", employeeController);

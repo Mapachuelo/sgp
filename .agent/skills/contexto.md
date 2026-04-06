@@ -14,3 +14,12 @@
 ``bash
 docker compose up --build
 ``
+
+- Flujo funcional obligatorio actual:
+  - La ruta `/` es el dashboard principal en blanco y solo muestra dos acciones: `Ver calendario` e `Iniciar sesion`.
+  - El login es unificado en `/ui/login` con selector de rol (`client`, `employee`, `admin`).
+  - Los formularios de login antiguos embebidos en vistas de cliente, empleado y administrador no se deben volver a crear.
+  - El registro de nueva cuenta solo aplica para `client` y pide: nombre, apellido, numero, correo y password.
+  - `employee` y `admin` solo ingresan con cuentas asignadas.
+  - Usar token de sesion unificado en frontend: `sgp_token`.
+  - Mantener estilos existentes; solo cambios minimos de CSS para soportar nuevas vistas o campos requeridos.

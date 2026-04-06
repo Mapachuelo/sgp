@@ -1,7 +1,8 @@
 (function () {
   const isAdminContext = window.location.pathname.startsWith("/ui/admin");
-  const TOKEN_KEY = isAdminContext ? "admin_token" : "employee_token";
+  const TOKEN_KEY = "sgp_token";
   const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
+  const LOGIN_PATH = isAdminContext ? "/ui/login?role=admin" : "/ui/login?role=employee";
 
   const state = {
     stream: null,
@@ -19,9 +20,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
-    if (isAdminContext) {
-      localStorage.removeItem("employee_token");
-    }
+    localStorage.removeItem("client_token");
+    localStorage.removeItem("employee_token");
+    localStorage.removeItem("admin_token");
   }
 
   function setOutput(payload) {
@@ -217,18 +218,18 @@
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
     stopCamera();
-    window.location.href = HOME_PATH;
+    window.location.href = LOGIN_PATH;
   });
 
   window.addEventListener("beforeunload", stopCamera);
 
   if (!getToken()) {
-    window.location.href = HOME_PATH;
+    window.location.href = LOGIN_PATH;
   } else {
     ensureEmployeeSession().catch(function (error) {
       setRoleUi(null);
       setFeedback(error.message, "warn");
-      window.location.href = HOME_PATH;
+      window.location.href = LOGIN_PATH;
     });
   }
 })();
