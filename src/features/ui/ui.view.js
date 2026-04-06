@@ -79,16 +79,92 @@ function byId(id) {
 
 function homeView() {
   const body = `
-    <p>Demostracion funcional sin CSS del Sistema de Gestion de Peluqueria.</p>
-    <ul>
-      <li><a href="/ui/client">Modulo Cliente</a></li>
-      <li><a href="/ui/employee">Modulo Empleado</a></li>
-      <li><a href="/ui/admin">Modulo Administrador</a></li>
-      <li><a href="/health">Health</a></li>
-    </ul>
+<header class="topbar">
+  <a class="brand" href="/">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
+    <a class="btn accent" href="/ui/login">Iniciar sesion</a>
+  </nav>
+</header>
+
+<main class="dashboard-wrap" aria-label="dashboard-principal"></main>
   `;
 
-  return baseDocument("SGP - Inicio", body);
+  return clientDocument(
+    "SGP - Dashboard",
+    "/ui-assets/styles/client-dashboard.css",
+    body,
+    "/ui-assets/scripts/main-dashboard.js"
+  );
+}
+
+function loginView() {
+  const body = `
+<header class="topbar">
+  <a class="brand" href="/">Prueba</a>
+  <nav class="topbar-actions">
+    <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
+    <a class="btn ghost" href="/">Volver</a>
+  </nav>
+</header>
+
+<main class="dashboard-wrap">
+  <section class="panel">
+    <p class="eyebrow">Acceso al sistema</p>
+    <h1>Iniciar sesion</h1>
+
+    <label>Rol</label>
+    <select id="roleSelect">
+      <option value="client">Cliente</option>
+      <option value="employee">Empleado</option>
+      <option value="admin">Administrador</option>
+    </select>
+
+    <label>Correo</label>
+    <input id="loginEmail" type="email" placeholder="correo@dominio.com" />
+
+    <label>Password</label>
+    <input id="loginPassword" type="password" placeholder="Tu password" />
+
+    <button id="loginBtn" class="btn accent block" type="button">Entrar</button>
+
+    <section id="registerSection" class="panel">
+      <h2>Crear nueva cuenta (cliente)</h2>
+
+      <label>Nombre</label>
+      <input id="registerFirstName" type="text" placeholder="Nombre" />
+
+      <label>Apellido</label>
+      <input id="registerLastName" type="text" placeholder="Apellido" />
+
+      <label>Numero</label>
+      <input id="registerPhone" type="text" placeholder="Numero de telefono" />
+
+      <label>Correo</label>
+      <input id="registerEmail" type="email" placeholder="correo@dominio.com" />
+
+      <label>Password</label>
+      <input id="registerPassword" type="password" placeholder="Minimo 6 caracteres" />
+
+      <button id="registerBtn" class="btn ghost block" type="button">Crear cuenta cliente</button>
+    </section>
+
+    <p id="loginFeedback" class="feedback info">Selecciona un rol para iniciar sesion.</p>
+  </section>
+
+  <section class="panel feedback-panel">
+    <h2>Salida API</h2>
+    <pre id="apiOutput"></pre>
+  </section>
+</main>
+  `;
+
+  return clientDocument(
+    "SGP - Login",
+    "/ui-assets/styles/client-dashboard.css",
+    body,
+    "/ui-assets/scripts/main-dashboard.js"
+  );
 }
 
 function clientView() {
@@ -97,7 +173,7 @@ function clientView() {
   <a class="brand" href="/ui/client">Prueba</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
-    <button id="navLoginBtn" class="btn accent" type="button">Login</button>
+    <button id="navLoginBtn" class="btn accent" type="button">Iniciar sesion</button>
     <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -115,31 +191,6 @@ function clientView() {
       <button id="loadProfileBtn" class="btn ghost" type="button">Validar sesion</button>
     </div>
     <p id="authBadge" class="badge">Sesion no iniciada</p>
-  </section>
-
-  <section id="loginSection" class="auth-grid">
-    <article id="registerCard" class="panel">
-      <h2>Registro cliente</h2>
-      <label>Nombre</label>
-      <input id="registerName" type="text" placeholder="Nombre completo" />
-      <label>Email</label>
-      <input id="registerEmail" type="email" placeholder="nombre@email.com" />
-      <label>Telefono</label>
-      <input id="registerPhone" type="text" placeholder="+56 9 1234 5678" />
-      <label>Password</label>
-      <input id="registerPassword" type="password" placeholder="Minimo 6 caracteres" />
-      <button id="registerBtn" class="btn accent block" type="button">Crear cuenta</button>
-    </article>
-
-    <article class="panel">
-      <h2>Login cliente</h2>
-      <label>Email</label>
-      <input id="loginEmail" type="email" placeholder="nombre@email.com" />
-      <label>Password</label>
-      <input id="loginPassword" type="password" placeholder="Tu password" />
-      <button id="loginBtn" class="btn accent block" type="button">Iniciar sesion</button>
-      <button id="goCalendarBtn" class="btn ghost block" type="button">Ir al calendario</button>
-    </article>
   </section>
 
   <section class="panel">
@@ -224,7 +275,7 @@ function clientCalendarView() {
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Mis reservas</button>
-    <a id="goLoginLink" class="inline-link hidden" href="/ui/client#loginSection">Ir a login</a>
+    <a id="goLoginLink" class="inline-link hidden" href="/ui/login?role=client">Ir a login</a>
 
     <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
@@ -271,17 +322,7 @@ function employeeView() {
       <a class="emp-btn solid" href="/ui/employee/calendar">Abrir calendario</a>
       <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar clientes</a>
     </div>
-    <p id="sessionBadge" class="badge">Sesion no iniciada</p>
-  </section>
-
-  <section id="loginCard" class="emp-panel login-card">
-    <h2>Ingreso de empleado</h2>
-    <label>Email</label>
-    <input id="loginEmail" type="email" placeholder="empleado@email.com" />
-    <label>Password</label>
-    <input id="loginPassword" type="password" placeholder="Tu password" />
-    <button id="loginBtn" class="emp-btn solid block" type="button">Iniciar sesion</button>
-    <p class="help-text">Solo cuentas con rol empleado pueden acceder a las secciones.</p>
+    <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
 
   <section class="emp-panel stats-grid">
@@ -520,16 +561,7 @@ function adminView() {
     <h1>Ingreso empleado y administrador</h1>
     <p class="helper">Solo administradores pueden registrar usuarios internos.</p>
 
-    <div id="loginCard" class="login-card">
-      <h2>Login administrador</h2>
-      <label>Email</label>
-      <input id="adminEmail" type="email" placeholder="admin@sgp.local" />
-      <label>Password</label>
-      <input id="adminPassword" type="password" placeholder="Tu password" />
-      <button id="loginBtn" class="admin-btn solid block" type="button">Iniciar sesion</button>
-    </div>
-
-    <form id="employeeForm" class="hidden">
+    <form id="employeeForm">
       <label>Rol</label>
       <select id="role">
         <option value="employee">Empleado</option>
@@ -550,7 +582,7 @@ function adminView() {
       <button id="createEmployeeBtn" class="admin-btn solid block" type="submit">Agregar empleado</button>
     </form>
 
-    <p id="adminFeedback" class="feedback info">Inicia sesion para administrar empleados.</p>
+    <p id="adminFeedback" class="feedback info">Panel de administracion listo.</p>
 
     <hr />
     <h2>Servicios disponibles</h2>
@@ -818,6 +850,7 @@ function adminValidateQrView() {
 
 module.exports = {
   homeView,
+  loginView,
   clientView,
   clientCalendarView,
   employeeView,

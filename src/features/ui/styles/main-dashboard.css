@@ -1,0 +1,149 @@
+:root {
+	--main-bg: #f7f8fa;
+	--panel-bg: #ffffff;
+	--text: #1c1f25;
+	--muted: #5f6675;
+	--line: #dbe0e8;
+	--accent: #0e5dd7;
+	--accent-strong: #0a49a8;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-family: "Segoe UI", Tahoma, sans-serif;
+	color: var(--text);
+	background: var(--main-bg);
+}
+
+.main-topbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 14px 20px;
+	background: var(--panel-bg);
+	border-bottom: 1px solid var(--line);
+}
+
+.main-brand {
+	text-decoration: none;
+	color: var(--text);
+	font-weight: 700;
+}
+
+.main-actions {
+	display: flex;
+	gap: 10px;
+}
+
+.main-btn {
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: var(--panel-bg);
+	color: var(--text);
+	text-decoration: none;
+	font: inherit;
+	padding: 10px 14px;
+	cursor: pointer;
+}
+
+.main-btn.solid {
+	border-color: var(--accent);
+	background: var(--accent);
+	color: #fff;
+}
+
+.main-btn.solid:hover {
+	background: var(--accent-strong);
+}
+
+.main-btn.block {
+	width: 100%;
+}
+
+.main-blank {
+	min-height: calc(100vh - 62px);
+}
+
+.login-layout {
+	padding: 24px;
+	display: grid;
+	gap: 18px;
+	grid-template-columns: minmax(280px, 440px) 1fr;
+}
+
+.login-card,
+.login-output {
+	background: var(--panel-bg);
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	padding: 18px;
+}
+
+.login-card h1,
+.login-card h2,
+.login-output h2 {
+	margin-top: 0;
+}
+
+.login-card label {
+	display: block;
+	margin-top: 10px;
+	margin-bottom: 4px;
+	color: var(--muted);
+}
+
+.login-card input,
+.login-card select {
+	width: 100%;
+	padding: 10px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	font: inherit;
+}
+
+.register-box {
+	margin-top: 14px;
+	border-top: 1px solid var(--line);
+	padding-top: 14px;
+}
+
+.feedback {
+	margin-top: 12px;
+	padding: 8px 10px;
+	border-radius: 8px;
+}
+
+.feedback.info {
+	background: #e8f0ff;
+	color: #2b4f9e;
+}
+
+.feedback.ok {
+	background: #e7f8eb;
+	color: #1f7a32;
+}
+
+.feedback.warn {
+	background: #ffe8e6;
+	color: #9b2b2b;
+}
+
+.hidden {
+	display: none !important;
+}
+
+pre {
+	margin: 0;
+	min-height: 120px;
+	overflow: auto;
+}
+
+@media (max-width: 900px) {
+	.login-layout {
+		grid-template-columns: 1fr;
+	}
+}

@@ -1,22 +1,20 @@
 (function () {
-  const ADMIN_TOKEN_KEY = "admin_token";
-  const EMPLOYEE_TOKEN_KEY = "employee_token";
+  const TOKEN_KEY = "sgp_token";
+  const LOGIN_PATH = "/ui/login?role=admin";
 
   function byId(id) {
     return document.getElementById(id);
   }
 
   function getToken() {
-    return localStorage.getItem(ADMIN_TOKEN_KEY) || "";
-  }
-
-  function setToken(token) {
-    localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    return localStorage.getItem(TOKEN_KEY) || "";
   }
 
   function clearToken() {
-    localStorage.removeItem(ADMIN_TOKEN_KEY);
-    localStorage.removeItem(EMPLOYEE_TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("client_token");
+    localStorage.removeItem("employee_token");
+    localStorage.removeItem("admin_token");
   }
 
   function setOutput(payload) {
@@ -42,7 +40,6 @@
   }
 
   function setSessionUi(isLogged) {
-    byId("loginCard").classList.toggle("hidden", isLogged);
     byId("employeeForm").classList.toggle("hidden", !isLogged);
     byId("logoutBtn").classList.toggle("hidden", !isLogged);
   }
@@ -224,33 +221,6 @@
     renderEmployees(payload.data || []);
   }
 
-  async function loginAdmin() {
-    const email = byId("adminEmail").value.trim();
-    const password = byId("adminPassword").value;
-
-    try {
-      const payload = await callApi("/api/auth/login", "POST", {
-        email: email,
-        password: password
-      });
-
-      if (!payload.data || !payload.data.user || payload.data.user.role !== "admin") {
-        clearToken();
-        setSessionUi(false);
-        setFeedback("La cuenta no tiene permisos de administrador.", "warn");
-        return;
-      }
-
-      setToken(payload.data.token);
-      setSessionUi(true);
-      await loadEmployees();
-      await loadServices();
-      setFeedback("Sesion de administrador iniciada.", "ok");
-    } catch (error) {
-      setFeedback(error.message, "warn");
-    }
-  }
-
   async function createEmployee(event) {
     event.preventDefault();
 
@@ -423,7 +393,6 @@
     }
   }
 
-  byId("loginBtn").addEventListener("click", loginAdmin);
   byId("employeeForm").addEventListener("submit", createEmployee);
   byId("refreshEmployeesBtn").addEventListener("click", function () {
     loadEmployees().catch(function (error) {
@@ -483,6 +452,7 @@
     setTempPasswordHint("");
     renderEmployees([]);
     setFeedback("Sesion cerrada.", "info");
+    window.location.href = LOGIN_PATH;
   });
 
   byId("editUserForm").addEventListener("submit", saveEditFromModal);
@@ -496,6 +466,7 @@
 
   if (!getToken()) {
     setSessionUi(false);
+    window.location.href = LOGIN_PATH;
   } else {
     ensureAdminSession()
       .then(function () {
@@ -509,6 +480,7 @@
         clearToken();
         setSessionUi(false);
         setFeedback(error.message, "warn");
+        window.location.href = LOGIN_PATH;
       });
   }
 })();

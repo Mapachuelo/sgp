@@ -1,5 +1,6 @@
 (function () {
-  const TOKEN_KEY = "employee_token";
+  const TOKEN_KEY = "sgp_token";
+  const LOGIN_PATH = "/ui/login?role=employee";
 
   function byId(id) {
     return document.getElementById(id);
@@ -9,12 +10,11 @@
     return localStorage.getItem(TOKEN_KEY) || "";
   }
 
-  function setToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("client_token");
+    localStorage.removeItem("employee_token");
+    localStorage.removeItem("admin_token");
   }
 
   function setOutput(payload) {
@@ -28,7 +28,6 @@
   }
 
   function setSessionUi(logged) {
-    byId("loginCard").classList.toggle("hidden", logged);
     byId("logoutBtn").classList.toggle("hidden", !logged);
     byId("sessionBadge").textContent = logged ? "Sesion iniciada" : "Sesion no iniciada";
   }
@@ -87,11 +86,7 @@
     try {
       const profilePayload = await callApi("/api/auth/me", "GET");
       if (!canUseEmployeeArea(profilePayload.data)) {
-        clearToken();
-        setSessionUi(false);
-        setRoleUi(null);
-        setFeedback("Esta seccion es solo para empleados y administradores.", "warn");
-        return;
+        throw new Error("Esta seccion es solo para empleados y administradores.");
       }
 
       setRoleUi(profilePayload.data);
@@ -129,48 +124,29 @@
       setSessionUi(true);
       setFeedback("Datos de empleado sincronizados.", "ok");
     } catch (error) {
+      clearToken();
+      setSessionUi(false);
       setRoleUi(null);
       setFeedback(error.message, "warn");
       byId("activeReservationsCount").textContent = "-";
       byId("clientsCount").textContent = "-";
       byId("todayCheckinCount").textContent = "-";
+      window.location.href = LOGIN_PATH;
     }
   }
 
-  async function loginEmployee() {
-    const email = byId("loginEmail").value.trim();
-    const password = byId("loginPassword").value;
-
-    try {
-      const payload = await callApi("/api/auth/login", "POST", {
-        email: email,
-        password: password
-      });
-
-      if (!canUseEmployeeArea(payload.data && payload.data.user)) {
-        clearToken();
-        setSessionUi(false);
-        setFeedback("Solo cuentas con rol empleado o administrador pueden ingresar aqui.", "warn");
-        return;
-      }
-
-      setToken(payload.data.token);
-      await loadStats();
-    } catch (error) {
-      setFeedback(error.message, "warn");
-    }
-  }
-
-  byId("loginBtn").addEventListener("click", loginEmployee);
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
     setSessionUi(false);
     setFeedback("Sesion cerrada.", "info");
+    window.location.href = LOGIN_PATH;
   });
 
-  setSessionUi(Boolean(getToken()));
+  setSessionUi(false);
   setRoleUi(null);
-  if (getToken()) {
+  if (!getToken()) {
+    window.location.href = LOGIN_PATH;
+  } else {
     loadStats();
   }
 })();

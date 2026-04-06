@@ -1,7 +1,8 @@
 (function () {
   const isAdminContext = window.location.pathname.startsWith("/ui/admin");
-  const TOKEN_KEY = isAdminContext ? "admin_token" : "employee_token";
+  const TOKEN_KEY = "sgp_token";
   const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
+  const LOGIN_PATH = isAdminContext ? "/ui/login?role=admin" : "/ui/login?role=employee";
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
@@ -22,9 +23,9 @@
 
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
-    if (isAdminContext) {
-      localStorage.removeItem("employee_token");
-    }
+    localStorage.removeItem("client_token");
+    localStorage.removeItem("employee_token");
+    localStorage.removeItem("admin_token");
   }
 
   function setOutput(payload) {
@@ -362,7 +363,7 @@
       setRoleUi(null);
       setFeedback(error.message, "warn");
       if (String(error.message).toLowerCase().includes("token")) {
-        window.location.href = HOME_PATH;
+        window.location.href = LOGIN_PATH;
       }
     }
   }
@@ -442,7 +443,7 @@
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
     setSessionUi(false);
-    window.location.href = HOME_PATH;
+    window.location.href = LOGIN_PATH;
   });
 
   byId("verifyBody").addEventListener("click", function (event) {
@@ -463,7 +464,7 @@
   setSessionUi(Boolean(getToken()));
 
   if (!getToken()) {
-    window.location.href = HOME_PATH;
+    window.location.href = LOGIN_PATH;
   } else {
     refreshAll();
   }

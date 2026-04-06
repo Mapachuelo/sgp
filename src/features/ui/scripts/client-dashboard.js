@@ -1,5 +1,6 @@
 (function () {
-  const TOKEN_KEY = "client_token";
+  const TOKEN_KEY = "sgp_token";
+  const LOGIN_PATH = "/ui/login?role=client";
 
   function byId(id) {
     return document.getElementById(id);
@@ -20,12 +21,11 @@
     return localStorage.getItem(TOKEN_KEY) || "";
   }
 
-  function setToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-
   function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("client_token");
+    localStorage.removeItem("employee_token");
+    localStorage.removeItem("admin_token");
   }
 
   function toDateInputValue(date) {
@@ -86,47 +86,14 @@
     return payload;
   }
 
-  async function registerClient() {
-    try {
-      const payload = await callApi("/api/auth/register", "POST", {
-        name: byId("registerName").value.trim(),
-        email: byId("registerEmail").value.trim(),
-        phone: byId("registerPhone").value.trim(),
-        password: byId("registerPassword").value
-      });
-
-      if (payload.data && payload.data.token) {
-        setToken(payload.data.token);
-      }
-
-      setAuthUi();
-      setFeedback("Registro completado. Ya puedes usar el calendario.", "ok");
-    } catch (error) {
-      setFeedback(error.message, "warn");
-    }
-  }
-
-  async function loginClient() {
-    try {
-      const payload = await callApi("/api/auth/login", "POST", {
-        email: byId("loginEmail").value.trim(),
-        password: byId("loginPassword").value
-      });
-
-      if (payload.data && payload.data.token) {
-        setToken(payload.data.token);
-      }
-
-      setAuthUi();
-      setFeedback("Sesion iniciada correctamente.", "ok");
-    } catch (error) {
-      setFeedback(error.message, "warn");
-    }
-  }
-
   async function loadProfile() {
     try {
       const payload = await callApi("/api/auth/me", "GET");
+      if (!payload.data || payload.data.role !== "client") {
+        setFeedback("Esta vista es solo para clientes autenticados.", "warn");
+        return;
+      }
+
       setFeedback("Sesion valida para: " + payload.data.email, "ok");
     } catch (error) {
       setFeedback(error.message, "warn");
@@ -175,15 +142,10 @@
     }
   }
 
-  byId("registerBtn").addEventListener("click", registerClient);
-  byId("loginBtn").addEventListener("click", loginClient);
   byId("loadProfileBtn").addEventListener("click", loadProfile);
   byId("availabilityBtn").addEventListener("click", loadAvailability);
-  byId("goCalendarBtn").addEventListener("click", function () {
-    location.href = "/ui/client/calendar";
-  });
   byId("navLoginBtn").addEventListener("click", function () {
-    location.hash = "#loginSection";
+    location.href = LOGIN_PATH;
   });
   byId("navLogoutBtn").addEventListener("click", function () {
     clearToken();
