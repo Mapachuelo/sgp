@@ -33,19 +33,6 @@ docker-compose.yml
 Dockerfile
 ```
 
-# Clonar repositorio
-Mediante HTTPS:
-
-```bash
-git clone https://github.com/Mapachuelo/prueba.git
-```
-
-Mediante SSH:
-
-```bash
-git clone git@github.com:Mapachuelo/prueba.git 
-```
-
 
 
 ### Modulos por funcionalidad
@@ -68,12 +55,25 @@ Pantallas:
 
 Estas paginas permiten ejecutar las operaciones y ver respuesta JSON en pantalla para validar la logica de cada modulo.
 
-## Ejecucion con Docker en Linux
+## Ejecucion con Docker en Linux Y Windows
 
 ### 1. Requisitos
-
+- Git
 - Docker Engine
 - Docker Compose Plugin
+
+#### Clonar repositorio
+Mediante HTTPS:
+
+```bash
+git clone https://github.com/Mapachuelo/prueba.git
+```
+
+Mediante SSH:
+
+```bash
+git clone git@github.com:Mapachuelo/prueba.git 
+```
 
 ### 2. Levantar servicios
 
