@@ -25,8 +25,7 @@ body {
   align-items: center;
   gap: 1rem;
   padding: 1rem clamp(1rem, 3vw, 2.6rem);
-  background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);
-}
+  background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);  box-shadow: 0 4px 12px rgba(66, 40, 34, 0.15);}
 
 .emp-brand {
   text-decoration: none;
@@ -51,12 +50,36 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.25s ease;
+  font-size: 0.95rem;
+}
+
+.emp-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .emp-btn.ghost {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(66, 40, 34, 0.24);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(66, 40, 34, 0.2);
   color: var(--ink-900);
+}
+
+.emp-btn.ghost:hover {
+  background: #fff;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.emp-btn.solid {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(217, 127, 106, 0.3);
+}
+
+.emp-btn.solid:hover {
+  background: var(--accent-strong);
+  box-shadow: 0 6px 16px rgba(187, 95, 72, 0.4);
 }
 
 .emp-calendar-layout {
@@ -69,10 +92,11 @@ body {
 
 .emp-panel {
   background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(66, 40, 34, 0.2);
+  border: 1px solid rgba(66, 40, 34, 0.15);
   border-radius: 16px;
   padding: 1rem;
-  box-shadow: 0 14px 40px rgba(66, 40, 34, 0.08);
+  box-shadow: 0 8px 24px rgba(66, 40, 34, 0.06);
+  transition: all 0.3s ease;
 }
 
 .panel-head {
@@ -103,15 +127,25 @@ body {
 input {
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 0.55rem;
+  padding: 0.65rem;
   font-family: "Outfit", sans-serif;
+  transition: all 0.2s ease;
+  color: var(--ink-900);
+  background: #fff;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 127, 106, 0.15);
 }
 
 .calendar-shell {
-  border: 1px solid rgba(66, 40, 34, 0.2);
+  border: 1px solid rgba(66, 40, 34, 0.15);
   border-radius: 12px;
   overflow: auto;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(66, 40, 34, 0.05);
 }
 
 table {
@@ -122,14 +156,16 @@ table {
 
 th,
 td {
-  border: 1px solid rgba(66, 40, 34, 0.16);
-  padding: 0.42rem;
+  border: 1px solid rgba(66, 40, 34, 0.1);
+  padding: 0.5rem;
   text-align: center;
   white-space: nowrap;
 }
 
 th {
-  background: #f4e5dd;
+  background: linear-gradient(135deg, #f4e4db 0%, #f0dcd0 100%);
+  font-weight: 700;
+  color: var(--brand-700);
 }
 
 td {
@@ -161,26 +197,38 @@ td.booked {
   margin: 0.9rem 0 0;
   border-radius: 10px;
   border: 1px solid transparent;
-  padding: 0.6rem;
-  font-weight: 700;
+  padding: 0.7rem;
+  font-weight: 600;
+  animation: slideDown 0.3s ease;
 }
 
 .feedback.ok {
   color: #0d4024;
-  background: #e6f5eb;
-  border-color: #9fd7b2;
+  background: rgba(47, 125, 79, 0.08);
+  border-color: rgba(47, 125, 79, 0.2);
 }
 
 .feedback.warn {
   color: #651b14;
-  background: #fee9e5;
-  border-color: #f1b4a8;
+  background: rgba(159, 59, 48, 0.08);
+  border-color: rgba(159, 59, 48, 0.2);
 }
 
 .feedback.info {
   color: #143d69;
-  background: #e6f1fb;
-  border-color: #abcaf0;
+  background: rgba(52, 90, 138, 0.08);
+  border-color: rgba(52, 90, 138, 0.2);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .output-panel {
@@ -189,15 +237,17 @@ td.booked {
 }
 
 pre {
-  margin: 0;
+  margin: 1rem 0 0;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #211411;
+  border-radius: 12px;
+  background: #1e130f;
   color: #ffe8dd;
-  padding: 0.85rem;
+  padding: 1.2rem;
   overflow: auto;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.82rem;
+  line-height: 1.6;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .hidden {

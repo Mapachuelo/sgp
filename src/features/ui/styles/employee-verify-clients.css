@@ -27,6 +27,7 @@ body {
   gap: 1rem;
   padding: 1rem clamp(1rem, 3vw, 2.6rem);
   background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);
+  box-shadow: 0 4px 12px rgba(66, 40, 34, 0.15);
 }
 
 .emp-brand {
@@ -52,22 +53,36 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.25s ease;
+  font-size: 0.95rem;
+}
+
+.emp-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .emp-btn.ghost {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(66, 40, 34, 0.22);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(66, 40, 34, 0.2);
   color: var(--ink-900);
+}
+
+.emp-btn.ghost:hover {
+  background: #fff;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .emp-btn.solid {
   background: var(--accent);
-  color: #28110d;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(217, 127, 106, 0.3);
 }
 
 .emp-btn.solid:hover {
   background: var(--accent-strong);
-  color: #fff;
+  box-shadow: 0 6px 16px rgba(187, 95, 72, 0.4);
 }
 
 .verify-layout {

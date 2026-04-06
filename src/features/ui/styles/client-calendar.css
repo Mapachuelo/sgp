@@ -42,6 +42,7 @@ body {
   gap: 1rem;
   padding: 1rem clamp(1rem, 3vw, 2.5rem);
   background: linear-gradient(120deg, var(--brand-900) 0%, #5f3b31 100%);
+  box-shadow: 0 4px 12px rgba(66, 40, 34, 0.15);
 }
 
 .brand {
@@ -68,22 +69,37 @@ body {
   justify-content: center;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.25s ease;
+  font-size: 0.95rem;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn.accent {
   background: var(--accent);
-  color: #28120f;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(217, 127, 106, 0.3);
 }
 
 .btn.accent:hover {
   background: var(--accent-strong);
   color: #fff;
+  box-shadow: 0 6px 16px rgba(187, 95, 72, 0.4);
 }
 
 .btn.ghost {
-  background: rgba(255, 255, 255, 0.93);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--ink-900);
-  border: 1px solid rgba(66, 40, 34, 0.24);
+  border: 1px solid rgba(66, 40, 34, 0.2);
+}
+
+.btn.ghost:hover {
+  background: #fff;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .hidden {
@@ -92,10 +108,11 @@ body {
 
 .panel {
   background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(66, 40, 34, 0.2);
+  border: 1px solid rgba(66, 40, 34, 0.15);
   border-radius: 16px;
   padding: 1rem;
-  box-shadow: 0 14px 40px rgba(66, 40, 34, 0.08);
+  box-shadow: 0 8px 24px rgba(66, 40, 34, 0.06);
+  transition: all 0.3s ease;
 }
 
 .calendar-layout {
@@ -128,9 +145,20 @@ body {
 .booking-panel select {
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 0.65rem;
+  padding: 0.7rem;
   font-family: "Outfit", sans-serif;
   width: 100%;
+  transition: all 0.2s ease;
+  background: #fff;
+  color: var(--ink-900);
+}
+
+.calendar-toolbar input:focus,
+.booking-panel input:focus,
+.booking-panel select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 127, 106, 0.15);
 }
 
 .calendar-toolbar input {
@@ -166,9 +194,10 @@ body {
 
 .calendar-shell {
   overflow: auto;
-  border: 1px solid rgba(66, 40, 34, 0.22);
+  border: 1px solid rgba(66, 40, 34, 0.15);
   border-radius: 12px;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(66, 40, 34, 0.05);
 }
 
 table {
@@ -179,15 +208,17 @@ table {
 
 th,
 td {
-  border: 1px solid rgba(66, 40, 34, 0.15);
+  border: 1px solid rgba(66, 40, 34, 0.1);
   text-align: center;
-  padding: 0.45rem;
+  padding: 0.6rem;
   white-space: nowrap;
 }
 
 th {
-  background: #f4e4db;
+  background: linear-gradient(135deg, #f4e4db 0%, #f0dcd0 100%);
   font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brand-700);
 }
 
 .slot-btn {
@@ -198,17 +229,20 @@ th {
   font-weight: 700;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.72rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .slot-btn.available {
   background: var(--available-bg);
   border-color: var(--available-line);
   color: #1f5b39;
-  cursor: pointer;
 }
 
 .slot-btn.available:hover {
   background: #ddf5e8;
+  box-shadow: 0 2px 8px rgba(133, 199, 161, 0.3);
+  transform: scale(1.05);
 }
 
 .slot-btn.reserved {
@@ -216,6 +250,7 @@ th {
   border-color: var(--reserved-line);
   color: #7f2d22;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .booking-panel {
@@ -251,27 +286,39 @@ th {
 .feedback {
   margin: 0.4rem 0 0;
   border-radius: 10px;
-  padding: 0.65rem;
+  padding: 0.8rem;
   border: 1px solid transparent;
   font-weight: 600;
+  animation: slideDown 0.3s ease;
 }
 
 .feedback.ok {
   color: #0d4024;
-  background: #e6f5eb;
-  border-color: #9fd7b2;
+  background: rgba(47, 125, 79, 0.08);
+  border-color: rgba(47, 125, 79, 0.2);
 }
 
 .feedback.warn {
   color: #651b14;
-  background: #fee9e5;
-  border-color: #f1b4a8;
+  background: rgba(159, 59, 48, 0.08);
+  border-color: rgba(159, 59, 48, 0.2);
 }
 
 .feedback.info {
   color: #143d69;
-  background: #e6f1fb;
-  border-color: #abcaf0;
+  background: rgba(52, 90, 138, 0.08);
+  border-color: rgba(52, 90, 138, 0.2);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .qr-image {
@@ -296,16 +343,17 @@ th {
 }
 
 pre {
-  margin: 0;
-  border-radius: 10px;
+  margin: 1rem 0 0;
+  border-radius: 12px;
   border: 1px solid var(--line);
   background: #1e130f;
   color: #ffe8dd;
-  padding: 0.9rem;
+  padding: 1.2rem;
   font-size: 0.82rem;
-  line-height: 1.5;
+  line-height: 1.6;
   overflow: auto;
   font-family: "JetBrains Mono", monospace;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 @media (max-width: 1100px) {
