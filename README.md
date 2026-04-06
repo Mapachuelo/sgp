@@ -33,6 +33,21 @@ docker-compose.yml
 Dockerfile
 ```
 
+# Clonar repositorio
+Mediante HTTPS:
+
+```bash
+git clone https://github.com/Mapachuelo/prueba.git
+```
+
+Mediante SSH:
+
+```bash
+git clone git@github.com:Mapachuelo/prueba.git 
+```
+
+
+
 ### Modulos por funcionalidad
 
 - auth: registro/login con JWT (expiracion 30 minutos).
