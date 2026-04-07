@@ -166,7 +166,7 @@
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 8;
+      td.colSpan = 7;
       td.textContent = "Sin empleados registrados.";
       tr.appendChild(td);
       body.appendChild(tr);
@@ -199,10 +199,6 @@
       const role = document.createElement("td");
       role.textContent = roleLabel(row.role);
       tr.appendChild(role);
-
-      const assignedPassword = document.createElement("td");
-      assignedPassword.textContent = "********";
-      tr.appendChild(assignedPassword);
 
       const actions = document.createElement("td");
       const editBtn = document.createElement("button");
