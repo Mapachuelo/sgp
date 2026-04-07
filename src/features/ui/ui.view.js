@@ -289,6 +289,7 @@ function employeeCalendarView() {
   <a class="brand" href="/ui/employee">Prueba</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/employee">Dashboard</a>
+    <a class="btn ghost" href="/ui/employee/calendar">Calendario</a>
     <a class="btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
     <a class="btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
     <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
