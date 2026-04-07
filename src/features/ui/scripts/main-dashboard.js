@@ -83,26 +83,9 @@
 		return "/ui/client";
 	}
 
-	function selectedRole() {
-		const role = byId("roleSelect");
-		return role ? role.value : "client";
-	}
-
-	function syncRoleUi() {
-		const role = selectedRole();
-		const registerSection = byId("registerSection");
-
-		if (!registerSection) {
-			return;
-		}
-
-		registerSection.classList.toggle("hidden", role !== "client");
-	}
-
-	async function loginWithRole() {
+	async function login() {
 		const email = (byId("loginEmail").value || "").trim();
 		const password = byId("loginPassword").value || "";
-		const expectedRole = selectedRole();
 
 		if (!email || !password) {
 			setFeedback("Correo y password son obligatorios.", "warn");
@@ -121,8 +104,8 @@
 			);
 
 			const user = payload.data && payload.data.user;
-			if (!user || user.role !== expectedRole) {
-				setFeedback("La cuenta no coincide con el rol seleccionado.", "warn");
+			if (!user || !user.role) {
+				setFeedback("No se pudo identificar el rol de la cuenta.", "warn");
 				return;
 			}
 
@@ -173,6 +156,7 @@
 				false
 			);
 
+			closeRegisterModal();
 			clearLegacyTokens();
 			setToken(payload.data.token);
 			window.location.href = "/ui/client";
@@ -181,17 +165,40 @@
 		}
 	}
 
-	function preselectRoleFromQuery() {
-		const params = new URLSearchParams(window.location.search);
-		const role = params.get("role");
-		if (role !== "client" && role !== "employee" && role !== "admin") {
+	function clearRegisterForm() {
+		const registerIds = [
+			"registerFirstName",
+			"registerLastName",
+			"registerPhone",
+			"registerEmail",
+			"registerPassword"
+		];
+
+		registerIds.forEach(function (id) {
+			const input = byId(id);
+			if (input) {
+				input.value = "";
+			}
+		});
+	}
+
+	function closeRegisterModal() {
+		const modal = byId("registerModal");
+		if (!modal) {
 			return;
 		}
 
-		const roleSelect = byId("roleSelect");
-		if (roleSelect) {
-			roleSelect.value = role;
+		modal.classList.add("hidden");
+		clearRegisterForm();
+	}
+
+	function openRegisterModal() {
+		const modal = byId("registerModal");
+		if (!modal) {
+			return;
 		}
+
+		modal.classList.remove("hidden");
 	}
 
 	async function redirectIfActiveSession() {
@@ -214,12 +221,40 @@
 		return;
 	}
 
-	preselectRoleFromQuery();
-	syncRoleUi();
+	const loginBtn = byId("loginBtn");
+	const openRegisterBtn = byId("openRegisterBtn");
+	const registerBtn = byId("registerBtn");
+	const closeRegisterBtn = byId("closeRegisterBtn");
+	const cancelRegisterBtn = byId("cancelRegisterBtn");
+	const registerModal = byId("registerModal");
 
-	byId("roleSelect").addEventListener("change", syncRoleUi);
-	byId("loginBtn").addEventListener("click", loginWithRole);
-	byId("registerBtn").addEventListener("click", registerClient);
+	if (loginBtn) {
+		loginBtn.addEventListener("click", login);
+	}
+
+	if (openRegisterBtn) {
+		openRegisterBtn.addEventListener("click", openRegisterModal);
+	}
+
+	if (registerBtn) {
+		registerBtn.addEventListener("click", registerClient);
+	}
+
+	if (closeRegisterBtn) {
+		closeRegisterBtn.addEventListener("click", closeRegisterModal);
+	}
+
+	if (cancelRegisterBtn) {
+		cancelRegisterBtn.addEventListener("click", closeRegisterModal);
+	}
+
+	if (registerModal) {
+		registerModal.addEventListener("click", function (event) {
+			if (event.target === registerModal) {
+				closeRegisterModal();
+			}
+		});
+	}
 
 	redirectIfActiveSession();
 })();

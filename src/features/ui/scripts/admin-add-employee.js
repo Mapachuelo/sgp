@@ -1,6 +1,6 @@
 (function () {
   const TOKEN_KEY = "sgp_token";
-  const LOGIN_PATH = "/ui/login?role=admin";
+  const LOGIN_PATH = "/ui/login";
 
   function byId(id) {
     return document.getElementById(id);
@@ -18,7 +18,24 @@
   }
 
   function setOutput(payload) {
-    byId("apiOutput").textContent = JSON.stringify(payload, null, 2);
+    const output = byId("apiOutput");
+    if (!output) {
+      return;
+    }
+
+    output.textContent = JSON.stringify(payload, null, 2);
+  }
+
+  function roleLabel(role) {
+    if (role === "employee") {
+      return "Empleado";
+    }
+
+    if (role === "admin") {
+      return "Administrador";
+    }
+
+    return role || "";
   }
 
   function setFeedback(message, tone) {
@@ -180,11 +197,15 @@
       tr.appendChild(email);
 
       const role = document.createElement("td");
-      role.textContent = row.role || "";
+      role.textContent = roleLabel(row.role);
       tr.appendChild(role);
 
       const assignedPassword = document.createElement("td");
-      assignedPassword.textContent = row.assigned_password || "No asignada";
+      if (row.password_sha256) {
+        assignedPassword.textContent = "Censurada | SHA-256: " + row.password_sha256;
+      } else {
+        assignedPassword.textContent = "Censurada";
+      }
       tr.appendChild(assignedPassword);
 
       const actions = document.createElement("td");
@@ -306,7 +327,7 @@
       "Eliminar al usuario " +
         (employeeName || "seleccionado") +
         " (rol " +
-        (employeeRole || "") +
+        roleLabel(employeeRole || "") +
         ") de la base de datos?"
     );
     if (!accepted) {
@@ -424,7 +445,7 @@
         "Editando: " +
         (target.dataset.employeeName || "Usuario") +
         " (rol " +
-        (target.dataset.employeeRole || "") +
+        roleLabel(target.dataset.employeeRole || "") +
         ")";
       updateEmployee(
         target.dataset.employeeId,

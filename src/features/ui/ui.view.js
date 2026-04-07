@@ -1,25 +1,3 @@
-function baseDocument(title, body, script = "") {
-  return `<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${title}</title>
-  </head>
-  <body>
-    <h1>${title}</h1>
-    <p><a href="/">Inicio</a></p>
-    ${body}
-    <hr />
-    <h3>Salida</h3>
-    <pre id="output"></pre>
-    <script>
-${script}
-    </script>
-  </body>
-</html>`;
-}
-
 function clientDocument(title, stylesheetPath, body, scriptPath) {
   return `<!doctype html>
 <html lang="es">
@@ -34,47 +12,6 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
     <script src="${scriptPath}"></script>
   </body>
 </html>`;
-}
-
-function commonScript(roleKey) {
-  return `
-const TOKEN_KEY = "${roleKey}_token";
-
-function setOutput(data) {
-  document.getElementById("output").textContent = JSON.stringify(data, null, 2);
-}
-
-function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || "";
-}
-
-function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-async function callApi(path, method, body) {
-  const headers = { "Content-Type": "application/json" };
-  const token = getToken();
-
-  if (token) {
-    headers.Authorization = "Bearer " + token;
-  }
-
-  const response = await fetch(path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
-
-  const data = await response.json();
-  setOutput(data);
-  return data;
-}
-
-function byId(id) {
-  return document.getElementById(id);
-}
-`;
 }
 
 function homeView() {
@@ -113,13 +50,6 @@ function loginView() {
     <p class="eyebrow">Acceso al sistema</p>
     <h1>Iniciar sesion</h1>
 
-    <label>Rol</label>
-    <select id="roleSelect">
-      <option value="client">Cliente</option>
-      <option value="employee">Empleado</option>
-      <option value="admin">Administrador</option>
-    </select>
-
     <label>Correo</label>
     <input id="loginEmail" type="email" placeholder="correo@dominio.com" />
 
@@ -128,8 +58,17 @@ function loginView() {
 
     <button id="loginBtn" class="btn accent block" type="button">Entrar</button>
 
-    <section id="registerSection" class="panel">
-      <h2>Crear nueva cuenta (cliente)</h2>
+    <button id="openRegisterBtn" class="btn ghost block" type="button">Crear nueva cuenta de cliente</button>
+
+    <p id="loginFeedback" class="feedback info">Ingresa correo y password para entrar.</p>
+  </section>
+
+  <div id="registerModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="registerTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="registerTitle">Crear nueva cuenta (cliente)</h2>
+        <button id="closeRegisterBtn" class="btn ghost" type="button">Cerrar</button>
+      </div>
 
       <label>Nombre</label>
       <input id="registerFirstName" type="text" placeholder="Nombre" />
@@ -146,16 +85,12 @@ function loginView() {
       <label>Password</label>
       <input id="registerPassword" type="password" placeholder="Minimo 6 caracteres" />
 
-      <button id="registerBtn" class="btn ghost block" type="button">Crear cuenta cliente</button>
-    </section>
-
-    <p id="loginFeedback" class="feedback info">Selecciona un rol para iniciar sesion.</p>
-  </section>
-
-  <section class="panel feedback-panel">
-    <h2>Salida API</h2>
-    <pre id="apiOutput"></pre>
-  </section>
+      <div class="modal-actions">
+        <button id="cancelRegisterBtn" class="btn ghost" type="button">Cancelar</button>
+        <button id="registerBtn" class="btn accent" type="button">Crear cuenta</button>
+      </div>
+    </div>
+  </div>
 </main>
   `;
 
@@ -206,7 +141,6 @@ function clientView() {
 
   <section class="panel feedback-panel">
     <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
-    <pre id="apiOutput"></pre>
   </section>
 </main>
 `;
@@ -275,7 +209,7 @@ function clientCalendarView() {
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Mis reservas</button>
-    <a id="goLoginLink" class="inline-link hidden" href="/ui/login?role=client">Ir a login</a>
+    <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a login</a>
 
     <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
@@ -284,11 +218,6 @@ function clientCalendarView() {
     <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
-
-<section class="panel api-output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(
@@ -342,7 +271,6 @@ function employeeView() {
 
   <section class="emp-panel feedback-wrap">
     <p id="dashboardFeedback" class="feedback info">Conecta tu sesion para sincronizar datos.</p>
-    <pre id="apiOutput"></pre>
   </section>
 </main>
 `;
@@ -420,11 +348,6 @@ function employeeCalendarView() {
     <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
-
-<section class="panel api-output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(
@@ -477,11 +400,6 @@ function employeeVerifyClientsView() {
     <p id="verifyFeedback" class="feedback info">La configuracion se guarda localmente en el navegador.</p>
   </aside>
 </main>
-
-<section class="emp-panel output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(
@@ -529,11 +447,6 @@ function employeeValidateQrView() {
     <div id="lastValidationCard" class="last-validation">Sin validaciones recientes.</div>
   </aside>
 </main>
-
-<section class="emp-panel output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(
@@ -607,7 +520,7 @@ function adminView() {
             <th>Identificacion</th>
             <th>Correo</th>
             <th>Rol</th>
-            <th>Password</th>
+            <th>Password (SHA-256)</th>
             <th>Accion</th>
           </tr>
         </thead>
@@ -648,11 +561,6 @@ function adminView() {
     </div>
   </div>
 </main>
-
-<section class="admin-panel output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(
@@ -728,11 +636,6 @@ function adminCalendarView() {
     <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
-
-<section class="panel api-output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(
@@ -783,11 +686,6 @@ function adminVerifyClientsView() {
     <p id="verifyFeedback" class="feedback info">La configuracion se guarda localmente en el navegador.</p>
   </aside>
 </main>
-
-<section class="emp-panel output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(
@@ -833,11 +731,6 @@ function adminValidateQrView() {
     <div id="lastValidationCard" class="last-validation">Sin validaciones recientes.</div>
   </aside>
 </main>
-
-<section class="emp-panel output-panel">
-  <h2>Salida API</h2>
-  <pre id="apiOutput"></pre>
-</section>
 `;
 
   return clientDocument(

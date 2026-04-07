@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { env } = require("../../config/env");
 const { HttpError } = require("../../shared/httpError");
@@ -18,6 +19,17 @@ const {
 } = require("./auth.model");
 
 const PUBLIC_REGISTRATION_ROLE = "client";
+
+function toSha256Hex(value) {
+  return crypto
+    .createHash("sha256")
+    .update(String(value || ""))
+    .digest("hex");
+}
+
+function isSha256Hex(value) {
+  return /^[a-fA-F0-9]{64}$/.test(String(value || ""));
+}
 
 function signToken(user) {
   return jwt.sign(
@@ -162,14 +174,29 @@ async function createEmployeeByAdmin(input) {
     email,
     role,
     passwordHash,
-    assignedPassword: password
+    assignedPassword: toSha256Hex(password)
   });
 
   return { user };
 }
 
 async function getEmployeesByAdmin() {
-  return listEmployees();
+  const employees = await listEmployees();
+
+  return employees.map((employee) => {
+    const storedPassword = employee.assigned_password;
+    const passwordSha256 = storedPassword
+      ? isSha256Hex(storedPassword)
+        ? String(storedPassword).toLowerCase()
+        : toSha256Hex(storedPassword)
+      : null;
+
+    return {
+      ...employee,
+      assigned_password: undefined,
+      password_sha256: passwordSha256
+    };
+  });
 }
 
 async function getStylistsForCalendar() {
@@ -265,7 +292,7 @@ async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) 
     throw new HttpError(404, "Usuario no encontrado");
   }
 
-  await updateAssignedPasswordByUserId(userId, password);
+  await updateAssignedPasswordByUserId(userId, toSha256Hex(password));
 
   return updatedUser;
 }

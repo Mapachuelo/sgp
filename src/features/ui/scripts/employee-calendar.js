@@ -27,7 +27,12 @@
   }
 
   function setOutput(payload) {
-    byId("apiOutput").textContent = JSON.stringify(payload, null, 2);
+    const output = byId("apiOutput");
+    if (!output) {
+      return;
+    }
+
+    output.textContent = JSON.stringify(payload, null, 2);
   }
 
   function setFeedback(message, tone) {
