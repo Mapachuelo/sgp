@@ -59,6 +59,74 @@
   function setSessionUi(isLogged) {
     byId("employeeForm").classList.toggle("hidden", !isLogged);
     byId("logoutBtn").classList.toggle("hidden", !isLogged);
+
+    document.querySelectorAll(".admin-session-only").forEach(function (element) {
+      element.classList.toggle("hidden", !isLogged);
+    });
+  }
+
+  function openModal(modalId) {
+    const modal = byId(modalId);
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeModal(modalId) {
+    const modal = byId(modalId);
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add("hidden");
+  }
+
+  function setupAdminModals() {
+    const modalConfig = [
+      {
+        modalId: "adminEmployeeModal",
+        openButtonId: "openEmployeeModalBtn",
+        closeButtonId: "closeEmployeeModalBtn"
+      },
+      {
+        modalId: "adminServicesModal",
+        openButtonId: "openServicesModalBtn",
+        closeButtonId: "closeServicesModalBtn"
+      },
+      {
+        modalId: "adminRegisteredModal",
+        openButtonId: "openRegisteredModalBtn",
+        closeButtonId: "closeRegisteredModalBtn"
+      }
+    ];
+
+    modalConfig.forEach(function (item) {
+      const openButton = byId(item.openButtonId);
+      const closeButton = byId(item.closeButtonId);
+      const modal = byId(item.modalId);
+
+      if (openButton) {
+        openButton.addEventListener("click", function () {
+          openModal(item.modalId);
+        });
+      }
+
+      if (closeButton) {
+        closeButton.addEventListener("click", function () {
+          closeModal(item.modalId);
+        });
+      }
+
+      if (modal) {
+        modal.addEventListener("click", function (event) {
+          if (event.target === modal) {
+            closeModal(item.modalId);
+          }
+        });
+      }
+    });
   }
 
   async function callApi(path, method, body) {
@@ -476,6 +544,8 @@
       closeEditModal();
     }
   });
+
+  setupAdminModals();
 
   if (!getToken()) {
     setSessionUi(false);

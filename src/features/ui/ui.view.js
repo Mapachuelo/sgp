@@ -470,65 +470,90 @@ function adminView() {
   </nav>
 </header>
 
-<main class="admin-layout">
-  <section class="admin-panel form-panel">
-    <h1>Ingreso empleado y administrador</h1>
-    <p class="helper">Solo administradores pueden registrar usuarios internos.</p>
-
-    <form id="employeeForm">
-      <label>Rol</label>
-      <select id="role">
-        <option value="employee">Empleado</option>
-        <option value="admin">Administrador</option>
-      </select>
-      <label>Nombre</label>
-      <input id="firstName" type="text" placeholder="Nombre" />
-      <label>Apellido</label>
-      <input id="lastName" type="text" placeholder="Apellido" />
-      <label>Numero</label>
-      <input id="phone" type="text" placeholder="Numero de telefono" />
-      <label>Identificacion</label>
-      <input id="identification" type="text" placeholder="ID empleado" />
-      <label>Correo</label>
-      <input id="email" type="email" placeholder="correo@dominio.com" />
-      <label>Password asignada</label>
-      <input id="password" type="text" placeholder="Minimo 6 caracteres" />
-      <button id="createEmployeeBtn" class="admin-btn solid block" type="submit">Agregar empleado</button>
-    </form>
-
+<main class="admin-layout admin-console">
+  <section class="admin-panel admin-launcher">
+    <h1>Gestion administrativa</h1>
+    <p class="helper">Abre cada modulo en ventana flotante sin salir de esta vista.</p>
+    <div class="admin-launcher-grid">
+      <button id="openEmployeeModalBtn" class="admin-btn solid admin-session-only" type="button">Ingreso empleado y administrador</button>
+      <button id="openServicesModalBtn" class="admin-btn ghost admin-session-only" type="button">Servicios disponibles</button>
+      <button id="openRegisteredModalBtn" class="admin-btn ghost admin-session-only" type="button">Lista registrados</button>
+    </div>
     <p id="adminFeedback" class="feedback info">Panel de administracion listo.</p>
-
-    <hr />
-    <h2>Servicios disponibles</h2>
-    <label>Nuevo servicio</label>
-    <input id="serviceNameInput" type="text" placeholder="Corte clasico" />
-    <button id="addServiceBtn" class="admin-btn ghost block" type="button">Agregar servicio</button>
-    <ul id="servicesList"></ul>
   </section>
 
-  <section class="admin-panel list-panel">
-    <div class="list-head">
-      <h2>Lista registrados</h2>
-      <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
+  <div id="adminEmployeeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminEmployeeTitle">
+    <div class="modal-card admin-modal-card">
+      <div class="modal-head">
+        <h2 id="adminEmployeeTitle">Ingreso empleado y administrador</h2>
+        <button id="closeEmployeeModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <p class="helper">Solo administradores pueden registrar usuarios internos.</p>
+
+      <form id="employeeForm">
+        <label>Rol</label>
+        <select id="role">
+          <option value="employee">Empleado</option>
+          <option value="admin">Administrador</option>
+        </select>
+        <label>Nombre</label>
+        <input id="firstName" type="text" placeholder="Nombre" />
+        <label>Apellido</label>
+        <input id="lastName" type="text" placeholder="Apellido" />
+        <label>Numero</label>
+        <input id="phone" type="text" placeholder="Numero de telefono" />
+        <label>Identificacion</label>
+        <input id="identification" type="text" placeholder="ID empleado" />
+        <label>Correo</label>
+        <input id="email" type="email" placeholder="correo@dominio.com" />
+        <label>Password asignada</label>
+        <input id="password" type="text" placeholder="Minimo 6 caracteres" />
+        <button id="createEmployeeBtn" class="admin-btn solid block" type="submit">Agregar empleado</button>
+      </form>
     </div>
-    <div class="table-shell">
-      <table>
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Apellido</th>
-            <th>Numero</th>
-            <th>Identificacion</th>
-            <th>Correo</th>
-            <th>Rol</th>
-            <th>Accion</th>
-          </tr>
-        </thead>
-        <tbody id="employeesTableBody"></tbody>
-      </table>
+  </div>
+
+  <div id="adminServicesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminServicesTitle">
+    <div class="modal-card admin-modal-card">
+      <div class="modal-head">
+        <h2 id="adminServicesTitle">Servicios disponibles</h2>
+        <button id="closeServicesModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <label>Nuevo servicio</label>
+      <input id="serviceNameInput" type="text" placeholder="Corte clasico" />
+      <button id="addServiceBtn" class="admin-btn ghost block" type="button">Agregar servicio</button>
+      <ul id="servicesList"></ul>
     </div>
-    <p id="tempPasswordHint" class="temp-password hidden"></p>
-  </section>
+  </div>
+
+  <div id="adminRegisteredModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminRegisteredTitle">
+    <div class="modal-card admin-modal-card wide list-panel">
+      <div class="modal-head">
+        <h2 id="adminRegisteredTitle">Lista registrados</h2>
+        <button id="closeRegisteredModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <div class="list-head">
+        <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
+      </div>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Apellido</th>
+              <th>Numero</th>
+              <th>Identificacion</th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Accion</th>
+            </tr>
+          </thead>
+          <tbody id="employeesTableBody"></tbody>
+        </table>
+      </div>
+      <p id="tempPasswordHint" class="temp-password hidden"></p>
+    </div>
+  </div>
 
   <div id="editUserModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editUserTitle">
     <div class="modal-card">
