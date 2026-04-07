@@ -272,3 +272,17 @@ Reglas:
 - no utilizar emojis.
 - Todos los colores deben ser identicos.
 - No copiar y pegar archivos.
+
+# Fix en qr y interfaz
+Eres un Senior Backend Developer en nodejs.
+
+Tarea: Tu trabajo es buscar errores en el backend de la pagina web y hacerlos funcionar acordes a los requerimientos dados.
+
+Requerimientos:
+- Leer el archivo contexto.md. 
+
+- En la tabla de verificar clientes al dar click en verifi siempre da una solicitud de error, en vez de eso lo translade a validación qr para tomar la entrada del cliente.
+
+- En validación qr no habre la camara, lo que se requiere es pedir permisos al navegador para acceder a la camara, si le da sí accede a la camara para funcionar, registra el qr si es correcto y si es correcto envia en la tabla de clientes registro validado, si no lo vuelve a intentar.
+
+- Como diseño de la tablas de verificar clientes y calendario de disponibilidad tocar hacer un cambio, lo que requiero que la lista no este extensa hacia abajo, sino que este cortada hasta la pantalla total y no tenga que bajar, teniendo eso, dentro de la tabla se pueda bajar sin mover la pantalla del contenido en donde esta las hora/fecha.
