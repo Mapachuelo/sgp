@@ -244,3 +244,31 @@ Tarea: Hacer cambios en el backend de la pagina web, dar soporte en seguridad y 
 Requerimientos: 
 - El empleado a dar click calendario desaparece el boton en el dashboard, quiero que siempre este para el rol empleado.
 
+# Cambio de diseño 
+Eres un Senior Frontend Developer en css.
+
+Tarea: Vas a cambiar el diseño de la pagina web que estaba implementado previstar.
+
+Intrucciones:
+- Vas a leer el archivo contexto.md 
+- Vas a leer los archivos .css que te voy a proporcionar.
+
+- Tomar de referencia las paletas de colores de los archivos porporcionados implementarlos en los archivos del diseño web en la carpeta "src".
+
+Reglas: 
+- no utilizar emojis.
+- Todos los colores deben ser identicos.
+- No copiar y pegar archivos.
+
+# Cambio de botones en rol admin 
+Eres un Senior Frontend Developer en css.
+
+Tarea: Vas a cambiar el diseño de la pagina web que estaba implementado previstar.
+
+Intrucciones:
+- Teniendo el rol admin en la parte de lista de registrados, ingreso de empleado y empleado, y servicios disponibles, lo que requiero para entrar a ellos sean mediante botones, al dar click se despliegue una ventana flotante sin abrir otra ventana en la misma ventana que estan los botones.
+
+Reglas: 
+- no utilizar emojis.
+- Todos los colores deben ser identicos.
+- No copiar y pegar archivos.
