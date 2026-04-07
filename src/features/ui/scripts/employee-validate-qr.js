@@ -7,7 +7,11 @@
   const state = {
     stream: null,
     scanIntervalId: null,
-    scanLocked: false
+    scanLocked: false,
+    scanCanvas: null,
+    scanContext: null,
+    lastScanToken: "",
+    lastScanAt: 0
   };
 
   function byId(id) {
@@ -51,8 +55,19 @@
   }
 
   function setScanButtons(scanning) {
-    byId("startScanBtn").disabled = scanning;
-    byId("stopScanBtn").disabled = !scanning;
+    const startBtn = byId("startScanBtn");
+    const stopBtn = byId("stopScanBtn");
+    if (startBtn) {
+      startBtn.disabled = scanning;
+    }
+    if (stopBtn) {
+      stopBtn.disabled = !scanning;
+    }
+  }
+
+  function getQrTokenFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return String(params.get("qrToken") || "").trim();
   }
 
   function setLastValidation(payload) {
@@ -123,17 +138,20 @@
   }
 
   async function validateToken(qrToken) {
-    if (!qrToken) {
+    const normalized = String(qrToken || "").trim();
+    if (!normalized) {
       setFeedback("Debes ingresar o escanear un token QR.", "warn");
-      return;
+      return false;
     }
 
     try {
-      const payload = await callApi("/api/checkin/validate", "POST", { qrToken: qrToken.trim() });
+      const payload = await callApi("/api/checkin/validate", "POST", { qrToken: normalized });
       setLastValidation(payload);
       setFeedback("Ingreso validado correctamente.", "ok");
+      return true;
     } catch (error) {
-      setFeedback(error.message, "warn");
+      setFeedback((error.message || "No fue posible validar el QR") + ". Reintenta.", "warn");
+      return false;
     }
   }
 
@@ -150,7 +168,53 @@
       state.stream = null;
     }
 
+    state.scanLocked = false;
     setScanButtons(false);
+  }
+
+  function describeCameraError(error) {
+    if (!error || !error.name) {
+      return "No fue posible iniciar la camara.";
+    }
+
+    if (error.name === "NotAllowedError" || error.name === "SecurityError") {
+      return "Permiso de camara denegado. Acepta el permiso en el navegador para continuar.";
+    }
+
+    if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+      return "No se encontro una camara disponible en este dispositivo.";
+    }
+
+    if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+      return "La camara esta siendo usada por otra aplicacion.";
+    }
+
+    return error.message || "No fue posible iniciar la camara.";
+  }
+
+  function decodeWithJsQr(video) {
+    if (typeof window.jsQR !== "function") {
+      return "";
+    }
+
+    if (!state.scanCanvas) {
+      state.scanCanvas = document.createElement("canvas");
+      state.scanContext = state.scanCanvas.getContext("2d", { willReadFrequently: true });
+    }
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height || !state.scanContext) {
+      return "";
+    }
+
+    state.scanCanvas.width = width;
+    state.scanCanvas.height = height;
+    state.scanContext.drawImage(video, 0, 0, width, height);
+
+    const imageData = state.scanContext.getImageData(0, 0, width, height);
+    const result = window.jsQR(imageData.data, width, height, { inversionAttempts: "attemptBoth" });
+    return result && result.data ? String(result.data).trim() : "";
   }
 
   async function scanFrame(detector) {
@@ -159,27 +223,42 @@
     }
 
     const video = byId("cameraPreview");
-    if (!video.videoWidth || !video.videoHeight) {
+    if (!video || !video.videoWidth || !video.videoHeight) {
       return;
     }
 
+    let rawValue = "";
+
     try {
-      const barcodes = await detector.detect(video);
-      if (!barcodes || barcodes.length === 0) {
-        return;
+      if (detector) {
+        const barcodes = await detector.detect(video);
+        rawValue = String((barcodes[0] && barcodes[0].rawValue) || "").trim();
+      } else {
+        rawValue = decodeWithJsQr(video);
       }
-
-      const rawValue = barcodes[0] && barcodes[0].rawValue;
-      if (!rawValue) {
-        return;
-      }
-
-      state.scanLocked = true;
-      byId("qrTokenInput").value = rawValue;
-      await validateToken(rawValue);
-      state.scanLocked = false;
     } catch (_error) {
-      state.scanLocked = false;
+      return;
+    }
+
+    if (!rawValue) {
+      return;
+    }
+
+    const now = Date.now();
+    if (rawValue === state.lastScanToken && now - state.lastScanAt < 2500) {
+      return;
+    }
+    state.lastScanToken = rawValue;
+    state.lastScanAt = now;
+
+    state.scanLocked = true;
+    byId("qrTokenInput").value = rawValue;
+    const validated = await validateToken(rawValue);
+    state.scanLocked = false;
+
+    if (validated) {
+      stopCamera();
+      setFeedback("Ingreso validado correctamente. Camara detenida.", "ok");
     }
   }
 
@@ -189,25 +268,40 @@
       return;
     }
 
-    if (typeof window.BarcodeDetector !== "function") {
-      setFeedback("BarcodeDetector no esta disponible. Usa validacion manual.", "warn");
-      return;
+    stopCamera();
+    setFeedback("Solicitando permiso para usar la camara...", "info");
+
+    let detector = null;
+    if (typeof window.BarcodeDetector === "function") {
+      try {
+        detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      } catch (_error) {
+        detector = null;
+      }
     }
 
     try {
-      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
 
       state.stream = stream;
       byId("cameraPreview").srcObject = stream;
       setScanButtons(true);
+
+      if (!detector && typeof window.jsQR !== "function") {
+        setFeedback("Camara activa sin lector QR automatico. Usa validacion manual.", "warn");
+        return;
+      }
+
       setFeedback("Camara activa. Escanea un QR.", "info");
 
       state.scanIntervalId = window.setInterval(function () {
         scanFrame(detector);
-      }, 600);
+      }, 500);
     } catch (error) {
-      setFeedback(error.message || "No fue posible iniciar la camara.", "warn");
+      setFeedback(describeCameraError(error), "warn");
       stopCamera();
     }
   }
@@ -227,6 +321,12 @@
   });
 
   window.addEventListener("beforeunload", stopCamera);
+
+  const prefilledToken = getQrTokenFromUrl();
+  if (prefilledToken) {
+    byId("qrTokenInput").value = prefilledToken;
+    setFeedback("Token recibido desde verificar clientes. Puedes validar manual o escanear.", "info");
+  }
 
   if (!getToken()) {
     window.location.href = LOGIN_PATH;
