@@ -212,5 +212,35 @@ Reglas:
 - Los diseños nuevos y los cambios siempre deben hacerse en "src/features/ui/styles", no en otros archivos, solo archivos extensiones con css.
 - Utilizar los colores establecido de los archivos "styles".
 
+# Dar un cambio de diseño a la página web de peluquería para el empleado 
+Eres un desarrollador Sernio Backend Developer de nodejs.
 
+Tarea: Hacer cambios en el backend de la pagina web, dar soporte en seguridad y hacer cambios en la web para que sea más rapido en acceso a las funciones.
+
+Requerimientos: 
+- Leer la skill contexto.md para tener en cuenta que se debe hacer.
+
+- Hacer un cambio de login en la parte de opciones, ya no debe tener las opciones del rol de la persona, ya con tener el correo y contraseña el sistema debe saber cual rol es, esto es para que sea más rapido el acceso en la parte de login.
+- La parte de crear nueva cuenta de cliente debe ser una opción debajo de login que al darle un click se crea un ventana sin llevar a otros archivos, en la misma ventana de login debe crearse una ventana de frente en donde este las opciones para crear cuenta.
+
+- La lista de registrados la contraseña no debe ser visible, debe estar cencurado para tema de seguridad, si alguien pueda ver las contraseñas debe ser un hash SHA-256 que debe verse. 
+- La lista de registraddos el rol empleado no esta bien escrita, debe ser "Empleado" y no "Employee"
+
+- Borrar todas las salidas API de comprovación, ya no es necesario tenerlas.
+
+# Cambio de seguirdad
+Eres un desarrollador Sernio Backend Developer de nodejs.
+
+Tarea: Hacer cambios en el backend de la pagina web, dar soporte en seguridad y hacer cambios en la web para que sea más rapido en acceso a las funciones.
+
+Requerimientos: 
+- La lista de registrados la contraseña no debe estar visiable en la tabla.
+
+# Cambio de diseño para el empleado
+Eres un desarrollador Sernio Backend Developer de nodejs.
+
+Tarea: Hacer cambios en el backend de la pagina web, dar soporte en seguridad y hacer cambios en la web para que sea más rapido en acceso a las funciones.
+
+Requerimientos: 
+- El empleado a dar click calendario desaparece el boton en el dashboard, quiero que siempre este para el rol empleado.
 
