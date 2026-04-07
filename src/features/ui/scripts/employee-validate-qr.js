@@ -2,7 +2,7 @@
   const isAdminContext = window.location.pathname.startsWith("/ui/admin");
   const TOKEN_KEY = "sgp_token";
   const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
-  const LOGIN_PATH = isAdminContext ? "/ui/login?role=admin" : "/ui/login?role=employee";
+  const LOGIN_PATH = "/ui/login";
 
   const state = {
     stream: null,
@@ -26,7 +26,12 @@
   }
 
   function setOutput(payload) {
-    byId("apiOutput").textContent = JSON.stringify(payload, null, 2);
+    const output = byId("apiOutput");
+    if (!output) {
+      return;
+    }
+
+    output.textContent = JSON.stringify(payload, null, 2);
   }
 
   function setFeedback(message, tone) {

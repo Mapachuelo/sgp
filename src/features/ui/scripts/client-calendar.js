@@ -9,10 +9,10 @@
       ? "/ui/admin"
       : "/ui/employee";
   const LOGIN_PATH = isClientContext
-    ? "/ui/login?role=client"
+    ? "/ui/login"
     : isAdminContext
-      ? "/ui/login?role=admin"
-      : "/ui/login?role=employee";
+      ? "/ui/login"
+      : "/ui/login";
   const ANY_STYLIST_VALUE = "__any__";
   const START_HOUR = 6;
   const END_HOUR = 22;

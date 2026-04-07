@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { env } = require("../../config/env");
 const { HttpError } = require("../../shared/httpError");
@@ -18,6 +19,13 @@ const {
 } = require("./auth.model");
 
 const PUBLIC_REGISTRATION_ROLE = "client";
+
+function toSha256Hex(value) {
+  return crypto
+    .createHash("sha256")
+    .update(String(value || ""))
+    .digest("hex");
+}
 
 function signToken(user) {
   return jwt.sign(
@@ -162,14 +170,22 @@ async function createEmployeeByAdmin(input) {
     email,
     role,
     passwordHash,
-    assignedPassword: password
+    assignedPassword: toSha256Hex(password)
   });
 
   return { user };
 }
 
 async function getEmployeesByAdmin() {
-  return listEmployees();
+  const employees = await listEmployees();
+
+  return employees.map((employee) => {
+    const { assigned_password: _assignedPassword, ...safeEmployee } = employee;
+
+    return {
+      ...safeEmployee
+    };
+  });
 }
 
 async function getStylistsForCalendar() {
@@ -265,7 +281,7 @@ async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) 
     throw new HttpError(404, "Usuario no encontrado");
   }
 
-  await updateAssignedPasswordByUserId(userId, password);
+  await updateAssignedPasswordByUserId(userId, toSha256Hex(password));
 
   return updatedUser;
 }

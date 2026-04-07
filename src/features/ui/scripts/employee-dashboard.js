@@ -1,6 +1,6 @@
 (function () {
   const TOKEN_KEY = "sgp_token";
-  const LOGIN_PATH = "/ui/login?role=employee";
+  const LOGIN_PATH = "/ui/login";
 
   function byId(id) {
     return document.getElementById(id);
@@ -18,7 +18,12 @@
   }
 
   function setOutput(payload) {
-    byId("apiOutput").textContent = JSON.stringify(payload, null, 2);
+    const output = byId("apiOutput");
+    if (!output) {
+      return;
+    }
+
+    output.textContent = JSON.stringify(payload, null, 2);
   }
 
   function setFeedback(message, tone) {

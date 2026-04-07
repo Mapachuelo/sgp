@@ -1,6 +1,6 @@
 (function () {
   const TOKEN_KEY = "sgp_token";
-  const LOGIN_PATH = "/ui/login?role=client";
+  const LOGIN_PATH = "/ui/login";
 
   function byId(id) {
     return document.getElementById(id);
@@ -8,6 +8,10 @@
 
   function setOutput(data) {
     const output = byId("apiOutput");
+    if (!output) {
+      return;
+    }
+
     output.textContent = JSON.stringify(data, null, 2);
   }
 

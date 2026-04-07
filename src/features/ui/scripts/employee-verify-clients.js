@@ -2,7 +2,7 @@
   const isAdminContext = window.location.pathname.startsWith("/ui/admin");
   const TOKEN_KEY = "sgp_token";
   const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
-  const LOGIN_PATH = isAdminContext ? "/ui/login?role=admin" : "/ui/login?role=employee";
+  const LOGIN_PATH = "/ui/login";
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
@@ -29,7 +29,12 @@
   }
 
   function setOutput(payload) {
-    byId("apiOutput").textContent = JSON.stringify(payload, null, 2);
+    const output = byId("apiOutput");
+    if (!output) {
+      return;
+    }
+
+    output.textContent = JSON.stringify(payload, null, 2);
   }
 
   function setFeedback(message, tone) {
