@@ -201,11 +201,7 @@
       tr.appendChild(role);
 
       const assignedPassword = document.createElement("td");
-      if (row.password_sha256) {
-        assignedPassword.textContent = "Censurada | SHA-256: " + row.password_sha256;
-      } else {
-        assignedPassword.textContent = "Censurada";
-      }
+      assignedPassword.textContent = "********";
       tr.appendChild(assignedPassword);
 
       const actions = document.createElement("td");

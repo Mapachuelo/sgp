@@ -520,7 +520,7 @@ function adminView() {
             <th>Identificacion</th>
             <th>Correo</th>
             <th>Rol</th>
-            <th>Password (SHA-256)</th>
+            <th>Password</th>
             <th>Accion</th>
           </tr>
         </thead>

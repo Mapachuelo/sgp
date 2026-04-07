@@ -27,10 +27,6 @@ function toSha256Hex(value) {
     .digest("hex");
 }
 
-function isSha256Hex(value) {
-  return /^[a-fA-F0-9]{64}$/.test(String(value || ""));
-}
-
 function signToken(user) {
   return jwt.sign(
     {
@@ -184,17 +180,10 @@ async function getEmployeesByAdmin() {
   const employees = await listEmployees();
 
   return employees.map((employee) => {
-    const storedPassword = employee.assigned_password;
-    const passwordSha256 = storedPassword
-      ? isSha256Hex(storedPassword)
-        ? String(storedPassword).toLowerCase()
-        : toSha256Hex(storedPassword)
-      : null;
+    const { assigned_password: _assignedPassword, ...safeEmployee } = employee;
 
     return {
-      ...employee,
-      assigned_password: undefined,
-      password_sha256: passwordSha256
+      ...safeEmployee
     };
   });
 }
