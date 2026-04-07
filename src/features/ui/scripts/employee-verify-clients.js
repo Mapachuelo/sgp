@@ -3,6 +3,7 @@
   const TOKEN_KEY = "sgp_token";
   const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
   const LOGIN_PATH = "/ui/login";
+  const VALIDATE_QR_PATH = isAdminContext ? "/ui/admin/validate-qr" : "/ui/employee/validate-qr";
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
@@ -285,7 +286,7 @@
 
         const slotKey = dayKey + "|" + slot;
         const reservations = (indexed[slotKey] || []).filter(function (reservation) {
-          return reservation.status === "booked";
+          return reservation.status === "booked" || reservation.status === "checked_in";
         });
 
         if (reservations.length === 0) {
@@ -305,12 +306,19 @@
           text.textContent = reservation.service_name + " / Cliente #" + reservation.client_id;
           rowWrap.appendChild(text);
 
-          if (reservation.qr_token) {
+          if (reservation.status === "checked_in") {
+            rowWrap.classList.add("checked-in");
+
+            const chip = document.createElement("span");
+            chip.className = "validation-chip";
+            chip.textContent = "Registro validado";
+            rowWrap.appendChild(chip);
+          } else if (reservation.qr_token) {
             const button = document.createElement("button");
             button.type = "button";
             button.className = "verify-btn";
             button.dataset.qrToken = reservation.qr_token;
-            button.textContent = "Verificar";
+            button.textContent = "Validar QR";
             rowWrap.appendChild(button);
           }
 
@@ -395,14 +403,14 @@
     });
   }
 
-  async function validateByQr(qrToken) {
-    try {
-      await callApi("/api/checkin/validate", "POST", { qrToken: qrToken });
-      setFeedback("Cliente verificado correctamente.", "ok");
-      await refreshAll();
-    } catch (error) {
-      setFeedback(error.message, "warn");
+  function goToQrValidation(qrToken) {
+    const params = new URLSearchParams();
+    if (qrToken) {
+      params.set("qrToken", String(qrToken));
     }
+
+    const query = params.toString();
+    window.location.href = VALIDATE_QR_PATH + (query ? "?" + query : "");
   }
 
   byId("reloadBtn").addEventListener("click", refreshAll);
@@ -461,7 +469,7 @@
       return;
     }
 
-    validateByQr(target.dataset.qrToken);
+    goToQrValidation(target.dataset.qrToken);
   });
 
   const today = new Date();
