@@ -531,6 +531,15 @@
       const payload = await callApi("/api/reservations/me", "GET");
       const reservations = payload.data || [];
 
+      const activeReservations = reservations.filter(function (reservation) {
+        return reservation.status === "booked";
+      }).length;
+
+      setFeedback(
+        "Reservas activas: " + String(activeReservations) + "/3.",
+        "info"
+      );
+
       if (reservations.length === 0) {
         const item = document.createElement("li");
         item.textContent = "No tienes reservas registradas.";
@@ -538,24 +547,66 @@
         return;
       }
 
-      reservations.slice(0, 6).forEach(function (reservation) {
+      reservations.forEach(function (reservation) {
         const item = document.createElement("li");
+        item.className = "reservation-item";
+
+        const text = document.createElement("span");
         const time = toLocalTime(reservation.starts_at);
         const date = reservation.starts_at.slice(0, 10);
-        item.textContent =
+        text.textContent =
           date +
           " " +
           time +
           " - " +
           reservation.service_name +
           " con " +
-          reservation.stylist_name;
+          reservation.stylist_name +
+          " [" +
+          reservation.status +
+          "]";
+        item.appendChild(text);
+
+        if (reservation.status === "booked") {
+          const cancelBtn = document.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.className = "btn ghost cancel-reservation-btn";
+          cancelBtn.textContent = "Eliminar";
+          cancelBtn.dataset.reservationId = String(reservation.id || "");
+          item.appendChild(cancelBtn);
+        }
+
         list.appendChild(item);
       });
     } catch (error) {
       const item = document.createElement("li");
       item.textContent = error.message;
       list.appendChild(item);
+    }
+  }
+
+  async function cancelReservation(reservationId) {
+    const parsedId = Number(reservationId);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      setFeedback("No se pudo identificar la reserva a eliminar.", "warn");
+      return;
+    }
+
+    const accepted = window.confirm("Deseas eliminar esta reserva?");
+    if (!accepted) {
+      return;
+    }
+
+    try {
+      await callApi(
+        "/api/reservations/me/" + encodeURIComponent(String(parsedId)),
+        "DELETE"
+      );
+      setFeedback("Reserva eliminada correctamente.", "ok");
+      await refreshCalendar();
+      await loadMyReservations();
+    } catch (error) {
+      setFeedback(error.message, "warn");
     }
   }
 
@@ -589,6 +640,21 @@
   const myReservationsBtn = byId("myReservationsBtn");
   if (myReservationsBtn) {
     myReservationsBtn.addEventListener("click", loadMyReservations);
+  }
+  const myReservationsList = byId("myReservationsList");
+  if (myReservationsList) {
+    myReservationsList.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      if (!target.classList.contains("cancel-reservation-btn")) {
+        return;
+      }
+
+      cancelReservation(target.dataset.reservationId);
+    });
   }
 
   const navLoginBtn = byId("navLoginBtn");

@@ -7,6 +7,7 @@
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
+  const SLOT_STEP_MINUTES = 30;
 
   const state = {
     days: [],
@@ -179,12 +180,21 @@
     const map = {};
 
     state.reservations.forEach(function (reservation) {
-      const slot = toLocalSlot(reservation.starts_at);
-      const key = slot.dayKey + "|" + slot.time;
-      if (!map[key]) {
-        map[key] = [];
+      const start = new Date(reservation.starts_at);
+      const durationMinutes = Number(reservation.duration_minutes) || SLOT_STEP_MINUTES;
+      const steps = Math.max(Math.ceil(durationMinutes / SLOT_STEP_MINUTES), 1);
+
+      for (let i = 0; i < steps; i += 1) {
+        const slotDate = new Date(start.getTime() + i * SLOT_STEP_MINUTES * 60000);
+        const slot = toLocalSlot(slotDate.toISOString());
+        const key = slot.dayKey + "|" + slot.time;
+
+        if (!map[key]) {
+          map[key] = [];
+        }
+
+        map[key].push(reservation);
       }
-      map[key].push(reservation);
     });
 
     return map;

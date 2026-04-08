@@ -1,6 +1,7 @@
 const { asyncHandler } = require("../../shared/asyncHandler");
 const {
   reserveAppointment,
+  cancelMyReservation,
   getMyReservations,
   getAllReservations,
   getAvailabilityByDate,
@@ -11,7 +12,9 @@ const {
   resetWorkScheduleRange,
   listServicesForCalendar,
   createServiceByAdmin,
-  deleteServiceByAdmin
+  deleteServiceByAdmin,
+  getEmployeeServiceTimesByAdmin,
+  saveEmployeeServiceTimesByAdmin
 } = require("./reservations.service");
 
 const createReservationController = asyncHandler(async (req, res) => {
@@ -21,6 +24,11 @@ const createReservationController = asyncHandler(async (req, res) => {
 
 const myReservationsController = asyncHandler(async (req, res) => {
   const data = await getMyReservations(req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const cancelMyReservationController = asyncHandler(async (req, res) => {
+  const data = await cancelMyReservation(req.auth.sub, req.params.reservationId);
   res.json({ ok: true, data });
 });
 
@@ -72,9 +80,24 @@ const deleteServiceController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
+const employeeServiceTimesController = asyncHandler(async (req, res) => {
+  const data = await getEmployeeServiceTimesByAdmin(req.query.employeeId);
+  res.json({ ok: true, data });
+});
+
+const saveEmployeeServiceTimesController = asyncHandler(async (req, res) => {
+  const data = await saveEmployeeServiceTimesByAdmin(
+    req.query.employeeId,
+    req.body.entries,
+    req.auth.sub
+  );
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   createReservationController,
   myReservationsController,
+  cancelMyReservationController,
   listReservationsController,
   availabilityController,
   getWorkScheduleController,
@@ -83,5 +106,7 @@ module.exports = {
   resetWorkScheduleController,
   listServicesController,
   createServiceController,
-  deleteServiceController
+  deleteServiceController,
+  employeeServiceTimesController,
+  saveEmployeeServiceTimesController
 };

@@ -214,7 +214,7 @@ function clientCalendarView() {
     <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
 
-    <h3>Mis ultimas reservas</h3>
+    <h3>Mis reservas</h3>
     <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
@@ -585,6 +585,27 @@ function adminView() {
           <button id="saveEditUserBtn" class="admin-btn solid" type="submit">Guardar cambios</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="employeeServiceTimesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeServiceTimesTitle">
+    <div class="modal-card admin-modal-card">
+      <div class="modal-head">
+        <h2 id="employeeServiceTimesTitle">Servicios y tiempos por empleado</h2>
+        <button id="closeEmployeeServiceTimesBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+
+      <p id="employeeServiceTimesSubtitle" class="helper">
+        Configura que servicios puede realizar el empleado y su duracion estimada en minutos.
+      </p>
+
+      <input id="employeeServiceTimesUserId" type="hidden" />
+      <div id="employeeServiceTimesList" class="service-time-list"></div>
+
+      <div class="modal-actions">
+        <button id="cancelEmployeeServiceTimesBtn" class="admin-btn ghost" type="button">Cancelar</button>
+        <button id="saveEmployeeServiceTimesBtn" class="admin-btn solid" type="button">Guardar tiempos</button>
+      </div>
     </div>
   </div>
 </main>

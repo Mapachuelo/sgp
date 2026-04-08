@@ -5,7 +5,6 @@ const { broadcast } = require("../../integrations/realtime/wsHub");
 const { getStylistsForCalendar } = require("../auth/auth.service");
 const {
   createReservation,
-  findOverlappingReservation,
   listReservationsByClient,
   listAllReservations,
   listReservedByDate,
@@ -17,12 +16,20 @@ const {
   deleteEmployeeWorkScheduleByRange,
   listServiceCatalog,
   createServiceCatalogEntry,
-  deleteServiceCatalogEntry
+  deleteServiceCatalogEntry,
+  listEmployeeServiceTimesByEmployee,
+  saveEmployeeServiceTimes,
+  countActiveReservationsByClient,
+  findClientReservationById,
+  cancelReservationByClient
 } = require("./reservations.model");
 
 const DEFAULT_START = "06:00";
 const DEFAULT_END = "22:00";
 const ANY_STYLIST_VALUE = "__any__";
+const DEFAULT_SERVICE_DURATION_MINUTES = 30;
+const SLOT_STEP_MINUTES = 30;
+const MAX_ACTIVE_RESERVATIONS_BY_CLIENT = 3;
 
 function validateStartsAt(startsAtText) {
   const startsAt = new Date(startsAtText);
@@ -37,91 +44,25 @@ function validateStartsAt(startsAtText) {
   return startsAt;
 }
 
-async function reserveAppointment(clientId, input) {
-  const serviceName = (input.serviceName || "").trim();
-  const startsAt = validateStartsAt(input.startsAt);
-  const clientCount = Number(input.clientCount || 1);
-
-  if (!serviceName) {
-    throw new HttpError(400, "serviceName es obligatorio");
-  }
-
-  if (!Number.isInteger(clientCount) || clientCount <= 0) {
-    throw new HttpError(400, "clientCount debe ser un entero mayor a 0");
-  }
-
-  const serviceCatalog = await listServiceCatalog();
-  const isKnownService = serviceCatalog.some(function (entry) {
-    return String(entry.name) === serviceName;
-  });
-
-  if (!isKnownService) {
-    throw new HttpError(400, "El servicio seleccionado no esta disponible");
-  }
-
-  const stylists = await getStylistsForCalendar();
-  if (!stylists || stylists.length === 0) {
-    throw new HttpError(409, "No hay peluqueros registrados para reservar");
-  }
-
-  const selectedStylist = await resolveStylistSelection(input, stylists, startsAt);
-
-  const overlap = await findOverlappingReservation({
-    stylistName: selectedStylist.name,
-    startsAt
-  });
-
-  if (overlap) {
-    throw new HttpError(409, "Ese peluquero ya tiene una reserva en la fecha/hora indicada");
-  }
-
-  await validateStylistWorkingSchedule(selectedStylist.id, startsAt);
-
-  const qrToken = crypto.randomUUID();
-  const qrDataUrl = await QRCode.toDataURL(qrToken);
-
-  const reservation = await createReservation({
-    clientId,
-    serviceName,
-    stylistName: selectedStylist.name,
-    startsAt,
-    clientCount,
-    qrToken,
-    qrDataUrl
-  });
-
-  const date = startsAt.toISOString().slice(0, 10);
-  const availability = await listReservedByDate(date);
-  broadcast("availability.updated", { date, reservedSlots: availability });
-
-  return reservation;
-}
-
-async function getMyReservations(clientId) {
-  return listReservationsByClient(clientId);
-}
-
-async function getAllReservations() {
-  return listAllReservations();
-}
-
-async function getAvailabilityByDate(dateText) {
-  const date = (dateText || "").trim();
-  if (!date) {
-    throw new HttpError(400, "date es obligatorio con formato YYYY-MM-DD");
-  }
-
-  return listReservedByDate(date);
-}
-
 function toDateKeyFromDate(date) {
-  return date.toISOString().slice(0, 10);
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
 }
 
 function toTimeKeyFromDate(date) {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
   return hours + ":" + minutes;
+}
+
+function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60000);
+}
+
+function isRangeOverlapping(startA, endA, startB, endB) {
+  return startA.getTime() < endB.getTime() && endA.getTime() > startB.getTime();
 }
 
 function isValidDateText(dateText) {
@@ -153,6 +94,20 @@ function normalizeDateText(dateInput, fieldName) {
 function toMinutes(timeText) {
   const parts = timeText.split(":");
   return Number(parts[0]) * 60 + Number(parts[1]);
+}
+
+function parseServiceDuration(inputDuration) {
+  const duration = Number(inputDuration);
+
+  if (!Number.isInteger(duration) || duration < SLOT_STEP_MINUTES || duration > 480) {
+    throw new HttpError(400, "durationMinutes debe ser un entero entre 30 y 480");
+  }
+
+  if (duration % SLOT_STEP_MINUTES !== 0) {
+    throw new HttpError(400, "durationMinutes debe ser multiplo de 30");
+  }
+
+  return duration;
 }
 
 function normalizeScheduleEntry(input) {
@@ -196,6 +151,491 @@ function mapScheduleRows(rows) {
   });
 
   return map;
+}
+
+function buildServiceCatalogMaps(serviceCatalog) {
+  const byId = new Map();
+  const byName = new Map();
+
+  (serviceCatalog || []).forEach(function (service) {
+    const id = Number(service.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return;
+    }
+
+    byId.set(id, service);
+    byName.set(String(service.name), service);
+  });
+
+  return { byId, byName };
+}
+
+async function getDurationMapForStylist(stylistId, durationMapCache) {
+  if (!durationMapCache[stylistId]) {
+    const rows = await listEmployeeServiceTimesByEmployee(stylistId);
+    const map = new Map();
+
+    (rows || []).forEach(function (row) {
+      if (!row || !row.enabled) {
+        return;
+      }
+
+      const serviceId = Number(row.service_id);
+      const durationMinutes = Number(row.duration_minutes);
+      if (!Number.isInteger(serviceId) || serviceId <= 0) {
+        return;
+      }
+
+      if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+        return;
+      }
+
+      map.set(serviceId, durationMinutes);
+    });
+
+    durationMapCache[stylistId] = map;
+  }
+
+  return durationMapCache[stylistId];
+}
+
+async function resolveDurationForStylistService(
+  stylistId,
+  service,
+  durationMapCache,
+  requireEnabled
+) {
+  const durationMap = await getDurationMapForStylist(stylistId, durationMapCache);
+  const durationMinutes = durationMap.get(Number(service.id));
+
+  if (Number.isInteger(durationMinutes) && durationMinutes > 0) {
+    return {
+      enabled: true,
+      durationMinutes
+    };
+  }
+
+  if (requireEnabled) {
+    return {
+      enabled: false,
+      durationMinutes: DEFAULT_SERVICE_DURATION_MINUTES
+    };
+  }
+
+  return {
+    enabled: false,
+    durationMinutes: DEFAULT_SERVICE_DURATION_MINUTES
+  };
+}
+
+async function resolveReservationDurationMinutes(
+  reservation,
+  serviceByName,
+  stylistIdByName,
+  durationMapCache
+) {
+  const service = serviceByName.get(String(reservation.service_name));
+  if (!service) {
+    return DEFAULT_SERVICE_DURATION_MINUTES;
+  }
+
+  const stylistId = Number(reservation.stylist_id) || Number(stylistIdByName[String(reservation.stylist_name)]);
+  if (!Number.isInteger(stylistId) || stylistId <= 0) {
+    return DEFAULT_SERVICE_DURATION_MINUTES;
+  }
+
+  const resolved = await resolveDurationForStylistService(
+    stylistId,
+    service,
+    durationMapCache,
+    false
+  );
+
+  return resolved.durationMinutes;
+}
+
+async function hasStylistOverlap(
+  stylist,
+  startsAt,
+  endsAt,
+  reservationsOfDate,
+  serviceByName,
+  durationMapCache,
+  stylistIdByName
+) {
+  const stylistReservations = (reservationsOfDate || []).filter(function (reservation) {
+    if (Number(reservation.stylist_id) > 0) {
+      return Number(reservation.stylist_id) === Number(stylist.id);
+    }
+
+    return String(reservation.stylist_name) === String(stylist.name);
+  });
+
+  for (const reservation of stylistReservations) {
+    const reservationStart = new Date(reservation.starts_at);
+    if (Number.isNaN(reservationStart.getTime())) {
+      continue;
+    }
+
+    const durationMinutes = await resolveReservationDurationMinutes(
+      reservation,
+      serviceByName,
+      stylistIdByName,
+      durationMapCache
+    );
+    const reservationEnd = addMinutes(reservationStart, durationMinutes);
+
+    if (isRangeOverlapping(startsAt, endsAt, reservationStart, reservationEnd)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function validateStylistWorkingSchedule(stylistId, startsAt, endsAt) {
+  const dateKey = toDateKeyFromDate(startsAt);
+  const startTimeKey = toTimeKeyFromDate(startsAt);
+  const endTimeKey = toTimeKeyFromDate(endsAt);
+
+  const [globalRows, employeeRows] = await Promise.all([
+    listWorkScheduleByRange(dateKey, 1),
+    listEmployeeWorkScheduleByRange(dateKey, 1, stylistId)
+  ]);
+
+  const merged = mergeScheduleByDate(globalRows, employeeRows, dateKey, 1);
+  const config = merged[0];
+  if (!config) {
+    return;
+  }
+
+  if (config.offDay) {
+    throw new HttpError(409, "El peluquero no trabaja en la fecha seleccionada");
+  }
+
+  if (toMinutes(startTimeKey) < toMinutes(config.start)) {
+    throw new HttpError(409, "El horario seleccionado esta fuera de la jornada del peluquero");
+  }
+
+  if (toMinutes(endTimeKey) > toMinutes(config.end)) {
+    throw new HttpError(409, "El servicio excede la jornada laboral del peluquero");
+  }
+}
+
+async function evaluateStylistCandidate(
+  stylist,
+  startsAt,
+  service,
+  reservationsOfDate,
+  serviceByName,
+  durationMapCache,
+  stylistIdByName
+) {
+  const durationResult = await resolveDurationForStylistService(
+    stylist.id,
+    service,
+    durationMapCache,
+    true
+  );
+
+  if (!durationResult.enabled) {
+    throw new HttpError(409, "El peluquero seleccionado no tiene configurado ese servicio");
+  }
+
+  const endsAt = addMinutes(startsAt, durationResult.durationMinutes);
+  await validateStylistWorkingSchedule(stylist.id, startsAt, endsAt);
+
+  const overlap = await hasStylistOverlap(
+    stylist,
+    startsAt,
+    endsAt,
+    reservationsOfDate,
+    serviceByName,
+    durationMapCache,
+    stylistIdByName
+  );
+
+  if (overlap) {
+    throw new HttpError(409, "Ese peluquero ya tiene una reserva en el rango horario indicado");
+  }
+
+  return {
+    stylist,
+    durationMinutes: durationResult.durationMinutes,
+    endsAt
+  };
+}
+
+async function resolveStylistSelection(
+  input,
+  stylists,
+  startsAt,
+  service,
+  reservationsOfDate,
+  serviceByName,
+  durationMapCache,
+  stylistIdByName
+) {
+  const stylistIdInput = String(input.stylistId || "").trim();
+  const fallbackStylistName = String(input.stylistName || "").trim();
+
+  if (!stylistIdInput && !fallbackStylistName) {
+    throw new HttpError(400, "stylistId o stylistName es obligatorio");
+  }
+
+  if (stylistIdInput === ANY_STYLIST_VALUE || fallbackStylistName === ANY_STYLIST_VALUE) {
+    for (const stylist of stylists) {
+      try {
+        return await evaluateStylistCandidate(
+          stylist,
+          startsAt,
+          service,
+          reservationsOfDate,
+          serviceByName,
+          durationMapCache,
+          stylistIdByName
+        );
+      } catch (_error) {
+        continue;
+      }
+    }
+
+    throw new HttpError(409, "No hay peluqueros disponibles para el horario seleccionado");
+  }
+
+  let selected = null;
+
+  if (stylistIdInput) {
+    const stylistId = Number(stylistIdInput);
+    if (!Number.isInteger(stylistId) || stylistId <= 0) {
+      throw new HttpError(400, "stylistId no es valido");
+    }
+
+    selected = stylists.find(function (entry) {
+      return Number(entry.id) === stylistId;
+    });
+  } else {
+    selected = stylists.find(function (entry) {
+      return String(entry.name) === fallbackStylistName;
+    });
+  }
+
+  if (!selected) {
+    throw new HttpError(404, "El peluquero seleccionado no existe");
+  }
+
+  return evaluateStylistCandidate(
+    selected,
+    startsAt,
+    service,
+    reservationsOfDate,
+    serviceByName,
+    durationMapCache,
+    stylistIdByName
+  );
+}
+
+async function enrichReservationsWithDuration(reservations) {
+  const stylists = await getStylistsForCalendar();
+  const stylistIdByName = {};
+
+  (stylists || []).forEach(function (stylist) {
+    stylistIdByName[String(stylist.name)] = stylist.id;
+  });
+
+  const serviceCatalog = await listServiceCatalog();
+  const serviceMaps = buildServiceCatalogMaps(serviceCatalog);
+  const durationMapCache = {};
+
+  const enriched = [];
+  for (const reservation of reservations || []) {
+    const durationMinutes = await resolveReservationDurationMinutes(
+      reservation,
+      serviceMaps.byName,
+      stylistIdByName,
+      durationMapCache
+    );
+
+    const startsAt = new Date(reservation.starts_at);
+    const endsAt = addMinutes(startsAt, durationMinutes);
+
+    enriched.push({
+      ...reservation,
+      duration_minutes: durationMinutes,
+      ends_at: endsAt.toISOString()
+    });
+  }
+
+  return enriched;
+}
+
+function expandReservationBySlots(reservation, durationMinutes) {
+  const expanded = [];
+  const start = new Date(reservation.starts_at);
+  const end = addMinutes(start, durationMinutes);
+
+  if (start.getTime() >= end.getTime()) {
+    return [
+      {
+        ...reservation,
+        starts_at: start.toISOString()
+      }
+    ];
+  }
+
+  for (let cursor = new Date(start); cursor.getTime() < end.getTime(); cursor = addMinutes(cursor, SLOT_STEP_MINUTES)) {
+    expanded.push({
+      ...reservation,
+      starts_at: cursor.toISOString()
+    });
+  }
+
+  return expanded;
+}
+
+async function reserveAppointment(clientId, input) {
+  const serviceName = (input.serviceName || "").trim();
+  const startsAt = validateStartsAt(input.startsAt);
+  const clientCount = Number(input.clientCount || 1);
+
+  if (!serviceName) {
+    throw new HttpError(400, "serviceName es obligatorio");
+  }
+
+  if (!Number.isInteger(clientCount) || clientCount <= 0) {
+    throw new HttpError(400, "clientCount debe ser un entero mayor a 0");
+  }
+
+  const activeReservations = await countActiveReservationsByClient(clientId);
+  if (activeReservations >= MAX_ACTIVE_RESERVATIONS_BY_CLIENT) {
+    throw new HttpError(409, "Cada cliente solo puede tener hasta 3 reservas activas");
+  }
+
+  const serviceCatalog = await listServiceCatalog();
+  const serviceMaps = buildServiceCatalogMaps(serviceCatalog);
+  const selectedService = serviceMaps.byName.get(serviceName);
+
+  if (!selectedService) {
+    throw new HttpError(400, "El servicio seleccionado no esta disponible");
+  }
+
+  const stylists = await getStylistsForCalendar();
+  if (!stylists || stylists.length === 0) {
+    throw new HttpError(409, "No hay peluqueros registrados para reservar");
+  }
+
+  const stylistIdByName = {};
+  stylists.forEach(function (stylist) {
+    stylistIdByName[String(stylist.name)] = stylist.id;
+  });
+
+  const dateKey = toDateKeyFromDate(startsAt);
+  const reservationsOfDate = await listReservedByDate(dateKey);
+  const durationMapCache = {};
+
+  const selection = await resolveStylistSelection(
+    input,
+    stylists,
+    startsAt,
+    selectedService,
+    reservationsOfDate,
+    serviceMaps.byName,
+    durationMapCache,
+    stylistIdByName
+  );
+
+  const qrToken = crypto.randomUUID();
+  const qrDataUrl = await QRCode.toDataURL(qrToken);
+
+  const reservation = await createReservation({
+    clientId,
+    serviceName,
+    stylistName: selection.stylist.name,
+    stylistId: selection.stylist.id,
+    startsAt,
+    clientCount,
+    qrToken,
+    qrDataUrl
+  });
+
+  const availability = await getAvailabilityByDate(dateKey);
+  broadcast("availability.updated", { date: dateKey, reservedSlots: availability });
+
+  return {
+    ...reservation,
+    duration_minutes: selection.durationMinutes,
+    ends_at: selection.endsAt.toISOString()
+  };
+}
+
+async function getMyReservations(clientId) {
+  const reservations = await listReservationsByClient(clientId);
+  return enrichReservationsWithDuration(reservations);
+}
+
+async function getAllReservations() {
+  const reservations = await listAllReservations();
+  return enrichReservationsWithDuration(reservations);
+}
+
+async function cancelMyReservation(clientId, reservationIdInput) {
+  const reservationId = Number(reservationIdInput);
+  if (!Number.isInteger(reservationId) || reservationId <= 0) {
+    throw new HttpError(400, "reservationId debe ser un entero positivo");
+  }
+
+  const cancelled = await cancelReservationByClient(reservationId, clientId);
+  if (!cancelled) {
+    const existing = await findClientReservationById(reservationId, clientId);
+    if (!existing) {
+      throw new HttpError(404, "Reserva no encontrada");
+    }
+
+    throw new HttpError(409, "Solo se pueden cancelar reservas activas");
+  }
+
+  const reservationDate = toDateKeyFromDate(new Date(cancelled.starts_at));
+  const availability = await getAvailabilityByDate(reservationDate);
+  broadcast("availability.updated", { date: reservationDate, reservedSlots: availability });
+
+  return cancelled;
+}
+
+async function getAvailabilityByDate(dateText) {
+  const date = normalizeDateText(dateText, "date");
+  const reservations = await listReservedByDate(date);
+
+  if (!reservations || reservations.length === 0) {
+    return [];
+  }
+
+  const stylists = await getStylistsForCalendar();
+  const stylistIdByName = {};
+  (stylists || []).forEach(function (stylist) {
+    stylistIdByName[String(stylist.name)] = stylist.id;
+  });
+
+  const serviceCatalog = await listServiceCatalog();
+  const serviceMaps = buildServiceCatalogMaps(serviceCatalog);
+  const durationMapCache = {};
+  const expanded = [];
+
+  for (const reservation of reservations) {
+    const durationMinutes = await resolveReservationDurationMinutes(
+      reservation,
+      serviceMaps.byName,
+      stylistIdByName,
+      durationMapCache
+    );
+
+    expanded.push(...expandReservationBySlots(reservation, durationMinutes));
+  }
+
+  expanded.sort(function (a, b) {
+    return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime();
+  });
+
+  return expanded;
 }
 
 async function getWorkScheduleRange(startDateInput, daysInput) {
@@ -381,90 +821,91 @@ async function deleteServiceByAdmin(serviceIdInput) {
   return deleted;
 }
 
-async function resolveStylistSelection(input, stylists, startsAt) {
-  const stylistIdInput = String(input.stylistId || "").trim();
-  const fallbackStylistName = String(input.stylistName || "").trim();
-
-  if (!stylistIdInput && !fallbackStylistName) {
-    throw new HttpError(400, "stylistId o stylistName es obligatorio");
+async function getEmployeeServiceTimesByAdmin(employeeIdInput) {
+  const employeeId = Number(employeeIdInput);
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    throw new HttpError(400, "employeeId debe ser un entero positivo");
   }
 
-  if (stylistIdInput === ANY_STYLIST_VALUE || fallbackStylistName === ANY_STYLIST_VALUE) {
-    for (const stylist of stylists) {
-      const overlap = await findOverlappingReservation({
-        stylistName: stylist.name,
-        startsAt
-      });
-
-      if (overlap) {
-        continue;
-      }
-
-      try {
-        await validateStylistWorkingSchedule(stylist.id, startsAt);
-        return stylist;
-      } catch (_error) {
-        continue;
-      }
-    }
-
-    throw new HttpError(409, "No hay peluqueros disponibles para el horario seleccionado");
-  }
-
-  if (stylistIdInput) {
-    const stylistId = Number(stylistIdInput);
-    if (!Number.isInteger(stylistId) || stylistId <= 0) {
-      throw new HttpError(400, "stylistId no es valido");
-    }
-
-    const selected = stylists.find(function (entry) {
-      return Number(entry.id) === stylistId;
-    });
-
-    if (!selected) {
-      throw new HttpError(404, "El peluquero seleccionado no existe");
-    }
-
-    return selected;
-  }
-
-  const byName = stylists.find(function (entry) {
-    return String(entry.name) === fallbackStylistName;
+  const stylists = await getStylistsForCalendar();
+  const employee = (stylists || []).find(function (stylist) {
+    return Number(stylist.id) === employeeId;
   });
 
-  if (!byName) {
-    throw new HttpError(404, "El peluquero seleccionado no existe");
+  if (!employee) {
+    throw new HttpError(400, "Solo se pueden configurar tiempos para usuarios con rol empleado");
   }
 
-  return byName;
+  const rows = await listEmployeeServiceTimesByEmployee(employeeId);
+
+  return {
+    employee,
+    services: (rows || []).map(function (row) {
+      return {
+        serviceId: Number(row.service_id),
+        name: row.name,
+        enabled: Boolean(row.enabled),
+        durationMinutes: row.duration_minutes
+          ? Number(row.duration_minutes)
+          : DEFAULT_SERVICE_DURATION_MINUTES
+      };
+    })
+  };
 }
 
-async function validateStylistWorkingSchedule(stylistId, startsAt) {
-  const dateKey = toDateKeyFromDate(startsAt);
-  const timeKey = toTimeKeyFromDate(startsAt);
-
-  const [globalRows, employeeRows] = await Promise.all([
-    listWorkScheduleByRange(dateKey, 1),
-    listEmployeeWorkScheduleByRange(dateKey, 1, stylistId)
-  ]);
-
-  const merged = mergeScheduleByDate(globalRows, employeeRows, dateKey, 1);
-  const config = merged[0];
-  if (!config) {
-    return;
+async function saveEmployeeServiceTimesByAdmin(employeeIdInput, entriesInput, authUserId) {
+  const employeeId = Number(employeeIdInput);
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    throw new HttpError(400, "employeeId debe ser un entero positivo");
   }
 
-  if (config.offDay) {
-    throw new HttpError(409, "El peluquero no trabaja en la fecha seleccionada");
+  const stylists = await getStylistsForCalendar();
+  const employeeExists = (stylists || []).some(function (stylist) {
+    return Number(stylist.id) === employeeId;
+  });
+
+  if (!employeeExists) {
+    throw new HttpError(400, "Solo se pueden configurar tiempos para usuarios con rol empleado");
   }
 
-  if (toMinutes(timeKey) < toMinutes(config.start) || toMinutes(timeKey) > toMinutes(config.end)) {
-    throw new HttpError(409, "El horario seleccionado esta fuera de la jornada del peluquero");
+  const serviceCatalog = await listServiceCatalog();
+  const serviceMaps = buildServiceCatalogMaps(serviceCatalog);
+  const entries = Array.isArray(entriesInput) ? entriesInput : [];
+  const normalized = [];
+  const usedServiceIds = new Set();
+
+  for (const entry of entries) {
+    const serviceId = Number(entry && entry.serviceId);
+    const enabled = Boolean(entry && entry.enabled);
+
+    if (!Number.isInteger(serviceId) || serviceId <= 0 || !serviceMaps.byId.has(serviceId)) {
+      throw new HttpError(400, "serviceId invalido en entries");
+    }
+
+    if (usedServiceIds.has(serviceId)) {
+      throw new HttpError(400, "No se puede repetir serviceId en entries");
+    }
+
+    usedServiceIds.add(serviceId);
+
+    if (!enabled) {
+      continue;
+    }
+
+    normalized.push({
+      serviceId,
+      durationMinutes: parseServiceDuration(entry.durationMinutes)
+    });
   }
+
+  await saveEmployeeServiceTimes(employeeId, normalized, authUserId);
+
+  return getEmployeeServiceTimesByAdmin(employeeId);
 }
 
 module.exports = {
   reserveAppointment,
+  cancelMyReservation,
   getMyReservations,
   getAllReservations,
   getAvailabilityByDate,
@@ -475,5 +916,7 @@ module.exports = {
   resetWorkScheduleRange,
   listServicesForCalendar,
   createServiceByAdmin,
-  deleteServiceByAdmin
+  deleteServiceByAdmin,
+  getEmployeeServiceTimesByAdmin,
+  saveEmployeeServiceTimesByAdmin
 };
