@@ -373,6 +373,47 @@ thead th {
   font-size: 0.78rem;
 }
 
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(61, 61, 61, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 30;
+}
+
+.modal-card {
+  width: min(680px, 96vw);
+  max-height: 86vh;
+  overflow: auto;
+  background: var(--ivory);
+  border: 1px solid var(--sand-dk);
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(61, 61, 61, 0.25);
+  padding: 1rem;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal-head h3 {
+  margin: 0;
+  font-family: "Playfair Display", serif;
+}
+
+.reservations-modal-card .reservations-list {
+  list-style: none;
+  padding-left: 0;
+  max-height: 62vh;
+  overflow: auto;
+}
+
 .api-output-panel {
   width: min(1400px, 95vw);
   margin: 0 auto 1.2rem;

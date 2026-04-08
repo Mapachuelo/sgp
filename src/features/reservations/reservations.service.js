@@ -15,6 +15,7 @@ const {
   deleteWorkScheduleByRange,
   deleteEmployeeWorkScheduleByRange,
   listServiceCatalog,
+  listEmployeeServiceMinimumDurations,
   createServiceCatalogEntry,
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
@@ -28,7 +29,8 @@ const DEFAULT_START = "06:00";
 const DEFAULT_END = "22:00";
 const ANY_STYLIST_VALUE = "__any__";
 const DEFAULT_SERVICE_DURATION_MINUTES = 30;
-const SLOT_STEP_MINUTES = 30;
+const MIN_SERVICE_DURATION_MINUTES = 1;
+const MAX_SERVICE_DURATION_MINUTES = 280;
 const MAX_ACTIVE_RESERVATIONS_BY_CLIENT = 3;
 
 function validateStartsAt(startsAtText) {
@@ -99,12 +101,18 @@ function toMinutes(timeText) {
 function parseServiceDuration(inputDuration) {
   const duration = Number(inputDuration);
 
-  if (!Number.isInteger(duration) || duration < SLOT_STEP_MINUTES || duration > 480) {
-    throw new HttpError(400, "durationMinutes debe ser un entero entre 30 y 480");
-  }
-
-  if (duration % SLOT_STEP_MINUTES !== 0) {
-    throw new HttpError(400, "durationMinutes debe ser multiplo de 30");
+  if (
+    !Number.isInteger(duration) ||
+    duration < MIN_SERVICE_DURATION_MINUTES ||
+    duration > MAX_SERVICE_DURATION_MINUTES
+  ) {
+    throw new HttpError(
+      400,
+      "durationMinutes debe ser un entero entre " +
+        String(MIN_SERVICE_DURATION_MINUTES) +
+        " y " +
+        String(MAX_SERVICE_DURATION_MINUTES)
+    );
   }
 
   return duration;
@@ -469,30 +477,6 @@ async function enrichReservationsWithDuration(reservations) {
   return enriched;
 }
 
-function expandReservationBySlots(reservation, durationMinutes) {
-  const expanded = [];
-  const start = new Date(reservation.starts_at);
-  const end = addMinutes(start, durationMinutes);
-
-  if (start.getTime() >= end.getTime()) {
-    return [
-      {
-        ...reservation,
-        starts_at: start.toISOString()
-      }
-    ];
-  }
-
-  for (let cursor = new Date(start); cursor.getTime() < end.getTime(); cursor = addMinutes(cursor, SLOT_STEP_MINUTES)) {
-    expanded.push({
-      ...reservation,
-      starts_at: cursor.toISOString()
-    });
-  }
-
-  return expanded;
-}
-
 async function reserveAppointment(clientId, input) {
   const serviceName = (input.serviceName || "").trim();
   const startsAt = validateStartsAt(input.startsAt);
@@ -609,33 +593,7 @@ async function getAvailabilityByDate(dateText) {
     return [];
   }
 
-  const stylists = await getStylistsForCalendar();
-  const stylistIdByName = {};
-  (stylists || []).forEach(function (stylist) {
-    stylistIdByName[String(stylist.name)] = stylist.id;
-  });
-
-  const serviceCatalog = await listServiceCatalog();
-  const serviceMaps = buildServiceCatalogMaps(serviceCatalog);
-  const durationMapCache = {};
-  const expanded = [];
-
-  for (const reservation of reservations) {
-    const durationMinutes = await resolveReservationDurationMinutes(
-      reservation,
-      serviceMaps.byName,
-      stylistIdByName,
-      durationMapCache
-    );
-
-    expanded.push(...expandReservationBySlots(reservation, durationMinutes));
-  }
-
-  expanded.sort(function (a, b) {
-    return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime();
-  });
-
-  return expanded;
+  return enrichReservationsWithDuration(reservations);
 }
 
 async function getWorkScheduleRange(startDateInput, daysInput) {
@@ -786,7 +744,38 @@ async function resetWorkScheduleRange(startDateInput, daysInput, authUser) {
 }
 
 async function listServicesForCalendar() {
-  return listServiceCatalog();
+  const [services, minimumDurations] = await Promise.all([
+    listServiceCatalog(),
+    listEmployeeServiceMinimumDurations()
+  ]);
+
+  const durationByServiceId = new Map();
+  (minimumDurations || []).forEach(function (entry) {
+    const serviceId = Number(entry.service_id);
+    const minDuration = Number(entry.min_duration_minutes);
+
+    if (!Number.isInteger(serviceId) || serviceId <= 0) {
+      return;
+    }
+
+    if (!Number.isInteger(minDuration) || minDuration <= 0) {
+      return;
+    }
+
+    durationByServiceId.set(serviceId, minDuration);
+  });
+
+  return (services || []).map(function (service) {
+    const serviceId = Number(service.id);
+    const durationMinutes = durationByServiceId.get(serviceId);
+
+    return {
+      ...service,
+      duration_minutes: Number.isInteger(durationMinutes)
+        ? durationMinutes
+        : DEFAULT_SERVICE_DURATION_MINUTES
+    };
+  });
 }
 
 async function createServiceByAdmin(input, authUserId) {

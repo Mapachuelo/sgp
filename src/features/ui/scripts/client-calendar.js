@@ -17,6 +17,9 @@
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
+  const DEFAULT_SLOT_STEP_MINUTES = 30;
+  const MIN_SERVICE_DURATION_MINUTES = 1;
+  const MAX_SERVICE_DURATION_MINUTES = 280;
 
   const state = {
     days: [],
@@ -24,7 +27,9 @@
     workScheduleByDate: {},
     selectedSlot: null,
     stylists: [],
-    selectedStylist: ANY_STYLIST_VALUE
+    selectedStylist: ANY_STYLIST_VALUE,
+    selectedServiceDuration: DEFAULT_SLOT_STEP_MINUTES,
+    serviceDurationByName: {}
   };
 
   function byId(id) {
@@ -88,13 +93,31 @@
     return hours + ":" + minutes;
   }
 
-  function getSlots() {
+  function normalizeStepMinutes(minutesInput) {
+    const parsed = Number(minutesInput);
+    if (!Number.isInteger(parsed)) {
+      return DEFAULT_SLOT_STEP_MINUTES;
+    }
+
+    if (parsed < MIN_SERVICE_DURATION_MINUTES || parsed > MAX_SERVICE_DURATION_MINUTES) {
+      return DEFAULT_SLOT_STEP_MINUTES;
+    }
+
+    return parsed;
+  }
+
+  function getSlots(stepMinutes) {
+    const normalizedStep = normalizeStepMinutes(stepMinutes);
     const slots = [];
-    for (let hour = START_HOUR; hour <= END_HOUR; hour += 1) {
-      slots.push(String(hour).padStart(2, "0") + ":00");
-      if (hour !== END_HOUR) {
-        slots.push(String(hour).padStart(2, "0") + ":30");
-      }
+
+    for (
+      let minuteCursor = START_HOUR * 60;
+      minuteCursor + normalizedStep <= END_HOUR * 60;
+      minuteCursor += normalizedStep
+    ) {
+      const hour = Math.floor(minuteCursor / 60);
+      const minute = minuteCursor % 60;
+      slots.push(String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0"));
     }
 
     return slots;
@@ -113,9 +136,86 @@
     return Number(parts[0]) * 60 + Number(parts[1]);
   }
 
-  function isSlotInsideWorkingHours(slot, config) {
+  function isSlotInsideWorkingHours(slot, slotDurationMinutes, config) {
     const slotMinutes = toMinutes(slot);
-    return slotMinutes >= toMinutes(config.start) && slotMinutes <= toMinutes(config.end);
+    const slotEndMinutes = slotMinutes + normalizeStepMinutes(slotDurationMinutes);
+    return slotMinutes >= toMinutes(config.start) && slotEndMinutes <= toMinutes(config.end);
+  }
+
+  function toLocalDateFromParts(dateText, timeText) {
+    return new Date(dateText + "T" + timeText + ":00");
+  }
+
+  function getReservationRange(reservation) {
+    const startsAt = new Date(reservation.starts_at);
+    if (Number.isNaN(startsAt.getTime())) {
+      return null;
+    }
+
+    const explicitEndsAt = reservation.ends_at ? new Date(reservation.ends_at) : null;
+    if (explicitEndsAt && !Number.isNaN(explicitEndsAt.getTime()) && explicitEndsAt > startsAt) {
+      return {
+        start: startsAt,
+        end: explicitEndsAt
+      };
+    }
+
+    const fallbackDuration = normalizeStepMinutes(reservation.duration_minutes);
+    return {
+      start: startsAt,
+      end: new Date(startsAt.getTime() + fallbackDuration * 60000)
+    };
+  }
+
+  function overlapsSlot(reservation, dayKey, slot, slotDurationMinutes) {
+    const range = getReservationRange(reservation);
+    if (!range) {
+      return false;
+    }
+
+    const slotStart = toLocalDateFromParts(dayKey, slot);
+    const slotEnd = new Date(slotStart.getTime() + normalizeStepMinutes(slotDurationMinutes) * 60000);
+
+    return range.start.getTime() < slotEnd.getTime() && range.end.getTime() > slotStart.getTime();
+  }
+
+  function getReservationsForSlot(dayKey, slot, slotDurationMinutes) {
+    const reservations = state.availabilityByDate[dayKey] || [];
+
+    return reservations.filter(function (reservation) {
+      return overlapsSlot(reservation, dayKey, slot, slotDurationMinutes);
+    });
+  }
+
+  function inferServiceDurationMinutes(serviceName) {
+    const trimmedName = String(serviceName || "").trim();
+    const configuredDuration = state.serviceDurationByName[trimmedName];
+    if (Number.isInteger(configuredDuration)) {
+      return normalizeStepMinutes(configuredDuration);
+    }
+
+    let inferred = null;
+    Object.keys(state.availabilityByDate).forEach(function (dayKey) {
+      const entries = state.availabilityByDate[dayKey] || [];
+      entries.forEach(function (entry) {
+        if (String(entry.service_name) !== trimmedName) {
+          return;
+        }
+
+        const duration = normalizeStepMinutes(entry.duration_minutes);
+        if (!inferred || duration < inferred) {
+          inferred = duration;
+        }
+      });
+    });
+
+    return inferred || DEFAULT_SLOT_STEP_MINUTES;
+  }
+
+  function updateSelectedServiceDuration() {
+    const serviceSelect = byId("serviceName");
+    const serviceName = serviceSelect ? serviceSelect.value : "";
+    state.selectedServiceDuration = inferServiceDurationMinutes(serviceName);
   }
 
   function setAuthUi() {
@@ -257,7 +357,9 @@
 
     head.appendChild(headRow);
 
-    getSlots().forEach(function (slot) {
+    const slotDurationMinutes = normalizeStepMinutes(state.selectedServiceDuration);
+
+    getSlots(slotDurationMinutes).forEach(function (slot) {
       const row = document.createElement("tr");
       const slotTitle = document.createElement("th");
       slotTitle.textContent = slot;
@@ -266,8 +368,16 @@
       state.days.forEach(function (day) {
         const dayKey = getDateKey(day);
         const schedule = state.workScheduleByDate[dayKey] || defaultSchedule();
-        const reservedSlots = state.availabilityByDate[dayKey] || {};
-        const bookedStylists = reservedSlots[slot] || [];
+        const slotReservations = getReservationsForSlot(dayKey, slot, slotDurationMinutes);
+        const bookedStylists = Array.from(
+          new Set(
+            slotReservations
+              .map(function (entry) {
+                return entry.stylist_name;
+              })
+              .filter(Boolean)
+          )
+        );
         const selectedStylist = state.selectedStylist;
         const selectedStylistName = state.stylists
           .filter(function (entry) {
@@ -296,7 +406,7 @@
           button.classList.add("reserved");
           button.textContent = "No laboral";
           button.disabled = true;
-        } else if (!isSlotInsideWorkingHours(slot, schedule)) {
+        } else if (!isSlotInsideWorkingHours(slot, slotDurationMinutes, schedule)) {
           button.classList.add("reserved");
           button.textContent = "Fuera horario";
           button.disabled = true;
@@ -324,21 +434,9 @@
       "GET"
     );
 
-    const dayMap = {};
-    (payload.data || []).forEach(function (entry) {
-      const hourKey = toLocalTime(entry.starts_at);
-      if (!hourKey) {
-        return;
-      }
-
-      if (!dayMap[hourKey]) {
-        dayMap[hourKey] = [];
-      }
-
-      dayMap[hourKey].push(entry.stylist_name);
+    return (payload.data || []).filter(function (entry) {
+      return entry && (entry.status === "booked" || entry.status === "checked_in");
     });
-
-    return dayMap;
   }
 
   async function fetchWorkScheduleRange(startDate, daysCount) {
@@ -392,15 +490,16 @@
     const promises = state.days.map(async function (day) {
       const dayKey = getDateKey(day);
       try {
-        const dayMap = await fetchAvailabilityByDay(dayKey);
-        state.availabilityByDate[dayKey] = dayMap;
+        const reservations = await fetchAvailabilityByDay(dayKey);
+        state.availabilityByDate[dayKey] = reservations;
       } catch (error) {
-        state.availabilityByDate[dayKey] = {};
+        state.availabilityByDate[dayKey] = [];
         setFeedback("No se pudieron cargar todos los dias: " + error.message, "warn");
       }
     });
 
     await Promise.all(promises);
+    updateSelectedServiceDuration();
     renderCalendar();
     setFeedback("Calendario actualizado.", "ok");
   }
@@ -446,7 +545,12 @@
         option.value = service.name;
         option.textContent = service.name;
         serviceSelect.appendChild(option);
+
+        const duration = normalizeStepMinutes(service.duration_minutes || service.durationMinutes);
+        state.serviceDurationByName[String(service.name || "").trim()] = duration;
       });
+
+      updateSelectedServiceDuration();
     }
   }
 
@@ -585,6 +689,28 @@
     }
   }
 
+  function openMyReservationsModal() {
+    if (!isClientContext) {
+      return;
+    }
+
+    const modal = byId("myReservationsModal");
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeMyReservationsModal() {
+    const modal = byId("myReservationsModal");
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add("hidden");
+  }
+
   async function cancelReservation(reservationId) {
     const parsedId = Number(reservationId);
     if (!Number.isInteger(parsedId) || parsedId <= 0) {
@@ -639,7 +765,27 @@
   byId("reserveBtn").addEventListener("click", createReservation);
   const myReservationsBtn = byId("myReservationsBtn");
   if (myReservationsBtn) {
-    myReservationsBtn.addEventListener("click", loadMyReservations);
+    myReservationsBtn.addEventListener("click", function () {
+      loadMyReservations()
+        .then(openMyReservationsModal)
+        .catch(function (error) {
+          setFeedback(error.message, "warn");
+        });
+    });
+  }
+
+  const closeReservationsModalBtn = byId("closeMyReservationsModalBtn");
+  if (closeReservationsModalBtn) {
+    closeReservationsModalBtn.addEventListener("click", closeMyReservationsModal);
+  }
+
+  const reservationsModal = byId("myReservationsModal");
+  if (reservationsModal) {
+    reservationsModal.addEventListener("click", function (event) {
+      if (event.target === reservationsModal) {
+        closeMyReservationsModal();
+      }
+    });
   }
   const myReservationsList = byId("myReservationsList");
   if (myReservationsList) {
@@ -686,6 +832,17 @@
     stylistSelect.addEventListener("change", function () {
       state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
       refreshCalendar();
+    });
+  }
+
+  const serviceSelect = byId("serviceName");
+  if (serviceSelect) {
+    serviceSelect.addEventListener("change", function () {
+      updateSelectedServiceDuration();
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
+      setAuthUi();
+      renderCalendar();
     });
   }
 

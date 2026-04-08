@@ -208,16 +208,23 @@ function clientCalendarView() {
     <input id="clientCount" type="number" min="1" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
-    <button id="myReservationsBtn" class="btn ghost block" type="button">Mis reservas</button>
+    <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
     <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a login</a>
 
     <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
-
-    <h3>Mis reservas</h3>
-    <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
+
+<div id="myReservationsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="myReservationsModalTitle">
+  <div class="modal-card reservations-modal-card">
+    <div class="modal-head">
+      <h3 id="myReservationsModalTitle">Mis reservas</h3>
+      <button id="closeMyReservationsModalBtn" class="btn ghost" type="button">Cerrar</button>
+    </div>
+    <ul id="myReservationsList" class="reservations-list"></ul>
+  </div>
+</div>
 `;
 
   return clientDocument(
@@ -383,7 +390,7 @@ function employeeVerifyClientsView() {
         <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
       </div>
     </div>
-    <p class="helper">Horario de 06:00 a 22:00 en bloques de 30 minutos.</p>
+    <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
       <table>
         <thead id="verifyHead"></thead>
@@ -716,7 +723,7 @@ function adminVerifyClientsView() {
         <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
       </div>
     </div>
-    <p class="helper">Horario de 06:00 a 22:00 en bloques de 30 minutos.</p>
+    <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
       <table>
         <thead id="verifyHead"></thead>

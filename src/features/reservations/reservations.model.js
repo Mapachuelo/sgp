@@ -303,6 +303,25 @@ async function listServiceCatalog() {
   return result.rows;
 }
 
+async function listEmployeeServiceMinimumDurations() {
+  await ensureEmployeeServiceTimeTable();
+
+  const result = await db.query(
+    `
+      SELECT
+        sc.id AS service_id,
+        MIN(est.duration_minutes)::INT AS min_duration_minutes
+      FROM service_catalog sc
+      LEFT JOIN employee_service_time est
+        ON est.service_id = sc.id
+      GROUP BY sc.id
+      ORDER BY sc.id ASC
+    `
+  );
+
+  return result.rows;
+}
+
 async function createServiceCatalogEntry(name, createdBy) {
   await ensureServiceCatalogTable();
 
@@ -445,6 +464,7 @@ module.exports = {
   deleteWorkScheduleByRange,
   deleteEmployeeWorkScheduleByRange,
   listServiceCatalog,
+  listEmployeeServiceMinimumDurations,
   createServiceCatalogEntry,
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,

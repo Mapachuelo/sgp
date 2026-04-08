@@ -11,11 +11,7 @@
 
 
 - A lo ultimo verificar si funciona la ejecución de docker.
-Primero si ver el docker del servicio existe:
-```bash
-docker compose start 
-```
-Si el servicio no existe:
+Ejecutar el docker con los nuevos cambios:
 ``bash
 docker compose up --build -d
 ``

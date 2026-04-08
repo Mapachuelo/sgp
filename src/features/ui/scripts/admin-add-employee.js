@@ -2,6 +2,8 @@
   const TOKEN_KEY = "sgp_token";
   const LOGIN_PATH = "/ui/login";
   const DEFAULT_DURATION_MINUTES = 30;
+  const MIN_DURATION_MINUTES = 1;
+  const MAX_DURATION_MINUTES = 280;
 
   function byId(id) {
     return document.getElementById(id);
@@ -542,9 +544,9 @@
       const minutesInput = document.createElement("input");
       minutesInput.type = "number";
       minutesInput.className = "service-time-duration";
-      minutesInput.min = "30";
-      minutesInput.max = "480";
-      minutesInput.step = "30";
+      minutesInput.min = String(MIN_DURATION_MINUTES);
+      minutesInput.max = String(MAX_DURATION_MINUTES);
+      minutesInput.step = "1";
       minutesInput.value = String(entry.durationMinutes || DEFAULT_DURATION_MINUTES);
       minutesInput.dataset.serviceId = String(entry.serviceId);
       minutesInput.disabled = !checkbox.checked;
@@ -619,8 +621,12 @@
       const duration = Number(durationInput.value || DEFAULT_DURATION_MINUTES);
 
       if (enabled) {
-        if (!Number.isInteger(duration) || duration < 30 || duration > 480 || duration % 30 !== 0) {
-          setFeedback("Cada duracion activa debe ser multiplo de 30 entre 30 y 480.", "warn");
+        if (
+          !Number.isInteger(duration) ||
+          duration < MIN_DURATION_MINUTES ||
+          duration > MAX_DURATION_MINUTES
+        ) {
+          setFeedback("Cada duracion activa debe ser un entero entre 1 y 280 minutos.", "warn");
           return;
         }
       }
