@@ -301,19 +301,6 @@ Requerimientos:
 
 - En ingreso de reservas de clientes debe haber un boton y que se despliegue las reservas que uno ha hecho, ahí se puede eliminar las reservas si el cliente quiere, el limite de reserva por cliente debe ser 3.
 
-# fix tiempos
-Eres un Senior Backend Developer en nodejs.
-
-Tarea: Tu trabajo es buscar errores en el backend de la pagina web y hacerlos funcionar acordes a los requerimientos dados.
-
-Requerimientos:
-- Leer el archivo contexto.md. 
-
-- El tiempo de servicio puede ser de 0 a 1 hora en numeros enteros, ese es el tiempo de los servicios que puede colocar y se ve reflejado en calendario de disponibilidad he verificar clientes, por ejemplo, si el tiempo de corte es de 30 minutos, entonces toda la tabla se cambia a 30 minutos, si el tiempo de barba es de 15 minutos, la tabla se vuelve tod a 15 minutos del inicio a fin del día laboral. 
-
-- El cliente ver las reservas debe ser un boton y al dar click se despligue una ventana flotante para ver bien las reservas del cliente.
-
-
 # fix tiempos 
 Eres un Senior Backend Developer en nodejs.
 
