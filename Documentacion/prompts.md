@@ -318,3 +318,16 @@ Requerimientos:
 Reglas:
 - Borrar todo lo innecesario de los cambios nuevos acorde a los requerimientos.
 
+# Correciones
+Eres un Senior Backend Developer en nodejs.
+
+Tarea: Tu trabajo es buscar errores en el backend de la pagina web y hacerlos funcionar acordes a los requerimientos dados.
+
+Requerimientos:
+- Los tiempos establecidos por cada empleado debe ser individual, cada empleado tiene su tiempo y se ve reflejado en calendario disponibilidad.
+
+- un cliente al registrarse, si la base de datos hay correos iguales dar mensaje que ese correo esta en la base de datos con un mensaje "Este correo ya existe", los nombres no tienen que tener eso, solo el correo.
+
+- cupos de referencia no debe verse nada.
+
+- El boton ver mis reservas debe tener mejor diseño, tener el mensaje de la fecha-hora y el cliente, adelante si esta activado o no, si esta activado debe borrarse, sino no.
