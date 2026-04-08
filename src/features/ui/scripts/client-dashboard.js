@@ -105,7 +105,13 @@
   }
 
   async function loadAvailability() {
-    const dateInput = byId("availabilityDate").value;
+    const dateInputElement = byId("availabilityDate");
+    const list = byId("availabilityList");
+    if (!dateInputElement || !list) {
+      return;
+    }
+
+    const dateInput = dateInputElement.value;
     if (!dateInput) {
       setFeedback("Selecciona una fecha para ver los cupos.", "warn");
       return;
@@ -117,7 +123,6 @@
         "GET"
       );
 
-      const list = byId("availabilityList");
       list.innerHTML = "";
 
       if (!payload.data || payload.data.length === 0) {
@@ -147,7 +152,10 @@
   }
 
   byId("loadProfileBtn").addEventListener("click", loadProfile);
-  byId("availabilityBtn").addEventListener("click", loadAvailability);
+  const availabilityBtn = byId("availabilityBtn");
+  if (availabilityBtn) {
+    availabilityBtn.addEventListener("click", loadAvailability);
+  }
   byId("navLoginBtn").addEventListener("click", function () {
     location.href = LOGIN_PATH;
   });
@@ -157,7 +165,12 @@
     setFeedback("Sesion cerrada.", "info");
   });
 
-  byId("availabilityDate").value = toDateInputValue(new Date());
+  const availabilityDate = byId("availabilityDate");
+  if (availabilityDate) {
+    availabilityDate.value = toDateInputValue(new Date());
+  }
   setAuthUi();
-  loadAvailability();
+  if (availabilityBtn && availabilityDate) {
+    loadAvailability();
+  }
 })();

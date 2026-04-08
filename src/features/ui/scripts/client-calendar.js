@@ -29,7 +29,8 @@
     stylists: [],
     selectedStylist: ANY_STYLIST_VALUE,
     selectedServiceDuration: DEFAULT_SLOT_STEP_MINUTES,
-    serviceDurationByName: {}
+    serviceDurationByName: {},
+    serviceDurationByNameAndStylist: {}
   };
 
   function byId(id) {
@@ -91,6 +92,18 @@
     const hours = String(parsed.getHours()).padStart(2, "0");
     const minutes = String(parsed.getMinutes()).padStart(2, "0");
     return hours + ":" + minutes;
+  }
+
+  function toLocalDate(isoText) {
+    const parsed = new Date(isoText);
+    if (Number.isNaN(parsed.getTime())) {
+      return "";
+    }
+
+    const year = String(parsed.getFullYear());
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    const day = String(parsed.getDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
   }
 
   function normalizeStepMinutes(minutesInput) {
@@ -189,6 +202,14 @@
 
   function inferServiceDurationMinutes(serviceName) {
     const trimmedName = String(serviceName || "").trim();
+    const selectedStylist = String(state.selectedStylist || ANY_STYLIST_VALUE);
+    const byStylist = state.serviceDurationByNameAndStylist[trimmedName] || {};
+    const configuredByStylist = Number(byStylist[selectedStylist]);
+
+    if (Number.isInteger(configuredByStylist)) {
+      return normalizeStepMinutes(configuredByStylist);
+    }
+
     const configuredDuration = state.serviceDurationByName[trimmedName];
     if (Number.isInteger(configuredDuration)) {
       return normalizeStepMinutes(configuredDuration);
@@ -546,8 +567,16 @@
         option.textContent = service.name;
         serviceSelect.appendChild(option);
 
+        const serviceName = String(service.name || "").trim();
         const duration = normalizeStepMinutes(service.duration_minutes || service.durationMinutes);
-        state.serviceDurationByName[String(service.name || "").trim()] = duration;
+        state.serviceDurationByName[serviceName] = duration;
+
+        const stylistDurations = service.stylist_durations || {};
+        const normalizedByStylist = {};
+        Object.keys(stylistDurations).forEach(function (stylistId) {
+          normalizedByStylist[String(stylistId)] = normalizeStepMinutes(stylistDurations[stylistId]);
+        });
+        state.serviceDurationByNameAndStylist[serviceName] = normalizedByStylist;
       });
 
       updateSelectedServiceDuration();
@@ -653,29 +682,47 @@
 
       reservations.forEach(function (reservation) {
         const item = document.createElement("li");
-        item.className = "reservation-item";
+        item.className = "reservation-item reservation-card";
 
-        const text = document.createElement("span");
         const time = toLocalTime(reservation.starts_at);
-        const date = reservation.starts_at.slice(0, 10);
-        text.textContent =
-          date +
-          " " +
-          time +
-          " - " +
-          reservation.service_name +
-          " con " +
-          reservation.stylist_name +
-          " [" +
-          reservation.status +
-          "]";
-        item.appendChild(text);
+        const date = toLocalDate(reservation.starts_at);
+        const isActive = reservation.status === "booked";
 
-        if (reservation.status === "booked") {
+        const status = document.createElement("span");
+        status.className = "reservation-state " + (isActive ? "active" : "inactive");
+        status.textContent = isActive ? "Activa" : "No activa";
+
+        const details = document.createElement("div");
+        details.className = "reservation-main";
+
+        const lineDate = document.createElement("p");
+        lineDate.className = "reservation-line";
+        lineDate.textContent = "Fecha y hora: " + date + " " + time;
+
+        const lineClient = document.createElement("p");
+        lineClient.className = "reservation-line";
+        lineClient.textContent = "Cliente: #" + String(reservation.client_id || "-");
+
+        const lineService = document.createElement("p");
+        lineService.className = "reservation-line";
+        lineService.textContent =
+          "Servicio: " +
+          String(reservation.service_name || "-") +
+          " con " +
+          String(reservation.stylist_name || "-");
+
+        details.appendChild(lineDate);
+        details.appendChild(lineClient);
+        details.appendChild(lineService);
+
+        item.appendChild(status);
+        item.appendChild(details);
+
+        if (isActive) {
           const cancelBtn = document.createElement("button");
           cancelBtn.type = "button";
-          cancelBtn.className = "btn ghost cancel-reservation-btn";
-          cancelBtn.textContent = "Eliminar";
+          cancelBtn.className = "btn accent cancel-reservation-btn";
+          cancelBtn.textContent = "Eliminar activa";
           cancelBtn.dataset.reservationId = String(reservation.id || "");
           item.appendChild(cancelBtn);
         }

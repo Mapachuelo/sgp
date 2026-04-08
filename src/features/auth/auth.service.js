@@ -58,18 +58,27 @@ async function register(input) {
 
   const alreadyExists = await findUserByEmail(email);
   if (alreadyExists) {
-    throw new HttpError(409, "El email ya existe");
+    throw new HttpError(409, "Este correo ya existe");
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const user = await createUser({
-    name,
-    email,
-    phone,
-    role: PUBLIC_REGISTRATION_ROLE,
-    passwordHash
-  });
+  let user = null;
+  try {
+    user = await createUser({
+      name,
+      email,
+      phone,
+      role: PUBLIC_REGISTRATION_ROLE,
+      passwordHash
+    });
+  } catch (error) {
+    if (error && error.code === "23505") {
+      throw new HttpError(409, "Este correo ya existe");
+    }
+
+    throw error;
+  }
 
   const token = signToken(user);
 

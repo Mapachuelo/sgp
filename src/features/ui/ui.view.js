@@ -128,17 +128,6 @@ function clientView() {
     <p id="authBadge" class="badge">Sesion no iniciada</p>
   </section>
 
-  <section class="panel">
-    <div class="panel-head">
-      <h2>Cupos de referencia</h2>
-      <div class="inline-actions">
-        <input id="availabilityDate" type="date" />
-        <button id="availabilityBtn" class="btn ghost" type="button">Actualizar</button>
-      </div>
-    </div>
-    <ul id="availabilityList" class="availability-list"></ul>
-  </section>
-
   <section class="panel feedback-panel">
     <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
   </section>

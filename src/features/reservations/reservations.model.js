@@ -359,6 +359,25 @@ async function listEmployeeServiceTimesByEmployee(employeeId) {
   return result.rows;
 }
 
+async function listEmployeeServiceTimesForCalendar() {
+  await ensureEmployeeServiceTimeTable();
+
+  const result = await db.query(
+    `
+      SELECT
+        est.employee_id,
+        est.service_id,
+        est.duration_minutes
+      FROM employee_service_time est
+      JOIN app_user u ON u.id = est.employee_id
+      WHERE u.role = 'employee'
+      ORDER BY est.service_id ASC, est.employee_id ASC
+    `
+  );
+
+  return result.rows;
+}
+
 async function saveEmployeeServiceTimes(employeeId, entries, updatedBy) {
   await ensureEmployeeServiceTimeTable();
 
@@ -468,6 +487,7 @@ module.exports = {
   createServiceCatalogEntry,
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
+  listEmployeeServiceTimesForCalendar,
   saveEmployeeServiceTimes,
   countActiveReservationsByClient,
   findClientReservationById,

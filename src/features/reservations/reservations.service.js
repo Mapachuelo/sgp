@@ -16,6 +16,7 @@ const {
   deleteEmployeeWorkScheduleByRange,
   listServiceCatalog,
   listEmployeeServiceMinimumDurations,
+  listEmployeeServiceTimesForCalendar,
   createServiceCatalogEntry,
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
@@ -744,9 +745,10 @@ async function resetWorkScheduleRange(startDateInput, daysInput, authUser) {
 }
 
 async function listServicesForCalendar() {
-  const [services, minimumDurations] = await Promise.all([
+  const [services, minimumDurations, allEmployeeDurations] = await Promise.all([
     listServiceCatalog(),
-    listEmployeeServiceMinimumDurations()
+    listEmployeeServiceMinimumDurations(),
+    listEmployeeServiceTimesForCalendar()
   ]);
 
   const durationByServiceId = new Map();
@@ -765,15 +767,42 @@ async function listServicesForCalendar() {
     durationByServiceId.set(serviceId, minDuration);
   });
 
+  const byServiceStylist = new Map();
+  (allEmployeeDurations || []).forEach(function (entry) {
+    const serviceId = Number(entry.service_id);
+    const employeeId = Number(entry.employee_id);
+    const duration = Number(entry.duration_minutes);
+
+    if (!Number.isInteger(serviceId) || serviceId <= 0) {
+      return;
+    }
+
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      return;
+    }
+
+    if (!Number.isInteger(duration) || duration <= 0) {
+      return;
+    }
+
+    if (!byServiceStylist.has(serviceId)) {
+      byServiceStylist.set(serviceId, {});
+    }
+
+    byServiceStylist.get(serviceId)[String(employeeId)] = duration;
+  });
+
   return (services || []).map(function (service) {
     const serviceId = Number(service.id);
     const durationMinutes = durationByServiceId.get(serviceId);
+    const stylistDurations = byServiceStylist.get(serviceId) || {};
 
     return {
       ...service,
       duration_minutes: Number.isInteger(durationMinutes)
         ? durationMinutes
-        : DEFAULT_SERVICE_DURATION_MINUTES
+        : DEFAULT_SERVICE_DURATION_MINUTES,
+      stylist_durations: stylistDurations
     };
   });
 }

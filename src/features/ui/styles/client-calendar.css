@@ -368,6 +368,49 @@ thead th {
   flex-wrap: wrap;
 }
 
+.reservation-card {
+  border: 1px solid var(--sand-dk);
+  border-radius: 12px;
+  background: var(--ivory-dk);
+  padding: 0.8rem;
+  align-items: flex-start;
+}
+
+.reservation-main {
+  display: grid;
+  gap: 0.22rem;
+  flex: 1;
+  min-width: 220px;
+}
+
+.reservation-line {
+  margin: 0;
+  color: var(--stone-dk);
+  font-size: 0.9rem;
+}
+
+.reservation-state {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.reservation-state.active {
+  color: #2d6048;
+  background: var(--available-bg);
+  border-color: var(--available-line);
+}
+
+.reservation-state.inactive {
+  color: #7a3a2a;
+  background: var(--reserved-bg);
+  border-color: var(--reserved-line);
+}
+
 .reservation-item .btn {
   padding: 0.3rem 0.6rem;
   font-size: 0.78rem;
