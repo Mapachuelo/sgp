@@ -35,7 +35,7 @@ body {
   font-family: "Outfit", sans-serif;
   background: var(--ivory-dk);
   min-height: 100vh;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .topbar {
@@ -132,13 +132,13 @@ body {
 }
 
 .calendar-layout {
-  width: min(1660px, 97vw);
-  margin: 1rem auto;
+  width: min(100%, 97vw);
+  margin: 0.8rem auto 1rem;
   display: grid;
-  gap: 1rem;
-  grid-template-columns: minmax(720px, 1fr) minmax(320px, 390px);
-  height: calc(100vh - 102px);
-  max-height: calc(100vh - 102px);
+  gap: 0.85rem;
+  grid-template-columns: 1fr;
+  height: auto;
+  max-height: none;
   align-items: stretch;
 }
 
@@ -146,7 +146,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .calendar-title-wrap h1 {
@@ -200,7 +200,8 @@ body {
 }
 
 .calendar-toolbar input {
-  width: 180px;
+  width: 100%;
+  max-width: 220px;
 }
 
 .slot-selection-badge {
@@ -336,8 +337,8 @@ thead th {
   display: grid;
   align-content: start;
   gap: 0.6rem;
-  max-height: calc(100vh - 132px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .booking-panel h2,
@@ -501,7 +502,7 @@ thead th {
 }
 
 .api-output-panel {
-  width: min(1400px, 95vw);
+  width: min(100%, 97vw);
   margin: 0 auto 1.2rem;
 }
 
@@ -518,27 +519,107 @@ pre {
   font-family: "Courier New", monospace;
 }
 
-@media (max-width: 1100px) {
-  body {
-    overflow: auto;
+@media (min-width: 320px) {
+  .topbar {
+    flex-wrap: wrap;
   }
 
-  .calendar-layout {
-    grid-template-columns: 1fr;
-    height: auto;
-    max-height: none;
+  .topbar-actions {
+    width: 100%;
   }
 
-  .calendar-main {
-    overflow: visible;
+  .topbar-actions .btn {
+    flex: 1;
   }
 
-  .booking-panel {
-    max-height: none;
-    overflow: visible;
+  table {
+    min-width: 760px;
   }
 }
 
-@media (max-width: 740px) {
-  .topbar { flex-wrap: wrap; }
+@media (min-width: 480px) {
+  .calendar-layout {
+    margin: 1rem auto 1.2rem;
+    gap: 1rem;
+  }
+
+  .panel {
+    padding: 1rem;
+  }
+
+  table {
+    min-width: 860px;
+  }
+}
+
+@media (min-width: 768px) {
+  .calendar-layout {
+    width: min(100%, 96vw);
+  }
+
+  .topbar-actions {
+    width: auto;
+  }
+
+  .topbar-actions .btn {
+    flex: 0 0 auto;
+  }
+
+  .booking-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    overflow: hidden;
+  }
+
+  .topbar {
+    flex-wrap: nowrap;
+  }
+
+  .calendar-layout {
+    width: min(1360px, 96vw);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+    height: calc(100vh - 102px);
+    max-height: calc(100vh - 102px);
+  }
+
+  .calendar-main {
+    overflow: hidden;
+  }
+
+  .booking-panel {
+    grid-template-columns: 1fr;
+    max-height: calc(100vh - 132px);
+    overflow: auto;
+  }
+}
+
+@media (min-width: 1200px) {
+  .calendar-layout {
+    width: min(1540px, 97vw);
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 390px);
+  }
+
+  .api-output-panel {
+    width: min(1540px, 97vw);
+  }
+}
+
+@media (min-width: 1440px) {
+  .calendar-layout {
+    width: min(1720px, 98vw);
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+  }
+
+  table {
+    min-width: 1120px;
+  }
+
+  .api-output-panel {
+    width: min(1720px, 98vw);
+  }
 }

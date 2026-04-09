@@ -101,18 +101,18 @@ body {
 }
 
 .emp-calendar-layout {
-  width: min(1400px, 95vw);
-  margin: 1.2rem auto;
+  width: min(100%, 96vw);
+  margin: 1rem auto;
   display: grid;
-  gap: 1rem;
-  grid-template-columns: minmax(700px, 1fr) minmax(280px, 350px);
+  gap: 0.9rem;
+  grid-template-columns: 1fr;
 }
 
 .emp-panel {
   background: var(--ivory);
   border: 1px solid var(--sand-dk);
   border-radius: 16px;
-  padding: 1rem;
+  padding: 0.95rem;
   box-shadow: 0 6px 24px rgba(61, 61, 61, 0.07);
 }
 
@@ -236,7 +236,7 @@ td.booked {
 }
 
 .output-panel {
-  width: min(1400px, 95vw);
+  width: min(100%, 96vw);
   margin: 0 auto 1.3rem;
 }
 
@@ -257,10 +257,91 @@ pre {
   display: none !important;
 }
 
-@media (max-width: 1120px) {
-  .emp-calendar-layout { grid-template-columns: 1fr; }
+@media (min-width: 320px) {
+  .emp-topbar {
+    flex-wrap: wrap;
+  }
+
+  .emp-nav {
+    width: 100%;
+  }
+
+  .emp-nav .emp-btn {
+    flex: 1;
+  }
+
+  table {
+    min-width: 760px;
+  }
 }
 
-@media (max-width: 760px) {
-  .emp-topbar { flex-wrap: wrap; }
+@media (min-width: 480px) {
+  .emp-calendar-layout {
+    width: min(100%, 95vw);
+    margin: 1.1rem auto;
+  }
+
+  .emp-panel {
+    padding: 1rem;
+  }
+
+  table {
+    min-width: 860px;
+  }
+}
+
+@media (min-width: 768px) {
+  .emp-calendar-layout {
+    width: min(100%, 94vw);
+    gap: 1rem;
+  }
+
+  .emp-nav {
+    width: auto;
+  }
+
+  .emp-nav .emp-btn {
+    flex: 0 0 auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .emp-topbar {
+    flex-wrap: nowrap;
+  }
+
+  .emp-calendar-layout {
+    width: min(1300px, 95vw);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  }
+
+  .output-panel {
+    width: min(1300px, 95vw);
+  }
+}
+
+@media (min-width: 1200px) {
+  .emp-calendar-layout {
+    width: min(1460px, 96vw);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+  }
+
+  .output-panel {
+    width: min(1460px, 96vw);
+  }
+}
+
+@media (min-width: 1440px) {
+  .emp-calendar-layout {
+    width: min(1680px, 97vw);
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 440px);
+  }
+
+  table {
+    min-width: 1120px;
+  }
+
+  .output-panel {
+    width: min(1680px, 97vw);
+  }
 }
