@@ -265,7 +265,7 @@ body {
 table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 980px;
+  min-width: max(100%, calc(var(--calendar-visible-days, 7) * 112px + 96px));
 }
 
 th,
@@ -533,12 +533,13 @@ pre {
   }
 
   table {
-    min-width: 540px;
+    min-width: max(100%, calc(var(--calendar-visible-days, 3) * 98px + 72px));
   }
 
   th,
   td {
     padding: 0.4rem;
+    white-space: normal;
   }
 
   .slot-btn {
@@ -558,7 +559,7 @@ pre {
   }
 
   table {
-    min-width: 640px;
+    min-width: max(100%, calc(var(--calendar-visible-days, 4) * 102px + 78px));
   }
 }
 
@@ -626,7 +627,7 @@ pre {
   }
 
   table {
-    min-width: 1120px;
+    min-width: max(100%, calc(var(--calendar-visible-days, 7) * 130px + 110px));
   }
 
   .api-output-panel {

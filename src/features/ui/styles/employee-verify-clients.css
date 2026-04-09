@@ -179,7 +179,7 @@ input:focus {
 table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 1050px;
+  min-width: max(100%, calc(var(--verify-visible-days, 7) * 116px + 98px));
 }
 
 th,
@@ -351,7 +351,7 @@ pre {
   }
 
   table {
-    min-width: 520px;
+    min-width: max(100%, calc(var(--verify-visible-days, 3) * 100px + 74px));
   }
 
   th,
@@ -375,7 +375,7 @@ pre {
   }
 
   table {
-    min-width: 640px;
+    min-width: max(100%, calc(var(--verify-visible-days, 4) * 104px + 80px));
   }
 }
 
@@ -427,7 +427,7 @@ pre {
   }
 
   table {
-    min-width: 1180px;
+    min-width: max(100%, calc(var(--verify-visible-days, 7) * 132px + 112px));
   }
 
   .output-panel {

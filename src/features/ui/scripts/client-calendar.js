@@ -139,15 +139,23 @@
   function resolveViewportConfig() {
     const width = getViewportWidth();
 
-    if (width < 480) {
+    if (width < 420) {
       return {
-        dayCount: 3,
-        startHour: 9,
-        endHour: 18
+        dayCount: 2,
+        startHour: 10,
+        endHour: 17
       };
     }
 
-    if (width < 768) {
+    if (width < 700) {
+      return {
+        dayCount: 3,
+        startHour: 9,
+        endHour: 19
+      };
+    }
+
+    if (width < 900) {
       return {
         dayCount: 4,
         startHour: 8,
@@ -155,7 +163,7 @@
       };
     }
 
-    if (width < 1024) {
+    if (width < 1200) {
       return {
         dayCount: 5,
         startHour: 7,
@@ -168,6 +176,11 @@
       startHour: FULL_START_HOUR,
       endHour: FULL_END_HOUR
     };
+  }
+
+  function syncResponsiveCssVars() {
+    const root = document.documentElement;
+    root.style.setProperty("--calendar-visible-days", String(state.viewportConfig.dayCount));
   }
 
   function getSlots(stepMinutes) {
@@ -588,6 +601,7 @@
     }
 
     state.viewportConfig = resolveViewportConfig();
+    syncResponsiveCssVars();
     state.days = buildDateRange(startValue, state.viewportConfig.dayCount);
     state.availabilityByDate = {};
     state.workScheduleByDate = {};
@@ -1003,6 +1017,7 @@
 
   byId("weekStart").value = toDateInputValue(new Date());
   state.viewportConfig = resolveViewportConfig();
+  syncResponsiveCssVars();
   updateSelectedSlotLabel();
   setAuthUi();
 
