@@ -83,6 +83,10 @@ body {
   gap: 0.6rem;
 }
 
+.nav-toggle {
+  display: none;
+}
+
 /* ── BUTTONS ────────────────────────────────────── */
 .admin-btn {
   border: none;
@@ -159,6 +163,14 @@ body {
 
 .admin-console {
   grid-template-columns: 1fr;
+}
+
+.admin-layout.admin-console {
+  justify-items: center;
+}
+
+.admin-layout.admin-console .admin-panel {
+  width: min(100%, 1000px);
 }
 
 .admin-launcher {
@@ -549,10 +561,19 @@ pre {
     flex-wrap: wrap;
   }
 
+  .nav-toggle {
+    display: inline-flex;
+    width: 100%;
+  }
+
   .admin-nav {
+    display: none;
+    width: 100%;
+  }
+
+  .admin-nav.is-open {
     display: grid;
     grid-template-columns: 1fr;
-    width: 100%;
   }
 
   .admin-nav .admin-btn {
@@ -580,7 +601,7 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .admin-nav {
+  .admin-nav.is-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -590,6 +611,10 @@ pre {
 }
 
 @media (min-width: 768px) {
+  .nav-toggle {
+    display: none;
+  }
+
   .admin-layout {
     width: min(100%, 94vw);
   }
@@ -613,6 +638,10 @@ pre {
   .admin-layout {
     width: min(1340px, 95vw);
     grid-template-columns: minmax(360px, 0.55fr) minmax(0, 1fr);
+  }
+
+  .admin-layout.admin-console {
+    grid-template-columns: 1fr;
   }
 
   .admin-launcher-grid {

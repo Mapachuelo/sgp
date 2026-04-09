@@ -9,6 +9,56 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
   </head>
   <body>
     ${body}
+    <script>
+      (function () {
+        function ensureToggle(headerSelector, navSelector, buttonClassName) {
+          document.querySelectorAll(headerSelector).forEach(function (header) {
+            var nav = header.querySelector(navSelector);
+            if (!nav || header.querySelector(".js-nav-toggle")) {
+              return;
+            }
+
+            var toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = buttonClassName + " nav-toggle js-nav-toggle";
+            toggle.textContent = "Navegacion";
+            toggle.setAttribute("aria-expanded", "false");
+            toggle.setAttribute("aria-label", "Mostrar navegacion");
+
+            header.insertBefore(toggle, nav);
+
+            toggle.addEventListener("click", function () {
+              var isOpen = nav.classList.toggle("is-open");
+              toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            });
+          });
+        }
+
+        function syncDesktopState() {
+          if (window.innerWidth < 768) {
+            return;
+          }
+
+          document.querySelectorAll(".js-nav-toggle").forEach(function (toggle) {
+            var nav = toggle.nextElementSibling;
+            if (!nav) {
+              return;
+            }
+
+            nav.classList.remove("is-open");
+            toggle.setAttribute("aria-expanded", "false");
+          });
+        }
+
+        ensureToggle(".topbar", ".topbar-actions", "btn ghost");
+        ensureToggle(".emp-topbar", ".emp-nav", "emp-btn ghost");
+        ensureToggle(".admin-topbar", ".admin-nav", "admin-btn ghost");
+        ensureToggle(".main-topbar", ".main-actions", "main-btn");
+
+        syncDesktopState();
+        window.addEventListener("resize", syncDesktopState);
+      })();
+    </script>
     <script src="${scriptPath}"></script>
   </body>
 </html>`;

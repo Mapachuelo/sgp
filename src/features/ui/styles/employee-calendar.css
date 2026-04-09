@@ -83,6 +83,10 @@ body {
   gap: 0.6rem;
 }
 
+.nav-toggle {
+  display: none;
+}
+
 /* ── BUTTONS ────────────────────────────────────── */
 .emp-btn {
   border: none;
@@ -311,12 +315,24 @@ pre {
     flex-wrap: wrap;
   }
 
-  .emp-nav {
+  .nav-toggle {
+    display: inline-flex;
     width: 100%;
   }
 
+  .emp-nav {
+    display: none;
+    width: 100%;
+  }
+
+  .emp-nav.is-open {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .emp-nav .emp-btn {
-    flex: 1;
+    width: 100%;
+    min-width: 0;
   }
 
   table {
@@ -337,19 +353,29 @@ pre {
   table {
     min-width: 860px;
   }
+
+  .emp-nav.is-open {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 768px) {
+  .nav-toggle {
+    display: none;
+  }
+
   .emp-calendar-layout {
     width: min(100%, 94vw);
     gap: 1.1rem;
   }
 
   .emp-nav {
+    display: flex;
     width: auto;
   }
 
   .emp-nav .emp-btn {
+    width: auto;
     flex: 0 0 auto;
   }
 }

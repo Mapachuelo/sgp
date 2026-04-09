@@ -28,6 +28,9 @@
   --radius-md:    14px;
   --radius-lg:    20px;
   --transition:   all 0.3s cubic-bezier(0.4,0,0.2,1);
+  --verify-visible-slot-rows: 6;
+  --verify-slot-row-height: 48px;
+  --verify-slot-header-height: 44px;
 }
 
 *, *::before, *::after {
@@ -81,6 +84,10 @@ body {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.nav-toggle {
+  display: none;
 }
 
 /* ── BUTTONS ────────────────────────────────────── */
@@ -406,12 +413,24 @@ pre {
     flex-wrap: wrap;
   }
 
-  .emp-nav {
+  .nav-toggle {
+    display: inline-flex;
     width: 100%;
   }
 
+  .emp-nav {
+    display: none;
+    width: 100%;
+  }
+
+  .emp-nav.is-open {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .emp-nav .emp-btn {
-    flex: 1;
+    width: 100%;
+    min-width: 0;
   }
 
   table {
@@ -426,6 +445,18 @@ pre {
   td {
     font-size: 0.66rem;
   }
+
+  .verify-main .calendar-shell {
+    max-height: calc(
+      var(--verify-slot-header-height) +
+      (var(--verify-visible-slot-rows) * var(--verify-slot-row-height))
+    );
+  }
+
+  .verify-main tbody th,
+  .verify-main tbody td {
+    min-height: var(--verify-slot-row-height);
+  }
 }
 
 @media (min-width: 480px) {
@@ -438,21 +469,31 @@ pre {
     padding: 1.2rem;
   }
 
+  .emp-nav.is-open {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   table {
     min-width: max(100%, calc(var(--verify-visible-days, 4) * 104px + 80px));
   }
 }
 
 @media (min-width: 768px) {
+  .nav-toggle {
+    display: none;
+  }
+
   .verify-layout {
     width: min(100%, 95vw);
   }
 
   .emp-nav {
+    display: flex;
     width: auto;
   }
 
   .emp-nav .emp-btn {
+    width: auto;
     flex: 0 0 auto;
   }
 }
@@ -470,6 +511,10 @@ pre {
 
   .output-panel {
     width: min(1380px, 96vw);
+  }
+
+  .verify-main .calendar-shell {
+    max-height: none;
   }
 }
 

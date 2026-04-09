@@ -23,6 +23,9 @@
   --available-line: #85B89A;
   --reserved-bg:    #F7EDEA;
   --reserved-line:  #C49080;
+  --calendar-visible-slot-rows: 6;
+  --calendar-slot-row-height: 46px;
+  --calendar-slot-header-height: 44px;
 
   --shadow-sm:    0 1px 3px rgba(61,61,61,0.06);
   --shadow-md:    0 4px 16px rgba(61,61,61,0.08);
@@ -87,6 +90,10 @@ body {
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.nav-toggle {
+  display: none;
 }
 
 /* ── BUTTONS ────────────────────────────────────── */
@@ -600,10 +607,19 @@ pre {
     flex-wrap: wrap;
   }
 
+  .nav-toggle {
+    display: inline-flex;
+    width: 100%;
+  }
+
   .topbar-actions {
+    display: none;
+    width: 100%;
+  }
+
+  .topbar-actions.is-open {
     display: grid;
     grid-template-columns: 1fr;
-    width: 100%;
   }
 
   .topbar-actions .btn {
@@ -623,6 +639,18 @@ pre {
   td {
     white-space: normal;
   }
+
+  .calendar-shell {
+    max-height: calc(
+      var(--calendar-slot-header-height) +
+      (var(--calendar-visible-slot-rows) * var(--calendar-slot-row-height))
+    );
+  }
+
+  tbody th,
+  tbody td {
+    min-height: var(--calendar-slot-row-height);
+  }
 }
 
 @media (min-width: 480px) {
@@ -635,7 +663,7 @@ pre {
     padding: 1.3rem;
   }
 
-  .topbar-actions {
+  .topbar-actions.is-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -646,14 +674,19 @@ pre {
     gap: 1.1rem;
   }
 
+  .nav-toggle {
+    display: none;
+  }
+
   .topbar-actions {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
+    display: flex;
+    width: auto;
+    flex-wrap: wrap;
   }
 
   .topbar-actions .btn {
-    width: 100%;
+    width: auto;
+    flex: 0 0 auto;
   }
 
   .calendar-toolbar label {
@@ -692,6 +725,10 @@ pre {
   .topbar-actions .btn {
     width: auto;
     flex: 0 0 auto;
+  }
+
+  .calendar-shell {
+    max-height: none;
   }
 
   .calendar-layout {

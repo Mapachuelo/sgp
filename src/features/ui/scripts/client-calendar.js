@@ -142,32 +142,32 @@
     if (width < 420) {
       return {
         dayCount: 2,
-        startHour: 10,
-        endHour: 17
+        startHour: FULL_START_HOUR,
+        endHour: FULL_END_HOUR
       };
     }
 
     if (width < 700) {
       return {
         dayCount: 3,
-        startHour: 9,
-        endHour: 19
+        startHour: FULL_START_HOUR,
+        endHour: FULL_END_HOUR
       };
     }
 
     if (width < 900) {
       return {
         dayCount: 4,
-        startHour: 8,
-        endHour: 20
+        startHour: FULL_START_HOUR,
+        endHour: FULL_END_HOUR
       };
     }
 
     if (width < 1200) {
       return {
         dayCount: 5,
-        startHour: 7,
-        endHour: 21
+        startHour: FULL_START_HOUR,
+        endHour: FULL_END_HOUR
       };
     }
 
