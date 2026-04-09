@@ -347,3 +347,45 @@ Instrucciones:
 
 - Cambio de posición de boton de "Iniciar camara" en Qr, la razón, el empleado no percibe el boton, cambio de posición arriba de token qr.
 
+# Reponsive
+Eres un senior frontend developer.
+
+Tarea: Mejorar el diseño de la pagina web de los archivos css, aprovechando el espacio disponible y no dejando tanto espacios vacios.
+
+Instrucciones:
+- Leer el archivo contexto.md.
+
+- hacer accesible el diseño reponsive con las siguientes medidas:
+Categoría,Media Query (CSS),Descripción
+Móviles Pequeños,@media (min-width: 320px),Teléfonos antiguos o compactos.
+Móviles Grandes,@media (min-width: 480px),Smartphones modernos en vertical/horizontal.
+Tablets,@media (min-width: 768px),iPads y tablets de tamaño estándar.
+Laptops / Tablets Pro,@media (min-width: 1024px),Laptops pequeñas y iPads en horizontal.
+Escritorio (Desktop),@media (min-width: 1200px),Monitores estándar de oficina.
+Pantallas Grandes,@media (min-width: 1440px),Monitores de alta resolución (2K+).
+
+## intrucciones:
+- Las tablas de verificar clientes y calendario de disponibilidad no se hace responsive a los tamaños más paqueños, se ve cortado y se pasa de la pantalla, puedes hacer una idea como solucionarlo pero no editar el backend, solo el frontend, para dispositivos más pequeños se ajusta a horarios más cortos para ser responsivo es una idea.
+
+## Requerimientos: 
+- El responsive se daña a los 700px de ancho, la tabla no se adapta más bajo que eso, busque una solución para resoluciones mejores.
+
+## Requisitos: 
+- Los botones del dashboard no se hace responsivo a medida que se hace más pequeño.
+
+## intrucciones: 
+- El diseño responsive no se aplica en la apgina ver calendario de disponibilidad para el empleado.
+
+## Instrucciones: 
+- Tomar en cuenta estos archivos css.
+- Hacer cambio de diseño a a la paghina web acorde al backend del sistema, estar todo conectado y verificar que funcione todos.
+
+## Requisitos: 
+- La gestion administrativa el cuadro no esta centrado.
+- Los cuadros de verificar clientes y calendario de disponiblidad no aparece el hoario completo al estar responsive, lo que requiero que los cuadros se limiten en 6 cuadros de horario y dentro tenga un scroll para bajar, ejemplo, es lo mismo que el calendario este fijo y que se pueda bajar para elegir el horario pero ahora de forma responsive.
+- Los botones de dashboard en cierto punto en dispositivos moviles todos esten en un cuadro y al dar click se despligua los botones de navegación.
+
+## instrucciones: 
+- Tabla de calendario de disponibilidad no esta la pagina fija como verificar clientes, tener la pantalla fija y dentro del calendario un scroll. 
+
+
