@@ -11,9 +11,15 @@
 
 
 - A lo ultimo verificar si funciona la ejecución de docker.
+Ejecutar el docker con los nuevos cambios:
 ``bash
-docker compose up --build
+docker compose up --build -d
 ``
+y para parar el servicio:
+```bash
+docker compose stop
+```
+no borrarlo.
 
 - Flujo funcional obligatorio actual:
   - La ruta `/` es el dashboard principal en blanco y solo muestra dos acciones: `Ver calendario` e `Iniciar sesion`.

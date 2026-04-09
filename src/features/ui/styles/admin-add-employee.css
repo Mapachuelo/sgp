@@ -286,6 +286,18 @@ tr:hover td {
   border-color: var(--warn);
 }
 
+.list-panel .configure-times-btn {
+  background: rgba(74, 96, 128, 0.08);
+  color: var(--info);
+  border: 1px solid rgba(74, 96, 128, 0.22);
+}
+
+.list-panel .configure-times-btn:hover {
+  background: var(--info);
+  color: #fff;
+  border-color: var(--info);
+}
+
 .temp-password {
   margin: 1rem 0 0;
   border: 1.5px dashed var(--wood-lt);
@@ -368,6 +380,44 @@ tr:hover td {
   border: 1px solid var(--sand-dk);
   border-radius: 10px;
   background: var(--ivory-dk);
+}
+
+.service-time-list {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.service-time-item {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 140px;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--sand-dk);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.service-time-name {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.95rem;
+  color: var(--stone-dk);
+}
+
+.service-time-name input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--info);
+}
+
+.service-time-duration {
+  width: 100%;
 }
 
 .modal-head {

@@ -6,6 +6,7 @@ const {
 const {
   createReservationController,
   myReservationsController,
+  cancelMyReservationController,
   listReservationsController,
   availabilityController,
   getWorkScheduleController,
@@ -14,7 +15,9 @@ const {
   resetWorkScheduleController,
   listServicesController,
   createServiceController,
-  deleteServiceController
+  deleteServiceController,
+  employeeServiceTimesController,
+  saveEmployeeServiceTimesController
 } = require("./reservations.controller");
 
 const router = express.Router();
@@ -23,6 +26,18 @@ router.get("/availability", availabilityController);
 router.get("/services", listServicesController);
 router.post("/services", requireAuth, requireRole("admin"), createServiceController);
 router.delete("/services/:serviceId", requireAuth, requireRole("admin"), deleteServiceController);
+router.get(
+  "/employee-service-times",
+  requireAuth,
+  requireRole("admin"),
+  employeeServiceTimesController
+);
+router.put(
+  "/employee-service-times",
+  requireAuth,
+  requireRole("admin"),
+  saveEmployeeServiceTimesController
+);
 router.get("/work-schedule", getWorkScheduleController);
 router.get(
   "/work-schedule/editable",
@@ -39,6 +54,7 @@ router.delete(
 );
 router.post("/", requireAuth, requireRole("client"), createReservationController);
 router.get("/me", requireAuth, requireRole("client"), myReservationsController);
+router.delete("/me/:reservationId", requireAuth, requireRole("client"), cancelMyReservationController);
 router.get("/", requireAuth, requireRole("employee", "admin"), listReservationsController);
 
 module.exports = { reservationsRouter: router };

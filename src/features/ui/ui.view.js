@@ -128,17 +128,6 @@ function clientView() {
     <p id="authBadge" class="badge">Sesion no iniciada</p>
   </section>
 
-  <section class="panel">
-    <div class="panel-head">
-      <h2>Cupos de referencia</h2>
-      <div class="inline-actions">
-        <input id="availabilityDate" type="date" />
-        <button id="availabilityBtn" class="btn ghost" type="button">Actualizar</button>
-      </div>
-    </div>
-    <ul id="availabilityList" class="availability-list"></ul>
-  </section>
-
   <section class="panel feedback-panel">
     <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
   </section>
@@ -208,16 +197,23 @@ function clientCalendarView() {
     <input id="clientCount" type="number" min="1" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
-    <button id="myReservationsBtn" class="btn ghost block" type="button">Mis reservas</button>
+    <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
     <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a login</a>
 
     <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
-
-    <h3>Mis ultimas reservas</h3>
-    <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
+
+<div id="myReservationsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="myReservationsModalTitle">
+  <div class="modal-card reservations-modal-card">
+    <div class="modal-head">
+      <h3 id="myReservationsModalTitle">Mis reservas</h3>
+      <button id="closeMyReservationsModalBtn" class="btn ghost" type="button">Cerrar</button>
+    </div>
+    <ul id="myReservationsList" class="reservations-list"></ul>
+  </div>
+</div>
 `;
 
   return clientDocument(
@@ -383,7 +379,7 @@ function employeeVerifyClientsView() {
         <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
       </div>
     </div>
-    <p class="helper">Horario de 06:00 a 22:00 en bloques de 30 minutos.</p>
+    <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
       <table>
         <thead id="verifyHead"></thead>
@@ -587,6 +583,27 @@ function adminView() {
       </form>
     </div>
   </div>
+
+  <div id="employeeServiceTimesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeServiceTimesTitle">
+    <div class="modal-card admin-modal-card">
+      <div class="modal-head">
+        <h2 id="employeeServiceTimesTitle">Servicios y tiempos por empleado</h2>
+        <button id="closeEmployeeServiceTimesBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+
+      <p id="employeeServiceTimesSubtitle" class="helper">
+        Configura que servicios puede realizar el empleado y su duracion estimada en minutos.
+      </p>
+
+      <input id="employeeServiceTimesUserId" type="hidden" />
+      <div id="employeeServiceTimesList" class="service-time-list"></div>
+
+      <div class="modal-actions">
+        <button id="cancelEmployeeServiceTimesBtn" class="admin-btn ghost" type="button">Cancelar</button>
+        <button id="saveEmployeeServiceTimesBtn" class="admin-btn solid" type="button">Guardar tiempos</button>
+      </div>
+    </div>
+  </div>
 </main>
 `;
 
@@ -695,7 +712,7 @@ function adminVerifyClientsView() {
         <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
       </div>
     </div>
-    <p class="helper">Horario de 06:00 a 22:00 en bloques de 30 minutos.</p>
+    <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
       <table>
         <thead id="verifyHead"></thead>

@@ -1,6 +1,9 @@
 (function () {
   const TOKEN_KEY = "sgp_token";
   const LOGIN_PATH = "/ui/login";
+  const DEFAULT_DURATION_MINUTES = 30;
+  const MIN_DURATION_MINUTES = 1;
+  const MAX_DURATION_MINUTES = 280;
 
   function byId(id) {
     return document.getElementById(id);
@@ -36,6 +39,15 @@
     }
 
     return role || "";
+  }
+
+  function parsePositiveInt(value) {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return parsed;
   }
 
   function setFeedback(message, tone) {
@@ -291,6 +303,17 @@
       deleteBtn.dataset.employeeRole = row.role || "";
       deleteBtn.disabled = !row.id;
       actions.appendChild(deleteBtn);
+
+      const configBtn = document.createElement("button");
+      configBtn.type = "button";
+      configBtn.className = "admin-btn ghost configure-times-btn";
+      configBtn.textContent = "Servicios y tiempos";
+      configBtn.dataset.employeeId = String(row.id || "");
+      configBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
+      configBtn.dataset.employeeRole = row.role || "";
+      configBtn.disabled = !row.id || row.role !== "employee";
+      actions.appendChild(configBtn);
+
       tr.appendChild(actions);
 
       body.appendChild(tr);
@@ -474,6 +497,160 @@
     }
   }
 
+  function closeEmployeeServiceTimesModal() {
+    const modal = byId("employeeServiceTimesModal");
+    if (modal) {
+      modal.classList.add("hidden");
+    }
+
+    const list = byId("employeeServiceTimesList");
+    if (list) {
+      list.innerHTML = "";
+    }
+
+    byId("employeeServiceTimesUserId").value = "";
+  }
+
+  function renderEmployeeServiceTimes(entries) {
+    const container = byId("employeeServiceTimesList");
+    container.innerHTML = "";
+
+    if (!entries || entries.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "helper";
+      empty.textContent = "No hay servicios registrados para configurar.";
+      container.appendChild(empty);
+      return;
+    }
+
+    entries.forEach(function (entry) {
+      const row = document.createElement("div");
+      row.className = "service-time-item";
+
+      const left = document.createElement("label");
+      left.className = "service-time-name";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "service-time-enabled";
+      checkbox.dataset.serviceId = String(entry.serviceId);
+      checkbox.checked = Boolean(entry.enabled);
+      left.appendChild(checkbox);
+
+      const text = document.createElement("span");
+      text.textContent = entry.name || "Servicio";
+      left.appendChild(text);
+
+      const minutesInput = document.createElement("input");
+      minutesInput.type = "number";
+      minutesInput.className = "service-time-duration";
+      minutesInput.min = String(MIN_DURATION_MINUTES);
+      minutesInput.max = String(MAX_DURATION_MINUTES);
+      minutesInput.step = "1";
+      minutesInput.value = String(entry.durationMinutes || DEFAULT_DURATION_MINUTES);
+      minutesInput.dataset.serviceId = String(entry.serviceId);
+      minutesInput.disabled = !checkbox.checked;
+
+      checkbox.addEventListener("change", function () {
+        minutesInput.disabled = !checkbox.checked;
+      });
+
+      row.appendChild(left);
+      row.appendChild(minutesInput);
+      container.appendChild(row);
+    });
+  }
+
+  async function openEmployeeServiceTimesModal(employeeId, employeeName, employeeRole) {
+    if (employeeRole !== "employee") {
+      setFeedback("Solo puedes configurar tiempos para usuarios con rol empleado.", "warn");
+      return;
+    }
+
+    const normalizedEmployeeId = parsePositiveInt(employeeId);
+    if (!normalizedEmployeeId) {
+      setFeedback("No se pudo identificar el empleado seleccionado.", "warn");
+      return;
+    }
+
+    try {
+      const payload = await callApi(
+        "/api/reservations/employee-service-times?employeeId=" +
+          encodeURIComponent(String(normalizedEmployeeId)),
+        "GET"
+      );
+
+      const modal = byId("employeeServiceTimesModal");
+      const subtitle = byId("employeeServiceTimesSubtitle");
+      subtitle.textContent =
+        "Editando servicios de: " +
+        (employeeName || "Empleado") +
+        ". Habilita el servicio y define su tiempo en minutos.";
+
+      byId("employeeServiceTimesUserId").value = String(normalizedEmployeeId);
+      renderEmployeeServiceTimes((payload.data && payload.data.services) || []);
+      modal.classList.remove("hidden");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function saveEmployeeServiceTimesFromModal() {
+    const employeeId = parsePositiveInt(byId("employeeServiceTimesUserId").value);
+    if (!employeeId) {
+      setFeedback("No se pudo identificar el empleado a configurar.", "warn");
+      return;
+    }
+
+    const rows = Array.from(byId("employeeServiceTimesList").querySelectorAll(".service-time-item"));
+    const entries = [];
+
+    for (const row of rows) {
+      const checkbox = row.querySelector(".service-time-enabled");
+      const durationInput = row.querySelector(".service-time-duration");
+      if (!checkbox || !durationInput) {
+        continue;
+      }
+
+      const serviceId = parsePositiveInt(checkbox.dataset.serviceId);
+      if (!serviceId) {
+        continue;
+      }
+
+      const enabled = Boolean(checkbox.checked);
+      const duration = Number(durationInput.value || DEFAULT_DURATION_MINUTES);
+
+      if (enabled) {
+        if (
+          !Number.isInteger(duration) ||
+          duration < MIN_DURATION_MINUTES ||
+          duration > MAX_DURATION_MINUTES
+        ) {
+          setFeedback("Cada duracion activa debe ser un entero entre 1 y 280 minutos.", "warn");
+          return;
+        }
+      }
+
+      entries.push({
+        serviceId: serviceId,
+        enabled: enabled,
+        durationMinutes: duration
+      });
+    }
+
+    try {
+      await callApi(
+        "/api/reservations/employee-service-times?employeeId=" + encodeURIComponent(String(employeeId)),
+        "PUT",
+        { entries: entries }
+      );
+      closeEmployeeServiceTimesModal();
+      setFeedback("Servicios y tiempos guardados correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
   byId("employeeForm").addEventListener("submit", createEmployee);
   byId("refreshEmployeesBtn").addEventListener("click", function () {
     loadEmployees().catch(function (error) {
@@ -518,6 +695,15 @@
     }
 
     if (!target.classList.contains("delete-employee-btn")) {
+      if (!target.classList.contains("configure-times-btn")) {
+        return;
+      }
+
+      openEmployeeServiceTimesModal(
+        target.dataset.employeeId,
+        target.dataset.employeeName,
+        target.dataset.employeeRole
+      );
       return;
     }
 
@@ -542,6 +728,18 @@
   byId("editUserModal").addEventListener("click", function (event) {
     if (event.target === byId("editUserModal")) {
       closeEditModal();
+    }
+  });
+
+  byId("saveEmployeeServiceTimesBtn").addEventListener(
+    "click",
+    saveEmployeeServiceTimesFromModal
+  );
+  byId("closeEmployeeServiceTimesBtn").addEventListener("click", closeEmployeeServiceTimesModal);
+  byId("cancelEmployeeServiceTimesBtn").addEventListener("click", closeEmployeeServiceTimesModal);
+  byId("employeeServiceTimesModal").addEventListener("click", function (event) {
+    if (event.target === byId("employeeServiceTimesModal")) {
+      closeEmployeeServiceTimesModal();
     }
   });
 

@@ -39,26 +39,57 @@ async function ensureServiceCatalogTable(queryable = db) {
   `);
 }
 
+async function ensureEmployeeServiceTimeTable(queryable = db) {
+  await ensureServiceCatalogTable(queryable);
+
+  await queryable.query(`
+    CREATE TABLE IF NOT EXISTS employee_service_time (
+      employee_id INT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      service_id INT NOT NULL REFERENCES service_catalog(id) ON DELETE CASCADE,
+      duration_minutes INT NOT NULL CHECK (duration_minutes > 0),
+      updated_by INT REFERENCES app_user(id) ON DELETE SET NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (employee_id, service_id)
+    )
+  `);
+}
+
+async function ensureReservationStylistIdColumn(queryable = db) {
+  await queryable.query(`
+    ALTER TABLE reservation
+    ADD COLUMN IF NOT EXISTS stylist_id INT REFERENCES app_user(id) ON DELETE SET NULL
+  `);
+
+  await queryable.query(`
+    CREATE INDEX IF NOT EXISTS idx_reservation_stylist_id
+    ON reservation(stylist_id)
+  `);
+}
+
 async function createReservation(data) {
+  await ensureReservationStylistIdColumn();
+
   const result = await db.query(
     `
       INSERT INTO reservation (
         client_id,
         service_name,
         stylist_name,
+        stylist_id,
         starts_at,
         client_count,
         qr_token,
         qr_data_url,
         status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'booked')
-      RETURNING id, client_id, service_name, stylist_name, starts_at, client_count, qr_token, qr_data_url, status, created_at
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'booked')
+      RETURNING id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, qr_data_url, status, created_at
     `,
     [
       data.clientId,
       data.serviceName,
       data.stylistName,
+      data.stylistId,
       data.startsAt,
       data.clientCount,
       data.qrToken,
@@ -70,6 +101,8 @@ async function createReservation(data) {
 }
 
 async function findOverlappingReservation({ stylistName, startsAt }) {
+  await ensureReservationStylistIdColumn();
+
   const result = await db.query(
     `
       SELECT id
@@ -86,9 +119,11 @@ async function findOverlappingReservation({ stylistName, startsAt }) {
 }
 
 async function listReservationsByClient(clientId) {
+  await ensureReservationStylistIdColumn();
+
   const result = await db.query(
     `
-      SELECT id, client_id, service_name, stylist_name, starts_at, client_count, qr_token, status, checked_in_at, created_at
+      SELECT id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, checked_in_at, created_at
       FROM reservation
       WHERE client_id = $1
       ORDER BY starts_at DESC
@@ -100,9 +135,11 @@ async function listReservationsByClient(clientId) {
 }
 
 async function listAllReservations() {
+  await ensureReservationStylistIdColumn();
+
   const result = await db.query(
     `
-      SELECT id, client_id, service_name, stylist_name, starts_at, client_count, qr_token, status, checked_in_at, created_at
+      SELECT id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, checked_in_at, created_at
       FROM reservation
       ORDER BY starts_at DESC
     `
@@ -112,12 +149,14 @@ async function listAllReservations() {
 }
 
 async function listReservedByDate(dateText) {
+  await ensureReservationStylistIdColumn();
+
   const result = await db.query(
     `
-      SELECT id, stylist_name, starts_at, status
+      SELECT id, service_name, stylist_name, stylist_id, starts_at, status
       FROM reservation
       WHERE DATE(starts_at) = $1
-        AND status = 'booked'
+        AND status IN ('booked', 'checked_in')
       ORDER BY starts_at ASC
     `,
     [dateText]
@@ -264,6 +303,25 @@ async function listServiceCatalog() {
   return result.rows;
 }
 
+async function listEmployeeServiceMinimumDurations() {
+  await ensureEmployeeServiceTimeTable();
+
+  const result = await db.query(
+    `
+      SELECT
+        sc.id AS service_id,
+        MIN(est.duration_minutes)::INT AS min_duration_minutes
+      FROM service_catalog sc
+      LEFT JOIN employee_service_time est
+        ON est.service_id = sc.id
+      GROUP BY sc.id
+      ORDER BY sc.id ASC
+    `
+  );
+
+  return result.rows;
+}
+
 async function createServiceCatalogEntry(name, createdBy) {
   await ensureServiceCatalogTable();
 
@@ -277,6 +335,124 @@ async function createServiceCatalogEntry(name, createdBy) {
   );
 
   return result.rows[0];
+}
+
+async function listEmployeeServiceTimesByEmployee(employeeId) {
+  await ensureEmployeeServiceTimeTable();
+
+  const result = await db.query(
+    `
+      SELECT
+        sc.id AS service_id,
+        sc.name,
+        est.duration_minutes,
+        (est.employee_id IS NOT NULL) AS enabled
+      FROM service_catalog sc
+      LEFT JOIN employee_service_time est
+        ON est.service_id = sc.id
+       AND est.employee_id = $1
+      ORDER BY sc.name ASC
+    `,
+    [employeeId]
+  );
+
+  return result.rows;
+}
+
+async function listEmployeeServiceTimesForCalendar() {
+  await ensureEmployeeServiceTimeTable();
+
+  const result = await db.query(
+    `
+      SELECT
+        est.employee_id,
+        est.service_id,
+        est.duration_minutes
+      FROM employee_service_time est
+      JOIN app_user u ON u.id = est.employee_id
+      WHERE u.role = 'employee'
+      ORDER BY est.service_id ASC, est.employee_id ASC
+    `
+  );
+
+  return result.rows;
+}
+
+async function saveEmployeeServiceTimes(employeeId, entries, updatedBy) {
+  await ensureEmployeeServiceTimeTable();
+
+  return db.withTransaction(async (client) => {
+    await ensureEmployeeServiceTimeTable(client);
+
+    await client.query(
+      `
+        DELETE FROM employee_service_time
+        WHERE employee_id = $1
+      `,
+      [employeeId]
+    );
+
+    for (const entry of entries) {
+      await client.query(
+        `
+          INSERT INTO employee_service_time (
+            employee_id,
+            service_id,
+            duration_minutes,
+            updated_by,
+            updated_at
+          )
+          VALUES ($1, $2, $3, $4, NOW())
+        `,
+        [employeeId, entry.serviceId, entry.durationMinutes, updatedBy]
+      );
+    }
+  });
+}
+
+async function countActiveReservationsByClient(clientId) {
+  const result = await db.query(
+    `
+      SELECT COUNT(*)::INT AS total
+      FROM reservation
+      WHERE client_id = $1
+        AND status = 'booked'
+    `,
+    [clientId]
+  );
+
+  return result.rows[0] ? result.rows[0].total : 0;
+}
+
+async function findClientReservationById(reservationId, clientId) {
+  const result = await db.query(
+    `
+      SELECT id, client_id, status, starts_at
+      FROM reservation
+      WHERE id = $1
+        AND client_id = $2
+      LIMIT 1
+    `,
+    [reservationId, clientId]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function cancelReservationByClient(reservationId, clientId) {
+  const result = await db.query(
+    `
+      UPDATE reservation
+      SET status = 'cancelled'
+      WHERE id = $1
+        AND client_id = $2
+        AND status = 'booked'
+      RETURNING id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, checked_in_at, created_at
+    `,
+    [reservationId, clientId]
+  );
+
+  return result.rows[0] || null;
 }
 
 async function deleteServiceCatalogEntry(serviceId) {
@@ -307,6 +483,13 @@ module.exports = {
   deleteWorkScheduleByRange,
   deleteEmployeeWorkScheduleByRange,
   listServiceCatalog,
+  listEmployeeServiceMinimumDurations,
   createServiceCatalogEntry,
-  deleteServiceCatalogEntry
+  deleteServiceCatalogEntry,
+  listEmployeeServiceTimesByEmployee,
+  listEmployeeServiceTimesForCalendar,
+  saveEmployeeServiceTimes,
+  countActiveReservationsByClient,
+  findClientReservationById,
+  cancelReservationByClient
 };

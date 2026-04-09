@@ -7,11 +7,15 @@
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
+  const DEFAULT_SLOT_STEP_MINUTES = 30;
+  const MIN_SERVICE_DURATION_MINUTES = 1;
+  const MAX_SERVICE_DURATION_MINUTES = 280;
 
   const state = {
     days: [],
     reservations: [],
-    scheduleConfig: {}
+    scheduleConfig: {},
+    slotStepMinutes: DEFAULT_SLOT_STEP_MINUTES
   };
 
   function byId(id) {
@@ -83,14 +87,33 @@
     return weekday + " " + day + "-" + month;
   }
 
-  function getTimeSlots() {
-    const slots = [];
-    for (let hour = START_HOUR; hour <= END_HOUR; hour += 1) {
-      slots.push(String(hour).padStart(2, "0") + ":00");
-      if (hour !== END_HOUR) {
-        slots.push(String(hour).padStart(2, "0") + ":30");
-      }
+  function normalizeDuration(durationInput) {
+    const parsed = Number(durationInput);
+    if (!Number.isInteger(parsed)) {
+      return DEFAULT_SLOT_STEP_MINUTES;
     }
+
+    if (parsed < MIN_SERVICE_DURATION_MINUTES || parsed > MAX_SERVICE_DURATION_MINUTES) {
+      return DEFAULT_SLOT_STEP_MINUTES;
+    }
+
+    return parsed;
+  }
+
+  function getTimeSlots(stepMinutes) {
+    const normalizedStep = normalizeDuration(stepMinutes);
+    const slots = [];
+
+    for (
+      let minuteCursor = START_HOUR * 60;
+      minuteCursor + normalizedStep <= END_HOUR * 60;
+      minuteCursor += normalizedStep
+    ) {
+      const hour = Math.floor(minuteCursor / 60);
+      const minutes = minuteCursor % 60;
+      slots.push(String(hour).padStart(2, "0") + ":" + String(minutes).padStart(2, "0"));
+    }
+
     return slots;
   }
 
@@ -111,9 +134,36 @@
     return Number(parts[0]) * 60 + Number(parts[1]);
   }
 
-  function isSlotInsideWorkingHours(slot, config) {
+  function isSlotInsideWorkingHours(slot, config, slotStepMinutes) {
     const slotMinutes = parseTimeToMinutes(slot);
-    return slotMinutes >= parseTimeToMinutes(config.start) && slotMinutes <= parseTimeToMinutes(config.end);
+    const slotEndMinutes = slotMinutes + normalizeDuration(slotStepMinutes);
+    return slotMinutes >= parseTimeToMinutes(config.start) && slotEndMinutes <= parseTimeToMinutes(config.end);
+  }
+
+  function resolveSlotStepFromReservations() {
+    const durations = (state.reservations || [])
+      .map(function (reservation) {
+        return Number(reservation.duration_minutes);
+      })
+      .filter(function (duration) {
+        return Number.isInteger(duration) && duration >= MIN_SERVICE_DURATION_MINUTES && duration <= MAX_SERVICE_DURATION_MINUTES;
+      });
+
+    if (durations.length === 0) {
+      return DEFAULT_SLOT_STEP_MINUTES;
+    }
+
+    return Math.min(...durations);
+  }
+
+  function updateSlotHelper() {
+    const helper = byId("verifySlotHelper");
+    if (!helper) {
+      return;
+    }
+
+    helper.textContent =
+      "Horario de 06:00 a 22:00 en bloques de " + String(state.slotStepMinutes) + " minutos.";
   }
 
   async function callApi(path, method, body) {
@@ -177,14 +227,24 @@
 
   function indexReservations() {
     const map = {};
+    const slotStepMinutes = normalizeDuration(state.slotStepMinutes);
 
     state.reservations.forEach(function (reservation) {
-      const slot = toLocalSlot(reservation.starts_at);
-      const key = slot.dayKey + "|" + slot.time;
-      if (!map[key]) {
-        map[key] = [];
+      const start = new Date(reservation.starts_at);
+      const durationMinutes = normalizeDuration(reservation.duration_minutes);
+      const steps = Math.max(Math.ceil(durationMinutes / slotStepMinutes), 1);
+
+      for (let i = 0; i < steps; i += 1) {
+        const slotDate = new Date(start.getTime() + i * slotStepMinutes * 60000);
+        const slot = toLocalSlot(slotDate.toISOString());
+        const key = slot.dayKey + "|" + slot.time;
+
+        if (!map[key]) {
+          map[key] = [];
+        }
+
+        map[key].push(reservation);
       }
-      map[key].push(reservation);
     });
 
     return map;
@@ -245,6 +305,7 @@
     body.innerHTML = "";
 
     const indexed = indexReservations();
+    const slotStepMinutes = normalizeDuration(state.slotStepMinutes);
 
     const headRow = document.createElement("tr");
     const firstHead = document.createElement("th");
@@ -259,7 +320,7 @@
 
     head.appendChild(headRow);
 
-    getTimeSlots().forEach(function (slot) {
+    getTimeSlots(slotStepMinutes).forEach(function (slot) {
       const row = document.createElement("tr");
       const slotHead = document.createElement("th");
       slotHead.textContent = slot;
@@ -277,7 +338,7 @@
           return;
         }
 
-        if (!isSlotInsideWorkingHours(slot, config)) {
+        if (!isSlotInsideWorkingHours(slot, config, slotStepMinutes)) {
           cell.className = "outside-hours";
           cell.textContent = "Fuera horario";
           row.appendChild(cell);
@@ -347,6 +408,7 @@
     );
 
     state.reservations = reservationsPayload.data || [];
+    state.slotStepMinutes = resolveSlotStepFromReservations();
     state.scheduleConfig = {};
 
     (schedulePayload.data || []).forEach(function (entry) {
@@ -368,6 +430,7 @@
       state.days = buildDayRange(start);
 
       await loadData();
+      updateSlotHelper();
       renderConfigPanel();
       renderCalendar();
       setFeedback("Calendario de verificacion actualizado.", "ok");

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS reservation (
   client_id INT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
   service_name VARCHAR(120) NOT NULL,
   stylist_name VARCHAR(120) NOT NULL,
+  stylist_id INT REFERENCES app_user(id) ON DELETE SET NULL,
   starts_at TIMESTAMPTZ NOT NULL,
   client_count INT NOT NULL CHECK (client_count > 0),
   qr_token UUID NOT NULL UNIQUE,
@@ -32,8 +33,25 @@ CREATE TABLE IF NOT EXISTS payment (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS service_catalog (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL UNIQUE,
+  created_by INT REFERENCES app_user(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS employee_service_time (
+  employee_id INT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  service_id INT NOT NULL REFERENCES service_catalog(id) ON DELETE CASCADE,
+  duration_minutes INT NOT NULL CHECK (duration_minutes > 0),
+  updated_by INT REFERENCES app_user(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (employee_id, service_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_reservation_starts_at ON reservation(starts_at);
 CREATE INDEX IF NOT EXISTS idx_reservation_client_id ON reservation(client_id);
+CREATE INDEX IF NOT EXISTS idx_reservation_stylist_id ON reservation(stylist_id);
 CREATE INDEX IF NOT EXISTS idx_payment_paid_at ON payment(paid_at);
 
 INSERT INTO app_user (name, email, phone, role, password_hash)

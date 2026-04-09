@@ -286,3 +286,48 @@ Requerimientos:
 - En validación qr no habre la camara, lo que se requiere es pedir permisos al navegador para acceder a la camara, si le da sí accede a la camara para funcionar, registra el qr si es correcto y si es correcto envia en la tabla de clientes registro validado, si no lo vuelve a intentar.
 
 - Como diseño de la tablas de verificar clientes y calendario de disponibilidad tocar hacer un cambio, lo que requiero que la lista no este extensa hacia abajo, sino que este cortada hasta la pantalla total y no tenga que bajar, teniendo eso, dentro de la tabla se pueda bajar sin mover la pantalla del contenido en donde esta las hora/fecha.
+
+# Cambios, agregar tiempos
+Eres un Senior Backend Developer en nodejs.
+
+Tarea: Tu trabajo es buscar errores en el backend de la pagina web y hacerlos funcionar acordes a los requerimientos dados.
+
+Requerimientos:
+- Leer el archivo contexto.md. 
+
+- Teniendo rol administrador, asignarle tiempos aproximado de cada servicio que puede hacer un empleado y los servicios pueden hacer los empleados, los tiempos debe editarse en la lista de registrados, solos los empleados se pueden colocarles tiempos, teniendo los tiempos establecidos deben estar reflejado en el calendario de disponibilidad y verificar cliente, se ajusta al horario a las tablas a cada empleado con su tiempo de servicio.
+
+- El cliente puede hacer reservas en el mismo día en el calendario, por ejemplo, hoy es 8 de abril de las 12pm, un cliente hacer una reserva ese mismo día pero a las 1:30, dependiendo si esta reservado a ese horario se puede hacer una reserva y si esta ocupado le toca otro hoario dependiendo que empleado se tarda en cada servicio.
+
+- En ingreso de reservas de clientes debe haber un boton y que se despliegue las reservas que uno ha hecho, ahí se puede eliminar las reservas si el cliente quiere, el limite de reserva por cliente debe ser 3.
+
+# fix tiempos 
+Eres un Senior Backend Developer en nodejs.
+
+Tarea: Tu trabajo es buscar errores en el backend de la pagina web y hacerlos funcionar acordes a los requerimientos dados.
+
+Requerimientos:
+- Leer el archivo contexto.md. 
+
+- El tiempo de servicio puede ser en numeros enteros, ese es el tiempo de los servicios que puede colocar y se ve reflejado en calendario de disponibilidad he verificar clientes, por ejemplo, si el tiempo de corte es de 30 minutos, entonces toda la tabla se cambia a 30 minutos, si el tiempo de barba es de 15 minutos, la tabla se vuelve tod a 15 minutos del inicio a fin del día laboral. 
+
+- Cada duración de un servicio no debe ser un multiplo de 30 entre 30 y 480, si no numeros enteros entre 1 a 280 minutos a la hora de editar el tiempo de servicio del empleado.
+
+- El cliente ver las reservas debe ser un boton y al dar click se despligue una ventana flotante para ver bien las reservas del cliente.
+
+Reglas:
+- Borrar todo lo innecesario de los cambios nuevos acorde a los requerimientos.
+
+# Correciones
+Eres un Senior Backend Developer en nodejs.
+
+Tarea: Tu trabajo es buscar errores en el backend de la pagina web y hacerlos funcionar acordes a los requerimientos dados.
+
+Requerimientos:
+- Los tiempos establecidos por cada empleado debe ser individual, cada empleado tiene su tiempo y se ve reflejado en calendario disponibilidad.
+
+- un cliente al registrarse, si la base de datos hay correos iguales dar mensaje que ese correo esta en la base de datos con un mensaje "Este correo ya existe", los nombres no tienen que tener eso, solo el correo.
+
+- cupos de referencia no debe verse nada.
+
+- El boton ver mis reservas debe tener mejor diseño, tener el mensaje de la fecha-hora y el cliente, adelante si esta activado o no, si esta activado debe borrarse, sino no.
