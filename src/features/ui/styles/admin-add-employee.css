@@ -467,11 +467,14 @@ pre {
   }
 
   .admin-nav {
+    display: grid;
+    grid-template-columns: 1fr;
     width: 100%;
   }
 
   .admin-nav .admin-btn {
-    flex: 1;
+    width: 100%;
+    min-width: 0;
   }
 
   table {
@@ -494,6 +497,10 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .admin-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   table {
     min-width: 760px;
   }
@@ -505,10 +512,12 @@ pre {
   }
 
   .admin-nav {
+    display: flex;
     width: auto;
   }
 
   .admin-nav .admin-btn {
+    width: auto;
     flex: 0 0 auto;
   }
 }

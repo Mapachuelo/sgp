@@ -62,6 +62,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.7rem;
+  flex-wrap: wrap;
 }
 
 .btn {
@@ -525,11 +526,22 @@ pre {
   }
 
   .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
     width: 100%;
   }
 
   .topbar-actions .btn {
-    flex: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .calendar-toolbar label,
+  .calendar-toolbar input,
+  .calendar-toolbar .btn,
+  .slot-selection-badge {
+    width: 100%;
+    max-width: none;
   }
 
   table {
@@ -561,6 +573,10 @@ pre {
   table {
     min-width: max(100%, calc(var(--calendar-visible-days, 4) * 102px + 78px));
   }
+
+  .topbar-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 768px) {
@@ -569,11 +585,26 @@ pre {
   }
 
   .topbar-actions {
-    width: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
   }
 
   .topbar-actions .btn {
-    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .calendar-toolbar label {
+    width: auto;
+  }
+
+  .calendar-toolbar input {
+    width: 180px;
+    max-width: 180px;
+  }
+
+  .calendar-toolbar .btn,
+  .slot-selection-badge {
+    width: auto;
   }
 
   .booking-panel {
@@ -588,7 +619,18 @@ pre {
   }
 
   .topbar {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions {
+    display: flex;
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions .btn {
+    width: auto;
   }
 
   .calendar-layout {
@@ -610,6 +652,14 @@ pre {
 }
 
 @media (min-width: 1200px) {
+  .topbar {
+    flex-wrap: nowrap;
+  }
+
+  .topbar-actions {
+    width: auto;
+  }
+
   .calendar-layout {
     width: min(1540px, 97vw);
     grid-template-columns: minmax(0, 1fr) minmax(340px, 390px);
