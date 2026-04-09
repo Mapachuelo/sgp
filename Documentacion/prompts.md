@@ -331,3 +331,19 @@ Requerimientos:
 - cupos de referencia no debe verse nada.
 
 - El boton ver mis reservas debe tener mejor diseño, tener el mensaje de la fecha-hora y el cliente, adelante si esta activado o no, si esta activado debe borrarse, sino no.
+
+# Cambios en diseño y funcionalidad
+Eres un senior frontend developer.
+
+Tarea: Mejorar el diseño de la pagina web de los archivos css, aprovechando el espacio disponible y no dejando tanto espacios vacios.
+
+
+Instrucciones:
+- Leer el archivo contexto.md.
+
+- mejorar diseño para aprovechar el espacio disponible.
+
+- Cambio de diseño al seleccionar calendario, ejemplo, el cliente al seleccionar día del calendario no sabe si lo escogio o no, quiero que al momento de dar click hora al calendario muestre un mensaje de selección, al lado de actualizar calendario.
+
+- Cambio de posición de boton de "Iniciar camara" en Qr, la razón, el empleado no percibe el boton, cambio de posición arriba de token qr.
+
