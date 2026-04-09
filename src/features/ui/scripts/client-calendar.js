@@ -351,11 +351,31 @@
 
     if (!state.selectedSlot) {
       el.textContent = "Selecciona un horario disponible.";
+      updateSelectionBadge();
       return;
     }
 
     el.textContent =
       "Horario seleccionado: " + state.selectedSlot.date + " a las " + state.selectedSlot.time;
+
+    updateSelectionBadge();
+  }
+
+  function updateSelectionBadge() {
+    const badge = byId("slotSelectionBadge");
+    if (!badge) {
+      return;
+    }
+
+    if (!state.selectedSlot) {
+      badge.textContent = "Sin horario seleccionado";
+      badge.className = "slot-selection-badge";
+      return;
+    }
+
+    badge.textContent =
+      "Seleccionado: " + state.selectedSlot.date + " " + state.selectedSlot.time;
+    badge.className = "slot-selection-badge active";
   }
 
   function renderCalendar() {
@@ -379,6 +399,7 @@
     head.appendChild(headRow);
 
     const slotDurationMinutes = normalizeStepMinutes(state.selectedServiceDuration);
+    let selectedSlotIsVisible = false;
 
     getSlots(slotDurationMinutes).forEach(function (slot) {
       const row = document.createElement("tr");
@@ -439,6 +460,16 @@
         } else {
           button.classList.add("available");
           button.textContent = "Reservar";
+
+          if (
+            state.selectedSlot &&
+            state.selectedSlot.date === dayKey &&
+            state.selectedSlot.time === slot
+          ) {
+            button.classList.add("selected");
+            button.textContent = "Seleccionado";
+            selectedSlotIsVisible = true;
+          }
         }
 
         cell.appendChild(button);
@@ -447,6 +478,12 @@
 
       body.appendChild(row);
     });
+
+    if (state.selectedSlot && !selectedSlotIsVisible) {
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
+      setAuthUi();
+    }
   }
 
   async function fetchAvailabilityByDay(dayKey) {
@@ -796,13 +833,22 @@
     const date = target.dataset.date;
     const time = target.dataset.time;
 
+    document.querySelectorAll(".slot-btn.selected").forEach(function (button) {
+      button.classList.remove("selected");
+      if (button.classList.contains("available")) {
+        button.textContent = "Reservar";
+      }
+    });
+
     state.selectedSlot = { date: date, time: time };
+    target.classList.add("selected");
+    target.textContent = "Seleccionado";
     updateSelectedSlotLabel();
 
     if (!getToken()) {
-      setFeedback("Para confirmar reserva debes iniciar sesion.", "warn");
+      setFeedback("Horario seleccionado. Para confirmar reserva debes iniciar sesion.", "warn");
     } else {
-      setFeedback("Horario listo para reservar.", "info");
+      setFeedback("Horario seleccionado y listo para reservar.", "info");
     }
 
     setAuthUi();

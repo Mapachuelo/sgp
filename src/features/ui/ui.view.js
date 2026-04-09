@@ -164,6 +164,7 @@ function clientCalendarView() {
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
       <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
     <div class="legend-row">
@@ -303,6 +304,7 @@ function employeeCalendarView() {
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
       <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
     <div class="legend-row">
@@ -428,14 +430,14 @@ function employeeValidateQrView() {
     <div class="camera-box">
       <video id="cameraPreview" autoplay playsinline muted></video>
     </div>
-    <div class="scan-actions">
-      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
-      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
-    </div>
   </section>
 
   <aside class="emp-panel side-panel">
     <h2>Validacion manual</h2>
+    <div class="camera-quick-actions">
+      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
+      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
+    </div>
     <label>Token QR</label>
     <input id="qrTokenInput" type="text" placeholder="Pega o escanea el token" />
     <button id="validateBtn" class="emp-btn solid block" type="button">Validar ingreso</button>
@@ -638,6 +640,7 @@ function adminCalendarView() {
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
       <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
     <div class="legend-row">
@@ -759,14 +762,14 @@ function adminValidateQrView() {
     <div class="camera-box">
       <video id="cameraPreview" autoplay playsinline muted></video>
     </div>
-    <div class="scan-actions">
-      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
-      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
-    </div>
   </section>
 
   <aside class="emp-panel side-panel">
     <h2>Validacion manual</h2>
+    <div class="camera-quick-actions">
+      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
+      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
+    </div>
     <label>Token QR</label>
     <input id="qrTokenInput" type="text" placeholder="Pega o escanea el token" />
     <button id="validateBtn" class="emp-btn solid block" type="button">Validar ingreso</button>
