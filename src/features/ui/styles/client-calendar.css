@@ -711,6 +711,13 @@ pre {
 }
 
 @media (min-width: 1024px) {
+  body {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+
   .topbar {
     flex-wrap: wrap;
   }
@@ -733,8 +740,27 @@ pre {
 
   .calendar-layout {
     width: min(1360px, 96vw);
+    margin: 0 auto;
+    padding: 1rem 0 1.2rem;
     grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
     gap: 1.2rem;
+  }
+
+  .calendar-main {
+    overflow: hidden;
+  }
+
+  .calendar-shell {
+    min-height: 0;
+  }
+
+  .booking-panel {
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
   }
 
   .api-output-panel {
