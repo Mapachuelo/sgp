@@ -1,5 +1,5 @@
 (function () {
-  const TOKEN_KEY = "sgp_token";
+  const TOKEN_KEYS = ["sgp_token", "employee_token", "admin_token"];
   const LOGIN_PATH = "/ui/login";
   const EMPLOYEE_DASHBOARD_PATH = "/ui/empleado";
   const state = {
@@ -15,11 +15,26 @@
   }
 
   function getToken() {
-    return localStorage.getItem(TOKEN_KEY) || "";
+    for (const key of TOKEN_KEYS) {
+      const value = localStorage.getItem(key);
+      if (value) {
+        return value;
+      }
+    }
+
+    return "";
+  }
+
+  function getRole(user) {
+    return String((user && user.role) || "")
+      .trim()
+      .toLowerCase();
   }
 
   function clearToken() {
-    localStorage.removeItem(TOKEN_KEY);
+    TOKEN_KEYS.forEach(function (key) {
+      localStorage.removeItem(key);
+    });
     localStorage.removeItem("client_token");
     localStorage.removeItem("employee_token");
     localStorage.removeItem("admin_token");
@@ -51,7 +66,7 @@
       return;
     }
 
-    const isAdmin = Boolean(user && user.role === "admin");
+    const isAdmin = getRole(user) === "admin";
     adminLink.classList.toggle("hidden", !isAdmin);
   }
 
@@ -62,7 +77,7 @@
     }
 
     const isDashboardView = isEmployeeDashboardPath(window.location.pathname);
-    const isEmployee = Boolean(user && user.role === "employee");
+    const isEmployee = getRole(user) === "employee";
     editButton.classList.toggle("hidden", !(isEmployee && isDashboardView));
   }
 
@@ -152,7 +167,8 @@
   }
 
   function canUseEmployeeArea(user) {
-    return user && (user.role === "employee" || user.role === "admin");
+    const role = getRole(user);
+    return role === "employee" || role === "admin";
   }
 
   async function openEmployeeAccountEditor() {
@@ -161,7 +177,7 @@
       return;
     }
 
-    if (!state.currentUser || state.currentUser.role !== "employee") {
+    if (getRole(state.currentUser) !== "employee") {
       setFeedback("Solo empleados pueden editar su cuenta desde esta vista.", "warn");
       return;
     }

@@ -522,11 +522,11 @@ function employeeVerifyClientsView() {
   <section class="emp-panel verify-main">
     <div class="panel-head">
       <h1>Verificar clientes</h1>
-      <div class="inline-controls">
-        <label for="weekStart">Semana</label>
-        <input id="weekStart" type="date" />
-        <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
-      </div>
+    </div>
+    <div class="inline-controls verify-controls">
+      <label for="weekStart">Semana</label>
+      <input id="weekStart" type="date" />
+      <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
@@ -856,11 +856,11 @@ function adminVerifyClientsView() {
   <section class="emp-panel verify-main">
     <div class="panel-head">
       <h1>Verificar clientes</h1>
-      <div class="inline-controls">
-        <label for="weekStart">Semana</label>
-        <input id="weekStart" type="date" />
-        <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
-      </div>
+    </div>
+    <div class="inline-controls verify-controls">
+      <label for="weekStart">Semana</label>
+      <input id="weekStart" type="date" />
+      <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
