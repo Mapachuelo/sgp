@@ -574,6 +574,85 @@ thead th {
   font-family: "Playfair Display", serif;
 }
 
+#clientProfileModal {
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#clientProfileModal .modal-card {
+  width: min(560px, 96vw);
+  max-height: none;
+  overflow: visible;
+}
+
+#clientProfileModal .modal-head {
+  margin-bottom: 0;
+}
+
+#clientProfileModal .modal-head h2 {
+  margin: 0;
+  font-family: "Playfair Display", serif;
+  color: var(--stone-dk);
+}
+
+#clientProfileModal label {
+  display: block;
+  margin-top: 0.7rem;
+  margin-bottom: 0.38rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--stone);
+}
+
+#clientProfileModal input {
+  width: 100%;
+  border: 1.5px solid var(--sand-dk);
+  border-radius: var(--radius-sm);
+  padding: 0.72rem 0.85rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.95rem;
+  background: var(--ivory);
+  transition: var(--transition);
+  color: var(--stone-dk);
+}
+
+#clientProfileModal input::placeholder {
+  color: var(--stone-lt);
+}
+
+#clientProfileModal input:focus {
+  outline: none;
+  border-color: var(--terra);
+  box-shadow: 0 0 0 3px rgba(192,115,90,0.1), var(--shadow-sm);
+  background: #fff;
+}
+
+#clientProfileModal .feedback {
+  margin-top: 0.8rem;
+}
+
+#clientProfileModal .btn.ghost {
+  background: var(--ivory);
+  color: var(--stone-dk);
+  border: 1px solid var(--sand-dk);
+}
+
+#clientProfileModal .btn.ghost:hover {
+  background: var(--ivory-dk);
+  border-color: var(--terra-lt);
+}
+
+#clientProfileModal .modal-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
 .reservations-modal-card .reservations-list {
   list-style: none;
   padding-left: 0;

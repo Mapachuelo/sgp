@@ -1,9 +1,14 @@
 (function () {
   const TOKEN_KEY = "sgp_token";
   const LOGIN_PATH = "/ui/login";
+  const EMPLOYEE_DASHBOARD_PATH = "/ui/empleado";
   const state = {
     currentUser: null
   };
+
+  function isEmployeeDashboardPath(pathname) {
+    return pathname === EMPLOYEE_DASHBOARD_PATH || pathname === EMPLOYEE_DASHBOARD_PATH + "/";
+  }
 
   function byId(id) {
     return document.getElementById(id);
@@ -56,8 +61,9 @@
       return;
     }
 
+    const isDashboardView = isEmployeeDashboardPath(window.location.pathname);
     const isEmployee = Boolean(user && user.role === "employee");
-    editButton.classList.toggle("hidden", !isEmployee);
+    editButton.classList.toggle("hidden", !(isEmployee && isDashboardView));
   }
 
   function splitName(fullName) {
@@ -150,6 +156,11 @@
   }
 
   async function openEmployeeAccountEditor() {
+    if (!isEmployeeDashboardPath(window.location.pathname)) {
+      setFeedback("La edicion de cuenta de empleado solo esta disponible en el dashboard.", "warn");
+      return;
+    }
+
     if (!state.currentUser || state.currentUser.role !== "employee") {
       setFeedback("Solo empleados pueden editar su cuenta desde esta vista.", "warn");
       return;
