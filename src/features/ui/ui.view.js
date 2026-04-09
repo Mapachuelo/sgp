@@ -158,6 +158,7 @@ function clientView() {
   <a class="brand" href="/ui/client">Prueba</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
+    <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
     <button id="navLoginBtn" class="btn accent" type="button">Iniciar sesion</button>
     <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -182,6 +183,34 @@ function clientView() {
     <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
   </section>
 </main>
+
+<div id="clientProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clientProfileTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="clientProfileTitle">Editar perfil de cliente</h2>
+      <button id="closeProfileEditBtn" class="btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="clientProfileName" type="text" placeholder="Nombre completo" />
+
+    <label>Numero</label>
+    <input id="clientProfilePhone" type="text" placeholder="Numero de telefono" />
+
+    <label>Correo</label>
+    <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
+
+    <label>Password</label>
+    <input id="clientProfilePassword" type="password" placeholder="Minimo 6 caracteres" />
+
+    <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
+
+    <div class="modal-actions">
+      <button id="cancelProfileEditBtn" class="btn ghost" type="button">Cancelar</button>
+      <button id="saveProfileEditBtn" class="btn accent" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
@@ -278,12 +307,12 @@ function clientCalendarView() {
 function employeeView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">Prueba</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
@@ -295,8 +324,8 @@ function employeeView() {
     <h1>Panel de control de empleados</h1>
     <p>Gestiona reservas, calendario de disponibilidad y valida ingresos con QR.</p>
     <div class="hero-actions">
-      <a class="emp-btn solid" href="/ui/employee/calendar">Abrir calendario</a>
-      <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar clientes</a>
+      <a class="emp-btn solid" href="/ui/empleado/calendar">Abrir calendario</a>
+      <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar clientes</a>
     </div>
     <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
@@ -333,12 +362,12 @@ function employeeView() {
 function employeeCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/employee">Prueba</a>
+  <a class="brand" href="/ui/empleado">Prueba</a>
   <nav class="topbar-actions">
-    <a class="btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -410,12 +439,12 @@ function employeeCalendarView() {
 function employeeVerifyClientsView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">Prueba</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -462,12 +491,12 @@ function employeeVerifyClientsView() {
 function employeeValidateQrView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">Prueba</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>

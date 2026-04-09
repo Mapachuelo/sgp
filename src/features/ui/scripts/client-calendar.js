@@ -7,7 +7,7 @@
     ? "/ui/client"
     : isAdminContext
       ? "/ui/admin"
-      : "/ui/employee";
+      : "/ui/empleado";
   const LOGIN_PATH = isClientContext
     ? "/ui/login"
     : isAdminContext

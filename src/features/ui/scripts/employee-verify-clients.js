@@ -1,9 +1,9 @@
 (function () {
   const isAdminContext = window.location.pathname.startsWith("/ui/admin");
   const TOKEN_KEY = "sgp_token";
-  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
+  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/empleado";
   const LOGIN_PATH = "/ui/login";
-  const VALIDATE_QR_PATH = isAdminContext ? "/ui/admin/validate-qr" : "/ui/employee/validate-qr";
+  const VALIDATE_QR_PATH = isAdminContext ? "/ui/admin/validate-qr" : "/ui/empleado/validate-qr";
   const FULL_START_HOUR = 6;
   const FULL_END_HOUR = 22;
   const FULL_DAY_COUNT = 7;
@@ -438,7 +438,10 @@
           rowWrap.className = "reservation-item";
 
           const text = document.createElement("span");
-          text.textContent = reservation.service_name + " / Cliente #" + reservation.client_id;
+          const clientLabel = reservation.client_name
+            ? String(reservation.client_name)
+            : "Cliente #" + String(reservation.client_id || "-");
+          text.textContent = reservation.service_name + " / " + clientLabel;
           rowWrap.appendChild(text);
 
           if (reservation.status === "checked_in") {

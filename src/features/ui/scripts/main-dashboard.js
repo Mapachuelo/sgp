@@ -77,7 +77,7 @@
 		}
 
 		if (role === "employee") {
-			return "/ui/employee";
+			return "/ui/empleado";
 		}
 
 		return "/ui/client";
