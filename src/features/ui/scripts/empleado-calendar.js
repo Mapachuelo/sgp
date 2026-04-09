@@ -1,7 +1,7 @@
 (function () {
   const isAdminContext = window.location.pathname.startsWith("/ui/admin");
   const TOKEN_KEY = isAdminContext ? "admin_token" : "employee_token";
-  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
+  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/empleado";
   const START_HOUR = 6;
   const END_HOUR = 22;
   const DAY_COUNT = 7;
@@ -205,7 +205,10 @@
           td.className = "booked";
           td.textContent = reservations
             .map(function (entry) {
-              return entry.service_name + " / Cliente #" + entry.client_id;
+              const clientLabel = entry.client_name
+                ? String(entry.client_name)
+                : "Cliente #" + String(entry.client_id || "-");
+              return entry.service_name + " / " + clientLabel;
             })
             .join(" | ");
         }

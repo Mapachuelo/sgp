@@ -1,6 +1,9 @@
 (function () {
   const TOKEN_KEY = "sgp_token";
   const LOGIN_PATH = "/ui/login";
+  const state = {
+    currentUser: null
+  };
 
   function byId(id) {
     return document.getElementById(id);
@@ -50,11 +53,48 @@
     return hours + ":" + minutes;
   }
 
+  function isClientRole(user) {
+    return Boolean(user && user.role === "client");
+  }
+
   function setAuthUi() {
     const hasToken = Boolean(getToken());
-    byId("authBadge").textContent = hasToken ? "Sesion iniciada" : "Sesion no iniciada";
+    const isClientSession = hasToken && isClientRole(state.currentUser);
+
+    byId("authBadge").textContent = isClientSession
+      ? "Sesion iniciada"
+      : hasToken
+        ? "Sesion iniciada (rol no cliente)"
+        : "Sesion no iniciada";
+
     byId("navLoginBtn").classList.toggle("hidden", hasToken);
     byId("navLogoutBtn").classList.toggle("hidden", !hasToken);
+
+    const openProfileButton = byId("openProfileEditBtn");
+    if (openProfileButton) {
+      openProfileButton.classList.toggle("hidden", !isClientSession);
+    }
+  }
+
+  function isValidEmail(email) {
+    return /^\S+@\S+\.\S+$/.test(email);
+  }
+
+  function splitName(fullName) {
+    const normalized = String(fullName || "").trim().replace(/\s+/g, " ");
+    if (!normalized) {
+      return { firstName: "", lastName: "" };
+    }
+
+    const parts = normalized.split(" ");
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: "" };
+    }
+
+    return {
+      firstName: parts.shift(),
+      lastName: parts.join(" ")
+    };
   }
 
   async function callApi(path, method, body) {
@@ -92,15 +132,135 @@
 
   async function loadProfile() {
     try {
-      const payload = await callApi("/api/auth/me", "GET");
-      if (!payload.data || payload.data.role !== "client") {
+      const user = await ensureClientSession();
+      if (!user) {
         setFeedback("Esta vista es solo para clientes autenticados.", "warn");
         return;
       }
 
-      setFeedback("Sesion valida para: " + payload.data.email, "ok");
+      setFeedback("Sesion valida para: " + user.email, "ok");
     } catch (error) {
       setFeedback(error.message, "warn");
+    }
+  }
+
+  function openProfileModal() {
+    const modal = byId("clientProfileModal");
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeProfileModal() {
+    const modal = byId("clientProfileModal");
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add("hidden");
+    const passwordInput = byId("clientProfilePassword");
+    if (passwordInput) {
+      passwordInput.value = "";
+    }
+  }
+
+  function fillProfileForm(profile) {
+    const nameParts = splitName(profile.name);
+    byId("clientProfileFirstName").value = nameParts.firstName;
+    byId("clientProfileLastName").value = nameParts.lastName;
+    byId("clientProfilePhone").value = profile.phone || "";
+    byId("clientProfileEmail").value = profile.email || "";
+    byId("clientProfilePassword").value = "";
+  }
+
+  async function ensureClientSession() {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Debes iniciar sesion para esta accion.");
+    }
+
+    const payload = await callApi("/api/auth/me", "GET");
+    const user = payload.data;
+    state.currentUser = user || null;
+    setAuthUi();
+
+    if (!isClientRole(user)) {
+      throw new Error("Esta accion es exclusiva para clientes.");
+    }
+
+    return user;
+  }
+
+  async function openProfileEditor() {
+    try {
+      await ensureClientSession();
+      const payload = await callApi("/api/clients/me", "GET");
+      fillProfileForm(payload.data || {});
+      openProfileModal();
+      setFeedback("Edita tus datos y guarda los cambios.", "info");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function saveProfileEditor() {
+    const firstName = (byId("clientProfileFirstName").value || "").trim();
+    const lastName = (byId("clientProfileLastName").value || "").trim();
+    const name = (firstName + " " + lastName).trim();
+    const phone = (byId("clientProfilePhone").value || "").trim();
+    const email = (byId("clientProfileEmail").value || "").trim();
+    const password = (byId("clientProfilePassword").value || "").trim();
+
+    if (!firstName || !lastName || !phone || !email || !password) {
+      setFeedback("Completa nombre, apellido, numero, correo y password para guardar.", "warn");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setFeedback("Ingresa un correo valido.", "warn");
+      return;
+    }
+
+    if (password.length < 6) {
+      setFeedback("La password debe tener al menos 6 caracteres.", "warn");
+      return;
+    }
+
+    try {
+      const payload = await callApi("/api/clients/me", "PUT", {
+        name: name,
+        phone: phone,
+        email: email,
+        password: password
+      });
+
+      state.currentUser = payload.data || state.currentUser;
+      setAuthUi();
+      closeProfileModal();
+      setFeedback("Perfil actualizado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function refreshSessionState() {
+    const token = getToken();
+    if (!token) {
+      state.currentUser = null;
+      setAuthUi();
+      return;
+    }
+
+    try {
+      const payload = await callApi("/api/auth/me", "GET");
+      state.currentUser = payload.data || null;
+      setAuthUi();
+    } catch (_error) {
+      clearToken();
+      state.currentUser = null;
+      setAuthUi();
     }
   }
 
@@ -152,6 +312,36 @@
   }
 
   byId("loadProfileBtn").addEventListener("click", loadProfile);
+
+  const openProfileEditBtn = byId("openProfileEditBtn");
+  if (openProfileEditBtn) {
+    openProfileEditBtn.addEventListener("click", openProfileEditor);
+  }
+
+  const saveProfileEditBtn = byId("saveProfileEditBtn");
+  if (saveProfileEditBtn) {
+    saveProfileEditBtn.addEventListener("click", saveProfileEditor);
+  }
+
+  const closeProfileEditBtn = byId("closeProfileEditBtn");
+  if (closeProfileEditBtn) {
+    closeProfileEditBtn.addEventListener("click", closeProfileModal);
+  }
+
+  const cancelProfileEditBtn = byId("cancelProfileEditBtn");
+  if (cancelProfileEditBtn) {
+    cancelProfileEditBtn.addEventListener("click", closeProfileModal);
+  }
+
+  const profileModal = byId("clientProfileModal");
+  if (profileModal) {
+    profileModal.addEventListener("click", function (event) {
+      if (event.target === profileModal) {
+        closeProfileModal();
+      }
+    });
+  }
+
   const availabilityBtn = byId("availabilityBtn");
   if (availabilityBtn) {
     availabilityBtn.addEventListener("click", loadAvailability);
@@ -161,15 +351,17 @@
   });
   byId("navLogoutBtn").addEventListener("click", function () {
     clearToken();
+    state.currentUser = null;
     setAuthUi();
     setFeedback("Sesion cerrada.", "info");
+    closeProfileModal();
   });
 
   const availabilityDate = byId("availabilityDate");
   if (availabilityDate) {
     availabilityDate.value = toDateInputValue(new Date());
   }
-  setAuthUi();
+  refreshSessionState();
   if (availabilityBtn && availabilityDate) {
     loadAvailability();
   }

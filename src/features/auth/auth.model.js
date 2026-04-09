@@ -172,6 +172,31 @@ async function listStylists() {
   return result.rows;
 }
 
+async function findEmployeeAccountByUserId(userId) {
+  await ensureEmployeeProfileTable();
+
+  const result = await db.query(
+    `
+      SELECT
+        u.id,
+        u.name,
+        COALESCE(ep.last_name, '') AS last_name,
+        COALESCE(ep.identification, '') AS identification,
+        u.phone,
+        u.email,
+        u.role,
+        u.created_at
+      FROM app_user u
+      LEFT JOIN employee_profile ep ON ep.user_id = u.id
+      WHERE u.id = $1
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function updateUserById(id, { phone, email, passwordHash }) {
   const result = await db.query(
     `
@@ -231,6 +256,7 @@ module.exports = {
   findUserByEmail,
   findUserByPhone,
   findUserById,
+  findEmployeeAccountByUserId,
   createUser,
   findEmployeeByIdentification,
   listEmployees,

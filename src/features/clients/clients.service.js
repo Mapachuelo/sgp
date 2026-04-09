@@ -1,10 +1,16 @@
+const bcrypt = require("bcryptjs");
 const { HttpError } = require("../../shared/httpError");
 const {
   listClients,
   findClientById,
+  findUserByEmail,
   updateClient,
   deleteClient
 } = require("./clients.model");
+
+function isValidEmail(email) {
+  return /^\S+@\S+\.\S+$/.test(email);
+}
 
 async function getAllClients() {
   return listClients();
@@ -22,12 +28,39 @@ async function getMyClientProfile(userId) {
 async function updateMyClientProfile(userId, input) {
   const name = (input.name || "").trim();
   const phone = (input.phone || "").trim();
+  const email = (input.email || "").trim().toLowerCase();
+  const password = (input.password || "").trim();
 
-  if (!name || !phone) {
-    throw new HttpError(400, "name y phone son obligatorios");
+  if (!name || !phone || !email || !password) {
+    throw new HttpError(400, "name, phone, email y password son obligatorios");
   }
 
-  const updated = await updateClient(userId, { name, phone });
+  if (!isValidEmail(email)) {
+    throw new HttpError(400, "email no tiene un formato valido");
+  }
+
+  if (password.length < 6) {
+    throw new HttpError(400, "El password debe tener al menos 6 caracteres");
+  }
+
+  const emailTaken = await findUserByEmail(email);
+  if (emailTaken && Number(emailTaken.id) !== Number(userId)) {
+    throw new HttpError(409, "Este correo ya existe");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  let updated = null;
+  try {
+    updated = await updateClient(userId, { name, phone, email, passwordHash });
+  } catch (error) {
+    if (error && error.code === "23505") {
+      throw new HttpError(409, "Este correo ya existe");
+    }
+
+    throw error;
+  }
+
   if (!updated) {
     throw new HttpError(404, "Cliente no encontrado");
   }

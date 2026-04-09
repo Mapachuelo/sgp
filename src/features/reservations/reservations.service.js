@@ -33,6 +33,8 @@ const DEFAULT_SERVICE_DURATION_MINUTES = 30;
 const MIN_SERVICE_DURATION_MINUTES = 1;
 const MAX_SERVICE_DURATION_MINUTES = 280;
 const MAX_ACTIVE_RESERVATIONS_BY_CLIENT = 3;
+const MIN_CLIENT_COUNT_PER_RESERVATION = 1;
+const MAX_CLIENT_COUNT_PER_RESERVATION = 5;
 
 function validateStartsAt(startsAtText) {
   const startsAt = new Date(startsAtText);
@@ -117,6 +119,26 @@ function parseServiceDuration(inputDuration) {
   }
 
   return duration;
+}
+
+function normalizeClientCount(inputCount) {
+  const count = Number(inputCount);
+
+  if (
+    !Number.isInteger(count) ||
+    count < MIN_CLIENT_COUNT_PER_RESERVATION ||
+    count > MAX_CLIENT_COUNT_PER_RESERVATION
+  ) {
+    throw new HttpError(
+      400,
+      "clientCount debe ser un entero entre " +
+        String(MIN_CLIENT_COUNT_PER_RESERVATION) +
+        " y " +
+        String(MAX_CLIENT_COUNT_PER_RESERVATION)
+    );
+  }
+
+  return count;
 }
 
 function normalizeScheduleEntry(input) {
@@ -260,7 +282,10 @@ async function resolveReservationDurationMinutes(
     false
   );
 
-  return resolved.durationMinutes;
+  const clientCount = Number(reservation.client_count);
+  const safeClientCount = Number.isInteger(clientCount) && clientCount > 0 ? clientCount : 1;
+
+  return resolved.durationMinutes * safeClientCount;
 }
 
 async function hasStylistOverlap(
@@ -334,6 +359,7 @@ async function validateStylistWorkingSchedule(stylistId, startsAt, endsAt) {
 async function evaluateStylistCandidate(
   stylist,
   startsAt,
+  clientCount,
   service,
   reservationsOfDate,
   serviceByName,
@@ -351,7 +377,8 @@ async function evaluateStylistCandidate(
     throw new HttpError(409, "El peluquero seleccionado no tiene configurado ese servicio");
   }
 
-  const endsAt = addMinutes(startsAt, durationResult.durationMinutes);
+  const totalDurationMinutes = durationResult.durationMinutes * clientCount;
+  const endsAt = addMinutes(startsAt, totalDurationMinutes);
   await validateStylistWorkingSchedule(stylist.id, startsAt, endsAt);
 
   const overlap = await hasStylistOverlap(
@@ -370,7 +397,7 @@ async function evaluateStylistCandidate(
 
   return {
     stylist,
-    durationMinutes: durationResult.durationMinutes,
+    durationMinutes: totalDurationMinutes,
     endsAt
   };
 }
@@ -379,6 +406,7 @@ async function resolveStylistSelection(
   input,
   stylists,
   startsAt,
+  clientCount,
   service,
   reservationsOfDate,
   serviceByName,
@@ -398,6 +426,7 @@ async function resolveStylistSelection(
         return await evaluateStylistCandidate(
           stylist,
           startsAt,
+          clientCount,
           service,
           reservationsOfDate,
           serviceByName,
@@ -436,6 +465,7 @@ async function resolveStylistSelection(
   return evaluateStylistCandidate(
     selected,
     startsAt,
+    clientCount,
     service,
     reservationsOfDate,
     serviceByName,
@@ -481,14 +511,10 @@ async function enrichReservationsWithDuration(reservations) {
 async function reserveAppointment(clientId, input) {
   const serviceName = (input.serviceName || "").trim();
   const startsAt = validateStartsAt(input.startsAt);
-  const clientCount = Number(input.clientCount || 1);
+  const clientCount = normalizeClientCount(input.clientCount || 1);
 
   if (!serviceName) {
     throw new HttpError(400, "serviceName es obligatorio");
-  }
-
-  if (!Number.isInteger(clientCount) || clientCount <= 0) {
-    throw new HttpError(400, "clientCount debe ser un entero mayor a 0");
   }
 
   const activeReservations = await countActiveReservationsByClient(clientId);
@@ -522,6 +548,7 @@ async function reserveAppointment(clientId, input) {
     input,
     stylists,
     startsAt,
+    clientCount,
     selectedService,
     reservationsOfDate,
     serviceMaps.byName,

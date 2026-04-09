@@ -123,10 +123,23 @@ async function listReservationsByClient(clientId) {
 
   const result = await db.query(
     `
-      SELECT id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, checked_in_at, created_at
-      FROM reservation
-      WHERE client_id = $1
-      ORDER BY starts_at DESC
+      SELECT
+        r.id,
+        r.client_id,
+        c.name AS client_name,
+        r.service_name,
+        r.stylist_name,
+        r.stylist_id,
+        r.starts_at,
+        r.client_count,
+        r.qr_token,
+        r.status,
+        r.checked_in_at,
+        r.created_at
+      FROM reservation r
+      JOIN app_user c ON c.id = r.client_id
+      WHERE r.client_id = $1
+      ORDER BY r.starts_at DESC
     `,
     [clientId]
   );
@@ -139,9 +152,22 @@ async function listAllReservations() {
 
   const result = await db.query(
     `
-      SELECT id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, checked_in_at, created_at
-      FROM reservation
-      ORDER BY starts_at DESC
+      SELECT
+        r.id,
+        r.client_id,
+        c.name AS client_name,
+        r.service_name,
+        r.stylist_name,
+        r.stylist_id,
+        r.starts_at,
+        r.client_count,
+        r.qr_token,
+        r.status,
+        r.checked_in_at,
+        r.created_at
+      FROM reservation r
+      JOIN app_user c ON c.id = r.client_id
+      ORDER BY r.starts_at DESC
     `
   );
 
@@ -153,11 +179,21 @@ async function listReservedByDate(dateText) {
 
   const result = await db.query(
     `
-      SELECT id, service_name, stylist_name, stylist_id, starts_at, status
-      FROM reservation
-      WHERE DATE(starts_at) = $1
-        AND status IN ('booked', 'checked_in')
-      ORDER BY starts_at ASC
+      SELECT
+        r.id,
+        r.client_id,
+        c.name AS client_name,
+        r.service_name,
+        r.stylist_name,
+        r.stylist_id,
+        r.starts_at,
+        r.client_count,
+        r.status
+      FROM reservation r
+      JOIN app_user c ON c.id = r.client_id
+      WHERE DATE(r.starts_at) = $1
+        AND r.status IN ('booked', 'checked_in')
+      ORDER BY r.starts_at ASC
     `,
     [dateText]
   );

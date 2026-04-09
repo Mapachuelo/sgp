@@ -1,7 +1,7 @@
 (function () {
   const isAdminContext = window.location.pathname.startsWith("/ui/admin");
   const TOKEN_KEY = "sgp_token";
-  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
+  const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/empleado";
   const LOGIN_PATH = "/ui/login";
 
   const state = {

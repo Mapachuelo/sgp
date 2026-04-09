@@ -1,12 +1,14 @@
 const { asyncHandler } = require("../../shared/asyncHandler");
 const {
   getMe,
+  getEmployeeOwnAccount,
   login,
   register,
   createEmployeeByAdmin,
   getEmployeesByAdmin,
   deleteEmployeeByAdmin,
   updateRegisteredUserByAdmin,
+  updateEmployeeOwnAccount,
   getStylistsForCalendar
 } = require("./auth.service");
 
@@ -22,6 +24,16 @@ const loginController = asyncHandler(async (req, res) => {
 
 const meController = asyncHandler(async (req, res) => {
   const data = await getMe(req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const employeeOwnAccountController = asyncHandler(async (req, res) => {
+  const data = await getEmployeeOwnAccount(req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const updateEmployeeOwnAccountController = asyncHandler(async (req, res) => {
+  const data = await updateEmployeeOwnAccount(req.auth.sub, req.body);
   res.json({ ok: true, data });
 });
 
@@ -54,6 +66,8 @@ module.exports = {
   registerController,
   loginController,
   meController,
+  employeeOwnAccountController,
+  updateEmployeeOwnAccountController,
   createEmployeeByAdminController,
   listEmployeesByAdminController,
   deleteEmployeeByAdminController,

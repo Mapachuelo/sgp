@@ -16,14 +16,23 @@ const {
 
 const router = express.Router();
 
+function redirectToEmpleado(req, res) {
+  const nextPath = req.originalUrl.replace("/ui/employee", "/ui/empleado");
+  res.redirect(302, nextPath);
+}
+
 router.get("/", homeController);
 router.get("/ui/login", loginController);
 router.get("/ui/client", clientController);
 router.get("/ui/client/calendar", clientCalendarController);
-router.get("/ui/employee", employeeController);
-router.get("/ui/employee/calendar", employeeCalendarController);
-router.get("/ui/employee/verify-clients", employeeVerifyClientsController);
-router.get("/ui/employee/validate-qr", employeeValidateQrController);
+router.get("/ui/empleado", employeeController);
+router.get("/ui/empleado/calendar", employeeCalendarController);
+router.get("/ui/empleado/verify-clients", employeeVerifyClientsController);
+router.get("/ui/empleado/validate-qr", employeeValidateQrController);
+router.get("/ui/employee", redirectToEmpleado);
+router.get("/ui/employee/calendar", redirectToEmpleado);
+router.get("/ui/employee/verify-clients", redirectToEmpleado);
+router.get("/ui/employee/validate-qr", redirectToEmpleado);
 router.get("/ui/admin", adminController);
 router.get("/ui/admin/calendar", adminCalendarController);
 router.get("/ui/admin/verify-clients", adminVerifyClientsController);

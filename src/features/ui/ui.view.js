@@ -9,6 +9,56 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
   </head>
   <body>
     ${body}
+    <script>
+      (function () {
+        function ensureToggle(headerSelector, navSelector, buttonClassName) {
+          document.querySelectorAll(headerSelector).forEach(function (header) {
+            var nav = header.querySelector(navSelector);
+            if (!nav || header.querySelector(".js-nav-toggle")) {
+              return;
+            }
+
+            var toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = buttonClassName + " nav-toggle js-nav-toggle";
+            toggle.textContent = "Navegacion";
+            toggle.setAttribute("aria-expanded", "false");
+            toggle.setAttribute("aria-label", "Mostrar navegacion");
+
+            header.insertBefore(toggle, nav);
+
+            toggle.addEventListener("click", function () {
+              var isOpen = nav.classList.toggle("is-open");
+              toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            });
+          });
+        }
+
+        function syncDesktopState() {
+          if (window.innerWidth < 768) {
+            return;
+          }
+
+          document.querySelectorAll(".js-nav-toggle").forEach(function (toggle) {
+            var nav = toggle.nextElementSibling;
+            if (!nav) {
+              return;
+            }
+
+            nav.classList.remove("is-open");
+            toggle.setAttribute("aria-expanded", "false");
+          });
+        }
+
+        ensureToggle(".topbar", ".topbar-actions", "btn ghost");
+        ensureToggle(".emp-topbar", ".emp-nav", "emp-btn ghost");
+        ensureToggle(".admin-topbar", ".admin-nav", "admin-btn ghost");
+        ensureToggle(".main-topbar", ".main-actions", "main-btn");
+
+        syncDesktopState();
+        window.addEventListener("resize", syncDesktopState);
+      })();
+    </script>
     <script src="${scriptPath}"></script>
   </body>
 </html>`;
@@ -108,6 +158,7 @@ function clientView() {
   <a class="brand" href="/ui/client">Prueba</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
+    <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
     <button id="navLoginBtn" class="btn accent" type="button">Iniciar sesion</button>
     <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -132,6 +183,37 @@ function clientView() {
     <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
   </section>
 </main>
+
+<div id="clientProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clientProfileTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="clientProfileTitle">Editar perfil de cliente</h2>
+      <button id="closeProfileEditBtn" class="btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="clientProfileFirstName" type="text" placeholder="Nombre" />
+
+    <label>Apellido</label>
+    <input id="clientProfileLastName" type="text" placeholder="Apellido" />
+
+    <label>Numero</label>
+    <input id="clientProfilePhone" type="text" placeholder="Numero de telefono" />
+
+    <label>Correo</label>
+    <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
+
+    <label>Password</label>
+    <input id="clientProfilePassword" type="password" placeholder="Minimo 6 caracteres" />
+
+    <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
+
+    <div class="modal-actions">
+      <button id="cancelProfileEditBtn" class="btn ghost" type="button">Cancelar</button>
+      <button id="saveProfileEditBtn" class="btn accent" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
@@ -148,6 +230,7 @@ function clientCalendarView() {
   <a class="brand" href="/ui/client">Prueba</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client">Dashboard</a>
+    <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
     <button id="navLoginBtn" class="btn accent" type="button">Login</button>
     <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -164,6 +247,7 @@ function clientCalendarView() {
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
       <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
     <div class="legend-row">
@@ -194,7 +278,7 @@ function clientCalendarView() {
     </select>
 
     <label>Cantidad de clientes</label>
-    <input id="clientCount" type="number" min="1" value="1" />
+    <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
@@ -214,6 +298,37 @@ function clientCalendarView() {
     <ul id="myReservationsList" class="reservations-list"></ul>
   </div>
 </div>
+
+<div id="clientProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clientProfileTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="clientProfileTitle">Editar perfil de cliente</h2>
+      <button id="closeProfileEditBtn" class="btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="clientProfileFirstName" type="text" placeholder="Nombre" />
+
+    <label>Apellido</label>
+    <input id="clientProfileLastName" type="text" placeholder="Apellido" />
+
+    <label>Numero</label>
+    <input id="clientProfilePhone" type="text" placeholder="Numero de telefono" />
+
+    <label>Correo</label>
+    <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
+
+    <label>Password</label>
+    <input id="clientProfilePassword" type="password" placeholder="Minimo 6 caracteres" />
+
+    <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
+
+    <div class="modal-actions">
+      <button id="cancelProfileEditBtn" class="btn ghost" type="button">Cancelar</button>
+      <button id="saveProfileEditBtn" class="btn accent" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
@@ -227,12 +342,13 @@ function clientCalendarView() {
 function employeeView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">Prueba</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
@@ -244,8 +360,8 @@ function employeeView() {
     <h1>Panel de control de empleados</h1>
     <p>Gestiona reservas, calendario de disponibilidad y valida ingresos con QR.</p>
     <div class="hero-actions">
-      <a class="emp-btn solid" href="/ui/employee/calendar">Abrir calendario</a>
-      <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar clientes</a>
+      <a class="emp-btn solid" href="/ui/empleado/calendar">Abrir calendario</a>
+      <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar clientes</a>
     </div>
     <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
@@ -269,25 +385,57 @@ function employeeView() {
     <p id="dashboardFeedback" class="feedback info">Conecta tu sesion para sincronizar datos.</p>
   </section>
 </main>
+
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="Nuevo numero celular" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Password</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Minimo 6 caracteres" />
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
     "SGP - Empleado Dashboard",
-    "/ui-assets/styles/employee-dashboard.css",
+    "/ui-assets/styles/empleado-dashboard.css",
     body,
-    "/ui-assets/scripts/employee-dashboard.js"
+    "/ui-assets/scripts/empleado-dashboard.js"
   );
 }
 
 function employeeCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/employee">Prueba</a>
+  <a class="brand" href="/ui/empleado">Prueba</a>
   <nav class="topbar-actions">
-    <a class="btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -303,6 +451,7 @@ function employeeCalendarView() {
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
       <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
     <div class="legend-row">
@@ -333,7 +482,7 @@ function employeeCalendarView() {
     </select>
 
     <label>Cantidad de clientes</label>
-    <input id="clientCount" type="number" min="1" value="1" />
+    <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
@@ -358,12 +507,12 @@ function employeeCalendarView() {
 function employeeVerifyClientsView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">Prueba</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -373,11 +522,11 @@ function employeeVerifyClientsView() {
   <section class="emp-panel verify-main">
     <div class="panel-head">
       <h1>Verificar clientes</h1>
-      <div class="inline-controls">
-        <label for="weekStart">Semana</label>
-        <input id="weekStart" type="date" />
-        <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
-      </div>
+    </div>
+    <div class="inline-controls verify-controls">
+      <label for="weekStart">Semana</label>
+      <input id="weekStart" type="date" />
+      <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
@@ -401,21 +550,21 @@ function employeeVerifyClientsView() {
 
   return clientDocument(
     "SGP - Verificar Clientes",
-    "/ui-assets/styles/employee-verify-clients.css",
+    "/ui-assets/styles/empleado-verify-clients.css",
     body,
-    "/ui-assets/scripts/employee-verify-clients.js"
+    "/ui-assets/scripts/empleado-verify-clients.js"
   );
 }
 
 function employeeValidateQrView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/employee">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">Prueba</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/employee">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/employee/calendar">Calendario</a>
-    <a class="emp-btn ghost" href="/ui/employee/verify-clients">Verificar cliente</a>
-    <a class="emp-btn ghost" href="/ui/employee/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -428,14 +577,14 @@ function employeeValidateQrView() {
     <div class="camera-box">
       <video id="cameraPreview" autoplay playsinline muted></video>
     </div>
-    <div class="scan-actions">
-      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
-      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
-    </div>
   </section>
 
   <aside class="emp-panel side-panel">
     <h2>Validacion manual</h2>
+    <div class="camera-quick-actions">
+      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
+      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
+    </div>
     <label>Token QR</label>
     <input id="qrTokenInput" type="text" placeholder="Pega o escanea el token" />
     <button id="validateBtn" class="emp-btn solid block" type="button">Validar ingreso</button>
@@ -450,9 +599,9 @@ function employeeValidateQrView() {
 
   return clientDocument(
     "SGP - Validacion QR",
-    "/ui-assets/styles/employee-validate-qr.css",
+    "/ui-assets/styles/empleado-validate-qr.css",
     body,
-    "/ui-assets/scripts/employee-validate-qr.js"
+    "/ui-assets/scripts/empleado-validate-qr.js"
   );
 }
 
@@ -609,9 +758,9 @@ function adminView() {
 
   return clientDocument(
     "SGP - Administrador Empleados",
-    "/ui-assets/styles/admin-add-employee.css",
+    "/ui-assets/styles/admin-add-empleado.css",
     body,
-    "/ui-assets/scripts/admin-add-employee.js"
+    "/ui-assets/scripts/admin-add-empleado.js"
   );
 }
 
@@ -638,6 +787,7 @@ function adminCalendarView() {
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
       <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
     <div class="legend-row">
@@ -668,7 +818,7 @@ function adminCalendarView() {
     </select>
 
     <label>Cantidad de clientes</label>
-    <input id="clientCount" type="number" min="1" value="1" />
+    <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
@@ -706,11 +856,11 @@ function adminVerifyClientsView() {
   <section class="emp-panel verify-main">
     <div class="panel-head">
       <h1>Verificar clientes</h1>
-      <div class="inline-controls">
-        <label for="weekStart">Semana</label>
-        <input id="weekStart" type="date" />
-        <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar</button>
-      </div>
+    </div>
+    <div class="inline-controls verify-controls">
+      <label for="weekStart">Semana</label>
+      <input id="weekStart" type="date" />
+      <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
@@ -734,9 +884,9 @@ function adminVerifyClientsView() {
 
   return clientDocument(
     "SGP - Administrador Verificar Clientes",
-    "/ui-assets/styles/employee-verify-clients.css",
+    "/ui-assets/styles/empleado-verify-clients.css",
     body,
-    "/ui-assets/scripts/employee-verify-clients.js"
+    "/ui-assets/scripts/empleado-verify-clients.js"
   );
 }
 
@@ -759,14 +909,14 @@ function adminValidateQrView() {
     <div class="camera-box">
       <video id="cameraPreview" autoplay playsinline muted></video>
     </div>
-    <div class="scan-actions">
-      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
-      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
-    </div>
   </section>
 
   <aside class="emp-panel side-panel">
     <h2>Validacion manual</h2>
+    <div class="camera-quick-actions">
+      <button id="startScanBtn" class="emp-btn solid" type="button">Iniciar camara</button>
+      <button id="stopScanBtn" class="emp-btn ghost" type="button" disabled>Detener</button>
+    </div>
     <label>Token QR</label>
     <input id="qrTokenInput" type="text" placeholder="Pega o escanea el token" />
     <button id="validateBtn" class="emp-btn solid block" type="button">Validar ingreso</button>
@@ -781,9 +931,9 @@ function adminValidateQrView() {
 
   return clientDocument(
     "SGP - Administrador Validacion QR",
-    "/ui-assets/styles/employee-validate-qr.css",
+    "/ui-assets/styles/empleado-validate-qr.css",
     body,
-    "/ui-assets/scripts/employee-validate-qr.js"
+    "/ui-assets/scripts/empleado-validate-qr.js"
   );
 }
 

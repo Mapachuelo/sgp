@@ -50,7 +50,7 @@ Dockerfile
 Pantallas:
 
 - /ui/client
-- /ui/employee
+- /ui/empleado
 - /ui/admin
 
 Estas paginas permiten ejecutar las operaciones y ver respuesta JSON en pantalla para validar la logica de cada modulo.
@@ -94,7 +94,7 @@ Si el puerto 3000 ya esta ocupado en tu Linux, cambia APP_PORT al valor que nece
 
 - Inicio: http://localhost:${APP_PORT:-3000}/
 - Cliente: http://localhost:${APP_PORT:-3000}/ui/client
-- Empleado: http://localhost:${APP_PORT:-3000}/ui/employee
+- Empleado: http://localhost:${APP_PORT:-3000}/ui/empleado
 - Administrador: http://localhost:${APP_PORT:-3000}/ui/admin
 - Health check: http://localhost:${APP_PORT:-3000}/health
 

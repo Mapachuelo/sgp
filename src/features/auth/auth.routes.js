@@ -7,6 +7,8 @@ const {
   registerController,
   loginController,
   meController,
+  employeeOwnAccountController,
+  updateEmployeeOwnAccountController,
   createEmployeeByAdminController,
   listEmployeesByAdminController,
   deleteEmployeeByAdminController,
@@ -20,6 +22,13 @@ router.post("/register", registerController);
 router.post("/login", loginController);
 router.get("/stylists", stylistsController);
 router.get("/me", requireAuth, meController);
+router.get("/me/employee-account", requireAuth, requireRole("employee"), employeeOwnAccountController);
+router.put(
+  "/me/employee-account",
+  requireAuth,
+  requireRole("employee"),
+  updateEmployeeOwnAccountController
+);
 router.get("/employees", requireAuth, requireRole("admin"), listEmployeesByAdminController);
 router.post("/employees", requireAuth, requireRole("admin"), createEmployeeByAdminController);
 router.put(
