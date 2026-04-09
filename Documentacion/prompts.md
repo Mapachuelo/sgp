@@ -388,4 +388,27 @@ Pantallas Grandes,@media (min-width: 1440px),Monitores de alta resolución (2K+)
 ## instrucciones: 
 - Tabla de calendario de disponibilidad no esta la pagina fija como verificar clientes, tener la pantalla fija y dentro del calendario un scroll. 
 
+## instrucciones: 
+- Para el usuario cliente pueda editar su perfil, crea un diseño tomando en cuenta de la pagina, el boton de acceso debe ser la parte arriba de dashboard para editar la cuenta, cambiar el nombre, numero, correo y contraseña, solo accesible para el cliente.
+- En verificar clientes, en "cliente #1" tomando en cuenta, se vea reflejado el nombre del cliente que va cortar, el nombre, para que el empleado y administrador verifique antes de cortar el pelo.
+- Cambiar el nombre, ruta de acceso de "employee" por "empleado" a todo, verifica si todo funciona correctamente hacer el cambio.
+
+## Requerimiento: 
+- Cambiar los nombres de los archivos que tienen nombre "employee" por "empleado" a todos, hacer las conexiones con los archivos y verificar si da el funcionamiento adecuado.
+- Al editar cuenta, debe aparecer nombre y apellido apartes, el boton para acceder debe estar disponible cuando esta en ver calendario.
+- En validar qr debajo del boton iniciar camara no se ve visible, no tiene contraste.
+- El empleado puede editar su correo, contraseña y numero celular , pero no el nombre, apellido, numero de documento, solo debe verse cuando inicio con cuenta empleado.
+- El empleado en calendario de disponibilidad a la hora de cantidad de clientes que van a ir de 1 a 5, a la hora de pedir cupo se debe ver reflejado el tiempo que va estar el cliente en ese horario, por ejemplo, el corte tarda 20 minutos y un cliente pide cupo de 2 personas para ir, debe tomar 40 minutos de tiempo, y así para cada cantidad de clientes maximo 5 cliesntes por sessión.
+
+## nstrucciones:
+- Editar cuenta de empleado solo aparece en el dashboard y no en otras sessiones.
+- El diseño de editar cuenta de cliente no son lo mismo ver estar en dashboard a estar ver calendario, utilizar el diseño de dashboard de editar cuenta.
+
+## instrucciones: 
+- en verificar clientes la de actualizar calendario no se ve, tanto el calendario y el boton este en pa posición  debajo del titulo de "verificar clientes".
+- La de editar cuenta en empleados solo se ve en dashboard, no en otras sessiones por ejemplo ver calendario o verificar cliente.
+
+## intruccuines:
+ - La de editar cuenta en empleados solo se ve en dashboard, no en otras sessiones por ejemplo ver calendario o verificar cliente.
+
 
