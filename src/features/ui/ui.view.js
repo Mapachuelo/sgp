@@ -192,7 +192,10 @@ function clientView() {
     </div>
 
     <label>Nombre</label>
-    <input id="clientProfileName" type="text" placeholder="Nombre completo" />
+    <input id="clientProfileFirstName" type="text" placeholder="Nombre" />
+
+    <label>Apellido</label>
+    <input id="clientProfileLastName" type="text" placeholder="Apellido" />
 
     <label>Numero</label>
     <input id="clientProfilePhone" type="text" placeholder="Numero de telefono" />
@@ -227,6 +230,7 @@ function clientCalendarView() {
   <a class="brand" href="/ui/client">Prueba</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client">Dashboard</a>
+    <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
     <button id="navLoginBtn" class="btn accent" type="button">Login</button>
     <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -274,7 +278,7 @@ function clientCalendarView() {
     </select>
 
     <label>Cantidad de clientes</label>
-    <input id="clientCount" type="number" min="1" value="1" />
+    <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
@@ -292,6 +296,37 @@ function clientCalendarView() {
       <button id="closeMyReservationsModalBtn" class="btn ghost" type="button">Cerrar</button>
     </div>
     <ul id="myReservationsList" class="reservations-list"></ul>
+  </div>
+</div>
+
+<div id="clientProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clientProfileTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="clientProfileTitle">Editar perfil de cliente</h2>
+      <button id="closeProfileEditBtn" class="btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="clientProfileFirstName" type="text" placeholder="Nombre" />
+
+    <label>Apellido</label>
+    <input id="clientProfileLastName" type="text" placeholder="Apellido" />
+
+    <label>Numero</label>
+    <input id="clientProfilePhone" type="text" placeholder="Numero de telefono" />
+
+    <label>Correo</label>
+    <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
+
+    <label>Password</label>
+    <input id="clientProfilePassword" type="password" placeholder="Minimo 6 caracteres" />
+
+    <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
+
+    <div class="modal-actions">
+      <button id="cancelProfileEditBtn" class="btn ghost" type="button">Cancelar</button>
+      <button id="saveProfileEditBtn" class="btn accent" type="button">Guardar cambios</button>
+    </div>
   </div>
 </div>
 `;
@@ -313,6 +348,7 @@ function employeeView() {
     <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
@@ -349,13 +385,45 @@ function employeeView() {
     <p id="dashboardFeedback" class="feedback info">Conecta tu sesion para sincronizar datos.</p>
   </section>
 </main>
+
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="Nuevo numero celular" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Password</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Minimo 6 caracteres" />
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
     "SGP - Empleado Dashboard",
-    "/ui-assets/styles/employee-dashboard.css",
+    "/ui-assets/styles/empleado-dashboard.css",
     body,
-    "/ui-assets/scripts/employee-dashboard.js"
+    "/ui-assets/scripts/empleado-dashboard.js"
   );
 }
 
@@ -414,7 +482,7 @@ function employeeCalendarView() {
     </select>
 
     <label>Cantidad de clientes</label>
-    <input id="clientCount" type="number" min="1" value="1" />
+    <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
@@ -482,9 +550,9 @@ function employeeVerifyClientsView() {
 
   return clientDocument(
     "SGP - Verificar Clientes",
-    "/ui-assets/styles/employee-verify-clients.css",
+    "/ui-assets/styles/empleado-verify-clients.css",
     body,
-    "/ui-assets/scripts/employee-verify-clients.js"
+    "/ui-assets/scripts/empleado-verify-clients.js"
   );
 }
 
@@ -531,9 +599,9 @@ function employeeValidateQrView() {
 
   return clientDocument(
     "SGP - Validacion QR",
-    "/ui-assets/styles/employee-validate-qr.css",
+    "/ui-assets/styles/empleado-validate-qr.css",
     body,
-    "/ui-assets/scripts/employee-validate-qr.js"
+    "/ui-assets/scripts/empleado-validate-qr.js"
   );
 }
 
@@ -690,9 +758,9 @@ function adminView() {
 
   return clientDocument(
     "SGP - Administrador Empleados",
-    "/ui-assets/styles/admin-add-employee.css",
+    "/ui-assets/styles/admin-add-empleado.css",
     body,
-    "/ui-assets/scripts/admin-add-employee.js"
+    "/ui-assets/scripts/admin-add-empleado.js"
   );
 }
 
@@ -750,7 +818,7 @@ function adminCalendarView() {
     </select>
 
     <label>Cantidad de clientes</label>
-    <input id="clientCount" type="number" min="1" value="1" />
+    <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
@@ -816,9 +884,9 @@ function adminVerifyClientsView() {
 
   return clientDocument(
     "SGP - Administrador Verificar Clientes",
-    "/ui-assets/styles/employee-verify-clients.css",
+    "/ui-assets/styles/empleado-verify-clients.css",
     body,
-    "/ui-assets/scripts/employee-verify-clients.js"
+    "/ui-assets/scripts/empleado-verify-clients.js"
   );
 }
 
@@ -863,9 +931,9 @@ function adminValidateQrView() {
 
   return clientDocument(
     "SGP - Administrador Validacion QR",
-    "/ui-assets/styles/employee-validate-qr.css",
+    "/ui-assets/styles/empleado-validate-qr.css",
     body,
-    "/ui-assets/scripts/employee-validate-qr.js"
+    "/ui-assets/scripts/empleado-validate-qr.js"
   );
 }
 

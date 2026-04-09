@@ -80,6 +80,23 @@
     return /^\S+@\S+\.\S+$/.test(email);
   }
 
+  function splitName(fullName) {
+    const normalized = String(fullName || "").trim().replace(/\s+/g, " ");
+    if (!normalized) {
+      return { firstName: "", lastName: "" };
+    }
+
+    const parts = normalized.split(" ");
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: "" };
+    }
+
+    return {
+      firstName: parts.shift(),
+      lastName: parts.join(" ")
+    };
+  }
+
   async function callApi(path, method, body) {
     const headers = {
       "Content-Type": "application/json"
@@ -150,7 +167,9 @@
   }
 
   function fillProfileForm(profile) {
-    byId("clientProfileName").value = profile.name || "";
+    const nameParts = splitName(profile.name);
+    byId("clientProfileFirstName").value = nameParts.firstName;
+    byId("clientProfileLastName").value = nameParts.lastName;
     byId("clientProfilePhone").value = profile.phone || "";
     byId("clientProfileEmail").value = profile.email || "";
     byId("clientProfilePassword").value = "";
@@ -187,13 +206,15 @@
   }
 
   async function saveProfileEditor() {
-    const name = (byId("clientProfileName").value || "").trim();
+    const firstName = (byId("clientProfileFirstName").value || "").trim();
+    const lastName = (byId("clientProfileLastName").value || "").trim();
+    const name = (firstName + " " + lastName).trim();
     const phone = (byId("clientProfilePhone").value || "").trim();
     const email = (byId("clientProfileEmail").value || "").trim();
     const password = (byId("clientProfilePassword").value || "").trim();
 
-    if (!name || !phone || !email || !password) {
-      setFeedback("Completa nombre, numero, correo y password para guardar.", "warn");
+    if (!firstName || !lastName || !phone || !email || !password) {
+      setFeedback("Completa nombre, apellido, numero, correo y password para guardar.", "warn");
       return;
     }
 

@@ -26,6 +26,7 @@
     availabilityByDate: {},
     workScheduleByDate: {},
     selectedSlot: null,
+    currentUser: null,
     stylists: [],
     selectedStylist: ANY_STYLIST_VALUE,
     selectedServiceDuration: DEFAULT_SLOT_STEP_MINUTES,
@@ -70,6 +71,23 @@
     localStorage.removeItem("client_token");
     localStorage.removeItem("employee_token");
     localStorage.removeItem("admin_token");
+  }
+
+  function splitName(fullName) {
+    const normalized = String(fullName || "").trim().replace(/\s+/g, " ");
+    if (!normalized) {
+      return { firstName: "", lastName: "" };
+    }
+
+    const parts = normalized.split(" ");
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: "" };
+    }
+
+    return {
+      firstName: parts.shift(),
+      lastName: parts.join(" ")
+    };
   }
 
   function toDateInputValue(date) {
@@ -306,8 +324,10 @@
 
   function setAuthUi() {
     const hasToken = Boolean(getToken());
+    const hasClientSession = Boolean(hasToken && isClientContext && state.currentUser && state.currentUser.role === "client");
     const loginBtn = byId("navLoginBtn");
     const logoutBtn = byId("navLogoutBtn");
+    const profileBtn = byId("openProfileEditBtn");
     const loginLink = byId("goLoginLink");
     const reserveBtn = byId("reserveBtn");
     const myReservationsBtn = byId("myReservationsBtn");
@@ -320,6 +340,10 @@
       logoutBtn.classList.toggle("hidden", !hasToken);
     }
 
+    if (profileBtn) {
+      profileBtn.classList.toggle("hidden", !hasClientSession);
+    }
+
     if (loginLink) {
       loginLink.classList.toggle("hidden", hasToken || !isClientContext);
     }
@@ -329,7 +353,129 @@
     }
 
     if (reserveBtn) {
-      reserveBtn.disabled = !isClientContext || !hasToken || !state.selectedSlot;
+      reserveBtn.disabled = !hasClientSession || !state.selectedSlot;
+    }
+  }
+
+  function isValidEmail(email) {
+    return /^\S+@\S+\.\S+$/.test(email);
+  }
+
+  async function refreshClientSessionState() {
+    if (!isClientContext) {
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      state.currentUser = null;
+      setAuthUi();
+      return;
+    }
+
+    try {
+      const payload = await callApi("/api/auth/me", "GET");
+      const user = payload.data;
+      state.currentUser = user && user.role === "client" ? user : null;
+      if (!state.currentUser && user && user.role) {
+        setFeedback("Esta vista es exclusiva para clientes autenticados.", "warn");
+      }
+    } catch (_error) {
+      clearToken();
+      state.currentUser = null;
+    }
+
+    setAuthUi();
+  }
+
+  function fillClientProfileForm(profile) {
+    const nameParts = splitName(profile.name);
+    byId("clientProfileFirstName").value = nameParts.firstName;
+    byId("clientProfileLastName").value = nameParts.lastName;
+    byId("clientProfilePhone").value = profile.phone || "";
+    byId("clientProfileEmail").value = profile.email || "";
+    byId("clientProfilePassword").value = "";
+  }
+
+  function openClientProfileModal() {
+    const modal = byId("clientProfileModal");
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeClientProfileModal() {
+    const modal = byId("clientProfileModal");
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add("hidden");
+    const passwordInput = byId("clientProfilePassword");
+    if (passwordInput) {
+      passwordInput.value = "";
+    }
+  }
+
+  async function openClientProfileEditor() {
+    if (!isClientContext) {
+      return;
+    }
+
+    try {
+      await refreshClientSessionState();
+      if (!state.currentUser) {
+        setFeedback("Debes iniciar sesion como cliente para editar tu cuenta.", "warn");
+        return;
+      }
+
+      const payload = await callApi("/api/clients/me", "GET");
+      fillClientProfileForm(payload.data || {});
+      openClientProfileModal();
+      setFeedback("Actualiza tus datos y guarda los cambios.", "info");
+    } catch (error) {
+      setFeedback(error.message, "warn");
+    }
+  }
+
+  async function saveClientProfileEditor() {
+    const firstName = (byId("clientProfileFirstName").value || "").trim();
+    const lastName = (byId("clientProfileLastName").value || "").trim();
+    const name = (firstName + " " + lastName).trim();
+    const phone = (byId("clientProfilePhone").value || "").trim();
+    const email = (byId("clientProfileEmail").value || "").trim();
+    const password = (byId("clientProfilePassword").value || "").trim();
+
+    if (!firstName || !lastName || !phone || !email || !password) {
+      setFeedback("Completa nombre, apellido, numero, correo y password para guardar.", "warn");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setFeedback("Ingresa un correo valido.", "warn");
+      return;
+    }
+
+    if (password.length < 6) {
+      setFeedback("La password debe tener al menos 6 caracteres.", "warn");
+      return;
+    }
+
+    try {
+      await callApi("/api/clients/me", "PUT", {
+        name: name,
+        phone: phone,
+        email: email,
+        password: password
+      });
+
+      await refreshClientSessionState();
+      closeClientProfileModal();
+      setFeedback("Perfil actualizado correctamente.", "ok");
+    } catch (error) {
+      setFeedback(error.message, "warn");
     }
   }
 
@@ -727,6 +873,11 @@
       return;
     }
 
+    if (!Number.isInteger(clientCount) || clientCount < 1 || clientCount > 5) {
+      setFeedback("La cantidad de clientes debe estar entre 1 y 5.", "warn");
+      return;
+    }
+
     try {
       const payload = await callApi("/api/reservations", "POST", {
         serviceName: serviceName,
@@ -983,6 +1134,7 @@
   if (navLogoutBtn) {
     navLogoutBtn.addEventListener("click", function () {
       clearToken();
+      state.currentUser = null;
       setAuthUi();
       setFeedback("Sesion cerrada.", "info");
       const qrImage = byId("qrImage");
@@ -992,6 +1144,35 @@
 
       if (!isClientContext) {
         window.location.href = LOGIN_PATH;
+      }
+    });
+  }
+
+  const openProfileEditBtn = byId("openProfileEditBtn");
+  if (openProfileEditBtn) {
+    openProfileEditBtn.addEventListener("click", openClientProfileEditor);
+  }
+
+  const saveProfileEditBtn = byId("saveProfileEditBtn");
+  if (saveProfileEditBtn) {
+    saveProfileEditBtn.addEventListener("click", saveClientProfileEditor);
+  }
+
+  const closeProfileEditBtn = byId("closeProfileEditBtn");
+  if (closeProfileEditBtn) {
+    closeProfileEditBtn.addEventListener("click", closeClientProfileModal);
+  }
+
+  const cancelProfileEditBtn = byId("cancelProfileEditBtn");
+  if (cancelProfileEditBtn) {
+    cancelProfileEditBtn.addEventListener("click", closeClientProfileModal);
+  }
+
+  const profileModal = byId("clientProfileModal");
+  if (profileModal) {
+    profileModal.addEventListener("click", function (event) {
+      if (event.target === profileModal) {
+        closeClientProfileModal();
       }
     });
   }
@@ -1046,7 +1227,10 @@
   });
 
   const boot = function () {
-    loadCatalogs()
+    refreshClientSessionState()
+      .then(function () {
+        return loadCatalogs();
+      })
       .then(function () {
         return refreshCalendar();
       })

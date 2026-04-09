@@ -187,6 +187,7 @@ async function listReservedByDate(dateText) {
         r.stylist_name,
         r.stylist_id,
         r.starts_at,
+        r.client_count,
         r.status
       FROM reservation r
       JOIN app_user c ON c.id = r.client_id

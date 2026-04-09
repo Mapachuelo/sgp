@@ -8,6 +8,7 @@ const {
   findUserByEmail,
   findUserByPhone,
   findUserById,
+  findEmployeeAccountByUserId,
   findEmployeeByIdentification,
   listEmployees,
   createStaffWithProfile,
@@ -19,6 +20,10 @@ const {
 } = require("./auth.model");
 
 const PUBLIC_REGISTRATION_ROLE = "client";
+
+function isValidEmail(email) {
+  return /^\S+@\S+\.\S+$/.test(email);
+}
 
 function toSha256Hex(value) {
   return crypto
@@ -116,6 +121,19 @@ async function getMe(userId) {
   }
 
   return user;
+}
+
+async function getEmployeeOwnAccount(userId) {
+  const account = await findEmployeeAccountByUserId(userId);
+  if (!account) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  if (account.role !== "employee") {
+    throw new HttpError(403, "Solo empleados pueden editar esta cuenta");
+  }
+
+  return account;
 }
 
 function normalizeText(input) {
@@ -295,13 +313,72 @@ async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) 
   return updatedUser;
 }
 
+async function updateEmployeeOwnAccount(userId, input) {
+  const current = await findEmployeeAccountByUserId(userId);
+  if (!current) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  if (current.role !== "employee") {
+    throw new HttpError(403, "Solo empleados pueden editar esta cuenta");
+  }
+
+  const phone = normalizeText(input.phone);
+  const email = normalizeText(input.email).toLowerCase();
+  const password = normalizeText(input.password);
+
+  if (!phone || !email || !password) {
+    throw new HttpError(400, "phone, email y password son obligatorios");
+  }
+
+  if (!isValidEmail(email)) {
+    throw new HttpError(400, "email no tiene un formato valido");
+  }
+
+  if (password.length < 6) {
+    throw new HttpError(400, "La password debe tener al menos 6 caracteres");
+  }
+
+  const emailTaken = await findUserByEmail(email);
+  if (emailTaken && Number(emailTaken.id) !== Number(userId)) {
+    throw new HttpError(409, "El correo ya existe");
+  }
+
+  const phoneTaken = await findUserByPhone(phone);
+  if (phoneTaken && Number(phoneTaken.id) !== Number(userId)) {
+    throw new HttpError(409, "El numero de telefono ya existe");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const updatedUser = await updateUserById(userId, {
+    phone,
+    email,
+    passwordHash
+  });
+
+  if (!updatedUser) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  await updateAssignedPasswordByUserId(userId, toSha256Hex(password));
+
+  const account = await findEmployeeAccountByUserId(userId);
+  if (!account) {
+    throw new HttpError(404, "Empleado no encontrado");
+  }
+
+  return account;
+}
+
 module.exports = {
   register,
   login,
   getMe,
+  getEmployeeOwnAccount,
   createEmployeeByAdmin,
   getEmployeesByAdmin,
   deleteEmployeeByAdmin,
   updateRegisteredUserByAdmin,
+  updateEmployeeOwnAccount,
   getStylistsForCalendar
 };
