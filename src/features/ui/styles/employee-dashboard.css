@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Outfit:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Outfit:wght@300;400;500;600;700&display=swap");
 
 :root {
   --sand:     #E8DDD0;
@@ -19,9 +19,18 @@
   --warn:     #8A4A35;
   --info:     #4A6080;
   --line:     #C9B9A8;
+
+  --shadow-sm:    0 1px 3px rgba(61,61,61,0.06);
+  --shadow-md:    0 4px 16px rgba(61,61,61,0.08);
+  --shadow-lg:    0 12px 40px rgba(61,61,61,0.1);
+  --shadow-glow:  0 0 24px rgba(192,115,90,0.12);
+  --radius-sm:    8px;
+  --radius-md:    14px;
+  --radius-lg:    20px;
+  --transition:   all 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -29,105 +38,131 @@ body {
   margin: 0;
   font-family: "Outfit", sans-serif;
   color: var(--stone-dk);
-  background: var(--sand-lt);
+  background: linear-gradient(168deg, var(--sand-lt) 0%, var(--ivory-dk) 100%);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ── TOPBAR ─────────────────────────────────────── */
 .emp-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 1rem clamp(1rem, 3vw, 2.6rem);
-  background: var(--stone-dk);
-  border-bottom: 2px solid var(--terra);
-  box-shadow: 0 4px 12px rgba(61, 61, 61, 0.15);
+  padding: 0.85rem clamp(1rem, 4vw, 3rem);
+  background: linear-gradient(135deg, var(--stone-dk) 0%, #2b2b2b 100%);
+  box-shadow: 0 2px 20px rgba(61,61,61,0.18);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .emp-brand {
   text-decoration: none;
   color: var(--ivory);
   font-family: "Playfair Display", serif;
-  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  font-size: clamp(1.3rem, 2.2vw, 1.8rem);
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  position: relative;
+}
+
+.emp-brand::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--terra), var(--terra-lt), transparent);
 }
 
 .emp-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.6rem;
 }
 
+/* ── DASHBOARD ──────────────────────────────────── */
 .emp-dashboard-wrap {
   width: min(100%, 96vw);
-  margin: 1rem auto 1.4rem;
+  margin: 1.2rem auto 1.6rem;
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
+  animation: fadeUp 0.5s ease;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .emp-panel {
   background: var(--ivory);
-  border: 1px solid var(--sand-dk);
-  border-radius: 16px;
-  padding: 1rem;
-  box-shadow: 0 6px 24px rgba(61, 61, 61, 0.07);
+  border: 1px solid rgba(201,185,168,0.35);
+  border-radius: var(--radius-lg);
+  padding: 1.2rem;
+  box-shadow: var(--shadow-md);
 }
 
+/* ── HERO ───────────────────────────────────────── */
 .hero {
-  background: var(--stone-dk);
+  background: linear-gradient(135deg, var(--stone-dk) 0%, #2b2b2b 60%, #3a3028 100%);
   border: none;
   position: relative;
   overflow: hidden;
+  border-radius: var(--radius-lg);
 }
 
 .hero::after {
   content: '';
   position: absolute;
-  right: -30px;
-  top: -30px;
-  width: 200px;
-  height: 200px;
+  right: -40px;
+  top: -40px;
+  width: 220px;
+  height: 220px;
   border-radius: 50%;
-  background: rgba(160, 120, 80, 0.1);
+  background: radial-gradient(circle, rgba(192,115,90,0.12) 0%, transparent 70%);
   pointer-events: none;
 }
 
 .hero::before {
   content: '';
   position: absolute;
-  right: 50px;
-  bottom: -50px;
-  width: 130px;
-  height: 130px;
+  right: 60px;
+  bottom: -60px;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
-  background: rgba(192, 115, 90, 0.08);
+  background: radial-gradient(circle, rgba(160,120,80,0.1) 0%, transparent 70%);
   pointer-events: none;
 }
 
 .hero h1 {
   margin: 0.25rem 0 0.6rem;
   font-family: "Playfair Display", serif;
-  font-size: clamp(1.7rem, 2.9vw, 2.4rem);
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
   color: var(--ivory);
+  line-height: 1.15;
 }
 
 .hero p {
   margin: 0;
-  color: rgba(244, 237, 228, 0.68);
+  color: rgba(244,237,228,0.65);
+  line-height: 1.6;
 }
 
 .eyebrow {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   font-weight: 700;
   color: var(--terra-lt);
 }
 
 .hero-actions {
-  margin-top: 0.9rem;
+  margin-top: 1rem;
   display: flex;
   gap: 0.55rem;
   flex-wrap: wrap;
@@ -135,41 +170,44 @@ body {
 }
 
 .badge {
-  margin-top: 0.9rem;
+  margin-top: 1rem;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.35rem 0.8rem;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  padding: 0.38rem 0.85rem;
   font-weight: 600;
-  font-size: 0.85rem;
-  color: rgba(244, 237, 228, 0.75);
+  font-size: 0.82rem;
+  color: rgba(244,237,228,0.72);
+  backdrop-filter: blur(6px);
 }
 
+/* ── LOGIN ──────────────────────────────────────── */
 .login-card {
   max-width: 440px;
 }
 
 label {
   display: block;
-  margin-top: 0.66rem;
-  margin-bottom: 0.32rem;
+  margin-top: 0.7rem;
+  margin-bottom: 0.35rem;
   color: var(--stone);
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 input {
   width: 100%;
-  padding: 0.7rem;
-  border-radius: 10px;
+  padding: 0.72rem 0.85rem;
+  border-radius: var(--radius-sm);
   border: 1.5px solid var(--sand-dk);
   font-family: "Outfit", sans-serif;
-  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  transition: var(--transition);
   color: var(--stone-dk);
   background: var(--ivory);
 }
@@ -177,7 +215,8 @@ input {
 input:focus {
   outline: none;
   border-color: var(--terra);
-  box-shadow: 0 0 0 3px rgba(192, 115, 90, 0.12);
+  box-shadow: 0 0 0 3px rgba(192,115,90,0.1), var(--shadow-sm);
+  background: #fff;
 }
 
 .help-text {
@@ -186,19 +225,26 @@ input:focus {
   font-size: 0.9rem;
 }
 
+/* ── STATS ──────────────────────────────────────── */
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.8rem;
 }
 
 .stats-grid article {
-  border: 1px solid var(--sand-dk);
-  border-radius: 12px;
+  border: 1px solid rgba(201,185,168,0.35);
+  border-radius: var(--radius-md);
   background: var(--ivory);
-  padding: 1rem;
+  padding: 1.1rem;
   position: relative;
   overflow: hidden;
+  transition: var(--transition);
+}
+
+.stats-grid article:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .stats-grid article::before {
@@ -208,30 +254,31 @@ input:focus {
   left: 0;
   right: 0;
   height: 3px;
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.stats-grid article:nth-child(1)::before { background: var(--terra); }
-.stats-grid article:nth-child(2)::before { background: var(--wood); }
-.stats-grid article:nth-child(3)::before { background: var(--ok); }
+.stats-grid article:nth-child(1)::before { background: linear-gradient(90deg, var(--terra), var(--terra-lt)); }
+.stats-grid article:nth-child(2)::before { background: linear-gradient(90deg, var(--wood), var(--wood-lt)); }
+.stats-grid article:nth-child(3)::before { background: linear-gradient(90deg, var(--ok), #6ba882); }
 
 .stats-grid h3 {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--stone);
 }
 
 .stats-grid p {
   margin: 0.4rem 0 0;
   font-family: "Playfair Display", serif;
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 800;
   color: var(--stone-dk);
 }
 
+/* ── FEEDBACK ───────────────────────────────────── */
 .feedback-wrap {
   display: grid;
   gap: 0.7rem;
@@ -239,32 +286,41 @@ input:focus {
 
 .feedback {
   margin: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
-  padding: 0.65rem;
-  font-weight: 700;
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  animation: slideDown 0.35s ease;
 }
 
-.feedback.ok   { color: var(--ok);   background: rgba(74,124,95,0.08);  border-color: rgba(74,124,95,0.22); }
-.feedback.warn { color: var(--warn); background: rgba(138,74,53,0.08);  border-color: rgba(138,74,53,0.22); }
-.feedback.info { color: var(--info); background: rgba(74,96,128,0.07);  border-color: rgba(74,96,128,0.2); }
+.feedback.ok   { color: var(--ok);   background: rgba(74,124,95,0.06);  border-color: rgba(74,124,95,0.18); }
+.feedback.warn { color: var(--warn); background: rgba(138,74,53,0.06);  border-color: rgba(138,74,53,0.18); }
+.feedback.info { color: var(--info); background: rgba(74,96,128,0.06);  border-color: rgba(74,96,128,0.18); }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 pre {
   margin: 0;
-  border: 1px solid var(--sand-dk);
-  border-radius: 10px;
-  background: var(--stone-dk);
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, var(--stone-dk), #2b2b2b);
   color: var(--ivory);
-  padding: 0.9rem;
+  padding: 1rem;
   font-family: "Courier New", monospace;
   font-size: 0.82rem;
   overflow: auto;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
 }
 
+/* ── BUTTONS ────────────────────────────────────── */
 .emp-btn {
   border: none;
-  border-radius: 10px;
-  padding: 0.62rem 0.95rem;
+  border-radius: var(--radius-md);
+  padding: 0.58rem 1rem;
   text-decoration: none;
   font-weight: 700;
   display: inline-flex;
@@ -272,28 +328,40 @@ pre {
   justify-content: center;
   cursor: pointer;
   font-family: "Outfit", sans-serif;
-  transition: all 0.25s ease;
+  font-size: 0.9rem;
+  transition: var(--transition);
+  letter-spacing: 0.02em;
+}
+
+.emp-btn:hover {
+  transform: translateY(-2px);
+}
+
+.emp-btn:active {
+  transform: translateY(0);
 }
 
 .emp-btn.solid {
-  background: var(--terra);
+  background: linear-gradient(135deg, var(--terra), var(--terra-dk));
   color: #fff;
-  box-shadow: 0 3px 10px rgba(192, 115, 90, 0.28);
+  box-shadow: 0 3px 12px rgba(192,115,90,0.3);
 }
 
 .emp-btn.solid:hover {
-  background: var(--terra-dk);
+  background: linear-gradient(135deg, var(--terra-lt), var(--terra));
+  box-shadow: 0 6px 20px rgba(192,115,90,0.38);
 }
 
 .emp-btn.ghost {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  color: rgba(250, 246, 240, 0.85);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(250,246,240,0.88);
 }
 
 .emp-btn.ghost:hover {
-  background: rgba(255, 255, 255, 0.13);
+  background: rgba(255,255,255,0.12);
   border-color: var(--terra-lt);
+  box-shadow: var(--shadow-glow);
 }
 
 .block {
@@ -305,6 +373,7 @@ pre {
   display: none !important;
 }
 
+/* ── RESPONSIVE ─────────────────────────────────── */
 @media (min-width: 320px) {
   .emp-topbar {
     flex-wrap: wrap;
@@ -330,12 +399,11 @@ pre {
 @media (min-width: 480px) {
   .emp-dashboard-wrap {
     width: min(100%, 95vw);
-    margin: 1.1rem auto 1.6rem;
-    gap: 0.95rem;
+    margin: 1.3rem auto 1.8rem;
   }
 
   .emp-panel {
-    padding: 1.1rem;
+    padding: 1.3rem;
   }
 
   .stats-grid {
@@ -354,8 +422,8 @@ pre {
 @media (min-width: 768px) {
   .emp-dashboard-wrap {
     width: min(100%, 94vw);
-    margin: 1.3rem auto 1.8rem;
-    gap: 1rem;
+    margin: 1.5rem auto 2rem;
+    gap: 1.1rem;
   }
 
   .emp-nav {
@@ -379,7 +447,7 @@ pre {
   }
 
   .emp-dashboard-wrap {
-    width: min(1260px, 95vw);
+    width: min(1280px, 95vw);
   }
 
   .stats-grid {
@@ -389,21 +457,21 @@ pre {
 
 @media (min-width: 1200px) {
   .emp-dashboard-wrap {
-    width: min(1420px, 95vw);
+    width: min(1440px, 95vw);
   }
 
   .emp-panel {
-    padding: 1.25rem;
+    padding: 1.5rem;
   }
 }
 
 @media (min-width: 1440px) {
   .emp-dashboard-wrap {
-    width: min(1620px, 96vw);
-    gap: 1.15rem;
+    width: min(1640px, 96vw);
+    gap: 1.2rem;
   }
 
   .emp-panel {
-    padding: 1.4rem;
+    padding: 1.7rem;
   }
 }
