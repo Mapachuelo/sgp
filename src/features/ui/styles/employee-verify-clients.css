@@ -351,7 +351,16 @@ pre {
   }
 
   table {
-    min-width: 780px;
+    min-width: 520px;
+  }
+
+  th,
+  td {
+    padding: 0.3rem;
+  }
+
+  td {
+    font-size: 0.66rem;
   }
 }
 
@@ -366,7 +375,7 @@ pre {
   }
 
   table {
-    min-width: 900px;
+    min-width: 640px;
   }
 }
 

@@ -4,9 +4,9 @@
   const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/employee";
   const LOGIN_PATH = "/ui/login";
   const VALIDATE_QR_PATH = isAdminContext ? "/ui/admin/validate-qr" : "/ui/employee/validate-qr";
-  const START_HOUR = 6;
-  const END_HOUR = 22;
-  const DAY_COUNT = 7;
+  const FULL_START_HOUR = 6;
+  const FULL_END_HOUR = 22;
+  const FULL_DAY_COUNT = 7;
   const DEFAULT_SLOT_STEP_MINUTES = 30;
   const MIN_SERVICE_DURATION_MINUTES = 1;
   const MAX_SERVICE_DURATION_MINUTES = 280;
@@ -15,7 +15,12 @@
     days: [],
     reservations: [],
     scheduleConfig: {},
-    slotStepMinutes: DEFAULT_SLOT_STEP_MINUTES
+    slotStepMinutes: DEFAULT_SLOT_STEP_MINUTES,
+    viewportConfig: {
+      dayCount: FULL_DAY_COUNT,
+      startHour: FULL_START_HOUR,
+      endHour: FULL_END_HOUR
+    }
   };
 
   function byId(id) {
@@ -100,13 +105,60 @@
     return parsed;
   }
 
+  function getViewportWidth() {
+    if (window.visualViewport && Number(window.visualViewport.width) > 0) {
+      return Number(window.visualViewport.width);
+    }
+
+    if (window.innerWidth > 0) {
+      return Number(window.innerWidth);
+    }
+
+    return 1440;
+  }
+
+  function resolveViewportConfig() {
+    const width = getViewportWidth();
+
+    if (width < 480) {
+      return {
+        dayCount: 3,
+        startHour: 9,
+        endHour: 18
+      };
+    }
+
+    if (width < 768) {
+      return {
+        dayCount: 4,
+        startHour: 8,
+        endHour: 20
+      };
+    }
+
+    if (width < 1024) {
+      return {
+        dayCount: 5,
+        startHour: 7,
+        endHour: 21
+      };
+    }
+
+    return {
+      dayCount: FULL_DAY_COUNT,
+      startHour: FULL_START_HOUR,
+      endHour: FULL_END_HOUR
+    };
+  }
+
   function getTimeSlots(stepMinutes) {
     const normalizedStep = normalizeDuration(stepMinutes);
     const slots = [];
+    const viewportConfig = state.viewportConfig || resolveViewportConfig();
 
     for (
-      let minuteCursor = START_HOUR * 60;
-      minuteCursor + normalizedStep <= END_HOUR * 60;
+      let minuteCursor = viewportConfig.startHour * 60;
+      minuteCursor + normalizedStep <= viewportConfig.endHour * 60;
       minuteCursor += normalizedStep
     ) {
       const hour = Math.floor(minuteCursor / 60);
@@ -162,8 +214,17 @@
       return;
     }
 
+    const viewportConfig = state.viewportConfig || resolveViewportConfig();
     helper.textContent =
-      "Horario de 06:00 a 22:00 en bloques de " + String(state.slotStepMinutes) + " minutos.";
+      "Vista actual: " +
+      String(viewportConfig.dayCount) +
+      " dias, " +
+      String(viewportConfig.startHour).padStart(2, "0") +
+      ":00-" +
+      String(viewportConfig.endHour).padStart(2, "0") +
+      ":00 en bloques de " +
+      String(state.slotStepMinutes) +
+      " minutos.";
   }
 
   async function callApi(path, method, body) {
@@ -212,11 +273,11 @@
     return user;
   }
 
-  function buildDayRange(startText) {
+  function buildDayRange(startText, dayCount) {
     const start = new Date(startText + "T00:00:00");
     const days = [];
 
-    for (let index = 0; index < DAY_COUNT; index += 1) {
+    for (let index = 0; index < dayCount; index += 1) {
       const next = new Date(start);
       next.setDate(start.getDate() + index);
       days.push(next);
@@ -399,11 +460,12 @@
     setSessionUi(true);
 
     const reservationsPayload = await callApi("/api/reservations", "GET");
+    const viewportConfig = state.viewportConfig || resolveViewportConfig();
     const schedulePayload = await callApi(
       "/api/reservations/work-schedule/editable?start=" +
         encodeURIComponent(byId("weekStart").value) +
         "&days=" +
-        encodeURIComponent(String(DAY_COUNT)),
+        encodeURIComponent(String(viewportConfig.dayCount)),
       "GET"
     );
 
@@ -427,7 +489,8 @@
   async function refreshAll() {
     try {
       const start = byId("weekStart").value;
-      state.days = buildDayRange(start);
+      state.viewportConfig = resolveViewportConfig();
+      state.days = buildDayRange(start, state.viewportConfig.dayCount);
 
       await loadData();
       updateSlotHelper();
@@ -504,7 +567,7 @@
       "/api/reservations/work-schedule?start=" +
         encodeURIComponent(byId("weekStart").value) +
         "&days=" +
-        encodeURIComponent(String(DAY_COUNT)),
+        encodeURIComponent(String((state.viewportConfig || resolveViewportConfig()).dayCount)),
       "DELETE"
     )
       .then(function () {
@@ -537,7 +600,30 @@
 
   const today = new Date();
   byId("weekStart").value = toDateInputValue(today);
+  state.viewportConfig = resolveViewportConfig();
   setSessionUi(Boolean(getToken()));
+
+  let resizeDebounce = null;
+  window.addEventListener("resize", function () {
+    if (resizeDebounce) {
+      clearTimeout(resizeDebounce);
+    }
+
+    resizeDebounce = setTimeout(function () {
+      const nextConfig = resolveViewportConfig();
+      const current = state.viewportConfig || {};
+      const changed =
+        nextConfig.dayCount !== current.dayCount ||
+        nextConfig.startHour !== current.startHour ||
+        nextConfig.endHour !== current.endHour;
+
+      if (!changed) {
+        return;
+      }
+
+      refreshAll();
+    }, 180);
+  });
 
   if (!getToken()) {
     window.location.href = LOGIN_PATH;

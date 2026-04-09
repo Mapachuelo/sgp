@@ -533,7 +533,17 @@ pre {
   }
 
   table {
-    min-width: 760px;
+    min-width: 540px;
+  }
+
+  th,
+  td {
+    padding: 0.4rem;
+  }
+
+  .slot-btn {
+    font-size: 0.68rem;
+    padding: 0.35rem 0.25rem;
   }
 }
 
@@ -548,7 +558,7 @@ pre {
   }
 
   table {
-    min-width: 860px;
+    min-width: 640px;
   }
 }
 

@@ -14,9 +14,9 @@
       ? "/ui/login"
       : "/ui/login";
   const ANY_STYLIST_VALUE = "__any__";
-  const START_HOUR = 6;
-  const END_HOUR = 22;
-  const DAY_COUNT = 7;
+  const FULL_START_HOUR = 6;
+  const FULL_END_HOUR = 22;
+  const FULL_DAY_COUNT = 7;
   const DEFAULT_SLOT_STEP_MINUTES = 30;
   const MIN_SERVICE_DURATION_MINUTES = 1;
   const MAX_SERVICE_DURATION_MINUTES = 280;
@@ -30,7 +30,12 @@
     selectedStylist: ANY_STYLIST_VALUE,
     selectedServiceDuration: DEFAULT_SLOT_STEP_MINUTES,
     serviceDurationByName: {},
-    serviceDurationByNameAndStylist: {}
+    serviceDurationByNameAndStylist: {},
+    viewportConfig: {
+      dayCount: FULL_DAY_COUNT,
+      startHour: FULL_START_HOUR,
+      endHour: FULL_END_HOUR
+    }
   };
 
   function byId(id) {
@@ -119,13 +124,60 @@
     return parsed;
   }
 
+  function getViewportWidth() {
+    if (window.visualViewport && Number(window.visualViewport.width) > 0) {
+      return Number(window.visualViewport.width);
+    }
+
+    if (window.innerWidth > 0) {
+      return Number(window.innerWidth);
+    }
+
+    return 1440;
+  }
+
+  function resolveViewportConfig() {
+    const width = getViewportWidth();
+
+    if (width < 480) {
+      return {
+        dayCount: 3,
+        startHour: 9,
+        endHour: 18
+      };
+    }
+
+    if (width < 768) {
+      return {
+        dayCount: 4,
+        startHour: 8,
+        endHour: 20
+      };
+    }
+
+    if (width < 1024) {
+      return {
+        dayCount: 5,
+        startHour: 7,
+        endHour: 21
+      };
+    }
+
+    return {
+      dayCount: FULL_DAY_COUNT,
+      startHour: FULL_START_HOUR,
+      endHour: FULL_END_HOUR
+    };
+  }
+
   function getSlots(stepMinutes) {
     const normalizedStep = normalizeStepMinutes(stepMinutes);
     const slots = [];
+    const viewportConfig = state.viewportConfig || resolveViewportConfig();
 
     for (
-      let minuteCursor = START_HOUR * 60;
-      minuteCursor + normalizedStep <= END_HOUR * 60;
+      let minuteCursor = viewportConfig.startHour * 60;
+      minuteCursor + normalizedStep <= viewportConfig.endHour * 60;
       minuteCursor += normalizedStep
     ) {
       const hour = Math.floor(minuteCursor / 60);
@@ -535,12 +587,13 @@
       return;
     }
 
-    state.days = buildDateRange(startValue, DAY_COUNT);
+    state.viewportConfig = resolveViewportConfig();
+    state.days = buildDateRange(startValue, state.viewportConfig.dayCount);
     state.availabilityByDate = {};
     state.workScheduleByDate = {};
 
     try {
-      state.workScheduleByDate = await fetchWorkScheduleRange(startValue, DAY_COUNT);
+      state.workScheduleByDate = await fetchWorkScheduleRange(startValue, state.viewportConfig.dayCount);
     } catch (error) {
       setFeedback("No se pudo cargar configuracion laboral: " + error.message, "warn");
     }
@@ -559,7 +612,16 @@
     await Promise.all(promises);
     updateSelectedServiceDuration();
     renderCalendar();
-    setFeedback("Calendario actualizado.", "ok");
+    setFeedback(
+      "Calendario actualizado. Vista: " +
+        String(state.viewportConfig.dayCount) +
+        " dias, " +
+        String(state.viewportConfig.startHour).padStart(2, "0") +
+        ":00-" +
+        String(state.viewportConfig.endHour).padStart(2, "0") +
+        ":00.",
+      "ok"
+    );
   }
 
   async function loadCatalogs() {
@@ -940,8 +1002,33 @@
   }
 
   byId("weekStart").value = toDateInputValue(new Date());
+  state.viewportConfig = resolveViewportConfig();
   updateSelectedSlotLabel();
   setAuthUi();
+
+  let resizeDebounce = null;
+  window.addEventListener("resize", function () {
+    if (resizeDebounce) {
+      clearTimeout(resizeDebounce);
+    }
+
+    resizeDebounce = setTimeout(function () {
+      const nextConfig = resolveViewportConfig();
+      const current = state.viewportConfig || {};
+      const changed =
+        nextConfig.dayCount !== current.dayCount ||
+        nextConfig.startHour !== current.startHour ||
+        nextConfig.endHour !== current.endHour;
+
+      if (!changed) {
+        return;
+      }
+
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
+      refreshCalendar();
+    }, 180);
+  });
 
   const boot = function () {
     loadCatalogs()
