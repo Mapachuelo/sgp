@@ -19,6 +19,23 @@ function requireAuth(req, _res, next) {
   }
 }
 
+function optionalAuth(req, _res, next) {
+  const authHeader = req.headers.authorization || "";
+  const [scheme, token] = authHeader.split(" ");
+
+  if (scheme !== "Bearer" || !token) {
+    return next();
+  }
+
+  try {
+    const payload = jwt.verify(token, env.jwtSecret);
+    req.auth = payload;
+    return next();
+  } catch (_error) {
+    return next();
+  }
+}
+
 function normalizeRoleName(role) {
   const normalized = String(role || "").trim().toLowerCase();
   if (normalized === "employee") {
@@ -45,4 +62,4 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+module.exports = { requireAuth, optionalAuth, requireRole };

@@ -66,6 +66,15 @@
     return toDateKey(date);
   }
 
+  function toLocalDateKey(dateText) {
+    const date = new Date(dateText);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return toDateKey(date);
+  }
+
   function toLocalSlot(isoText) {
     const date = new Date(isoText);
     return {
@@ -326,6 +335,37 @@
     return startsAt.getTime() < Date.now();
   }
 
+  function updateTodaySummary() {
+    const pendingElement = byId("verifyPendingTodayCount");
+    const checkedInElement = byId("verifyCheckedInTodayCount");
+    const noShowElement = byId("verifyNoShowTodayCount");
+
+    if (!pendingElement || !checkedInElement || !noShowElement) {
+      return;
+    }
+
+    const todayKey = toDateKey(new Date());
+    const reservationsToday = (state.reservations || []).filter(function (reservation) {
+      return toLocalDateKey(reservation.starts_at) === todayKey;
+    });
+
+    const pendingCount = reservationsToday.filter(function (reservation) {
+      return reservation.status === "booked" && !isNoShowReservation(reservation);
+    }).length;
+
+    const checkedInCount = reservationsToday.filter(function (reservation) {
+      return reservation.status === "checked_in";
+    }).length;
+
+    const noShowCount = reservationsToday.filter(function (reservation) {
+      return reservation.status === "booked" && isNoShowReservation(reservation);
+    }).length;
+
+    pendingElement.textContent = String(pendingCount);
+    checkedInElement.textContent = String(checkedInCount);
+    noShowElement.textContent = String(noShowCount);
+  }
+
   function renderConfigPanel() {
     const container = byId("workConfigList");
     container.innerHTML = "";
@@ -463,7 +503,19 @@
             chip.className = "validation-chip no-show";
             chip.textContent = "No asistio";
             rowWrap.appendChild(chip);
-          } else if (reservation.qr_token) {
+          } else {
+            rowWrap.classList.add("pending");
+
+            const chip = document.createElement("span");
+            chip.className = "validation-chip pending";
+            chip.textContent = "Pendiente";
+            rowWrap.appendChild(chip);
+
+            if (!reservation.qr_token) {
+              cell.appendChild(rowWrap);
+              return;
+            }
+
             const actions = document.createElement("div");
             actions.className = "reservation-actions";
 
@@ -535,6 +587,7 @@
       state.days = buildDayRange(start, state.viewportConfig.dayCount);
 
       await loadData();
+      updateTodaySummary();
       updateSlotHelper();
       renderConfigPanel();
       renderCalendar();

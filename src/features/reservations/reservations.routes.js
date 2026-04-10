@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   requireAuth,
+  optionalAuth,
   requireRole
 } = require("../../shared/middlewares/auth.middleware");
 const {
@@ -23,7 +24,7 @@ const {
 const router = express.Router();
 
 router.get("/availability", availabilityController);
-router.get("/services", requireAuth, requireRole("client", "empleado", "admin"), listServicesController);
+router.get("/services", optionalAuth, listServicesController);
 router.post("/services", requireAuth, requireRole("admin"), createServiceController);
 router.delete("/services/:serviceId", requireAuth, requireRole("admin"), deleteServiceController);
 router.get(

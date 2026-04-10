@@ -68,7 +68,7 @@ const resetWorkScheduleController = asyncHandler(async (req, res) => {
 
 const listServicesController = asyncHandler(async (req, res) => {
   const role = req.auth && req.auth.role;
-  const data = role === "empleado"
+  const data = (role === "empleado" || role === "employee")
     ? await listServicesForEmployeeCalendar(req.auth.sub)
     : await listServicesForCalendar();
   res.json({ ok: true, data });

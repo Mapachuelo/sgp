@@ -875,13 +875,21 @@
   }
 
   async function loadCatalogs() {
-    const [profilePayload, stylistsPayload, servicesPayload] = await Promise.all([
-      callApi("/api/auth/me", "GET"),
+    let profile = {};
+    if (getToken()) {
+      try {
+        const profilePayload = await callApi("/api/auth/me", "GET");
+        profile = profilePayload.data || {};
+      } catch (_error) {
+        profile = {};
+      }
+    }
+
+    const [stylistsPayload, servicesPayload] = await Promise.all([
       callApi("/api/auth/stylists", "GET"),
       callApi("/api/reservations/services", "GET")
     ]);
 
-    const profile = profilePayload.data || {};
     const isEmployeeContext = profile.role === "empleado" || profile.role === "employee";
 
     state.stylists = stylistsPayload.data || [];
@@ -1367,7 +1375,10 @@
   const boot = function () {
     refreshClientSessionState()
       .then(function () {
-        return loadCatalogs();
+        return loadCatalogs().catch(function (error) {
+          setFeedback("No se pudo cargar el catalogo completo: " + error.message, "warn");
+          return null;
+        });
       })
       .then(function () {
         return refreshCalendar();

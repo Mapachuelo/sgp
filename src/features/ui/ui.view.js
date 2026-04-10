@@ -547,6 +547,20 @@ function employeeVerifyClientsView() {
     <div class="panel-head">
       <h1>Verificar clientes</h1>
     </div>
+    <div class="verify-resume-grid">
+      <article>
+        <h3>Pendientes hoy</h3>
+        <p id="verifyPendingTodayCount">-</p>
+      </article>
+      <article>
+        <h3>Tomaron turno hoy</h3>
+        <p id="verifyCheckedInTodayCount">-</p>
+      </article>
+      <article>
+        <h3>No asistieron hoy</h3>
+        <p id="verifyNoShowTodayCount">-</p>
+      </article>
+    </div>
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
@@ -884,6 +898,20 @@ function adminVerifyClientsView() {
   <section class="emp-panel verify-main">
     <div class="panel-head">
       <h1>Verificar clientes</h1>
+    </div>
+    <div class="verify-resume-grid">
+      <article>
+        <h3>Pendientes hoy</h3>
+        <p id="verifyPendingTodayCount">-</p>
+      </article>
+      <article>
+        <h3>Tomaron turno hoy</h3>
+        <p id="verifyCheckedInTodayCount">-</p>
+      </article>
+      <article>
+        <h3>No asistieron hoy</h3>
+        <p id="verifyNoShowTodayCount">-</p>
+      </article>
     </div>
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>
