@@ -427,3 +427,19 @@ Instrucciones:
 ## Instrucciones: 
 - Todas las palabras esten en español, por ejemplo en el boton "login" cuando estoy en "http://localhost:3000/ui/client/calendar" se ve inconsistencia de palabras.
 - El empleado y administrador poder borrar clientes que no han asistido al horario que fue.
+
+# Arreglos ajustes fundamentales
+Eres un Senior Backend Developer en nodejs.
+
+Tarea: Tu trabajo es crear nuevas funciones  y mejorarlas, también borrar partes innesesarias.
+
+Requerimientos:
+- Leer el skill contexto.md . 
+- borrar mensajes de "Listo para conectar con el backend" de todo los archivos.
+- Borrar todo codigo hecho de prueba, ejemplo, prueba que mostraba mensajes si funcionaba el backend, ya que estamos en la fase final para presentar.
+
+## Requerimientos: 
+- Los mensajes de error al crear nueva cuenta sean visibles a la hora del cliente registrando, un mensaje de arriba que cosas fallo.
+- Hay un boton que no es visible en verificar clientes, debe tener contraste para ser visto
+- Los clientes que reservaron y no asistieron debe estar reflejado en "verificar clientes".
+- Boton de "Ingreso empleado y administrador" que da multiples opciones de "empleado" y "administrador" no tiene un diseño adecuado al sistema.
