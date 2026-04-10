@@ -95,8 +95,8 @@ function loginView() {
   </nav>
 </header>
 
-<main class="dashboard-wrap">
-  <section class="panel">
+<main class="dashboard-wrap login-wrap">
+  <section class="panel login-panel">
     <p class="eyebrow">Acceso al sistema</p>
     <h1>Iniciar sesion</h1>
 

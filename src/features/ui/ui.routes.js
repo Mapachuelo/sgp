@@ -1,6 +1,5 @@
 const express = require("express");
 const {
-  homeController,
   loginController,
   clientController,
   clientCalendarController,
@@ -21,7 +20,11 @@ function redirectToEmpleado(req, res) {
   res.redirect(302, nextPath);
 }
 
-router.get("/", homeController);
+function redirectRootToClient(_req, res) {
+  res.redirect(302, "/ui/client");
+}
+
+router.get("/", redirectRootToClient);
 router.get("/ui/login", loginController);
 router.get("/ui/client", clientController);
 router.get("/ui/client/calendar", clientCalendarController);
