@@ -443,3 +443,44 @@ Requerimientos:
 - Hay un boton que no es visible en verificar clientes, debe tener contraste para ser visto
 - Los clientes que reservaron y no asistieron debe estar reflejado en "verificar clientes".
 - Boton de "Ingreso empleado y administrador" que da multiples opciones de "empleado" y "administrador" no tiene un diseño adecuado al sistema.
+
+# Cambios en diseño y funcionalidad
+Eres un senior frontend developer.
+
+Tarea: Mejorar el diseño de la pagina web de los archivos css, aprovechando el espacio disponible y no dejando tanto espacios vacios.
+
+Instrucciones:
+- Leer el archivo contexto.md.
+- Los botones al hacerlo responsivo siempre se ven y ocupan estacio, sería más ordenado cuando esta en tamaño movil la pagina responsiva se vuelva los botones de dashboard un "Menú Hamburguesa".
+- No hay boton para descargar codigo qr cuando se acepta una solicitud de registrar usuario.
+
+## Instrucciones: 
+- Ingreso de empleado y administrador no se registra nadie, no hay mensaje que le falta colocar para que se registre, debe verse en la misma pantalla flotante.
+- En el boton dentro de ingreso de empleado y administrador no tiene diseño, quiero que tenga diseño como los otros, donde dice "empleado" o "administrador".
+- Servicio disponibles no se agrega gana.
+- Lista registrado no se puede editar a nada, 
+- Busque los problemas de agregar en gestion administrativa.
+
+## Instrucciones: 
+- Al intentar agregar no me deja, me dice error y cumplo todos los requisitos, busque que problema ocurre para no hacer el cambio o agregar las personas, ten en cuenta la base de datos como esta conformado si son ideanto la entrada de datos con la base de datos.
+
+## In strucciones: 
+- servicios disponibles no me deja agregar nada, sale mensaje de "column "created_by" of relation "service_catalog" does not exist" y en el input tengo algo para agregar.
+- El numero celular +57 se coloque automaticamente, el numero demás lo coloca uno,
+- Los servicios que no esten activado para un empleado no debe verse en calendario de disponibilidad.
+- El cliente al generar un codigo qr debe haber un boton que se descargue el qr generado, no se ve reflejado.
+- En editar cuenta siempre el mensaje de error debe estar en la ventana flotante, ya que el usuario no ve que error porque no se ve.
+
+## Instrucciones: 
+- Ver calendario un cliente sin cuenta no se ve nada en la tabla, que día esta ocupado y hora.
+- En empleado en verificar clientes no se ve reflejado nada que clientes tomo su turno del día, que reservas estan pendiendo y que reservas fueron confirmadas.
+
+## Requerimientos: 
+- Tablas verificar clientes no se ve que día, hora estan reservado, hablo de las tablas, de que hora a que hora dependiendo del servicio del empleados
+
+## requerimientos:
+- En ver clientes, la tabla arriba de pendientes hoy, turno hoy  y asistencia hoy, debe ser individual de cada empleado, aparte la tabla de abajo con la hora y fecha no se ve los clientes que tomaron el turno, no se ve el nombre del cliente y el servicio que pidio, verifique cual es el problema porque ocurre y arreglarlo.
+
+## Instrucciones: 
+- Calendario de disponibilidad el empleado puede reservarse asi mismo.
+- En verificar clientes la tabla el diseño es un poco tosco, toma mucho espacio de ancho y se ve mal visualmente porque todos no esta en ese tipo de anchura los demás.
