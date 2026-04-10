@@ -463,12 +463,25 @@
             chip.textContent = "No asistio";
             rowWrap.appendChild(chip);
           } else if (reservation.qr_token) {
+            const actions = document.createElement("div");
+            actions.className = "reservation-actions";
+
             const button = document.createElement("button");
             button.type = "button";
             button.className = "verify-btn";
             button.dataset.qrToken = reservation.qr_token;
             button.textContent = "Validar QR";
-            rowWrap.appendChild(button);
+            actions.appendChild(button);
+
+            const downloadButton = document.createElement("button");
+            downloadButton.type = "button";
+            downloadButton.className = "download-qr-btn";
+            downloadButton.dataset.qrToken = reservation.qr_token;
+            downloadButton.dataset.qrDataUrl = reservation.qr_data_url || "";
+            downloadButton.textContent = "Descargar QR";
+            actions.appendChild(downloadButton);
+
+            rowWrap.appendChild(actions);
           }
 
           cell.appendChild(rowWrap);
@@ -567,6 +580,25 @@
     window.location.href = VALIDATE_QR_PATH + (query ? "?" + query : "");
   }
 
+  function downloadQrCode(qrDataUrl, qrToken) {
+    const url = String(qrDataUrl || "").trim();
+    if (!url) {
+      setFeedback("No se encontro el codigo QR para esta reserva.", "warn");
+      return;
+    }
+
+    const safeToken = String(qrToken || "reserva")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .slice(0, 36);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "qr-reserva-" + (safeToken || "cliente") + ".png";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setFeedback("Descarga de QR iniciada.", "ok");
+  }
+
   byId("reloadBtn").addEventListener("click", refreshAll);
   byId("saveConfigBtn").addEventListener("click", function () {
     updateConfigFromForm();
@@ -619,11 +651,16 @@
       return;
     }
 
-    if (!target.classList.contains("verify-btn")) {
+    if (target.classList.contains("verify-btn")) {
+      goToQrValidation(target.dataset.qrToken);
       return;
     }
 
-    goToQrValidation(target.dataset.qrToken);
+    if (!target.classList.contains("download-qr-btn")) {
+      return;
+    }
+
+    downloadQrCode(target.dataset.qrDataUrl, target.dataset.qrToken);
   });
 
   const today = new Date();

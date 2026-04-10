@@ -88,12 +88,23 @@ body {
 
 .nav-toggle {
   display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.nav-toggle::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+  box-shadow: 0 -5px 0 currentColor, 0 5px 0 currentColor;
 }
 
 /* ── DASHBOARD ──────────────────────────────────── */
 .dashboard-wrap {
-  width: min(100%, 96vw);
-  margin: 1.2rem auto 1.6rem;
+  width: min(100%, 98vw);
+  margin: 1rem auto 1.3rem;
   display: grid;
   gap: 1rem;
   animation: fadeUp 0.5s ease;
@@ -101,10 +112,10 @@ body {
 
 .login-wrap {
   width: min(560px, 94vw);
-  min-height: calc(100vh - 92px);
-  align-content: center;
+  min-height: auto;
+  align-content: start;
   margin: 0 auto;
-  padding: 1rem 0 1.5rem;
+  padding: 0.8rem 0 1.2rem;
 }
 
 .login-panel {
@@ -467,7 +478,8 @@ pre {
 
   .nav-toggle {
     display: inline-flex;
-    width: 100%;
+    width: auto;
+    margin-left: auto;
   }
 
   .topbar-actions {
@@ -515,8 +527,8 @@ pre {
 
   .login-wrap {
     width: min(560px, 92vw);
-    min-height: calc(100vh - 96px);
-    padding: 0.9rem 0 1.8rem;
+    min-height: auto;
+    padding: 0.85rem 0 1.3rem;
   }
 }
 
@@ -549,7 +561,7 @@ pre {
   .login-wrap {
     width: min(580px, 88vw);
     margin: 0 auto;
-    min-height: calc(100vh - 102px);
+    min-height: auto;
   }
 }
 
@@ -569,8 +581,8 @@ pre {
 
   .login-wrap {
     width: min(620px, 70vw);
-    min-height: calc(100vh - 106px);
-    padding: 1rem 0 2rem;
+    min-height: auto;
+    padding: 0.9rem 0 1.4rem;
   }
 
   .login-panel {

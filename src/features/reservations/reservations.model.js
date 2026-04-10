@@ -133,6 +133,7 @@ async function listReservationsByClient(clientId) {
         r.starts_at,
         r.client_count,
         r.qr_token,
+        r.qr_data_url,
         r.status,
         r.checked_in_at,
         r.created_at
@@ -162,6 +163,7 @@ async function listAllReservations() {
         r.starts_at,
         r.client_count,
         r.qr_token,
+        r.qr_data_url,
         r.status,
         r.checked_in_at,
         r.created_at

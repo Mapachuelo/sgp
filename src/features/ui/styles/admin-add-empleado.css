@@ -85,6 +85,17 @@ body {
 
 .nav-toggle {
   display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.nav-toggle::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+  box-shadow: 0 -5px 0 currentColor, 0 5px 0 currentColor;
 }
 
 /* ── BUTTONS ────────────────────────────────────── */
@@ -148,8 +159,8 @@ body {
 
 /* ── LAYOUT ─────────────────────────────────────── */
 .admin-layout {
-  width: min(100%, 96vw);
-  margin: 1.2rem auto;
+  width: min(100%, 98vw);
+  margin: 1rem auto;
   display: grid;
   gap: 1rem;
   grid-template-columns: 1fr;
@@ -595,7 +606,8 @@ pre {
 
   .nav-toggle {
     display: inline-flex;
-    width: 100%;
+    width: auto;
+    margin-left: auto;
   }
 
   .admin-nav {

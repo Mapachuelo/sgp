@@ -20,8 +20,8 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
 
             var toggle = document.createElement("button");
             toggle.type = "button";
-            toggle.className = buttonClassName + " nav-toggle js-nav-toggle";
-            toggle.textContent = "Navegacion";
+            toggle.className = buttonClassName + " nav-toggle hamburger-toggle js-nav-toggle";
+            toggle.textContent = "Menu";
             toggle.setAttribute("aria-expanded", "false");
             toggle.setAttribute("aria-label", "Mostrar navegacion");
 
@@ -30,6 +30,26 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
             toggle.addEventListener("click", function () {
               var isOpen = nav.classList.toggle("is-open");
               toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+              toggle.setAttribute("aria-label", isOpen ? "Ocultar navegacion" : "Mostrar navegacion");
+            });
+
+            nav.addEventListener("click", function (event) {
+              if (window.innerWidth >= 768) {
+                return;
+              }
+
+              var target = event.target;
+              if (!(target instanceof HTMLElement)) {
+                return;
+              }
+
+              if (!target.closest("a, button")) {
+                return;
+              }
+
+              nav.classList.remove("is-open");
+              toggle.setAttribute("aria-expanded", "false");
+              toggle.setAttribute("aria-label", "Mostrar navegacion");
             });
           });
         }
