@@ -68,7 +68,7 @@
     }
 
     const isDashboardView = isEmployeeDashboardPath(window.location.pathname);
-    const isEmployee = getRole(user) === "employee";
+    const isEmployee = getRole(user) === "empleado" || getRole(user) === "employee";
     editButton.classList.toggle("hidden", !(isEmployee && isDashboardView));
   }
 
@@ -178,7 +178,7 @@
 
   function canUseEmployeeArea(user) {
     const role = getRole(user);
-    return role === "employee" || role === "admin";
+    return role === "empleado" || role === "employee" || role === "admin";
   }
 
   async function openEmployeeAccountEditor() {
@@ -187,7 +187,7 @@
       return;
     }
 
-    if (getRole(state.currentUser) !== "employee") {
+    if (getRole(state.currentUser) !== "empleado" && getRole(state.currentUser) !== "employee") {
       setFeedback("Solo empleados pueden editar su cuenta desde esta vista.", "warn");
       return;
     }

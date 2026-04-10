@@ -7,6 +7,6 @@ const { validateQrController } = require("./checkin.controller");
 
 const router = express.Router();
 
-router.post("/validate", requireAuth, requireRole("employee", "admin"), validateQrController);
+router.post("/validate", requireAuth, requireRole("empleado", "admin"), validateQrController);
 
 module.exports = { checkinRouter: router };

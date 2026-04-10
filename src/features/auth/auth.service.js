@@ -21,6 +21,11 @@ const {
 
 const PUBLIC_REGISTRATION_ROLE = "client";
 
+function isEmployeeRole(role) {
+  const normalized = String(role || "").trim().toLowerCase();
+  return normalized === "empleado" || normalized === "employee";
+}
+
 function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
 }
@@ -75,11 +80,29 @@ function signToken(user) {
 async function register(input) {
   const name = (input.name || "").trim();
   const email = (input.email || "").trim().toLowerCase();
-  const phone = ensureCoPhone(normalizePhone(input.phone));
+  const phoneRaw = normalizePhone(input.phone);
   const password = (input.password || "").trim();
 
-  if (!name || !email || !phone || !password) {
-    throw new HttpError(400, "name, email, phone y password son obligatorios");
+  if (!name) {
+    throw new HttpError(400, "La casilla nombre es obligatoria");
+  }
+
+  if (!email) {
+    throw new HttpError(400, "La casilla correo es obligatoria");
+  }
+
+  if (!isValidEmail(email)) {
+    throw new HttpError(400, "La casilla correo no tiene un formato valido");
+  }
+
+  if (!phoneRaw) {
+    throw new HttpError(400, "La casilla numero es obligatoria");
+  }
+
+  const phone = ensureCoPhone(phoneRaw);
+
+  if (!password) {
+    throw new HttpError(400, "La casilla password es obligatoria");
   }
 
   if (password.length < 6) {
@@ -154,7 +177,7 @@ async function getEmployeeOwnAccount(userId) {
     throw new HttpError(404, "Empleado no encontrado");
   }
 
-  if (account.role !== "employee") {
+  if (!isEmployeeRole(account.role)) {
     throw new HttpError(403, "Solo empleados pueden editar esta cuenta");
   }
 
@@ -170,8 +193,12 @@ function normalizeRole(inputRole) {
     .trim()
     .toLowerCase();
 
-  if (role !== "employee" && role !== "admin") {
-    throw new HttpError(400, "role debe ser employee o admin");
+  if (role === "employee") {
+    return "empleado";
+  }
+
+  if (role !== "empleado" && role !== "admin") {
+    throw new HttpError(400, "role debe ser empleado o admin");
   }
 
   return role;
@@ -184,7 +211,7 @@ async function createEmployeeByAdmin(input) {
   const identification = normalizeText(input.identification);
   const email = normalizeText(input.email).toLowerCase();
   const password = normalizeText(input.password);
-  const role = normalizeRole(input.role || "employee");
+  const role = normalizeRole(input.role || "empleado");
 
   if (!firstName || !lastName || !phone || !identification || !email || !password) {
     throw new HttpError(
@@ -265,7 +292,7 @@ async function deleteEmployeeByAdmin(employeeIdInput, actorUserId) {
     throw new HttpError(404, "Empleado no encontrado");
   }
 
-  if (user.role !== "employee" && user.role !== "admin") {
+  if (!isEmployeeRole(user.role) && user.role !== "admin") {
     throw new HttpError(400, "Solo se pueden eliminar usuarios con rol empleado o admin");
   }
 
@@ -304,8 +331,8 @@ async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) 
     throw new HttpError(404, "Usuario no encontrado");
   }
 
-  if (existingUser.role !== "employee" && existingUser.role !== "admin") {
-    throw new HttpError(400, "Solo se pueden editar usuarios con rol employee o admin");
+  if (!isEmployeeRole(existingUser.role) && existingUser.role !== "admin") {
+    throw new HttpError(400, "Solo se pueden editar usuarios con rol empleado o admin");
   }
 
   if (Number(actorUserId) === userId && existingUser.role === "admin") {
@@ -344,7 +371,7 @@ async function updateEmployeeOwnAccount(userId, input) {
     throw new HttpError(404, "Empleado no encontrado");
   }
 
-  if (current.role !== "employee") {
+  if (!isEmployeeRole(current.role)) {
     throw new HttpError(403, "Solo empleados pueden editar esta cuenta");
   }
 

@@ -548,7 +548,7 @@
       return;
     }
 
-    if (!user || (user.role !== "employee" && user.role !== "admin")) {
+    if (!user || (user.role !== "empleado" && user.role !== "employee" && user.role !== "admin")) {
       throw new Error("Acceso restringido a empleados y administradores");
     }
   }

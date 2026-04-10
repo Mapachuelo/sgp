@@ -266,7 +266,7 @@
     const user = profile.data;
     const allowed = isAdminContext
       ? Boolean(user && user.role === "admin")
-      : Boolean(user && (user.role === "employee" || user.role === "admin"));
+      : Boolean(user && (user.role === "empleado" || user.role === "employee" || user.role === "admin"));
 
     if (!allowed) {
       throw new Error("Acceso restringido a empleados y administradores");

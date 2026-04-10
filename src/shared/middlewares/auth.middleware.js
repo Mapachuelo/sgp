@@ -19,13 +19,25 @@ function requireAuth(req, _res, next) {
   }
 }
 
+function normalizeRoleName(role) {
+  const normalized = String(role || "").trim().toLowerCase();
+  if (normalized === "employee") {
+    return "empleado";
+  }
+
+  return normalized;
+}
+
 function requireRole(...roles) {
+  const normalizedAllowedRoles = roles.map(normalizeRoleName);
+
   return (req, _res, next) => {
     if (!req.auth) {
       return next(new HttpError(401, "No autenticado"));
     }
 
-    if (!roles.includes(req.auth.role)) {
+    const currentRole = normalizeRoleName(req.auth.role);
+    if (!normalizedAllowedRoles.includes(currentRole)) {
       return next(new HttpError(403, "No autorizado para este recurso"));
     }
 

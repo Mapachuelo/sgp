@@ -85,7 +85,7 @@
       return user.role === "admin";
     }
 
-    return user.role === "employee" || user.role === "admin";
+    return user.role === "empleado" || user.role === "employee" || user.role === "admin";
   }
 
   function toDateKey(date) {

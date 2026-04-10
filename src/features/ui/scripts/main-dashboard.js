@@ -65,7 +65,7 @@
 			return "/ui/admin";
 		}
 
-		if (role === "employee") {
+		if (role === "empleado" || role === "employee") {
 			return "/ui/empleado";
 		}
 
@@ -134,12 +134,33 @@
 	async function registerClient() {
 		const firstName = (byId("registerFirstName").value || "").trim();
 		const lastName = (byId("registerLastName").value || "").trim();
-		const phone = normalizePhoneInput((byId("registerPhone").value || "").trim());
+		const rawPhone = (byId("registerPhone").value || "").trim();
+		const phone = normalizePhoneInput(rawPhone);
 		const email = (byId("registerEmail").value || "").trim();
 		const password = byId("registerPassword").value || "";
 
-		if (!firstName || !lastName || !phone || !email || !password) {
-			setFeedback("Completa nombre, apellido, numero, correo y password.", "warn");
+		if (!firstName) {
+			setFeedback("La casilla nombre es obligatoria.", "warn");
+			return;
+		}
+
+		if (!lastName) {
+			setFeedback("La casilla apellido es obligatoria.", "warn");
+			return;
+		}
+
+		if (!rawPhone) {
+			setFeedback("La casilla numero es obligatoria.", "warn");
+			return;
+		}
+
+		if (!email) {
+			setFeedback("La casilla correo es obligatoria.", "warn");
+			return;
+		}
+
+		if (!password) {
+			setFeedback("La casilla password es obligatoria.", "warn");
 			return;
 		}
 

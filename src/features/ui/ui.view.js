@@ -639,7 +639,7 @@ function adminView() {
       <form id="employeeForm">
         <label>Rol</label>
         <select id="role">
-          <option value="employee">Empleado</option>
+          <option value="empleado">Empleado</option>
           <option value="admin">Administrador</option>
         </select>
         <label>Nombre</label>

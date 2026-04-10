@@ -406,7 +406,7 @@ async function listEmployeeServiceTimesForCalendar() {
         est.duration_minutes
       FROM employee_service_time est
       JOIN app_user u ON u.id = est.employee_id
-      WHERE u.role = 'employee'
+      WHERE u.role = 'empleado'
       ORDER BY est.service_id ASC, est.employee_id ASC
     `
   );

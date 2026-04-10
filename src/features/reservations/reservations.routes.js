@@ -42,19 +42,19 @@ router.get("/work-schedule", getWorkScheduleController);
 router.get(
   "/work-schedule/editable",
   requireAuth,
-  requireRole("employee", "admin"),
+  requireRole("empleado", "admin"),
   getEditableWorkScheduleController
 );
-router.put("/work-schedule", requireAuth, requireRole("employee", "admin"), saveWorkScheduleController);
+router.put("/work-schedule", requireAuth, requireRole("empleado", "admin"), saveWorkScheduleController);
 router.delete(
   "/work-schedule",
   requireAuth,
-  requireRole("employee", "admin"),
+  requireRole("empleado", "admin"),
   resetWorkScheduleController
 );
 router.post("/", requireAuth, requireRole("client"), createReservationController);
 router.get("/me", requireAuth, requireRole("client"), myReservationsController);
 router.delete("/me/:reservationId", requireAuth, requireRole("client"), cancelMyReservationController);
-router.get("/", requireAuth, requireRole("employee", "admin"), listReservationsController);
+router.get("/", requireAuth, requireRole("empleado", "admin"), listReservationsController);
 
 module.exports = { reservationsRouter: router };

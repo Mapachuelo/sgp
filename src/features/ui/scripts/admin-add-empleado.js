@@ -42,7 +42,7 @@
   }
 
   function roleLabel(role) {
-    if (role === "employee") {
+    if (role === "empleado" || role === "employee") {
       return "Empleado";
     }
 
@@ -191,33 +191,27 @@
   }
 
   function validateForm(data) {
-    const missing = [];
-
     if (!data.role) {
-      missing.push("rol");
+      return "La casilla rol es obligatoria.";
     }
 
     if (!data.firstName) {
-      missing.push("nombre");
+      return "La casilla nombre es obligatoria.";
     }
     if (!data.lastName) {
-      missing.push("apellido");
+      return "La casilla apellido es obligatoria.";
     }
     if (!data.phone) {
-      missing.push("numero");
+      return "La casilla numero es obligatoria.";
     }
     if (!data.identification) {
-      missing.push("identificacion");
+      return "La casilla identificacion es obligatoria.";
     }
     if (!data.email) {
-      missing.push("correo");
+      return "La casilla correo es obligatoria.";
     }
     if (!data.password) {
-      missing.push("password");
-    }
-
-    if (missing.length > 0) {
-      return "Completa los campos: " + missing.join(", ");
+      return "La casilla password es obligatoria.";
     }
 
     if (data.password.length < 6) {
@@ -244,7 +238,7 @@
   }
 
   function clearForm() {
-    byId("role").value = "employee";
+    byId("role").value = "empleado";
     byId("firstName").value = "";
     byId("lastName").value = "";
     byId("phone").value = "";
@@ -325,7 +319,7 @@
       configBtn.dataset.employeeId = String(row.id || "");
       configBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
       configBtn.dataset.employeeRole = row.role || "";
-      configBtn.disabled = !row.id || row.role !== "employee";
+      configBtn.disabled = !row.id || (row.role !== "empleado" && row.role !== "employee");
       actions.appendChild(configBtn);
 
       tr.appendChild(actions);
@@ -583,7 +577,7 @@
   }
 
   async function openEmployeeServiceTimesModal(employeeId, employeeName, employeeRole) {
-    if (employeeRole !== "employee") {
+    if (employeeRole !== "empleado" && employeeRole !== "employee") {
       setFeedback("Solo puedes configurar tiempos para usuarios con rol empleado.", "warn");
       return;
     }
