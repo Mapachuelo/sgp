@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS app_user (
   name VARCHAR(120) NOT NULL,
   email VARCHAR(180) NOT NULL UNIQUE,
   phone VARCHAR(40) NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('client', 'employee', 'admin')),
+  role VARCHAR(20) NOT NULL CHECK (role IN ('client', 'empleado', 'admin')),
   password_hash VARCHAR(255) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -57,5 +57,5 @@ CREATE INDEX IF NOT EXISTS idx_payment_paid_at ON payment(paid_at);
 INSERT INTO app_user (name, email, phone, role, password_hash)
 VALUES
   ('Administrador', 'admin@sgp.local', '000000000', 'admin', '$2a$10$AQkDm1Ckoru4XwnucC1tN.COeCHnLKf7BTImcDDxKK4yQ/c8CKY1O'),
-  ('Empleado', 'empleado@sgp.local', '111111111', 'employee', '$2a$10$5/.076IhfYTj6r2IJJ/yHOKgLgrIeZOE/lVvkr1YyUBDSz5pbfwj2')
+  ('Empleado', 'empleado@sgp.local', '111111111', 'empleado', '$2a$10$5/.076IhfYTj6r2IJJ/yHOKgLgrIeZOE/lVvkr1YyUBDSz5pbfwj2')
 ON CONFLICT (email) DO NOTHING;

@@ -22,11 +22,11 @@ router.post("/register", registerController);
 router.post("/login", loginController);
 router.get("/stylists", stylistsController);
 router.get("/me", requireAuth, meController);
-router.get("/me/employee-account", requireAuth, requireRole("employee"), employeeOwnAccountController);
+router.get("/me/employee-account", requireAuth, requireRole("empleado"), employeeOwnAccountController);
 router.put(
   "/me/employee-account",
   requireAuth,
-  requireRole("employee"),
+  requireRole("empleado"),
   updateEmployeeOwnAccountController
 );
 router.get("/employees", requireAuth, requireRole("admin"), listEmployeesByAdminController);

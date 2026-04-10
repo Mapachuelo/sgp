@@ -406,7 +406,7 @@ async function listEmployeeServiceTimesForCalendar() {
         est.duration_minutes
       FROM employee_service_time est
       JOIN app_user u ON u.id = est.employee_id
-      WHERE u.role = 'employee'
+      WHERE u.role = 'empleado'
       ORDER BY est.service_id ASC, est.employee_id ASC
     `
   );
@@ -458,6 +458,22 @@ async function countActiveReservationsByClient(clientId) {
   );
 
   return result.rows[0] ? result.rows[0].total : 0;
+}
+
+async function hasNoShowReservationForClient(clientId) {
+  const result = await db.query(
+    `
+      SELECT 1
+      FROM reservation
+      WHERE client_id = $1
+        AND starts_at < NOW()
+        AND status = 'booked'
+      LIMIT 1
+    `,
+    [clientId]
+  );
+
+  return result.rowCount > 0;
 }
 
 async function findClientReservationById(reservationId, clientId) {
@@ -528,4 +544,5 @@ module.exports = {
   countActiveReservationsByClient,
   findClientReservationById,
   cancelReservationByClient
+  ,hasNoShowReservationForClient
 };

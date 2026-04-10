@@ -4,6 +4,7 @@ const {
   getMyClientProfile,
   updateMyClientProfile,
   deleteMyClientProfile
+  ,deleteClientIfNoShow
 } = require("./clients.service");
 
 const listClientsController = asyncHandler(async (_req, res) => {
@@ -26,9 +27,16 @@ const deleteMyProfileController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
+const deleteClientByIdController = asyncHandler(async (req, res) => {
+  const clientId = Number(req.params.id);
+  const data = await deleteClientIfNoShow(clientId);
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   listClientsController,
   getMyProfileController,
   updateMyProfileController,
   deleteMyProfileController
+  ,deleteClientByIdController
 };

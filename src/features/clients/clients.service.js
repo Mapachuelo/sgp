@@ -7,9 +7,35 @@ const {
   updateClient,
   deleteClient
 } = require("./clients.model");
+const { hasNoShowReservationForClient } = require("../reservations/reservations.model");
 
 function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
+}
+
+function normalizePhone(input) {
+  const compact = String(input || "").trim().replace(/[^\d+]/g, "");
+  if (!compact) {
+    return "";
+  }
+
+  if (compact.startsWith("+")) {
+    return compact;
+  }
+
+  if (compact.startsWith("57")) {
+    return "+" + compact;
+  }
+
+  return "+57" + compact;
+}
+
+function ensureCoPhone(phone) {
+  if (!/^\+57\d{10}$/.test(phone)) {
+    throw new HttpError(400, "El numero de telefono debe tener formato +57XXXXXXXXXX");
+  }
+
+  return phone;
 }
 
 async function getAllClients() {
@@ -27,7 +53,7 @@ async function getMyClientProfile(userId) {
 
 async function updateMyClientProfile(userId, input) {
   const name = (input.name || "").trim();
-  const phone = (input.phone || "").trim();
+  const phone = ensureCoPhone(normalizePhone(input.phone));
   const email = (input.email || "").trim().toLowerCase();
   const password = (input.password || "").trim();
 
@@ -77,9 +103,24 @@ async function deleteMyClientProfile(userId) {
   return { deleted: true };
 }
 
+async function deleteClientIfNoShow(clientId) {
+  const hasNoShow = await hasNoShowReservationForClient(clientId);
+  if (!hasNoShow) {
+    throw new HttpError(400, "No hay reservas pasadas sin asistencia para este cliente");
+  }
+
+  const deleted = await deleteClient(clientId);
+  if (!deleted) {
+    throw new HttpError(404, "Cliente no encontrado");
+  }
+
+  return { deleted: true };
+}
+
 module.exports = {
   getAllClients,
   getMyClientProfile,
   updateMyClientProfile,
   deleteMyClientProfile
+  ,deleteClientIfNoShow
 };

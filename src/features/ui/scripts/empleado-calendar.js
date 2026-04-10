@@ -26,15 +26,6 @@
     }
   }
 
-  function setOutput(payload) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
-    }
-
-    output.textContent = JSON.stringify(payload, null, 2);
-  }
-
   function setFeedback(message, tone) {
     const element = byId("calendarFeedback");
     element.textContent = message;
@@ -78,8 +69,6 @@
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
 
-    setOutput(payload);
-
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || "Error en la solicitud");
     }
@@ -96,7 +85,7 @@
       return user.role === "admin";
     }
 
-    return user.role === "employee" || user.role === "admin";
+    return user.role === "empleado" || user.role === "employee" || user.role === "admin";
   }
 
   function toDateKey(date) {

@@ -10,7 +10,7 @@ const router = express.Router();
 router.post(
   "/manual",
   requireAuth,
-  requireRole("employee", "admin"),
+  requireRole("empleado", "admin"),
   manualPaymentController
 );
 

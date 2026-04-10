@@ -7,15 +7,6 @@
 		return document.getElementById(id);
 	}
 
-	function setOutput(payload) {
-		const output = byId("apiOutput");
-		if (!output) {
-			return;
-		}
-
-		output.textContent = JSON.stringify(payload, null, 2);
-	}
-
 	function setFeedback(message, tone) {
 		const feedback = byId("loginFeedback");
 		if (!feedback) {
@@ -24,6 +15,20 @@
 
 		feedback.textContent = message;
 		feedback.className = "feedback " + tone;
+	}
+
+	function setRegisterFeedback(message, tone) {
+		const feedback = byId("registerFeedback");
+		if (!feedback) {
+			return;
+		}
+
+		feedback.textContent = message;
+		feedback.className = "feedback " + tone;
+	}
+
+	function resetRegisterFeedback() {
+		setRegisterFeedback("Completa los datos y revisa el mensaje si alguna casilla falla.", "info");
 	}
 
 	function getToken() {
@@ -62,8 +67,6 @@
 			payload = { ok: false, message: "Respuesta no valida del servidor" };
 		}
 
-		setOutput(payload);
-
 		if (!response.ok || !payload.ok) {
 			throw new Error(payload.message || "Error en la solicitud");
 		}
@@ -76,7 +79,7 @@
 			return "/ui/admin";
 		}
 
-		if (role === "employee") {
+		if (role === "empleado" || role === "employee") {
 			return "/ui/empleado";
 		}
 
@@ -121,29 +124,77 @@
 		return /^\S+@\S+\.\S+$/.test(email);
 	}
 
+	function normalizePhoneInput(value) {
+		const compact = String(value || "").replace(/[^\d+]/g, "");
+		if (!compact) {
+			return "";
+		}
+
+		if (compact.startsWith("+")) {
+			return compact;
+		}
+
+		if (compact.startsWith("57")) {
+			return "+" + compact;
+		}
+
+		return "+57" + compact;
+	}
+
+	function isValidCoPhone(phone) {
+		return /^\+57\d{10}$/.test(phone);
+	}
+
 	async function registerClient() {
 		const firstName = (byId("registerFirstName").value || "").trim();
 		const lastName = (byId("registerLastName").value || "").trim();
-		const phone = (byId("registerPhone").value || "").trim();
+		const rawPhone = (byId("registerPhone").value || "").trim();
+		const phone = normalizePhoneInput(rawPhone);
 		const email = (byId("registerEmail").value || "").trim();
 		const password = byId("registerPassword").value || "";
 
-		if (!firstName || !lastName || !phone || !email || !password) {
-			setFeedback("Completa nombre, apellido, numero, correo y password.", "warn");
+		if (!firstName) {
+			setRegisterFeedback("La casilla nombre es obligatoria.", "warn");
+			return;
+		}
+
+		if (!lastName) {
+			setRegisterFeedback("La casilla apellido es obligatoria.", "warn");
+			return;
+		}
+
+		if (!rawPhone) {
+			setRegisterFeedback("La casilla numero es obligatoria.", "warn");
+			return;
+		}
+
+		if (!email) {
+			setRegisterFeedback("La casilla correo es obligatoria.", "warn");
+			return;
+		}
+
+		if (!password) {
+			setRegisterFeedback("La casilla password es obligatoria.", "warn");
 			return;
 		}
 
 		if (!isValidEmail(email)) {
-			setFeedback("Ingresa un correo valido.", "warn");
+			setRegisterFeedback("La casilla correo no tiene un formato valido.", "warn");
+			return;
+		}
+
+		if (!isValidCoPhone(phone)) {
+			setRegisterFeedback("La casilla numero debe tener formato +57XXXXXXXXXX.", "warn");
 			return;
 		}
 
 		if (password.length < 6) {
-			setFeedback("La password debe tener al menos 6 caracteres.", "warn");
+			setRegisterFeedback("La casilla password debe tener al menos 6 caracteres.", "warn");
 			return;
 		}
 
 		try {
+			byId("registerPhone").value = phone;
 			const payload = await callApi(
 				"/api/auth/register",
 				"POST",
@@ -161,7 +212,7 @@
 			setToken(payload.data.token);
 			window.location.href = "/ui/client";
 		} catch (error) {
-			setFeedback(error.message, "warn");
+			setRegisterFeedback(error.message, "warn");
 		}
 	}
 
@@ -190,6 +241,7 @@
 
 		modal.classList.add("hidden");
 		clearRegisterForm();
+		resetRegisterFeedback();
 	}
 
 	function openRegisterModal() {
@@ -199,6 +251,7 @@
 		}
 
 		modal.classList.remove("hidden");
+		resetRegisterFeedback();
 	}
 
 	async function redirectIfActiveSession() {

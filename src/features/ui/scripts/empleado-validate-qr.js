@@ -29,15 +29,6 @@
     localStorage.removeItem("admin_token");
   }
 
-  function setOutput(payload) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
-    }
-
-    output.textContent = JSON.stringify(payload, null, 2);
-  }
-
   function setFeedback(message, tone) {
     const element = byId("qrFeedback");
     element.textContent = message;
@@ -112,8 +103,6 @@
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
 
-    setOutput(payload);
-
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || "Error en la solicitud");
     }
@@ -126,7 +115,7 @@
     const user = profile.data;
     const allowed = isAdminContext
       ? Boolean(user && user.role === "admin")
-      : Boolean(user && (user.role === "employee" || user.role === "admin"));
+      : Boolean(user && (user.role === "empleado" || user.role === "employee" || user.role === "admin"));
 
     if (!allowed) {
       throw new Error("Acceso restringido a empleados y administradores");

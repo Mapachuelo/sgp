@@ -99,6 +99,29 @@ body {
   animation: fadeUp 0.5s ease;
 }
 
+.login-wrap {
+  width: min(560px, 94vw);
+  min-height: calc(100vh - 92px);
+  align-content: center;
+  margin: 0 auto;
+  padding: 1rem 0 1.5rem;
+}
+
+.login-panel {
+  padding: 1.4rem;
+}
+
+.login-panel h1 {
+  margin: 0.2rem 0 0.85rem;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(1.7rem, 4vw, 2.2rem);
+  line-height: 1.2;
+}
+
+.login-panel .feedback {
+  margin-top: 1rem;
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -407,6 +430,12 @@ select:focus {
   gap: 0.6rem;
 }
 
+#registerFeedback {
+  margin: 0.6rem 0 0.8rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -483,6 +512,12 @@ pre {
   .hero-actions .btn {
     flex: 1 1 calc(50% - 0.35rem);
   }
+
+  .login-wrap {
+    width: min(560px, 92vw);
+    min-height: calc(100vh - 96px);
+    padding: 0.9rem 0 1.8rem;
+  }
 }
 
 @media (min-width: 768px) {
@@ -510,6 +545,12 @@ pre {
   .hero-actions .btn {
     flex: 0 0 auto;
   }
+
+  .login-wrap {
+    width: min(580px, 88vw);
+    margin: 0 auto;
+    min-height: calc(100vh - 102px);
+  }
 }
 
 @media (min-width: 1024px) {
@@ -525,6 +566,16 @@ pre {
   .panel {
     padding: 1.5rem;
   }
+
+  .login-wrap {
+    width: min(620px, 70vw);
+    min-height: calc(100vh - 106px);
+    padding: 1rem 0 2rem;
+  }
+
+  .login-panel {
+    padding: 1.6rem;
+  }
 }
 
 @media (min-width: 1200px) {
@@ -534,6 +585,10 @@ pre {
 
   .panel {
     padding: 1.6rem;
+  }
+
+  .login-wrap {
+    width: min(640px, 56vw);
   }
 }
 
@@ -545,5 +600,13 @@ pre {
 
   .panel {
     padding: 1.8rem;
+  }
+
+  .login-wrap {
+    width: min(660px, 48vw);
+  }
+
+  .login-panel {
+    padding: 1.7rem;
   }
 }

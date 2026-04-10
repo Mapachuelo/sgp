@@ -20,17 +20,29 @@
     localStorage.removeItem("admin_token");
   }
 
-  function setOutput(payload) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
+  function normalizePhoneInput(value) {
+    const compact = String(value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      return "";
     }
 
-    output.textContent = JSON.stringify(payload, null, 2);
+    if (compact.startsWith("+")) {
+      return compact;
+    }
+
+    if (compact.startsWith("57")) {
+      return "+" + compact;
+    }
+
+    return "+57" + compact;
+  }
+
+  function isValidCoPhone(phone) {
+    return /^\+57\d{10}$/.test(phone);
   }
 
   function roleLabel(role) {
-    if (role === "employee") {
+    if (role === "empleado" || role === "employee") {
       return "Empleado";
     }
 
@@ -164,8 +176,6 @@
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
 
-    setOutput(payload);
-
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || "Error en la solicitud");
     }
@@ -181,37 +191,35 @@
   }
 
   function validateForm(data) {
-    const missing = [];
-
     if (!data.role) {
-      missing.push("rol");
+      return "La casilla rol es obligatoria.";
     }
 
     if (!data.firstName) {
-      missing.push("nombre");
+      return "La casilla nombre es obligatoria.";
     }
     if (!data.lastName) {
-      missing.push("apellido");
+      return "La casilla apellido es obligatoria.";
     }
     if (!data.phone) {
-      missing.push("numero");
+      return "La casilla numero es obligatoria.";
     }
     if (!data.identification) {
-      missing.push("identificacion");
+      return "La casilla identificacion es obligatoria.";
     }
     if (!data.email) {
-      missing.push("correo");
+      return "La casilla correo es obligatoria.";
     }
     if (!data.password) {
-      missing.push("password");
-    }
-
-    if (missing.length > 0) {
-      return "Completa los campos: " + missing.join(", ");
+      return "La casilla password es obligatoria.";
     }
 
     if (data.password.length < 6) {
       return "La password asignada debe tener al menos 6 caracteres";
+    }
+
+    if (!isValidCoPhone(data.phone)) {
+      return "El numero debe tener formato +57XXXXXXXXXX.";
     }
 
     return "";
@@ -222,7 +230,7 @@
       role: byId("role").value,
       firstName: byId("firstName").value.trim(),
       lastName: byId("lastName").value.trim(),
-      phone: byId("phone").value.trim(),
+      phone: normalizePhoneInput(byId("phone").value.trim()),
       identification: byId("identification").value.trim(),
       email: byId("email").value.trim(),
       password: byId("password").value
@@ -230,7 +238,7 @@
   }
 
   function clearForm() {
-    byId("role").value = "employee";
+    byId("role").value = "empleado";
     byId("firstName").value = "";
     byId("lastName").value = "";
     byId("phone").value = "";
@@ -311,7 +319,7 @@
       configBtn.dataset.employeeId = String(row.id || "");
       configBtn.dataset.employeeName = [row.name || "", row.last_name || ""].join(" ").trim();
       configBtn.dataset.employeeRole = row.role || "";
-      configBtn.disabled = !row.id || row.role !== "employee";
+      configBtn.disabled = !row.id || (row.role !== "empleado" && row.role !== "employee");
       actions.appendChild(configBtn);
 
       tr.appendChild(actions);
@@ -386,9 +394,16 @@
       return;
     }
 
+    const normalizedPhone = normalizePhoneInput(phone);
+    if (!isValidCoPhone(normalizedPhone)) {
+      setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
+      return;
+    }
+
     try {
+      byId("editPhone").value = normalizedPhone;
       await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "PUT", {
-        phone: phone,
+        phone: normalizedPhone,
         email: email,
         password: password
       });
@@ -562,7 +577,7 @@
   }
 
   async function openEmployeeServiceTimesModal(employeeId, employeeName, employeeRole) {
-    if (employeeRole !== "employee") {
+    if (employeeRole !== "empleado" && employeeRole !== "employee") {
       setFeedback("Solo puedes configurar tiempos para usuarios con rol empleado.", "warn");
       return;
     }

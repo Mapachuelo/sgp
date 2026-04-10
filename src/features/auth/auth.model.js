@@ -1,5 +1,42 @@
 const { db } = require("../../config/db");
 
+let roleSchemaReadyPromise = null;
+
+async function runRoleSchemaMigration(queryable = db) {
+  await queryable.query(`
+    ALTER TABLE app_user
+    DROP CONSTRAINT IF EXISTS app_user_role_check
+  `);
+
+  await queryable.query(`
+    UPDATE app_user
+    SET role = 'empleado'
+    WHERE role = 'employee'
+  `);
+
+  await queryable.query(`
+    ALTER TABLE app_user
+    ADD CONSTRAINT app_user_role_check
+    CHECK (role IN ('client', 'empleado', 'admin'))
+  `);
+}
+
+async function ensureRoleSchema(queryable = db) {
+  if (queryable !== db) {
+    await runRoleSchemaMigration(queryable);
+    return;
+  }
+
+  if (!roleSchemaReadyPromise) {
+    roleSchemaReadyPromise = runRoleSchemaMigration(db).catch((error) => {
+      roleSchemaReadyPromise = null;
+      throw error;
+    });
+  }
+
+  await roleSchemaReadyPromise;
+}
+
 async function ensureEmployeeProfileTable(queryable = db) {
   await queryable.query(`
     CREATE TABLE IF NOT EXISTS employee_profile (
@@ -18,6 +55,8 @@ async function ensureEmployeeProfileTable(queryable = db) {
 }
 
 async function findUserByEmail(email) {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       SELECT id, name, email, phone, role, password_hash, created_at
@@ -32,6 +71,8 @@ async function findUserByEmail(email) {
 }
 
 async function findUserByPhone(phone) {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       SELECT id, name, email, phone, role, created_at
@@ -46,6 +87,8 @@ async function findUserByPhone(phone) {
 }
 
 async function findUserById(id) {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       SELECT id, name, email, phone, role, created_at
@@ -60,6 +103,8 @@ async function findUserById(id) {
 }
 
 async function createUser({ name, email, phone, role, passwordHash }) {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       INSERT INTO app_user (name, email, phone, role, password_hash)
@@ -90,6 +135,7 @@ async function findEmployeeByIdentification(identification) {
 
 async function listEmployees() {
   await ensureEmployeeProfileTable();
+  await ensureRoleSchema();
 
   const result = await db.query(
     `
@@ -105,7 +151,7 @@ async function listEmployees() {
         u.created_at
       FROM app_user u
       LEFT JOIN employee_profile ep ON ep.user_id = u.id
-      WHERE u.role IN ('employee', 'admin')
+      WHERE u.role IN ('empleado', 'admin')
       ORDER BY u.created_at DESC
     `
   );
@@ -123,6 +169,8 @@ async function createStaffWithProfile({
   passwordHash,
   assignedPassword
 }) {
+  await ensureRoleSchema();
+
   return db.withTransaction(async (client) => {
     await ensureEmployeeProfileTable(client);
 
@@ -160,11 +208,13 @@ async function createStaffWithProfile({
 }
 
 async function listStylists() {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       SELECT id, name
       FROM app_user
-      WHERE role = 'employee'
+      WHERE role = 'empleado'
       ORDER BY name ASC
     `
   );
@@ -173,6 +223,7 @@ async function listStylists() {
 }
 
 async function findEmployeeAccountByUserId(userId) {
+  await ensureRoleSchema();
   await ensureEmployeeProfileTable();
 
   const result = await db.query(
@@ -198,6 +249,8 @@ async function findEmployeeAccountByUserId(userId) {
 }
 
 async function updateUserById(id, { phone, email, passwordHash }) {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       UPDATE app_user
@@ -227,6 +280,8 @@ async function updateAssignedPasswordByUserId(userId, assignedPassword) {
 }
 
 async function countPaymentsByStylistId(stylistId) {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       SELECT COUNT(*)::INT AS total
@@ -240,6 +295,8 @@ async function countPaymentsByStylistId(stylistId) {
 }
 
 async function deleteUserById(id) {
+  await ensureRoleSchema();
+
   const result = await db.query(
     `
       DELETE FROM app_user

@@ -38,15 +38,6 @@
     localStorage.removeItem("admin_token");
   }
 
-  function setOutput(payload) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
-    }
-
-    output.textContent = JSON.stringify(payload, null, 2);
-  }
-
   function setFeedback(message, tone) {
     const element = byId("verifyFeedback");
     element.textContent = message;
@@ -263,8 +254,6 @@
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
 
-    setOutput(payload);
-
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || "Error en la solicitud");
     }
@@ -277,7 +266,7 @@
     const user = profile.data;
     const allowed = isAdminContext
       ? Boolean(user && user.role === "admin")
-      : Boolean(user && (user.role === "employee" || user.role === "admin"));
+      : Boolean(user && (user.role === "empleado" || user.role === "employee" || user.role === "admin"));
 
     if (!allowed) {
       throw new Error("Acceso restringido a empleados y administradores");
@@ -322,6 +311,19 @@
     });
 
     return map;
+  }
+
+  function isNoShowReservation(reservation) {
+    if (!reservation || reservation.status !== "booked") {
+      return false;
+    }
+
+    const startsAt = new Date(reservation.starts_at);
+    if (Number.isNaN(startsAt.getTime())) {
+      return false;
+    }
+
+    return startsAt.getTime() < Date.now();
   }
 
   function renderConfigPanel() {
@@ -437,6 +439,8 @@
           const rowWrap = document.createElement("div");
           rowWrap.className = "reservation-item";
 
+          const noShow = isNoShowReservation(reservation);
+
           const text = document.createElement("span");
           const clientLabel = reservation.client_name
             ? String(reservation.client_name)
@@ -450,6 +454,13 @@
             const chip = document.createElement("span");
             chip.className = "validation-chip";
             chip.textContent = "Registro validado";
+            rowWrap.appendChild(chip);
+          } else if (noShow) {
+            rowWrap.classList.add("no-show");
+
+            const chip = document.createElement("span");
+            chip.className = "validation-chip no-show";
+            chip.textContent = "No asistio";
             rowWrap.appendChild(chip);
           } else if (reservation.qr_token) {
             const button = document.createElement("button");
