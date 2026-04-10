@@ -37,6 +37,16 @@ async function ensureServiceCatalogTable(queryable = db) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  await queryable.query(`
+    ALTER TABLE service_catalog
+    ADD COLUMN IF NOT EXISTS created_by INT REFERENCES app_user(id) ON DELETE SET NULL
+  `);
+
+  await queryable.query(`
+    ALTER TABLE service_catalog
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  `);
 }
 
 async function ensureEmployeeServiceTimeTable(queryable = db) {
@@ -133,6 +143,7 @@ async function listReservationsByClient(clientId) {
         r.starts_at,
         r.client_count,
         r.qr_token,
+        r.qr_data_url,
         r.status,
         r.checked_in_at,
         r.created_at
@@ -162,6 +173,7 @@ async function listAllReservations() {
         r.starts_at,
         r.client_count,
         r.qr_token,
+        r.qr_data_url,
         r.status,
         r.checked_in_at,
         r.created_at
@@ -169,6 +181,37 @@ async function listAllReservations() {
       JOIN app_user c ON c.id = r.client_id
       ORDER BY r.starts_at DESC
     `
+  );
+
+  return result.rows;
+}
+
+async function listReservationsByStylist(stylistId, stylistName) {
+  await ensureReservationStylistIdColumn();
+
+  const result = await db.query(
+    `
+      SELECT
+        r.id,
+        r.client_id,
+        c.name AS client_name,
+        r.service_name,
+        r.stylist_name,
+        r.stylist_id,
+        r.starts_at,
+        r.client_count,
+        r.qr_token,
+        r.qr_data_url,
+        r.status,
+        r.checked_in_at,
+        r.created_at
+      FROM reservation r
+      JOIN app_user c ON c.id = r.client_id
+      WHERE r.stylist_id = $1
+         OR (r.stylist_id IS NULL AND r.stylist_name = $2)
+      ORDER BY r.starts_at DESC
+    `,
+    [stylistId, stylistName]
   );
 
   return result.rows;
@@ -414,6 +457,26 @@ async function listEmployeeServiceTimesForCalendar() {
   return result.rows;
 }
 
+async function listEnabledServicesForEmployee(employeeId) {
+  await ensureEmployeeServiceTimeTable();
+
+  const result = await db.query(
+    `
+      SELECT DISTINCT sc.id, sc.name
+      FROM employee_service_time est
+      JOIN service_catalog sc ON sc.id = est.service_id
+      JOIN app_user u ON u.id = est.employee_id
+      WHERE est.employee_id = $1
+        AND est.duration_minutes > 0
+        AND u.role = 'empleado'
+      ORDER BY sc.name ASC
+    `,
+    [employeeId]
+  );
+
+  return result.rows;
+}
+
 async function saveEmployeeServiceTimes(employeeId, entries, updatedBy) {
   await ensureEmployeeServiceTimeTable();
 
@@ -527,6 +590,7 @@ module.exports = {
   findOverlappingReservation,
   listReservationsByClient,
   listAllReservations,
+  listReservationsByStylist,
   listReservedByDate,
   listWorkScheduleByRange,
   listEmployeeWorkScheduleByRange,
@@ -540,6 +604,7 @@ module.exports = {
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
   listEmployeeServiceTimesForCalendar,
+  listEnabledServicesForEmployee,
   saveEmployeeServiceTimes,
   countActiveReservationsByClient,
   findClientReservationById,

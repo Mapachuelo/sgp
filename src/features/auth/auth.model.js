@@ -256,7 +256,7 @@ async function updateUserById(id, { phone, email, passwordHash }) {
       UPDATE app_user
       SET phone = $2,
           email = $3,
-          password_hash = $4
+          password_hash = COALESCE($4, password_hash)
       WHERE id = $1
       RETURNING id, name, email, phone, role, created_at
     `,

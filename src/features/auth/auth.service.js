@@ -318,11 +318,15 @@ async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) 
   const email = normalizeText(input.email).toLowerCase();
   const password = normalizeText(input.password);
 
-  if (!phone || !email || !password) {
-    throw new HttpError(400, "phone, email y password son obligatorios");
+  if (!phone || !email) {
+    throw new HttpError(400, "phone y email son obligatorios");
   }
 
-  if (password.length < 6) {
+  if (!isValidEmail(email)) {
+    throw new HttpError(400, "email no tiene un formato valido");
+  }
+
+  if (password && password.length < 6) {
     throw new HttpError(400, "La password debe tener al menos 6 caracteres");
   }
 
@@ -349,7 +353,7 @@ async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) 
     throw new HttpError(409, "El numero de telefono ya existe");
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = password ? await bcrypt.hash(password, 10) : null;
   const updatedUser = await updateUserById(userId, {
     phone,
     email,
@@ -360,7 +364,9 @@ async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) 
     throw new HttpError(404, "Usuario no encontrado");
   }
 
-  await updateAssignedPasswordByUserId(userId, toSha256Hex(password));
+  if (password) {
+    await updateAssignedPasswordByUserId(userId, toSha256Hex(password));
+  }
 
   return updatedUser;
 }

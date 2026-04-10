@@ -15,6 +15,16 @@
     feedback.className = "feedback " + tone;
   }
 
+  function setClientProfileFeedback(message, tone) {
+    const feedback = byId("clientProfileFeedback");
+    if (!feedback) {
+      return;
+    }
+
+    feedback.textContent = message;
+    feedback.className = "feedback " + tone;
+  }
+
   function getToken() {
     return localStorage.getItem(TOKEN_KEY) || "";
   }
@@ -142,6 +152,8 @@
     if (passwordInput) {
       passwordInput.value = "";
     }
+
+    setClientProfileFeedback("Para guardar cambios debes completar todos los campos.", "info");
   }
 
   function fillProfileForm(profile) {
@@ -177,8 +189,10 @@
       const payload = await callApi("/api/clients/me", "GET");
       fillProfileForm(payload.data || {});
       openProfileModal();
+      setClientProfileFeedback("Edita tus datos y guarda los cambios.", "info");
       setFeedback("Edita tus datos y guarda los cambios.", "info");
     } catch (error) {
+      setClientProfileFeedback(error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -192,21 +206,25 @@
     const password = (byId("clientProfilePassword").value || "").trim();
 
     if (!firstName || !lastName || !phone || !email || !password) {
+      setClientProfileFeedback("Completa nombre, apellido, numero, correo y password para guardar.", "warn");
       setFeedback("Completa nombre, apellido, numero, correo y password para guardar.", "warn");
       return;
     }
 
     if (!isValidEmail(email)) {
+      setClientProfileFeedback("Ingresa un correo valido.", "warn");
       setFeedback("Ingresa un correo valido.", "warn");
       return;
     }
 
     if (!isValidCoPhone(phone)) {
+      setClientProfileFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
       setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
       return;
     }
 
     if (password.length < 6) {
+      setClientProfileFeedback("La password debe tener al menos 6 caracteres.", "warn");
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
@@ -223,10 +241,50 @@
       state.currentUser = payload.data || state.currentUser;
       setAuthUi();
       closeProfileModal();
+      setClientProfileFeedback("Perfil actualizado correctamente.", "ok");
       setFeedback("Perfil actualizado correctamente.", "ok");
     } catch (error) {
+      setClientProfileFeedback(error.message, "warn");
       setFeedback(error.message, "warn");
     }
+  }
+
+  function applyCoPhonePrefix(inputElement) {
+    if (!inputElement) {
+      return;
+    }
+
+    const current = String(inputElement.value || "").trim();
+    if (!current) {
+      inputElement.value = "+57";
+      return;
+    }
+
+    inputElement.value = normalizePhoneInput(current);
+  }
+
+  function handleCoPhoneTyping(inputElement) {
+    if (!inputElement) {
+      return;
+    }
+
+    const compact = String(inputElement.value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      inputElement.value = "+57";
+      return;
+    }
+
+    if (!compact.startsWith("+57") && !compact.startsWith("57")) {
+      inputElement.value = "+57" + compact.replace(/^\+/, "");
+      return;
+    }
+
+    if (compact.startsWith("57")) {
+      inputElement.value = "+" + compact;
+      return;
+    }
+
+    inputElement.value = compact;
   }
 
   async function refreshSessionState() {
@@ -274,6 +332,19 @@
       if (event.target === profileModal) {
         closeProfileModal();
       }
+    });
+  }
+
+  const clientProfilePhoneInput = byId("clientProfilePhone");
+  if (clientProfilePhoneInput) {
+    clientProfilePhoneInput.addEventListener("focus", function () {
+      applyCoPhonePrefix(clientProfilePhoneInput);
+    });
+    clientProfilePhoneInput.addEventListener("input", function () {
+      handleCoPhoneTyping(clientProfilePhoneInput);
+    });
+    clientProfilePhoneInput.addEventListener("blur", function () {
+      applyCoPhonePrefix(clientProfilePhoneInput);
     });
   }
 

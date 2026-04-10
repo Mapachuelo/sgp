@@ -68,6 +68,53 @@
     element.className = "feedback " + tone;
   }
 
+  function setInlineFeedback(elementId, message, tone) {
+    const element = byId(elementId);
+    if (!element) {
+      return;
+    }
+
+    element.textContent = message;
+    element.className = "feedback " + tone;
+  }
+
+  function setDefaultModalFeedback(modalId) {
+    if (modalId === "adminEmployeeModal") {
+      setInlineFeedback(
+        "adminEmployeeFeedback",
+        "Completa todos los campos para crear un usuario interno.",
+        "info"
+      );
+      return;
+    }
+
+    if (modalId === "adminServicesModal") {
+      setInlineFeedback(
+        "adminServicesFeedback",
+        "Agrega servicios que luego podras asignar a empleados.",
+        "info"
+      );
+      return;
+    }
+
+    if (modalId === "adminRegisteredModal") {
+      setInlineFeedback(
+        "adminRegisteredFeedback",
+        "Desde esta tabla puedes editar, eliminar o configurar tiempos de servicios.",
+        "info"
+      );
+      return;
+    }
+
+    if (modalId === "editUserModal") {
+      setInlineFeedback(
+        "editUserFeedback",
+        "Puedes guardar numero y correo sin cambiar la contraseña.",
+        "info"
+      );
+    }
+  }
+
   function setTempPasswordHint(message) {
     const hint = byId("tempPasswordHint");
     if (!message) {
@@ -134,6 +181,7 @@
       if (openButton) {
         openButton.addEventListener("click", function () {
           openModal(item.modalId);
+          setDefaultModalFeedback(item.modalId);
         });
       }
 
@@ -340,6 +388,7 @@
     const validationMessage = validateForm(data);
 
     if (validationMessage) {
+      setInlineFeedback("adminEmployeeFeedback", validationMessage, "warn");
       setFeedback(validationMessage, "warn");
       return;
     }
@@ -348,8 +397,10 @@
       await callApi("/api/auth/employees", "POST", data);
       clearForm();
       await loadEmployees();
+      setInlineFeedback("adminEmployeeFeedback", "Usuario interno creado correctamente.", "ok");
       setFeedback("Empleado agregado correctamente.", "ok");
     } catch (error) {
+      setInlineFeedback("adminEmployeeFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -366,6 +417,7 @@
     byId("editPhone").value = String(currentPhone || "");
     byId("editEmail").value = String(currentEmail || "");
     byId("editPassword").value = "";
+    setDefaultModalFeedback("editUserModal");
 
     const modal = byId("editUserModal");
     modal.classList.remove("hidden");
@@ -384,39 +436,50 @@
     const email = byId("editEmail").value.trim();
     const password = byId("editPassword").value.trim();
 
-    if (!employeeId || !phone || !email || !password) {
-      setFeedback("Completa numero, correo y password para guardar.", "warn");
+    if (!employeeId || !phone || !email) {
+      setInlineFeedback("editUserFeedback", "Numero y correo son obligatorios.", "warn");
+      setFeedback("Numero y correo son obligatorios.", "warn");
       return;
     }
 
-    if (password.length < 6) {
+    if (password && password.length < 6) {
+      setInlineFeedback("editUserFeedback", "La password debe tener al menos 6 caracteres.", "warn");
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
 
     const normalizedPhone = normalizePhoneInput(phone);
     if (!isValidCoPhone(normalizedPhone)) {
+      setInlineFeedback("editUserFeedback", "El numero debe tener formato +57XXXXXXXXXX.", "warn");
       setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
       return;
     }
 
     try {
       byId("editPhone").value = normalizedPhone;
-      await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "PUT", {
+      const payload = {
         phone: normalizedPhone,
-        email: email,
-        password: password
-      });
+        email: email
+      };
+
+      if (password) {
+        payload.password = password;
+      }
+
+      await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "PUT", payload);
       closeEditModal();
       await loadEmployees();
+      setInlineFeedback("adminRegisteredFeedback", "Perfil actualizado correctamente.", "ok");
       setFeedback("Perfil actualizado correctamente.", "ok");
     } catch (error) {
+      setInlineFeedback("editUserFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
 
   async function deleteEmployee(employeeId, employeeName, employeeRole) {
     if (!employeeId) {
+      setInlineFeedback("adminRegisteredFeedback", "No se pudo identificar el empleado a eliminar.", "warn");
       setFeedback("No se pudo identificar el empleado a eliminar.", "warn");
       return;
     }
@@ -436,8 +499,10 @@
       await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "DELETE");
       setTempPasswordHint("");
       await loadEmployees();
+      setInlineFeedback("adminRegisteredFeedback", "Empleado eliminado correctamente.", "ok");
       setFeedback("Empleado eliminado correctamente.", "ok");
     } catch (error) {
+      setInlineFeedback("adminRegisteredFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -477,6 +542,7 @@
   async function addService() {
     const name = byId("serviceNameInput").value.trim();
     if (!name) {
+      setInlineFeedback("adminServicesFeedback", "Debes ingresar un nombre de servicio.", "warn");
       setFeedback("Debes ingresar un nombre de servicio.", "warn");
       return;
     }
@@ -485,8 +551,10 @@
       await callApi("/api/reservations/services", "POST", { name: name });
       byId("serviceNameInput").value = "";
       await loadServices();
+      setInlineFeedback("adminServicesFeedback", "Servicio agregado correctamente.", "ok");
       setFeedback("Servicio agregado correctamente.", "ok");
     } catch (error) {
+      setInlineFeedback("adminServicesFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -506,8 +574,10 @@
     try {
       await callApi("/api/reservations/services/" + encodeURIComponent(serviceId), "DELETE");
       await loadServices();
+      setInlineFeedback("adminServicesFeedback", "Servicio eliminado correctamente.", "ok");
       setFeedback("Servicio eliminado correctamente.", "ok");
     } catch (error) {
+      setInlineFeedback("adminServicesFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -578,12 +648,18 @@
 
   async function openEmployeeServiceTimesModal(employeeId, employeeName, employeeRole) {
     if (employeeRole !== "empleado" && employeeRole !== "employee") {
+      setInlineFeedback(
+        "adminRegisteredFeedback",
+        "Solo puedes configurar tiempos para usuarios con rol empleado.",
+        "warn"
+      );
       setFeedback("Solo puedes configurar tiempos para usuarios con rol empleado.", "warn");
       return;
     }
 
     const normalizedEmployeeId = parsePositiveInt(employeeId);
     if (!normalizedEmployeeId) {
+      setInlineFeedback("adminRegisteredFeedback", "No se pudo identificar el empleado seleccionado.", "warn");
       setFeedback("No se pudo identificar el empleado seleccionado.", "warn");
       return;
     }
@@ -606,6 +682,7 @@
       renderEmployeeServiceTimes((payload.data && payload.data.services) || []);
       modal.classList.remove("hidden");
     } catch (error) {
+      setInlineFeedback("adminRegisteredFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -613,6 +690,7 @@
   async function saveEmployeeServiceTimesFromModal() {
     const employeeId = parsePositiveInt(byId("employeeServiceTimesUserId").value);
     if (!employeeId) {
+      setInlineFeedback("adminRegisteredFeedback", "No se pudo identificar el empleado a configurar.", "warn");
       setFeedback("No se pudo identificar el empleado a configurar.", "warn");
       return;
     }
@@ -641,6 +719,11 @@
           duration < MIN_DURATION_MINUTES ||
           duration > MAX_DURATION_MINUTES
         ) {
+          setInlineFeedback(
+            "adminRegisteredFeedback",
+            "Cada duracion activa debe ser un entero entre 1 y 280 minutos.",
+            "warn"
+          );
           setFeedback("Cada duracion activa debe ser un entero entre 1 y 280 minutos.", "warn");
           return;
         }
@@ -660,8 +743,10 @@
         { entries: entries }
       );
       closeEmployeeServiceTimesModal();
+      setInlineFeedback("adminRegisteredFeedback", "Servicios y tiempos guardados correctamente.", "ok");
       setFeedback("Servicios y tiempos guardados correctamente.", "ok");
     } catch (error) {
+      setInlineFeedback("adminRegisteredFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -669,6 +754,7 @@
   byId("employeeForm").addEventListener("submit", createEmployee);
   byId("refreshEmployeesBtn").addEventListener("click", function () {
     loadEmployees().catch(function (error) {
+      setInlineFeedback("adminRegisteredFeedback", error.message, "warn");
       setFeedback(error.message, "warn");
     });
   });
@@ -706,6 +792,7 @@
         target.dataset.employeeRole,
         target.dataset.employeeName
       );
+      setDefaultModalFeedback("editUserModal");
       return;
     }
 

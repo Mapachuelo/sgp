@@ -66,6 +66,15 @@
     return toDateKey(date);
   }
 
+  function toLocalDateKey(dateText) {
+    const date = new Date(dateText);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return toDateKey(date);
+  }
+
   function toLocalSlot(isoText) {
     const date = new Date(isoText);
     return {
@@ -158,6 +167,7 @@
   function getTimeSlots(stepMinutes) {
     const normalizedStep = normalizeDuration(stepMinutes);
     const slots = [];
+    const slotSet = new Set();
     const viewportConfig = state.viewportConfig || resolveViewportConfig();
 
     for (
@@ -167,8 +177,37 @@
     ) {
       const hour = Math.floor(minuteCursor / 60);
       const minutes = minuteCursor % 60;
-      slots.push(String(hour).padStart(2, "0") + ":" + String(minutes).padStart(2, "0"));
+      const slotText = String(hour).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+      if (!slotSet.has(slotText)) {
+        slotSet.add(slotText);
+        slots.push(slotText);
+      }
     }
+
+    (state.reservations || []).forEach(function (reservation) {
+      const start = new Date(reservation.starts_at);
+      if (Number.isNaN(start.getTime())) {
+        return;
+      }
+
+      const minutesFromStart = start.getHours() * 60 + start.getMinutes();
+      if (
+        minutesFromStart < viewportConfig.startHour * 60 ||
+        minutesFromStart >= viewportConfig.endHour * 60
+      ) {
+        return;
+      }
+
+      const slotText = String(start.getHours()).padStart(2, "0") + ":" + String(start.getMinutes()).padStart(2, "0");
+      if (!slotSet.has(slotText)) {
+        slotSet.add(slotText);
+        slots.push(slotText);
+      }
+    });
+
+    slots.sort(function (a, b) {
+      return parseTimeToMinutes(a) - parseTimeToMinutes(b);
+    });
 
     return slots;
   }
@@ -290,27 +329,55 @@
 
   function indexReservations() {
     const map = {};
-    const slotStepMinutes = normalizeDuration(state.slotStepMinutes);
 
     state.reservations.forEach(function (reservation) {
       const start = new Date(reservation.starts_at);
-      const durationMinutes = normalizeDuration(reservation.duration_minutes);
-      const steps = Math.max(Math.ceil(durationMinutes / slotStepMinutes), 1);
-
-      for (let i = 0; i < steps; i += 1) {
-        const slotDate = new Date(start.getTime() + i * slotStepMinutes * 60000);
-        const slot = toLocalSlot(slotDate.toISOString());
-        const key = slot.dayKey + "|" + slot.time;
-
-        if (!map[key]) {
-          map[key] = [];
-        }
-
-        map[key].push(reservation);
+      if (Number.isNaN(start.getTime())) {
+        return;
       }
+
+      const slot = toLocalSlot(start.toISOString());
+      const key = slot.dayKey + "|" + slot.time;
+
+      if (!map[key]) {
+        map[key] = [];
+      }
+
+      map[key].push(reservation);
     });
 
     return map;
+  }
+
+  function toLocalHourMinute(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return "--:--";
+    }
+
+    return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  }
+
+  function getReservationRangeLabel(reservation) {
+    const start = new Date(reservation.starts_at);
+    if (Number.isNaN(start.getTime())) {
+      return "Hora no disponible";
+    }
+
+    let end = null;
+    if (reservation.ends_at) {
+      const explicitEnd = new Date(reservation.ends_at);
+      if (!Number.isNaN(explicitEnd.getTime()) && explicitEnd.getTime() > start.getTime()) {
+        end = explicitEnd;
+      }
+    }
+
+    if (!end) {
+      const durationMinutes = normalizeDuration(reservation.duration_minutes);
+      end = new Date(start.getTime() + durationMinutes * 60000);
+    }
+
+    return toLocalHourMinute(start) + " - " + toLocalHourMinute(end);
   }
 
   function isNoShowReservation(reservation) {
@@ -324,6 +391,37 @@
     }
 
     return startsAt.getTime() < Date.now();
+  }
+
+  function updateTodaySummary() {
+    const pendingElement = byId("verifyPendingTodayCount");
+    const checkedInElement = byId("verifyCheckedInTodayCount");
+    const noShowElement = byId("verifyNoShowTodayCount");
+
+    if (!pendingElement || !checkedInElement || !noShowElement) {
+      return;
+    }
+
+    const todayKey = toDateKey(new Date());
+    const reservationsToday = (state.reservations || []).filter(function (reservation) {
+      return toLocalDateKey(reservation.starts_at) === todayKey;
+    });
+
+    const pendingCount = reservationsToday.filter(function (reservation) {
+      return reservation.status === "booked" && !isNoShowReservation(reservation);
+    }).length;
+
+    const checkedInCount = reservationsToday.filter(function (reservation) {
+      return reservation.status === "checked_in";
+    }).length;
+
+    const noShowCount = reservationsToday.filter(function (reservation) {
+      return reservation.status === "booked" && isNoShowReservation(reservation);
+    }).length;
+
+    pendingElement.textContent = String(pendingCount);
+    checkedInElement.textContent = String(checkedInCount);
+    noShowElement.textContent = String(noShowCount);
   }
 
   function renderConfigPanel() {
@@ -442,11 +540,18 @@
           const noShow = isNoShowReservation(reservation);
 
           const text = document.createElement("span");
+          text.className = "reservation-main-text";
           const clientLabel = reservation.client_name
             ? String(reservation.client_name)
             : "Cliente #" + String(reservation.client_id || "-");
-          text.textContent = reservation.service_name + " / " + clientLabel;
+          const reservationStatus = reservation.status === "checked_in" ? "Ingreso validado" : "Reserva activa";
+          text.textContent = reservation.service_name + " / " + clientLabel + " / " + reservationStatus;
           rowWrap.appendChild(text);
+
+          const timeLabel = document.createElement("span");
+          timeLabel.className = "reservation-time";
+          timeLabel.textContent = "Horario: " + getReservationRangeLabel(reservation);
+          rowWrap.appendChild(timeLabel);
 
           if (reservation.status === "checked_in") {
             rowWrap.classList.add("checked-in");
@@ -462,13 +567,38 @@
             chip.className = "validation-chip no-show";
             chip.textContent = "No asistio";
             rowWrap.appendChild(chip);
-          } else if (reservation.qr_token) {
+          } else {
+            rowWrap.classList.add("pending");
+
+            const chip = document.createElement("span");
+            chip.className = "validation-chip pending";
+            chip.textContent = "Pendiente";
+            rowWrap.appendChild(chip);
+
+            if (!reservation.qr_token) {
+              cell.appendChild(rowWrap);
+              return;
+            }
+
+            const actions = document.createElement("div");
+            actions.className = "reservation-actions";
+
             const button = document.createElement("button");
             button.type = "button";
             button.className = "verify-btn";
             button.dataset.qrToken = reservation.qr_token;
             button.textContent = "Validar QR";
-            rowWrap.appendChild(button);
+            actions.appendChild(button);
+
+            const downloadButton = document.createElement("button");
+            downloadButton.type = "button";
+            downloadButton.className = "download-qr-btn";
+            downloadButton.dataset.qrToken = reservation.qr_token;
+            downloadButton.dataset.qrDataUrl = reservation.qr_data_url || "";
+            downloadButton.textContent = "Descargar QR";
+            actions.appendChild(downloadButton);
+
+            rowWrap.appendChild(actions);
           }
 
           cell.appendChild(rowWrap);
@@ -521,6 +651,7 @@
       state.days = buildDayRange(start, state.viewportConfig.dayCount);
 
       await loadData();
+      updateTodaySummary();
       updateSlotHelper();
       renderConfigPanel();
       renderCalendar();
@@ -565,6 +696,25 @@
 
     const query = params.toString();
     window.location.href = VALIDATE_QR_PATH + (query ? "?" + query : "");
+  }
+
+  function downloadQrCode(qrDataUrl, qrToken) {
+    const url = String(qrDataUrl || "").trim();
+    if (!url) {
+      setFeedback("No se encontro el codigo QR para esta reserva.", "warn");
+      return;
+    }
+
+    const safeToken = String(qrToken || "reserva")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .slice(0, 36);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "qr-reserva-" + (safeToken || "cliente") + ".png";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setFeedback("Descarga de QR iniciada.", "ok");
   }
 
   byId("reloadBtn").addEventListener("click", refreshAll);
@@ -619,11 +769,16 @@
       return;
     }
 
-    if (!target.classList.contains("verify-btn")) {
+    if (target.classList.contains("verify-btn")) {
+      goToQrValidation(target.dataset.qrToken);
       return;
     }
 
-    goToQrValidation(target.dataset.qrToken);
+    if (!target.classList.contains("download-qr-btn")) {
+      return;
+    }
+
+    downloadQrCode(target.dataset.qrDataUrl, target.dataset.qrToken);
   });
 
   const today = new Date();

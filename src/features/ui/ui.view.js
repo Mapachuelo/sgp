@@ -20,8 +20,8 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
 
             var toggle = document.createElement("button");
             toggle.type = "button";
-            toggle.className = buttonClassName + " nav-toggle js-nav-toggle";
-            toggle.textContent = "Navegacion";
+            toggle.className = buttonClassName + " nav-toggle hamburger-toggle js-nav-toggle";
+            toggle.textContent = "Menu";
             toggle.setAttribute("aria-expanded", "false");
             toggle.setAttribute("aria-label", "Mostrar navegacion");
 
@@ -30,6 +30,26 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
             toggle.addEventListener("click", function () {
               var isOpen = nav.classList.toggle("is-open");
               toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+              toggle.setAttribute("aria-label", isOpen ? "Ocultar navegacion" : "Mostrar navegacion");
+            });
+
+            nav.addEventListener("click", function (event) {
+              if (window.innerWidth >= 768) {
+                return;
+              }
+
+              var target = event.target;
+              if (!(target instanceof HTMLElement)) {
+                return;
+              }
+
+              if (!target.closest("a, button")) {
+                return;
+              }
+
+              nav.classList.remove("is-open");
+              toggle.setAttribute("aria-expanded", "false");
+              toggle.setAttribute("aria-label", "Mostrar navegacion");
             });
           });
         }
@@ -282,6 +302,7 @@ function clientCalendarView() {
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+      <button id="downloadQrBtn" class="btn ghost block hidden" type="button">Descargar QR</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
     <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a iniciar sesion</a>
 
@@ -322,7 +343,7 @@ function clientCalendarView() {
     <label>Contraseña</label>
     <input id="clientProfilePassword" type="password" placeholder="Mínimo 6 caracteres" />
 
-    <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
+      <p id="clientProfileFeedback" class="feedback info">Para guardar cambios debes completar todos los campos.</p>
 
     <div class="modal-actions">
       <button id="cancelProfileEditBtn" class="btn ghost" type="button">Cancelar</button>
@@ -346,7 +367,6 @@ function employeeView() {
   <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
@@ -359,10 +379,10 @@ function employeeView() {
   <section class="emp-panel hero">
     <p class="eyebrow">Sitio web empleado</p>
     <h1>Panel de control de empleados</h1>
-    <p>Gestiona reservas, calendario de disponibilidad y valida ingresos con QR.</p>
+    <p>Gestiona clientes asignados y valida ingresos con QR.</p>
     <div class="hero-actions">
-      <a class="emp-btn solid" href="/ui/empleado/calendar">Abrir calendario</a>
-      <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar clientes</a>
+      <a class="emp-btn solid" href="/ui/empleado/verify-clients">Verificar clientes</a>
+      <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validar QR</a>
     </div>
     <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
@@ -412,6 +432,8 @@ function employeeView() {
     <label>Contraseña</label>
     <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
 
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
+
     <div class="modal-actions">
       <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
       <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
@@ -434,7 +456,6 @@ function employeeCalendarView() {
   <a class="brand" href="/ui/empleado">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
@@ -445,7 +466,7 @@ function employeeCalendarView() {
   <section class="calendar-main panel">
     <div class="calendar-title-wrap">
       <h1>Calendario de disponibilidad</h1>
-      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
+      <p>Visualiza cupos, horarios ocupados y disponibilidad por peluquero.</p>
     </div>
 
     <div class="calendar-toolbar">
@@ -485,7 +506,7 @@ function employeeCalendarView() {
     <label>Cantidad de clientes</label>
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
-    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="reserveBtn" class="btn accent block hidden" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
 
     <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol empleado.</p>
@@ -511,7 +532,6 @@ function employeeVerifyClientsView() {
   <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -523,6 +543,20 @@ function employeeVerifyClientsView() {
   <section class="emp-panel verify-main">
     <div class="panel-head">
       <h1>Verificar clientes</h1>
+    </div>
+    <div class="verify-resume-grid">
+      <article>
+        <h3>Pendientes hoy</h3>
+        <p id="verifyPendingTodayCount">-</p>
+      </article>
+      <article>
+        <h3>Tomaron turno hoy</h3>
+        <p id="verifyCheckedInTodayCount">-</p>
+      </article>
+      <article>
+        <h3>No asistieron hoy</h3>
+        <p id="verifyNoShowTodayCount">-</p>
+      </article>
     </div>
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>
@@ -563,7 +597,6 @@ function employeeValidateQrView() {
   <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -637,10 +670,11 @@ function adminView() {
         <button id="closeEmployeeModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
       </div>
       <p class="helper">Solo administradores pueden registrar usuarios internos.</p>
+      <p id="adminEmployeeFeedback" class="feedback info">Completa todos los campos para crear un usuario interno.</p>
 
       <form id="employeeForm">
         <label>Rol</label>
-        <select id="role">
+        <select id="role" class="role-select">
           <option value="empleado">Empleado</option>
           <option value="admin">Administrador</option>
         </select>
@@ -667,6 +701,7 @@ function adminView() {
         <h2 id="adminServicesTitle">Servicios disponibles</h2>
         <button id="closeServicesModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
       </div>
+      <p id="adminServicesFeedback" class="feedback info">Agrega servicios que luego podras asignar a empleados.</p>
       <label>Nuevo servicio</label>
       <input id="serviceNameInput" type="text" placeholder="Corte clasico" />
       <button id="addServiceBtn" class="admin-btn ghost block" type="button">Agregar servicio</button>
@@ -683,6 +718,7 @@ function adminView() {
       <div class="list-head">
         <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
       </div>
+      <p id="adminRegisteredFeedback" class="feedback info">Desde esta tabla puedes editar, eliminar o configurar tiempos de servicios.</p>
       <div class="table-shell">
         <table>
           <thead>
@@ -710,6 +746,7 @@ function adminView() {
         <button id="closeEditUserBtn" class="admin-btn ghost" type="button">Cerrar</button>
       </div>
       <p id="editUserSubtitle" class="helper">Ajusta numero, correo y password del perfil seleccionado.</p>
+      <p id="editUserFeedback" class="feedback info">Puedes guardar numero y correo sin cambiar la contraseña.</p>
 
       <form id="editUserForm">
         <input id="editUserId" type="hidden" />
@@ -781,7 +818,7 @@ function adminCalendarView() {
   <section class="calendar-main panel">
     <div class="calendar-title-wrap">
       <h1>Calendario de disponibilidad</h1>
-      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
+      <p>Visualiza cupos, horarios ocupados y disponibilidad por peluquero.</p>
     </div>
 
     <div class="calendar-toolbar">
@@ -821,7 +858,7 @@ function adminCalendarView() {
     <label>Cantidad de clientes</label>
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
-    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="reserveBtn" class="btn accent block hidden" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
 
     <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol administrador.</p>
@@ -857,6 +894,20 @@ function adminVerifyClientsView() {
   <section class="emp-panel verify-main">
     <div class="panel-head">
       <h1>Verificar clientes</h1>
+    </div>
+    <div class="verify-resume-grid">
+      <article>
+        <h3>Pendientes hoy</h3>
+        <p id="verifyPendingTodayCount">-</p>
+      </article>
+      <article>
+        <h3>Tomaron turno hoy</h3>
+        <p id="verifyCheckedInTodayCount">-</p>
+      </article>
+      <article>
+        <h3>No asistieron hoy</h3>
+        <p id="verifyNoShowTodayCount">-</p>
+      </article>
     </div>
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>

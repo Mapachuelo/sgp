@@ -53,6 +53,16 @@
     feedback.className = "feedback " + tone;
   }
 
+  function setClientProfileFeedback(message, tone) {
+    const feedback = byId("clientProfileFeedback");
+    if (!feedback) {
+      return;
+    }
+
+    feedback.textContent = message;
+    feedback.className = "feedback " + tone;
+  }
+
   function getToken() {
     return localStorage.getItem(TOKEN_KEY) || "";
   }
@@ -344,6 +354,7 @@
     }
 
     if (reserveBtn) {
+      reserveBtn.classList.toggle("hidden", !isClientContext);
       reserveBtn.disabled = !hasClientSession || !state.selectedSlot;
     }
   }
@@ -429,6 +440,8 @@
     if (passwordInput) {
       passwordInput.value = "";
     }
+
+    setClientProfileFeedback("Para guardar cambios debes completar todos los campos.", "info");
   }
 
   async function openClientProfileEditor() {
@@ -446,8 +459,10 @@
       const payload = await callApi("/api/clients/me", "GET");
       fillClientProfileForm(payload.data || {});
       openClientProfileModal();
+      setClientProfileFeedback("Actualiza tus datos y guarda los cambios.", "info");
       setFeedback("Actualiza tus datos y guarda los cambios.", "info");
     } catch (error) {
+      setClientProfileFeedback(error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -461,21 +476,25 @@
     const password = (byId("clientProfilePassword").value || "").trim();
 
     if (!firstName || !lastName || !phone || !email || !password) {
+      setClientProfileFeedback("Completa nombre, apellido, numero, correo y password para guardar.", "warn");
       setFeedback("Completa nombre, apellido, numero, correo y password para guardar.", "warn");
       return;
     }
 
     if (!isValidEmail(email)) {
+      setClientProfileFeedback("Ingresa un correo valido.", "warn");
       setFeedback("Ingresa un correo valido.", "warn");
       return;
     }
 
     if (!isValidCoPhone(phone)) {
+      setClientProfileFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
       setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
       return;
     }
 
     if (password.length < 6) {
+      setClientProfileFeedback("La password debe tener al menos 6 caracteres.", "warn");
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
@@ -491,10 +510,66 @@
 
       await refreshClientSessionState();
       closeClientProfileModal();
+      setClientProfileFeedback("Perfil actualizado correctamente.", "ok");
       setFeedback("Perfil actualizado correctamente.", "ok");
     } catch (error) {
+      setClientProfileFeedback(error.message, "warn");
       setFeedback(error.message, "warn");
     }
+  }
+
+  function applyCoPhonePrefix(inputElement) {
+    if (!inputElement) {
+      return;
+    }
+
+    const current = String(inputElement.value || "").trim();
+    if (!current) {
+      inputElement.value = "+57";
+      return;
+    }
+
+    inputElement.value = normalizePhoneInput(current);
+  }
+
+  function handleCoPhoneTyping(inputElement) {
+    if (!inputElement) {
+      return;
+    }
+
+    const compact = String(inputElement.value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      inputElement.value = "+57";
+      return;
+    }
+
+    if (!compact.startsWith("+57") && !compact.startsWith("57")) {
+      inputElement.value = "+57" + compact.replace(/^\+/, "");
+      return;
+    }
+
+    if (compact.startsWith("57")) {
+      inputElement.value = "+" + compact;
+      return;
+    }
+
+    inputElement.value = compact;
+  }
+
+  function downloadClientQr() {
+    const qrImage = byId("qrImage");
+    if (!qrImage || !qrImage.src || qrImage.classList.contains("hidden")) {
+      setFeedback("No hay un QR generado para descargar.", "warn");
+      return;
+    }
+
+    const anchor = document.createElement("a");
+    anchor.href = qrImage.src;
+    anchor.download = "qr-reserva-cliente.png";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setFeedback("Descarga de QR iniciada.", "ok");
   }
 
   async function callApi(path, method, body) {
@@ -801,10 +876,22 @@
   }
 
   async function loadCatalogs() {
+    let profile = {};
+    if (getToken()) {
+      try {
+        const profilePayload = await callApi("/api/auth/me", "GET");
+        profile = profilePayload.data || {};
+      } catch (_error) {
+        profile = {};
+      }
+    }
+
     const [stylistsPayload, servicesPayload] = await Promise.all([
       callApi("/api/auth/stylists", "GET"),
       callApi("/api/reservations/services", "GET")
     ]);
+
+    const isEmployeeContext = profile.role === "empleado" || profile.role === "employee";
 
     state.stylists = stylistsPayload.data || [];
 
@@ -818,6 +905,10 @@
       stylistSelect.appendChild(anyOption);
 
       state.stylists.forEach(function (stylist) {
+        if (isEmployeeContext && Number(stylist.id) !== Number(profile.id)) {
+          return;
+        }
+
         const option = document.createElement("option");
         option.value = String(stylist.id);
         option.textContent = stylist.name;
@@ -903,11 +994,18 @@
       });
 
       const qrImage = byId("qrImage");
+      const downloadQrBtn = byId("downloadQrBtn");
       if (payload.data && payload.data.qr_data_url) {
         qrImage.src = payload.data.qr_data_url;
         qrImage.classList.remove("hidden");
+        if (downloadQrBtn) {
+          downloadQrBtn.classList.remove("hidden");
+        }
       } else {
         qrImage.classList.add("hidden");
+        if (downloadQrBtn) {
+          downloadQrBtn.classList.add("hidden");
+        }
       }
 
       setFeedback("Reserva registrada con exito.", "ok");
@@ -1088,7 +1186,9 @@
     target.textContent = "Seleccionado";
     updateSelectedSlotLabel();
 
-    if (!getToken()) {
+    if (!isClientContext) {
+      setFeedback("Horario seleccionado para consulta. Solo clientes pueden confirmar reservas.", "info");
+    } else if (!getToken()) {
       setFeedback("Horario seleccionado. Para confirmar reserva debes iniciar sesion.", "warn");
     } else {
       setFeedback("Horario seleccionado y listo para reservar.", "info");
@@ -1158,6 +1258,11 @@
         qrImage.classList.add("hidden");
       }
 
+      const downloadQrBtn = byId("downloadQrBtn");
+      if (downloadQrBtn) {
+        downloadQrBtn.classList.add("hidden");
+      }
+
       if (!isClientContext) {
         window.location.href = LOGIN_PATH;
       }
@@ -1212,6 +1317,34 @@
     });
   }
 
+  const downloadQrBtn = byId("downloadQrBtn");
+  if (downloadQrBtn) {
+    downloadQrBtn.addEventListener("click", downloadClientQr);
+  }
+
+  const clientCountInput = byId("clientCount");
+  if (clientCountInput) {
+    clientCountInput.addEventListener("input", function () {
+      const value = Number(clientCountInput.value || 1);
+      if (!Number.isInteger(value) || value < 1) {
+        clientCountInput.value = "1";
+      }
+    });
+  }
+
+  const clientProfilePhoneInput = byId("clientProfilePhone");
+  if (clientProfilePhoneInput) {
+    clientProfilePhoneInput.addEventListener("focus", function () {
+      applyCoPhonePrefix(clientProfilePhoneInput);
+    });
+    clientProfilePhoneInput.addEventListener("input", function () {
+      handleCoPhoneTyping(clientProfilePhoneInput);
+    });
+    clientProfilePhoneInput.addEventListener("blur", function () {
+      applyCoPhonePrefix(clientProfilePhoneInput);
+    });
+  }
+
   byId("weekStart").value = toDateInputValue(new Date());
   state.viewportConfig = resolveViewportConfig();
   syncResponsiveCssVars();
@@ -1245,7 +1378,10 @@
   const boot = function () {
     refreshClientSessionState()
       .then(function () {
-        return loadCatalogs();
+        return loadCatalogs().catch(function (error) {
+          setFeedback("No se pudo cargar el catalogo completo: " + error.message, "warn");
+          return null;
+        });
       })
       .then(function () {
         return refreshCalendar();

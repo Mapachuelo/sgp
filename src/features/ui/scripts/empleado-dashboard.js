@@ -46,6 +46,16 @@
     element.className = "feedback " + tone;
   }
 
+  function setEmployeeAccountFeedback(message, tone) {
+    const element = byId("employeeAccountFeedback");
+    if (!element) {
+      return;
+    }
+
+    element.textContent = message;
+    element.className = "feedback " + tone;
+  }
+
   function setSessionUi(logged) {
     byId("logoutBtn").classList.toggle("hidden", !logged);
     byId("sessionBadge").textContent = logged ? "Sesion iniciada" : "Sesion no iniciada";
@@ -109,6 +119,8 @@
     if (passwordInput) {
       passwordInput.value = "";
     }
+
+    setEmployeeAccountFeedback("Completa numero celular, correo y password para guardar.", "info");
   }
 
   function fillEmployeeAccountForm(account) {
@@ -196,8 +208,10 @@
       const payload = await callApi("/api/auth/me/employee-account", "GET");
       fillEmployeeAccountForm(payload.data || {});
       openEmployeeAccountModal();
+      setEmployeeAccountFeedback("Puedes editar correo, celular y password.", "info");
       setFeedback("Puedes editar correo, celular y password.", "info");
     } catch (error) {
+      setEmployeeAccountFeedback(error.message, "warn");
       setFeedback(error.message, "warn");
     }
   }
@@ -208,21 +222,25 @@
     const password = (byId("employeeAccountPassword").value || "").trim();
 
     if (!phone || !email || !password) {
+      setEmployeeAccountFeedback("Completa numero celular, correo y password para guardar.", "warn");
       setFeedback("Completa numero celular, correo y password para guardar.", "warn");
       return;
     }
 
     if (!isValidEmail(email)) {
+      setEmployeeAccountFeedback("Ingresa un correo valido.", "warn");
       setFeedback("Ingresa un correo valido.", "warn");
       return;
     }
 
     if (!isValidCoPhone(phone)) {
+      setEmployeeAccountFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
       setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
       return;
     }
 
     if (password.length < 6) {
+      setEmployeeAccountFeedback("La password debe tener al menos 6 caracteres.", "warn");
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
@@ -236,10 +254,50 @@
       });
 
       closeEmployeeAccountModal();
+      setEmployeeAccountFeedback("Cuenta de empleado actualizada correctamente.", "ok");
       setFeedback("Cuenta de empleado actualizada correctamente.", "ok");
     } catch (error) {
+      setEmployeeAccountFeedback(error.message, "warn");
       setFeedback(error.message, "warn");
     }
+  }
+
+  function applyCoPhonePrefix(inputElement) {
+    if (!inputElement) {
+      return;
+    }
+
+    const current = String(inputElement.value || "").trim();
+    if (!current) {
+      inputElement.value = "+57";
+      return;
+    }
+
+    inputElement.value = normalizePhoneInput(current);
+  }
+
+  function handleCoPhoneTyping(inputElement) {
+    if (!inputElement) {
+      return;
+    }
+
+    const compact = String(inputElement.value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      inputElement.value = "+57";
+      return;
+    }
+
+    if (!compact.startsWith("+57") && !compact.startsWith("57")) {
+      inputElement.value = "+57" + compact.replace(/^\+/, "");
+      return;
+    }
+
+    if (compact.startsWith("57")) {
+      inputElement.value = "+" + compact;
+      return;
+    }
+
+    inputElement.value = compact;
   }
 
   function formatDateKey(date) {
@@ -339,6 +397,19 @@
       if (event.target === employeeAccountModal) {
         closeEmployeeAccountModal();
       }
+    });
+  }
+
+  const employeeAccountPhoneInput = byId("employeeAccountPhone");
+  if (employeeAccountPhoneInput) {
+    employeeAccountPhoneInput.addEventListener("focus", function () {
+      applyCoPhonePrefix(employeeAccountPhoneInput);
+    });
+    employeeAccountPhoneInput.addEventListener("input", function () {
+      handleCoPhoneTyping(employeeAccountPhoneInput);
+    });
+    employeeAccountPhoneInput.addEventListener("blur", function () {
+      applyCoPhonePrefix(employeeAccountPhoneInput);
     });
   }
 

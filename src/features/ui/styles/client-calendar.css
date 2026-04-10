@@ -94,6 +94,17 @@ body {
 
 .nav-toggle {
   display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.nav-toggle::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+  box-shadow: 0 -5px 0 currentColor, 0 5px 0 currentColor;
 }
 
 /* ── BUTTONS ────────────────────────────────────── */
@@ -171,8 +182,8 @@ body {
 
 /* ── CALENDAR LAYOUT ────────────────────────────── */
 .calendar-layout {
-  width: min(100%, 97vw);
-  margin: 1rem auto 1.2rem;
+  width: min(100%, 98vw);
+  margin: 0.85rem auto 1rem;
   display: grid;
   gap: 1rem;
   grid-template-columns: 1fr;
@@ -458,6 +469,14 @@ thead th {
   background: #fff;
 }
 
+#downloadQrBtn {
+  margin-top: 0.45rem;
+}
+
+#clientProfileFeedback {
+  margin-top: 0.8rem;
+}
+
 .reservations-list {
   margin: 0;
   padding-left: 1.1rem;
@@ -688,7 +707,8 @@ pre {
 
   .nav-toggle {
     display: inline-flex;
-    width: 100%;
+    width: auto;
+    margin-left: auto;
   }
 
   .topbar-actions {
@@ -798,12 +818,12 @@ pre {
   }
 
   .topbar {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .topbar-actions {
     display: flex;
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
     flex-wrap: wrap;
   }
