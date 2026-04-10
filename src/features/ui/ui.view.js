@@ -367,7 +367,6 @@ function employeeView() {
   <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
@@ -380,10 +379,10 @@ function employeeView() {
   <section class="emp-panel hero">
     <p class="eyebrow">Sitio web empleado</p>
     <h1>Panel de control de empleados</h1>
-    <p>Gestiona reservas, calendario de disponibilidad y valida ingresos con QR.</p>
+    <p>Gestiona clientes asignados y valida ingresos con QR.</p>
     <div class="hero-actions">
-      <a class="emp-btn solid" href="/ui/empleado/calendar">Abrir calendario</a>
-      <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar clientes</a>
+      <a class="emp-btn solid" href="/ui/empleado/verify-clients">Verificar clientes</a>
+      <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validar QR</a>
     </div>
     <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
@@ -457,7 +456,6 @@ function employeeCalendarView() {
   <a class="brand" href="/ui/empleado">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
@@ -534,7 +532,6 @@ function employeeVerifyClientsView() {
   <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
@@ -600,7 +597,6 @@ function employeeValidateQrView() {
   <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
-    <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>

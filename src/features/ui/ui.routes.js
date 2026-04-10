@@ -4,7 +4,6 @@ const {
   clientController,
   clientCalendarController,
   employeeController,
-  employeeCalendarController,
   employeeVerifyClientsController,
   employeeValidateQrController,
   adminController,
@@ -29,7 +28,9 @@ router.get("/ui/login", loginController);
 router.get("/ui/client", clientController);
 router.get("/ui/client/calendar", clientCalendarController);
 router.get("/ui/empleado", employeeController);
-router.get("/ui/empleado/calendar", employeeCalendarController);
+router.get("/ui/empleado/calendar", function (_req, res) {
+  res.redirect(302, "/ui/empleado");
+});
 router.get("/ui/empleado/verify-clients", employeeVerifyClientsController);
 router.get("/ui/empleado/validate-qr", employeeValidateQrController);
 router.get("/ui/employee", redirectToEmpleado);
