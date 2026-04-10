@@ -313,6 +313,19 @@
     return map;
   }
 
+  function isNoShowReservation(reservation) {
+    if (!reservation || reservation.status !== "booked") {
+      return false;
+    }
+
+    const startsAt = new Date(reservation.starts_at);
+    if (Number.isNaN(startsAt.getTime())) {
+      return false;
+    }
+
+    return startsAt.getTime() < Date.now();
+  }
+
   function renderConfigPanel() {
     const container = byId("workConfigList");
     container.innerHTML = "";
@@ -426,6 +439,8 @@
           const rowWrap = document.createElement("div");
           rowWrap.className = "reservation-item";
 
+          const noShow = isNoShowReservation(reservation);
+
           const text = document.createElement("span");
           const clientLabel = reservation.client_name
             ? String(reservation.client_name)
@@ -439,6 +454,13 @@
             const chip = document.createElement("span");
             chip.className = "validation-chip";
             chip.textContent = "Registro validado";
+            rowWrap.appendChild(chip);
+          } else if (noShow) {
+            rowWrap.classList.add("no-show");
+
+            const chip = document.createElement("span");
+            chip.className = "validation-chip no-show";
+            chip.textContent = "No asistio";
             rowWrap.appendChild(chip);
           } else if (reservation.qr_token) {
             const button = document.createElement("button");

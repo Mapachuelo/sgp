@@ -4,7 +4,7 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${title}</title>
+    <title>Peluquería</title>
     <link rel="stylesheet" href="${stylesheetPath}" />
   </head>
   <body>
@@ -67,7 +67,7 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
 function homeView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/">SGP</a>
+  <a class="brand" href="/">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
     <a class="btn accent" href="/ui/login">Iniciar sesion</a>
@@ -78,7 +78,7 @@ function homeView() {
   `;
 
   return clientDocument(
-    "SGP - Dashboard",
+    "Peluquería - Dashboard",
     "/ui-assets/styles/client-dashboard.css",
     body,
     "/ui-assets/scripts/main-dashboard.js"
@@ -88,7 +88,7 @@ function homeView() {
 function loginView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/">SGP</a>
+  <a class="brand" href="/">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
     <a class="btn ghost" href="/">Volver</a>
@@ -120,6 +120,8 @@ function loginView() {
         <button id="closeRegisterBtn" class="btn ghost" type="button">Cerrar</button>
       </div>
 
+      <p id="registerFeedback" class="feedback info">Completa los datos y revisa el mensaje si alguna casilla falla.</p>
+
       <label>Nombre</label>
       <input id="registerFirstName" type="text" placeholder="Nombre" />
 
@@ -145,7 +147,7 @@ function loginView() {
   `;
 
     return clientDocument(
-      "SGP - Iniciar sesion",
+      "Peluquería - Iniciar sesion",
     "/ui-assets/styles/client-dashboard.css",
     body,
     "/ui-assets/scripts/main-dashboard.js"
@@ -155,7 +157,7 @@ function loginView() {
 function clientView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/client">SGP</a>
+  <a class="brand" href="/ui/client">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
     <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
@@ -216,7 +218,7 @@ function clientView() {
 `;
 
   return clientDocument(
-    "SGP - Dashboard Cliente",
+    "Peluquería - Dashboard Cliente",
     "/ui-assets/styles/client-dashboard.css",
     body,
     "/ui-assets/scripts/client-dashboard.js"
@@ -226,7 +228,7 @@ function clientView() {
 function clientCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/client">SGP</a>
+  <a class="brand" href="/ui/client">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client">Dashboard</a>
     <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
@@ -331,7 +333,7 @@ function clientCalendarView() {
 `;
 
   return clientDocument(
-    "SGP - Calendario Cliente",
+    "Peluquería - Calendario Cliente",
     "/ui-assets/styles/client-calendar.css",
     body,
     "/ui-assets/scripts/client-calendar.js"
@@ -341,7 +343,7 @@ function clientCalendarView() {
 function employeeView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/empleado">SGP</a>
+  <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -419,7 +421,7 @@ function employeeView() {
 `;
 
   return clientDocument(
-    "SGP - Empleado Dashboard",
+    "Peluquería - Empleado Dashboard",
     "/ui-assets/styles/empleado-dashboard.css",
     body,
     "/ui-assets/scripts/empleado-dashboard.js"
@@ -429,7 +431,7 @@ function employeeView() {
 function employeeCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/empleado">SGP</a>
+  <a class="brand" href="/ui/empleado">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -496,7 +498,7 @@ function employeeCalendarView() {
 `;
 
   return clientDocument(
-    "SGP - Calendario Empleado",
+    "Peluquería - Calendario Empleado",
     "/ui-assets/styles/client-calendar.css",
     body,
     "/ui-assets/scripts/client-calendar.js"
@@ -506,7 +508,7 @@ function employeeCalendarView() {
 function employeeVerifyClientsView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/empleado">SGP</a>
+  <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -548,7 +550,7 @@ function employeeVerifyClientsView() {
 `;
 
   return clientDocument(
-    "SGP - Verificar Clientes",
+    "Peluquería - Verificar Clientes",
     "/ui-assets/styles/empleado-verify-clients.css",
     body,
     "/ui-assets/scripts/empleado-verify-clients.js"
@@ -558,7 +560,7 @@ function employeeVerifyClientsView() {
 function employeeValidateQrView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/empleado">SGP</a>
+  <a class="emp-brand" href="/ui/empleado">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -597,7 +599,7 @@ function employeeValidateQrView() {
 `;
 
   return clientDocument(
-    "SGP - Validacion QR",
+    "Peluquería - Validacion QR",
     "/ui-assets/styles/empleado-validate-qr.css",
     body,
     "/ui-assets/scripts/empleado-validate-qr.js"
@@ -607,7 +609,7 @@ function employeeValidateQrView() {
 function adminView() {
   const body = `
 <header class="admin-topbar">
-  <a class="admin-brand" href="/ui/admin">SGP</a>
+  <a class="admin-brand" href="/ui/admin">Peluquería</a>
   <nav class="admin-nav">
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
@@ -621,7 +623,7 @@ function adminView() {
     <h1>Gestion administrativa</h1>
     <p class="helper">Abre cada modulo en ventana flotante sin salir de esta vista.</p>
     <div class="admin-launcher-grid">
-      <button id="openEmployeeModalBtn" class="admin-btn solid admin-session-only" type="button">Ingreso empleado y administrador</button>
+      <button id="openEmployeeModalBtn" class="admin-btn solid admin-session-only launcher-entry-btn" type="button">Ingreso empleado y administrador</button>
       <button id="openServicesModalBtn" class="admin-btn ghost admin-session-only" type="button">Servicios disponibles</button>
       <button id="openRegisteredModalBtn" class="admin-btn ghost admin-session-only" type="button">Lista registrados</button>
     </div>
@@ -756,7 +758,7 @@ function adminView() {
 `;
 
   return clientDocument(
-    "SGP - Administrador Empleados",
+    "Peluquería - Administrador Empleados",
     "/ui-assets/styles/admin-add-empleado.css",
     body,
     "/ui-assets/scripts/admin-add-empleado.js"
@@ -766,7 +768,7 @@ function adminView() {
 function adminCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/admin">SGP</a>
+  <a class="brand" href="/ui/admin">Peluquería</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
@@ -832,7 +834,7 @@ function adminCalendarView() {
 `;
 
   return clientDocument(
-    "SGP - Calendario Administrador",
+    "Peluquería - Calendario Administrador",
     "/ui-assets/styles/client-calendar.css",
     body,
     "/ui-assets/scripts/client-calendar.js"
@@ -842,7 +844,7 @@ function adminCalendarView() {
 function adminVerifyClientsView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/admin">SGP</a>
+  <a class="emp-brand" href="/ui/admin">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
@@ -882,7 +884,7 @@ function adminVerifyClientsView() {
 `;
 
   return clientDocument(
-    "SGP - Administrador Verificar Clientes",
+    "Peluquería - Administrador Verificar Clientes",
     "/ui-assets/styles/empleado-verify-clients.css",
     body,
     "/ui-assets/scripts/empleado-verify-clients.js"
@@ -892,7 +894,7 @@ function adminVerifyClientsView() {
 function adminValidateQrView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/admin">SGP</a>
+  <a class="emp-brand" href="/ui/admin">Peluquería</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
@@ -929,7 +931,7 @@ function adminValidateQrView() {
 `;
 
   return clientDocument(
-    "SGP - Administrador Validacion QR",
+    "Peluquería - Administrador Validacion QR",
     "/ui-assets/styles/empleado-validate-qr.css",
     body,
     "/ui-assets/scripts/empleado-validate-qr.js"

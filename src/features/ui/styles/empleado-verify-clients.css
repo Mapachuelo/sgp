@@ -313,6 +313,11 @@ td.booked        { background: #F7EDEA; }
   border-color: rgba(74,124,95,0.35);
 }
 
+.reservation-item.no-show {
+  background: rgba(138,74,53,0.08);
+  border-color: rgba(138,74,53,0.35);
+}
+
 .validation-chip {
   display: inline-flex;
   justify-content: center;
@@ -326,22 +331,36 @@ td.booked        { background: #F7EDEA; }
   font-weight: 700;
 }
 
+.validation-chip.no-show {
+  border-color: rgba(138,74,53,0.35);
+  background: rgba(138,74,53,0.14);
+  color: var(--warn);
+}
+
 .verify-btn {
-  border: 1px solid var(--available-line, #85B89A);
-  background: #EDF6F0;
-  color: #2D6048;
+  border: 1px solid #1f4a36;
+  background: linear-gradient(135deg, #2f6b50, #234f3c);
+  color: #ffffff;
   border-radius: var(--radius-sm);
-  padding: 0.24rem 0.42rem;
+  padding: 0.3rem 0.52rem;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-family: "Outfit", sans-serif;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.02em;
   transition: var(--transition);
+  box-shadow: 0 2px 10px rgba(35,79,60,0.28);
 }
 
 .verify-btn:hover {
-  background: #d5eee0;
-  box-shadow: 0 2px 6px rgba(133,184,154,0.2);
+  background: linear-gradient(135deg, #3a7d5f, #2b624a);
+  border-color: #173727;
+  box-shadow: 0 5px 16px rgba(35,79,60,0.34);
+}
+
+.verify-btn:focus-visible {
+  outline: 2px solid #173727;
+  outline-offset: 2px;
 }
 
 /* ── CONFIG PANEL ───────────────────────────────── */
@@ -394,6 +413,28 @@ td.booked        { background: #F7EDEA; }
 .block {
   width: 100%;
   margin-top: 0.6rem;
+}
+
+.config-panel #saveConfigBtn {
+  box-shadow: 0 4px 14px rgba(192,115,90,0.25);
+}
+
+.config-panel #resetConfigBtn {
+  background: linear-gradient(135deg, #37445a, #263145);
+  color: #ffffff;
+  border: 1px solid #1e2636;
+  box-shadow: 0 4px 14px rgba(38,49,69,0.28);
+}
+
+.config-panel #resetConfigBtn:hover {
+  background: linear-gradient(135deg, #435572, #2e3d56);
+  border-color: #171f2d;
+  box-shadow: 0 6px 18px rgba(38,49,69,0.34);
+}
+
+.config-panel #resetConfigBtn:focus-visible {
+  outline: 2px solid #1e2636;
+  outline-offset: 2px;
 }
 
 /* ── FEEDBACK ───────────────────────────────────── */

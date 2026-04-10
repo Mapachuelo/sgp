@@ -191,7 +191,39 @@ body {
   margin-top: 1.1rem;
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.admin-launcher-grid .admin-btn {
+  min-height: 58px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.launcher-entry-btn {
+  background: linear-gradient(140deg, var(--stone-dk), #2a2a2a 46%, var(--terra-dk));
+  border: 1px solid rgba(250,246,240,0.22);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(61,61,61,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
+  position: relative;
+}
+
+.launcher-entry-btn:hover {
+  background: linear-gradient(140deg, #4a4a4a, #323232 46%, #9f5a41);
+  border-color: rgba(250,246,240,0.32);
+  box-shadow: 0 14px 28px rgba(61,61,61,0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+.launcher-entry-btn::before {
+  content: "Control Interno";
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(250,246,240,0.78);
 }
 
 /* ── PANELS ─────────────────────────────────────── */

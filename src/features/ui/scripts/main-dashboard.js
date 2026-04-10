@@ -17,6 +17,20 @@
 		feedback.className = "feedback " + tone;
 	}
 
+	function setRegisterFeedback(message, tone) {
+		const feedback = byId("registerFeedback");
+		if (!feedback) {
+			return;
+		}
+
+		feedback.textContent = message;
+		feedback.className = "feedback " + tone;
+	}
+
+	function resetRegisterFeedback() {
+		setRegisterFeedback("Completa los datos y revisa el mensaje si alguna casilla falla.", "info");
+	}
+
 	function getToken() {
 		return localStorage.getItem(TOKEN_KEY) || "";
 	}
@@ -140,42 +154,42 @@
 		const password = byId("registerPassword").value || "";
 
 		if (!firstName) {
-			setFeedback("La casilla nombre es obligatoria.", "warn");
+			setRegisterFeedback("La casilla nombre es obligatoria.", "warn");
 			return;
 		}
 
 		if (!lastName) {
-			setFeedback("La casilla apellido es obligatoria.", "warn");
+			setRegisterFeedback("La casilla apellido es obligatoria.", "warn");
 			return;
 		}
 
 		if (!rawPhone) {
-			setFeedback("La casilla numero es obligatoria.", "warn");
+			setRegisterFeedback("La casilla numero es obligatoria.", "warn");
 			return;
 		}
 
 		if (!email) {
-			setFeedback("La casilla correo es obligatoria.", "warn");
+			setRegisterFeedback("La casilla correo es obligatoria.", "warn");
 			return;
 		}
 
 		if (!password) {
-			setFeedback("La casilla password es obligatoria.", "warn");
+			setRegisterFeedback("La casilla password es obligatoria.", "warn");
 			return;
 		}
 
 		if (!isValidEmail(email)) {
-			setFeedback("Ingresa un correo valido.", "warn");
+			setRegisterFeedback("La casilla correo no tiene un formato valido.", "warn");
 			return;
 		}
 
 		if (!isValidCoPhone(phone)) {
-			setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
+			setRegisterFeedback("La casilla numero debe tener formato +57XXXXXXXXXX.", "warn");
 			return;
 		}
 
 		if (password.length < 6) {
-			setFeedback("La password debe tener al menos 6 caracteres.", "warn");
+			setRegisterFeedback("La casilla password debe tener al menos 6 caracteres.", "warn");
 			return;
 		}
 
@@ -198,7 +212,7 @@
 			setToken(payload.data.token);
 			window.location.href = "/ui/client";
 		} catch (error) {
-			setFeedback(error.message, "warn");
+			setRegisterFeedback(error.message, "warn");
 		}
 	}
 
@@ -227,6 +241,7 @@
 
 		modal.classList.add("hidden");
 		clearRegisterForm();
+		resetRegisterFeedback();
 	}
 
 	function openRegisterModal() {
@@ -236,6 +251,7 @@
 		}
 
 		modal.classList.remove("hidden");
+		resetRegisterFeedback();
 	}
 
 	async function redirectIfActiveSession() {
