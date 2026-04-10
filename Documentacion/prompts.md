@@ -411,4 +411,19 @@ Pantallas Grandes,@media (min-width: 1440px),Monitores de alta resolución (2K+)
 ## intruccuines:
  - La de editar cuenta en empleados solo se ve en dashboard, no en otras sessiones por ejemplo ver calendario o verificar cliente.
 
+# Cambios en diseño y funcionalidad
+Eres un senior frontend developer.
 
+Tarea: Mejorar el diseño de la pagina web de los archivos css, aprovechando el espacio disponible y no dejando tanto espacios vacios.
+
+
+Instrucciones:
+- Leer el archivo contexto.md.
+
+- Hacer el login más centrado, sin tomar tanto espacio que no se va aprovechar.
+
+- Al inicio de la raíz de "http://localhost:3000" cambiarlo a "http://localhost:3000/ui/client" como predeterminado al iniciarlo.
+
+## Instrucciones: 
+- Todas las palabras esten en español, por ejemplo en el boton "login" cuando estoy en "http://localhost:3000/ui/client/calendar" se ve inconsistencia de palabras.
+- El empleado y administrador poder borrar clientes que no han asistido al horario que fue.
