@@ -4,6 +4,7 @@
   const HOME_PATH = isAdminContext ? "/ui/admin" : "/ui/empleado";
   const LOGIN_PATH = "/ui/login";
   const VALIDATE_QR_PATH = isAdminContext ? "/ui/admin/validate-qr" : "/ui/empleado/validate-qr";
+  const ALL_EMPLOYEES_VALUE = "__all_employees__";
   const FULL_START_HOUR = 6;
   const FULL_END_HOUR = 22;
   const FULL_DAY_COUNT = 7;
@@ -13,7 +14,10 @@
   const MAX_SERVICE_DURATION_MINUTES = 280;
 
   const state = {
+    currentUser: null,
     days: [],
+    stylists: [],
+    selectedStylistId: ALL_EMPLOYEES_VALUE,
     reservations: [],
     scheduleConfig: {},
     slotStepMinutes: DEFAULT_SLOT_STEP_MINUTES,
@@ -57,6 +61,96 @@
 
     const isAdmin = Boolean(user && user.role === "admin");
     adminLink.classList.toggle("hidden", !isAdmin);
+  }
+
+  function getSelectedStylist() {
+    if (!isAdminContext) {
+      return null;
+    }
+
+    const selectedStylistId = String(state.selectedStylistId || ALL_EMPLOYEES_VALUE);
+    if (selectedStylistId === ALL_EMPLOYEES_VALUE) {
+      return null;
+    }
+
+    return (state.stylists || []).find(function (stylist) {
+      return String(stylist.id) === selectedStylistId;
+    }) || null;
+  }
+
+  function syncStylistFilterOptions() {
+    const select = byId("verifyEmployeeFilter");
+    if (!select) {
+      return;
+    }
+
+    const previousValue = String(state.selectedStylistId || ALL_EMPLOYEES_VALUE);
+    const stylists = Array.isArray(state.stylists) ? state.stylists : [];
+
+    select.innerHTML = "";
+
+    const allOption = document.createElement("option");
+    allOption.value = ALL_EMPLOYEES_VALUE;
+    allOption.textContent = "Todos los empleados";
+    select.appendChild(allOption);
+
+    stylists.forEach(function (stylist) {
+      const option = document.createElement("option");
+      option.value = String(stylist.id);
+      option.textContent = String(stylist.name || "Empleado");
+      select.appendChild(option);
+    });
+
+    const hasPrevious = stylists.some(function (stylist) {
+      return String(stylist.id) === previousValue;
+    });
+
+    state.selectedStylistId = hasPrevious ? previousValue : ALL_EMPLOYEES_VALUE;
+    select.value = state.selectedStylistId;
+  }
+
+  function toStylistIdValue(value) {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  function resolveReservationStylistId(reservation) {
+    const directId = toStylistIdValue(reservation && reservation.stylist_id);
+    if (directId) {
+      return directId;
+    }
+
+    const stylistName = String((reservation && reservation.stylist_name) || "").trim();
+    if (!stylistName) {
+      return null;
+    }
+
+    const byName = (state.stylists || []).find(function (stylist) {
+      return String(stylist.name || "") === stylistName;
+    });
+
+    return byName ? toStylistIdValue(byName.id) : null;
+  }
+
+  function getVisibleReservations() {
+    const source = Array.isArray(state.reservations) ? state.reservations : [];
+
+    if (!isAdminContext) {
+      return source;
+    }
+
+    const selectedStylistId = String(state.selectedStylistId || ALL_EMPLOYEES_VALUE);
+    if (selectedStylistId === ALL_EMPLOYEES_VALUE) {
+      return source;
+    }
+
+    return source.filter(function (reservation) {
+      return String(resolveReservationStylistId(reservation) || "") === selectedStylistId;
+    });
   }
 
   function toDateKey(date) {
@@ -226,7 +320,7 @@
       }
     }
 
-    (state.reservations || []).forEach(function (reservation) {
+    getVisibleReservations().forEach(function (reservation) {
       const start = new Date(reservation.starts_at);
       if (Number.isNaN(start.getTime())) {
         return;
@@ -278,7 +372,8 @@
   }
 
   function resolveSlotStepFromReservations() {
-    const durations = (state.reservations || [])
+    const visibleReservations = getVisibleReservations();
+    const durations = visibleReservations
       .map(function (reservation) {
         return Number(reservation.duration_minutes);
       })
@@ -290,7 +385,7 @@
       return DEFAULT_SLOT_STEP_MINUTES;
     }
 
-    const minuteMarks = (state.reservations || [])
+    const minuteMarks = visibleReservations
       .map(function (reservation) {
         const start = new Date(reservation.starts_at);
         if (Number.isNaN(start.getTime())) {
@@ -327,7 +422,12 @@
       String(viewportConfig.endHour).padStart(2, "0") +
       ":00 en bloques de " +
       String(state.slotStepMinutes) +
-      " minutos.";
+      " minutos." +
+      (isAdminContext
+        ? " Empleado seleccionado: " +
+          (getSelectedStylist() ? String(getSelectedStylist().name) : "Todos") +
+          "."
+        : "");
   }
 
   async function callApi(path, method, body) {
@@ -374,6 +474,22 @@
     return user;
   }
 
+  async function loadStylistsForAdmin() {
+    if (!isAdminContext) {
+      return;
+    }
+
+    const payload = await callApi("/api/auth/stylists", "GET");
+    state.stylists = (payload.data || []).map(function (stylist) {
+      return {
+        id: stylist.id,
+        name: stylist.name
+      };
+    });
+
+    syncStylistFilterOptions();
+  }
+
   function buildDayRange(startText, dayCount) {
     const start = new Date(startText + "T00:00:00");
     const days = [];
@@ -390,7 +506,7 @@
   function indexReservationsByDay() {
     const map = {};
 
-    state.reservations.forEach(function (reservation) {
+    getVisibleReservations().forEach(function (reservation) {
       const start = new Date(reservation.starts_at);
       if (Number.isNaN(start.getTime())) {
         return;
@@ -521,7 +637,7 @@
     }
 
     const todayKey = toDateKey(new Date());
-    const reservationsToday = (state.reservations || []).filter(function (reservation) {
+    const reservationsToday = getVisibleReservations().filter(function (reservation) {
       return toLocalDateKey(reservation.starts_at) === todayKey;
     });
 
@@ -742,8 +858,11 @@
 
   async function loadData() {
     const currentUser = await ensureEmployeeSession();
+    state.currentUser = currentUser;
     setRoleUi(currentUser);
     setSessionUi(true);
+
+    await loadStylistsForAdmin();
 
     const reservationsPayload = await callApi("/api/reservations", "GET");
     const viewportConfig = state.viewportConfig || resolveViewportConfig();
@@ -827,7 +946,23 @@
     window.location.href = VALIDATE_QR_PATH + (query ? "?" + query : "");
   }
 
+  function applyStylistFilter() {
+    state.slotStepMinutes = resolveSlotStepFromReservations();
+    updateTodaySummary();
+    updateSlotHelper();
+    renderCalendar();
+  }
+
   byId("reloadBtn").addEventListener("click", refreshAll);
+  const verifyEmployeeFilter = byId("verifyEmployeeFilter");
+  if (verifyEmployeeFilter) {
+    verifyEmployeeFilter.addEventListener("change", function () {
+      state.selectedStylistId = String(verifyEmployeeFilter.value || ALL_EMPLOYEES_VALUE);
+      applyStylistFilter();
+      setFeedback("Filtro de empleado aplicado en el calendario.", "info");
+    });
+  }
+
   byId("saveConfigBtn").addEventListener("click", function () {
     updateConfigFromForm();
     callApi("/api/reservations/work-schedule", "PUT", {

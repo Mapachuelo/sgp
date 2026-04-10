@@ -912,6 +912,10 @@ function adminVerifyClientsView() {
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
+      <label for="verifyEmployeeFilter">Empleado</label>
+      <select id="verifyEmployeeFilter">
+        <option value="__all_employees__">Todos los empleados</option>
+      </select>
       <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>

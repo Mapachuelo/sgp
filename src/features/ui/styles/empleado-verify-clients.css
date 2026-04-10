@@ -250,6 +250,10 @@ body {
   min-width: 190px;
 }
 
+.verify-controls select {
+  min-width: 210px;
+}
+
 .verify-controls .emp-btn.ghost {
   background: var(--ivory);
   color: var(--stone-dk);
@@ -277,6 +281,24 @@ input {
   background: var(--ivory);
   color: var(--stone-dk);
   transition: var(--transition);
+}
+
+select {
+  border: 1.5px solid var(--sand-dk);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.92rem;
+  background: var(--ivory);
+  color: var(--stone-dk);
+  transition: var(--transition);
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--terra);
+  box-shadow: 0 0 0 3px rgba(192,115,90,0.1), var(--shadow-sm);
+  background: #fff;
 }
 
 input:focus {
@@ -628,6 +650,7 @@ pre {
   }
 
   .verify-controls input,
+  .verify-controls select,
   .verify-controls .emp-btn {
     width: 100%;
   }
@@ -670,6 +693,7 @@ pre {
   }
 
   .verify-controls input,
+  .verify-controls select,
   .verify-controls .emp-btn {
     width: auto;
   }
