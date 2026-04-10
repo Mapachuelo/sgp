@@ -55,11 +55,11 @@ Evaluar viabilidad comercial del Sistema de Gestion de Peluqueria (SGP) para mic
 
 - Ciudad objetivo inicial: mercado urbano intermedio
 - Peluquerias potenciales en zona objetivo: 300
-- Tasa de adopcion objetivo primer ano: 5% a 10%
+- Tasa de adopcion objetivo primer año: 5% a 10%
 
 ### Escenario
 
-- Clientes potenciales primer ano: 15 a 30 negocios
+- Clientes potenciales primer año: 15 a 30 negocios
 - Ticket mensual proyectado (software): 80.000 a 180.000 COP por negocio, segun plan
 
 ## 8. Estrategia de entrada al mercado
