@@ -445,7 +445,8 @@
           const clientLabel = reservation.client_name
             ? String(reservation.client_name)
             : "Cliente #" + String(reservation.client_id || "-");
-          text.textContent = reservation.service_name + " / " + clientLabel;
+          const reservationStatus = reservation.status === "checked_in" ? "Ingreso validado" : "Reserva activa";
+          text.textContent = reservation.service_name + " / " + clientLabel + " / " + reservationStatus;
           rowWrap.appendChild(text);
 
           if (reservation.status === "checked_in") {

@@ -11,6 +11,7 @@ const {
   saveWorkSchedule,
   resetWorkScheduleRange,
   listServicesForCalendar,
+  listServicesForEmployeeCalendar,
   createServiceByAdmin,
   deleteServiceByAdmin,
   getEmployeeServiceTimesByAdmin,
@@ -65,8 +66,11 @@ const resetWorkScheduleController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
-const listServicesController = asyncHandler(async (_req, res) => {
-  const data = await listServicesForCalendar();
+const listServicesController = asyncHandler(async (req, res) => {
+  const role = req.auth && req.auth.role;
+  const data = role === "empleado"
+    ? await listServicesForEmployeeCalendar(req.auth.sub)
+    : await listServicesForCalendar();
   res.json({ ok: true, data });
 });
 

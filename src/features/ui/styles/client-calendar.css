@@ -469,6 +469,14 @@ thead th {
   background: #fff;
 }
 
+#downloadQrBtn {
+  margin-top: 0.45rem;
+}
+
+#clientProfileFeedback {
+  margin-top: 0.8rem;
+}
+
 .reservations-list {
   margin: 0;
   padding-left: 1.1rem;

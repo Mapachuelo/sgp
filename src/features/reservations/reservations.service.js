@@ -17,6 +17,7 @@ const {
   listServiceCatalog,
   listEmployeeServiceMinimumDurations,
   listEmployeeServiceTimesForCalendar,
+  listEnabledServicesForEmployee,
   createServiceCatalogEntry,
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
@@ -834,6 +835,55 @@ async function listServicesForCalendar() {
   });
 }
 
+async function listServicesForEmployeeCalendar(employeeId) {
+  const employeeIdNumber = Number(employeeId);
+  if (!Number.isInteger(employeeIdNumber) || employeeIdNumber <= 0) {
+    throw new HttpError(400, "employeeId debe ser un numero entero positivo");
+  }
+
+  const [services, employeeRows] = await Promise.all([
+    listEnabledServicesForEmployee(employeeIdNumber),
+    listEmployeeServiceTimesByEmployee(employeeIdNumber)
+  ]);
+
+  const durationByServiceId = new Map();
+  (employeeRows || []).forEach(function (row) {
+    if (!row || !row.enabled) {
+      return;
+    }
+
+    const serviceId = Number(row.service_id);
+    const durationMinutes = Number(row.duration_minutes);
+    if (!Number.isInteger(serviceId) || serviceId <= 0) {
+      return;
+    }
+
+    if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+      return;
+    }
+
+    durationByServiceId.set(serviceId, durationMinutes);
+  });
+
+  return (services || []).map(function (service) {
+    const serviceId = Number(service.id);
+    const durationMinutes = durationByServiceId.get(serviceId);
+
+    return {
+      id: serviceId,
+      name: service.name,
+      duration_minutes: Number.isInteger(durationMinutes)
+        ? durationMinutes
+        : DEFAULT_SERVICE_DURATION_MINUTES,
+      stylist_durations: {
+        [String(employeeIdNumber)]: Number.isInteger(durationMinutes)
+          ? durationMinutes
+          : DEFAULT_SERVICE_DURATION_MINUTES
+      }
+    };
+  });
+}
+
 async function createServiceByAdmin(input, authUserId) {
   const name = String((input && input.name) || "").trim();
   if (!name) {
@@ -960,6 +1010,7 @@ module.exports = {
   saveWorkSchedule,
   resetWorkScheduleRange,
   listServicesForCalendar,
+  listServicesForEmployeeCalendar,
   createServiceByAdmin,
   deleteServiceByAdmin,
   getEmployeeServiceTimesByAdmin,

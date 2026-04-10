@@ -37,6 +37,16 @@ async function ensureServiceCatalogTable(queryable = db) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  await queryable.query(`
+    ALTER TABLE service_catalog
+    ADD COLUMN IF NOT EXISTS created_by INT REFERENCES app_user(id) ON DELETE SET NULL
+  `);
+
+  await queryable.query(`
+    ALTER TABLE service_catalog
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  `);
 }
 
 async function ensureEmployeeServiceTimeTable(queryable = db) {
@@ -416,6 +426,26 @@ async function listEmployeeServiceTimesForCalendar() {
   return result.rows;
 }
 
+async function listEnabledServicesForEmployee(employeeId) {
+  await ensureEmployeeServiceTimeTable();
+
+  const result = await db.query(
+    `
+      SELECT DISTINCT sc.id, sc.name
+      FROM employee_service_time est
+      JOIN service_catalog sc ON sc.id = est.service_id
+      JOIN app_user u ON u.id = est.employee_id
+      WHERE est.employee_id = $1
+        AND est.duration_minutes > 0
+        AND u.role = 'empleado'
+      ORDER BY sc.name ASC
+    `,
+    [employeeId]
+  );
+
+  return result.rows;
+}
+
 async function saveEmployeeServiceTimes(employeeId, entries, updatedBy) {
   await ensureEmployeeServiceTimeTable();
 
@@ -542,6 +572,7 @@ module.exports = {
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
   listEmployeeServiceTimesForCalendar,
+  listEnabledServicesForEmployee,
   saveEmployeeServiceTimes,
   countActiveReservationsByClient,
   findClientReservationById,

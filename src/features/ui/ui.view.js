@@ -302,6 +302,7 @@ function clientCalendarView() {
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+      <button id="downloadQrBtn" class="btn ghost block hidden" type="button">Descargar QR</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
     <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a iniciar sesion</a>
 
@@ -342,7 +343,7 @@ function clientCalendarView() {
     <label>Contraseña</label>
     <input id="clientProfilePassword" type="password" placeholder="Mínimo 6 caracteres" />
 
-    <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
+      <p id="clientProfileFeedback" class="feedback info">Para guardar cambios debes completar todos los campos.</p>
 
     <div class="modal-actions">
       <button id="cancelProfileEditBtn" class="btn ghost" type="button">Cancelar</button>
@@ -431,6 +432,8 @@ function employeeView() {
 
     <label>Contraseña</label>
     <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
+
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
 
     <div class="modal-actions">
       <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>

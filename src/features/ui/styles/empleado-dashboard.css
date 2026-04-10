@@ -354,6 +354,10 @@ input:focus {
   gap: 0.6rem;
 }
 
+#employeeAccountFeedback {
+  margin-top: 0.8rem;
+}
+
 input[readonly] {
   background: var(--ivory-dk);
   color: var(--stone);
