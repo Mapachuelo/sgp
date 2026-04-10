@@ -8,6 +8,7 @@
   const FULL_END_HOUR = 22;
   const FULL_DAY_COUNT = 7;
   const DEFAULT_SLOT_STEP_MINUTES = 30;
+  const MIN_CALENDAR_STEP_MINUTES = 5;
   const MIN_SERVICE_DURATION_MINUTES = 1;
   const MAX_SERVICE_DURATION_MINUTES = 280;
 
@@ -59,7 +60,13 @@
   }
 
   function toDateKey(date) {
-    return date.toISOString().slice(0, 10);
+    return (
+      String(date.getFullYear()) +
+      "-" +
+      String(date.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(date.getDate()).padStart(2, "0")
+    );
   }
 
   function toDateInputValue(date) {
@@ -67,6 +74,10 @@
   }
 
   function toLocalDateKey(dateText) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateText || ""))) {
+      return String(dateText);
+    }
+
     const date = new Date(dateText);
     if (Number.isNaN(date.getTime())) {
       return "";
@@ -81,6 +92,37 @@
       dayKey: toDateKey(date),
       time: String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0")
     };
+  }
+
+  function normalizeSlotStep(stepInput) {
+    return Math.max(MIN_CALENDAR_STEP_MINUTES, normalizeDuration(stepInput));
+  }
+
+  function gcd(a, b) {
+    let left = Math.abs(Number(a) || 0);
+    let right = Math.abs(Number(b) || 0);
+
+    while (right !== 0) {
+      const remainder = left % right;
+      left = right;
+      right = remainder;
+    }
+
+    return left;
+  }
+
+  function gcdMany(values, fallback) {
+    const normalized = (values || []).filter(function (value) {
+      return Number.isInteger(value) && value > 0;
+    });
+
+    if (normalized.length === 0) {
+      return fallback;
+    }
+
+    return normalized.reduce(function (accumulator, current) {
+      return gcd(accumulator, current);
+    });
   }
 
   function toLabel(date) {
@@ -165,7 +207,7 @@
   }
 
   function getTimeSlots(stepMinutes) {
-    const normalizedStep = normalizeDuration(stepMinutes);
+    const normalizedStep = normalizeSlotStep(stepMinutes);
     const slots = [];
     const slotSet = new Set();
     const viewportConfig = state.viewportConfig || resolveViewportConfig();
@@ -231,7 +273,7 @@
 
   function isSlotInsideWorkingHours(slot, config, slotStepMinutes) {
     const slotMinutes = parseTimeToMinutes(slot);
-    const slotEndMinutes = slotMinutes + normalizeDuration(slotStepMinutes);
+    const slotEndMinutes = slotMinutes + normalizeSlotStep(slotStepMinutes);
     return slotMinutes >= parseTimeToMinutes(config.start) && slotEndMinutes <= parseTimeToMinutes(config.end);
   }
 
@@ -248,7 +290,25 @@
       return DEFAULT_SLOT_STEP_MINUTES;
     }
 
-    return Math.min(...durations);
+    const minuteMarks = (state.reservations || [])
+      .map(function (reservation) {
+        const start = new Date(reservation.starts_at);
+        if (Number.isNaN(start.getTime())) {
+          return null;
+        }
+
+        return start.getMinutes();
+      })
+      .filter(function (minute) {
+        return Number.isInteger(minute) && minute > 0;
+      });
+
+    const gcdStep = gcdMany(
+      durations.concat(minuteMarks).concat([DEFAULT_SLOT_STEP_MINUTES]),
+      DEFAULT_SLOT_STEP_MINUTES
+    );
+
+    return normalizeSlotStep(gcdStep);
   }
 
   function updateSlotHelper() {
@@ -327,7 +387,7 @@
     return days;
   }
 
-  function indexReservations() {
+  function indexReservationsByDay() {
     const map = {};
 
     state.reservations.forEach(function (reservation) {
@@ -336,14 +396,12 @@
         return;
       }
 
-      const slot = toLocalSlot(start.toISOString());
-      const key = slot.dayKey + "|" + slot.time;
-
-      if (!map[key]) {
-        map[key] = [];
+      const dayKey = toDateKey(start);
+      if (!map[dayKey]) {
+        map[dayKey] = [];
       }
 
-      map[key].push(reservation);
+      map[dayKey].push(reservation);
     });
 
     return map;
@@ -377,7 +435,67 @@
       end = new Date(start.getTime() + durationMinutes * 60000);
     }
 
-    return toLocalHourMinute(start) + " - " + toLocalHourMinute(end);
+    const durationMinutes = Math.max(1, Math.round((end.getTime() - start.getTime()) / 60000));
+    return (
+      toLocalHourMinute(start) +
+      " - " +
+      toLocalHourMinute(end) +
+      " (" +
+      String(durationMinutes) +
+      " min)"
+    );
+  }
+
+  function getReservationRangeDates(reservation) {
+    const start = new Date(reservation.starts_at);
+    if (Number.isNaN(start.getTime())) {
+      return null;
+    }
+
+    let end = null;
+    if (reservation.ends_at) {
+      const explicitEnd = new Date(reservation.ends_at);
+      if (!Number.isNaN(explicitEnd.getTime()) && explicitEnd.getTime() > start.getTime()) {
+        end = explicitEnd;
+      }
+    }
+
+    if (!end) {
+      end = new Date(start.getTime() + normalizeDuration(reservation.duration_minutes) * 60000);
+    }
+
+    return {
+      start,
+      end
+    };
+  }
+
+  function toLocalDateFromParts(dayKey, timeText) {
+    return new Date(dayKey + "T" + timeText + ":00");
+  }
+
+  function isReservationStartSlot(reservation, dayKey, slot) {
+    const range = getReservationRangeDates(reservation);
+    if (!range) {
+      return false;
+    }
+
+    return toDateKey(range.start) === dayKey && toLocalHourMinute(range.start) === slot;
+  }
+
+  function getReservationsForSlot(reservationsByDay, dayKey, slot, slotStepMinutes) {
+    const dayReservations = reservationsByDay[dayKey] || [];
+    const slotStart = toLocalDateFromParts(dayKey, slot);
+    const slotEnd = new Date(slotStart.getTime() + normalizeSlotStep(slotStepMinutes) * 60000);
+
+    return dayReservations.filter(function (reservation) {
+      const range = getReservationRangeDates(reservation);
+      if (!range) {
+        return false;
+      }
+
+      return range.start.getTime() < slotEnd.getTime() && range.end.getTime() > slotStart.getTime();
+    });
   }
 
   function isNoShowReservation(reservation) {
@@ -478,8 +596,8 @@
     head.innerHTML = "";
     body.innerHTML = "";
 
-    const indexed = indexReservations();
-    const slotStepMinutes = normalizeDuration(state.slotStepMinutes);
+    const reservationsByDay = indexReservationsByDay();
+    const slotStepMinutes = normalizeSlotStep(state.slotStepMinutes);
 
     const headRow = document.createElement("tr");
     const firstHead = document.createElement("th");
@@ -519,8 +637,7 @@
           return;
         }
 
-        const slotKey = dayKey + "|" + slot;
-        const reservations = (indexed[slotKey] || []).filter(function (reservation) {
+        const reservations = getReservationsForSlot(reservationsByDay, dayKey, slot, slotStepMinutes).filter(function (reservation) {
           return reservation.status === "booked" || reservation.status === "checked_in";
         });
 
@@ -534,6 +651,26 @@
         cell.className = "booked";
 
         reservations.forEach(function (reservation) {
+          const startsInCurrentSlot = isReservationStartSlot(reservation, dayKey, slot);
+
+          if (!startsInCurrentSlot) {
+            const continuationWrap = document.createElement("div");
+            continuationWrap.className = "reservation-item continued";
+
+            const continuationText = document.createElement("span");
+            continuationText.className = "reservation-main-text";
+            continuationText.textContent = reservation.service_name + " / En curso";
+            continuationWrap.appendChild(continuationText);
+
+            const continuationTimeLabel = document.createElement("span");
+            continuationTimeLabel.className = "reservation-time continued-time";
+            continuationTimeLabel.textContent = "Horario: " + getReservationRangeLabel(reservation);
+            continuationWrap.appendChild(continuationTimeLabel);
+
+            cell.appendChild(continuationWrap);
+            return;
+          }
+
           const rowWrap = document.createElement("div");
           rowWrap.className = "reservation-item";
 
@@ -589,14 +726,6 @@
             button.dataset.qrToken = reservation.qr_token;
             button.textContent = "Validar QR";
             actions.appendChild(button);
-
-            const downloadButton = document.createElement("button");
-            downloadButton.type = "button";
-            downloadButton.className = "download-qr-btn";
-            downloadButton.dataset.qrToken = reservation.qr_token;
-            downloadButton.dataset.qrDataUrl = reservation.qr_data_url || "";
-            downloadButton.textContent = "Descargar QR";
-            actions.appendChild(downloadButton);
 
             rowWrap.appendChild(actions);
           }
@@ -698,25 +827,6 @@
     window.location.href = VALIDATE_QR_PATH + (query ? "?" + query : "");
   }
 
-  function downloadQrCode(qrDataUrl, qrToken) {
-    const url = String(qrDataUrl || "").trim();
-    if (!url) {
-      setFeedback("No se encontro el codigo QR para esta reserva.", "warn");
-      return;
-    }
-
-    const safeToken = String(qrToken || "reserva")
-      .replace(/[^a-zA-Z0-9_-]/g, "")
-      .slice(0, 36);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "qr-reserva-" + (safeToken || "cliente") + ".png";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    setFeedback("Descarga de QR iniciada.", "ok");
-  }
-
   byId("reloadBtn").addEventListener("click", refreshAll);
   byId("saveConfigBtn").addEventListener("click", function () {
     updateConfigFromForm();
@@ -773,12 +883,6 @@
       goToQrValidation(target.dataset.qrToken);
       return;
     }
-
-    if (!target.classList.contains("download-qr-btn")) {
-      return;
-    }
-
-    downloadQrCode(target.dataset.qrDataUrl, target.dataset.qrToken);
   });
 
   const today = new Date();

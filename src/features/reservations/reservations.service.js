@@ -598,7 +598,16 @@ async function getAllReservations(authUser) {
     reservations = await listAllReservations();
   }
 
-  return enrichReservationsWithDuration(reservations);
+  const enriched = await enrichReservationsWithDuration(reservations);
+
+  return enriched.map(function (reservation) {
+    const sanitized = {
+      ...reservation
+    };
+
+    delete sanitized.qr_data_url;
+    return sanitized;
+  });
 }
 
 async function cancelMyReservation(clientId, reservationIdInput) {
