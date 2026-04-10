@@ -348,6 +348,25 @@ td.booked        { background: #F7EDEA; }
   transition: var(--transition);
 }
 
+.reservation-main-text {
+  font-weight: 600;
+  color: var(--stone-dk);
+}
+
+.reservation-time {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(74,96,128,0.24);
+  background: rgba(74,96,128,0.1);
+  color: #2f4768;
+  padding: 0.18rem 0.34rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .reservation-item.checked-in {
   background: rgba(74,124,95,0.07);
   border-color: rgba(74,124,95,0.35);

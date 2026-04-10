@@ -299,27 +299,55 @@
 
   function indexReservations() {
     const map = {};
-    const slotStepMinutes = normalizeDuration(state.slotStepMinutes);
 
     state.reservations.forEach(function (reservation) {
       const start = new Date(reservation.starts_at);
-      const durationMinutes = normalizeDuration(reservation.duration_minutes);
-      const steps = Math.max(Math.ceil(durationMinutes / slotStepMinutes), 1);
-
-      for (let i = 0; i < steps; i += 1) {
-        const slotDate = new Date(start.getTime() + i * slotStepMinutes * 60000);
-        const slot = toLocalSlot(slotDate.toISOString());
-        const key = slot.dayKey + "|" + slot.time;
-
-        if (!map[key]) {
-          map[key] = [];
-        }
-
-        map[key].push(reservation);
+      if (Number.isNaN(start.getTime())) {
+        return;
       }
+
+      const slot = toLocalSlot(start.toISOString());
+      const key = slot.dayKey + "|" + slot.time;
+
+      if (!map[key]) {
+        map[key] = [];
+      }
+
+      map[key].push(reservation);
     });
 
     return map;
+  }
+
+  function toLocalHourMinute(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return "--:--";
+    }
+
+    return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  }
+
+  function getReservationRangeLabel(reservation) {
+    const start = new Date(reservation.starts_at);
+    if (Number.isNaN(start.getTime())) {
+      return "Hora no disponible";
+    }
+
+    let end = null;
+    if (reservation.ends_at) {
+      const explicitEnd = new Date(reservation.ends_at);
+      if (!Number.isNaN(explicitEnd.getTime()) && explicitEnd.getTime() > start.getTime()) {
+        end = explicitEnd;
+      }
+    }
+
+    if (!end) {
+      const durationMinutes = normalizeDuration(reservation.duration_minutes);
+      end = new Date(start.getTime() + durationMinutes * 60000);
+    }
+
+    return toLocalHourMinute(start) + " - " + toLocalHourMinute(end);
   }
 
   function isNoShowReservation(reservation) {
@@ -482,12 +510,18 @@
           const noShow = isNoShowReservation(reservation);
 
           const text = document.createElement("span");
+          text.className = "reservation-main-text";
           const clientLabel = reservation.client_name
             ? String(reservation.client_name)
             : "Cliente #" + String(reservation.client_id || "-");
           const reservationStatus = reservation.status === "checked_in" ? "Ingreso validado" : "Reserva activa";
           text.textContent = reservation.service_name + " / " + clientLabel + " / " + reservationStatus;
           rowWrap.appendChild(text);
+
+          const timeLabel = document.createElement("span");
+          timeLabel.className = "reservation-time";
+          timeLabel.textContent = "Horario: " + getReservationRangeLabel(reservation);
+          rowWrap.appendChild(timeLabel);
 
           if (reservation.status === "checked_in") {
             rowWrap.classList.add("checked-in");
