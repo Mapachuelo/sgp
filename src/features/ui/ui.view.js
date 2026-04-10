@@ -103,8 +103,8 @@ function loginView() {
     <label>Correo</label>
     <input id="loginEmail" type="email" placeholder="correo@dominio.com" />
 
-    <label>Password</label>
-    <input id="loginPassword" type="password" placeholder="Tu password" />
+    <label>Contraseña</label>
+    <input id="loginPassword" type="password" placeholder="Tu contraseña" />
 
     <button id="loginBtn" class="btn accent block" type="button">Entrar</button>
 
@@ -132,8 +132,8 @@ function loginView() {
       <label>Correo</label>
       <input id="registerEmail" type="email" placeholder="correo@dominio.com" />
 
-      <label>Password</label>
-      <input id="registerPassword" type="password" placeholder="Minimo 6 caracteres" />
+      <label>Contraseña</label>
+      <input id="registerPassword" type="password" placeholder="Mínimo 6 caracteres" />
 
       <div class="modal-actions">
         <button id="cancelRegisterBtn" class="btn ghost" type="button">Cancelar</button>
@@ -144,8 +144,8 @@ function loginView() {
 </main>
   `;
 
-  return clientDocument(
-    "SGP - Login",
+    return clientDocument(
+      "SGP - Iniciar sesion",
     "/ui-assets/styles/client-dashboard.css",
     body,
     "/ui-assets/scripts/main-dashboard.js"
@@ -203,8 +203,8 @@ function clientView() {
     <label>Correo</label>
     <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
 
-    <label>Password</label>
-    <input id="clientProfilePassword" type="password" placeholder="Minimo 6 caracteres" />
+    <label>Contraseña</label>
+    <input id="clientProfilePassword" type="password" placeholder="Mínimo 6 caracteres" />
 
     <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
 
@@ -231,7 +231,7 @@ function clientCalendarView() {
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client">Dashboard</a>
     <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
-    <button id="navLoginBtn" class="btn accent" type="button">Login</button>
+    <button id="navLoginBtn" class="btn accent" type="button">Iniciar sesion</button>
     <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -282,7 +282,7 @@ function clientCalendarView() {
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
-    <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a login</a>
+    <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a iniciar sesion</a>
 
     <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
@@ -318,8 +318,8 @@ function clientCalendarView() {
     <label>Correo</label>
     <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
 
-    <label>Password</label>
-    <input id="clientProfilePassword" type="password" placeholder="Minimo 6 caracteres" />
+    <label>Contraseña</label>
+    <input id="clientProfilePassword" type="password" placeholder="Mínimo 6 caracteres" />
 
     <p class="feedback info">Para guardar cambios debes completar todos los campos.</p>
 
@@ -408,8 +408,8 @@ function employeeView() {
     <label>Correo</label>
     <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
 
-    <label>Password</label>
-    <input id="employeeAccountPassword" type="password" placeholder="Minimo 6 caracteres" />
+    <label>Contraseña</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
 
     <div class="modal-actions">
       <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
@@ -653,8 +653,8 @@ function adminView() {
         <input id="identification" type="text" placeholder="ID empleado" />
         <label>Correo</label>
         <input id="email" type="email" placeholder="correo@dominio.com" />
-        <label>Password asignada</label>
-        <input id="password" type="text" placeholder="Minimo 6 caracteres" />
+        <label>Contraseña asignada</label>
+        <input id="password" type="text" placeholder="Mínimo 6 caracteres" />
         <button id="createEmployeeBtn" class="admin-btn solid block" type="submit">Agregar empleado</button>
       </form>
     </div>
@@ -722,8 +722,8 @@ function adminView() {
         <label>Correo</label>
         <input id="editEmail" type="email" placeholder="Nuevo correo" />
 
-        <label>Password</label>
-        <input id="editPassword" type="text" placeholder="Minimo 6 caracteres" />
+        <label>Contraseña</label>
+        <input id="editPassword" type="text" placeholder="Mínimo 6 caracteres" />
 
         <div class="modal-actions">
           <button id="cancelEditUserBtn" class="admin-btn ghost" type="button">Cancelar</button>

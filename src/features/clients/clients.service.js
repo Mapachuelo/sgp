@@ -7,6 +7,7 @@ const {
   updateClient,
   deleteClient
 } = require("./clients.model");
+const { hasNoShowReservationForClient } = require("../reservations/reservations.model");
 
 function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
@@ -77,9 +78,24 @@ async function deleteMyClientProfile(userId) {
   return { deleted: true };
 }
 
+async function deleteClientIfNoShow(clientId) {
+  const hasNoShow = await hasNoShowReservationForClient(clientId);
+  if (!hasNoShow) {
+    throw new HttpError(400, "No hay reservas pasadas sin asistencia para este cliente");
+  }
+
+  const deleted = await deleteClient(clientId);
+  if (!deleted) {
+    throw new HttpError(404, "Cliente no encontrado");
+  }
+
+  return { deleted: true };
+}
+
 module.exports = {
   getAllClients,
   getMyClientProfile,
   updateMyClientProfile,
   deleteMyClientProfile
+  ,deleteClientIfNoShow
 };

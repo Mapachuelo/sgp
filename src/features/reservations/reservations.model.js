@@ -460,6 +460,22 @@ async function countActiveReservationsByClient(clientId) {
   return result.rows[0] ? result.rows[0].total : 0;
 }
 
+async function hasNoShowReservationForClient(clientId) {
+  const result = await db.query(
+    `
+      SELECT 1
+      FROM reservation
+      WHERE client_id = $1
+        AND starts_at < NOW()
+        AND status = 'booked'
+      LIMIT 1
+    `,
+    [clientId]
+  );
+
+  return result.rowCount > 0;
+}
+
 async function findClientReservationById(reservationId, clientId) {
   const result = await db.query(
     `
@@ -528,4 +544,5 @@ module.exports = {
   countActiveReservationsByClient,
   findClientReservationById,
   cancelReservationByClient
+  ,hasNoShowReservationForClient
 };
