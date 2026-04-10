@@ -272,7 +272,8 @@ label {
   color: var(--stone);
 }
 
-input {
+input,
+select {
   width: 100%;
   border: 1.5px solid var(--sand-dk);
   border-radius: var(--radius-sm);
@@ -284,11 +285,17 @@ input {
   background: var(--ivory);
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: var(--terra);
   box-shadow: 0 0 0 3px rgba(192,115,90,0.1), var(--shadow-sm);
   background: #fff;
+}
+
+.role-select {
+  font-weight: 700;
+  background-image: linear-gradient(135deg, rgba(160,120,80,0.1), rgba(192,115,90,0.08));
 }
 
 .block {
@@ -428,6 +435,13 @@ tr:hover td {
 .feedback.ok   { color: var(--ok);   background: rgba(74,124,95,0.06);  border-color: rgba(74,124,95,0.18); }
 .feedback.warn { color: var(--warn); background: rgba(138,74,53,0.06);  border-color: rgba(138,74,53,0.18); }
 .feedback.info { color: var(--info); background: rgba(74,96,128,0.06);  border-color: rgba(74,96,128,0.18); }
+
+#adminEmployeeFeedback,
+#adminServicesFeedback,
+#adminRegisteredFeedback,
+#editUserFeedback {
+  margin: 0.55rem 0 0.9rem;
+}
 
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-10px); }

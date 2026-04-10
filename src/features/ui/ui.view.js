@@ -657,10 +657,11 @@ function adminView() {
         <button id="closeEmployeeModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
       </div>
       <p class="helper">Solo administradores pueden registrar usuarios internos.</p>
+      <p id="adminEmployeeFeedback" class="feedback info">Completa todos los campos para crear un usuario interno.</p>
 
       <form id="employeeForm">
         <label>Rol</label>
-        <select id="role">
+        <select id="role" class="role-select">
           <option value="empleado">Empleado</option>
           <option value="admin">Administrador</option>
         </select>
@@ -687,6 +688,7 @@ function adminView() {
         <h2 id="adminServicesTitle">Servicios disponibles</h2>
         <button id="closeServicesModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
       </div>
+      <p id="adminServicesFeedback" class="feedback info">Agrega servicios que luego podras asignar a empleados.</p>
       <label>Nuevo servicio</label>
       <input id="serviceNameInput" type="text" placeholder="Corte clasico" />
       <button id="addServiceBtn" class="admin-btn ghost block" type="button">Agregar servicio</button>
@@ -703,6 +705,7 @@ function adminView() {
       <div class="list-head">
         <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
       </div>
+      <p id="adminRegisteredFeedback" class="feedback info">Desde esta tabla puedes editar, eliminar o configurar tiempos de servicios.</p>
       <div class="table-shell">
         <table>
           <thead>
@@ -730,6 +733,7 @@ function adminView() {
         <button id="closeEditUserBtn" class="admin-btn ghost" type="button">Cerrar</button>
       </div>
       <p id="editUserSubtitle" class="helper">Ajusta numero, correo y password del perfil seleccionado.</p>
+      <p id="editUserFeedback" class="feedback info">Puedes guardar numero y correo sin cambiar la contraseña.</p>
 
       <form id="editUserForm">
         <input id="editUserId" type="hidden" />
