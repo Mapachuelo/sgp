@@ -167,6 +167,7 @@
   function getTimeSlots(stepMinutes) {
     const normalizedStep = normalizeDuration(stepMinutes);
     const slots = [];
+    const slotSet = new Set();
     const viewportConfig = state.viewportConfig || resolveViewportConfig();
 
     for (
@@ -176,8 +177,37 @@
     ) {
       const hour = Math.floor(minuteCursor / 60);
       const minutes = minuteCursor % 60;
-      slots.push(String(hour).padStart(2, "0") + ":" + String(minutes).padStart(2, "0"));
+      const slotText = String(hour).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+      if (!slotSet.has(slotText)) {
+        slotSet.add(slotText);
+        slots.push(slotText);
+      }
     }
+
+    (state.reservations || []).forEach(function (reservation) {
+      const start = new Date(reservation.starts_at);
+      if (Number.isNaN(start.getTime())) {
+        return;
+      }
+
+      const minutesFromStart = start.getHours() * 60 + start.getMinutes();
+      if (
+        minutesFromStart < viewportConfig.startHour * 60 ||
+        minutesFromStart >= viewportConfig.endHour * 60
+      ) {
+        return;
+      }
+
+      const slotText = String(start.getHours()).padStart(2, "0") + ":" + String(start.getMinutes()).padStart(2, "0");
+      if (!slotSet.has(slotText)) {
+        slotSet.add(slotText);
+        slots.push(slotText);
+      }
+    });
+
+    slots.sort(function (a, b) {
+      return parseTimeToMinutes(a) - parseTimeToMinutes(b);
+    });
 
     return slots;
   }

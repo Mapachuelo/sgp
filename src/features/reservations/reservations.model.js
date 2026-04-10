@@ -186,6 +186,37 @@ async function listAllReservations() {
   return result.rows;
 }
 
+async function listReservationsByStylist(stylistId, stylistName) {
+  await ensureReservationStylistIdColumn();
+
+  const result = await db.query(
+    `
+      SELECT
+        r.id,
+        r.client_id,
+        c.name AS client_name,
+        r.service_name,
+        r.stylist_name,
+        r.stylist_id,
+        r.starts_at,
+        r.client_count,
+        r.qr_token,
+        r.qr_data_url,
+        r.status,
+        r.checked_in_at,
+        r.created_at
+      FROM reservation r
+      JOIN app_user c ON c.id = r.client_id
+      WHERE r.stylist_id = $1
+         OR (r.stylist_id IS NULL AND r.stylist_name = $2)
+      ORDER BY r.starts_at DESC
+    `,
+    [stylistId, stylistName]
+  );
+
+  return result.rows;
+}
+
 async function listReservedByDate(dateText) {
   await ensureReservationStylistIdColumn();
 
@@ -559,6 +590,7 @@ module.exports = {
   findOverlappingReservation,
   listReservationsByClient,
   listAllReservations,
+  listReservationsByStylist,
   listReservedByDate,
   listWorkScheduleByRange,
   listEmployeeWorkScheduleByRange,

@@ -33,8 +33,8 @@ const cancelMyReservationController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
-const listReservationsController = asyncHandler(async (_req, res) => {
-  const data = await getAllReservations();
+const listReservationsController = asyncHandler(async (req, res) => {
+  const data = await getAllReservations(req.auth);
   res.json({ ok: true, data });
 });
 

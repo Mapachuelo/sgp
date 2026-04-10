@@ -7,6 +7,7 @@ const {
   createReservation,
   listReservationsByClient,
   listAllReservations,
+  listReservationsByStylist,
   listReservedByDate,
   listWorkScheduleByRange,
   listEmployeeWorkScheduleByRange,
@@ -586,8 +587,17 @@ async function getMyReservations(clientId) {
   return enrichReservationsWithDuration(reservations);
 }
 
-async function getAllReservations() {
-  const reservations = await listAllReservations();
+async function getAllReservations(authUser) {
+  const role = String((authUser && authUser.role) || "").trim().toLowerCase();
+  const employeeLikeRole = role === "empleado" || role === "employee";
+
+  let reservations = [];
+  if (employeeLikeRole) {
+    reservations = await listReservationsByStylist(authUser.sub, String(authUser.name || ""));
+  } else {
+    reservations = await listAllReservations();
+  }
+
   return enrichReservationsWithDuration(reservations);
 }
 
