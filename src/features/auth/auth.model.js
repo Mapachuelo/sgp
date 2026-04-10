@@ -9,6 +9,11 @@ async function runRoleSchemaMigration(queryable = db) {
   `);
 
   await queryable.query(`
+    ALTER TABLE app_user
+    DROP CONSTRAINT IF EXISTS app_user_phone_co_check
+  `);
+
+  await queryable.query(`
     UPDATE app_user
     SET role = 'empleado'
     WHERE role = 'employee'
@@ -18,6 +23,12 @@ async function runRoleSchemaMigration(queryable = db) {
     ALTER TABLE app_user
     ADD CONSTRAINT app_user_role_check
     CHECK (role IN ('client', 'empleado', 'admin'))
+  `);
+
+  await queryable.query(`
+    ALTER TABLE app_user
+    ADD CONSTRAINT app_user_phone_co_check
+    CHECK (phone ~ '^\\+57[0-9]{10}$') NOT VALID
   `);
 }
 

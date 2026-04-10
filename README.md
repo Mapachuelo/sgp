@@ -1,22 +1,58 @@
 # Sistema de Gestion de Peluqueria (SGP)
 
-Backend Node.js con estructura por funcionalidad (feature-based), base de datos PostgreSQL y despliegue con Docker.
+Aplicacion web para la gestion operativa de una peluqueria, con arquitectura modular por funcionalidades, base de datos PostgreSQL y despliegue con Docker.
 
-Implementa lo definido en IEEE830 para:
+## Alcance funcional implementado
 
 - Gestion de clientes.
-- Reservas online con QR.
+- Reservas online con QR unico por cita.
 - Validacion de ingreso por QR.
 - Cobro manual en local.
 - Reportes administrativos.
 
-## Arquitectura
+## Requisitos clave solicitados
 
-Estructura principal:
+- Descarga de QR: implementada en la vista de calendario de cliente despues de reservar.
+- Numero celular colombiano obligatorio: validado en frontend y backend con formato `+57XXXXXXXXXX`.
+
+## Tecnologias del proyecto
+
+### Backend
+
+- Node.js
+- Express
+- API REST JSON
+
+### Seguridad y autenticacion
+
+- JWT (`jsonwebtoken`)
+- Hash de contrasenas con `bcryptjs`
+
+### Base de datos
+
+- PostgreSQL
+- Driver `pg`
+
+### Funcionalidades adicionales
+
+- Generacion de QR (`qrcode`)
+- Realtime WebSocket (`ws`)
+- Configuracion por entorno (`dotenv`)
+
+### Infraestructura
+
+- Docker
+- Docker Compose
+
+## Arquitectura y estructura
 
 ```text
 src/
+	app.js
+	server.js
 	config/
+		db.js
+		env.js
 	features/
 		auth/
 		clients/
@@ -26,97 +62,83 @@ src/
 		reports/
 		ui/
 	integrations/realtime/
+		wsHub.js
 	routes/
+		api.routes.js
 	shared/
-db/init.sql
+		middlewares/
+db/
+	init.sql
 docker-compose.yml
 Dockerfile
 ```
 
+## Modulos funcionales
 
+- `auth`: registro/login, JWT, gestion de empleados por admin.
+- `clients`: perfil de cliente y operaciones de administracion.
+- `reservations`: agenda, disponibilidad, QR, servicios y horarios.
+- `checkin`: validacion de QR en entrada.
+- `payments`: cobro manual efectivo por reserva.
+- `reports`: ventas diarias, ocupacion y recurrencia.
+- `ui`: vistas HTML/CSS/JS por rol (cliente, empleado, admin).
 
-### Modulos por funcionalidad
-
-- auth: registro/login con JWT (expiracion 30 minutos).
-- clients: perfil cliente (consultar, actualizar, eliminar) y listado para personal.
-- reservations: reserva de cita, disponibilidad y QR unico.
-- checkin: validacion de QR en entrada.
-- payments: cobro manual efectivo por empleado/administrador.
-- reports: ventas diarias, ocupacion y clientes recurrentes.
-- ui: interfaz HTML simple sin CSS para probar todo por rol.
-
-## Interfaz HTML sin CSS
-
-Pantallas:
-
-- /ui/client
-- /ui/empleado
-- /ui/admin
-
-Estas paginas permiten ejecutar las operaciones y ver respuesta JSON en pantalla para validar la logica de cada modulo.
-
-## Ejecucion con Docker en Linux Y Windows
+## Ejecucion con Docker (Linux y Windows)
 
 ### 1. Requisitos
+
 - Git
 - Docker Engine
 - Docker Compose Plugin
 
-#### Clonar repositorio
-Mediante HTTPS:
+### 2. Clonar repositorio
+
+HTTPS:
 
 ```bash
 git clone https://github.com/Mapachuelo/prueba.git
 ```
 
-Mediante SSH:
+SSH:
 
 ```bash
-git clone git@github.com:Mapachuelo/prueba.git 
+git clone git@github.com:Mapachuelo/prueba.git
 ```
 
-### 2. Levantar servicios
-
-En la raiz del proyecto:
+### 3. Levantar servicios
 
 ```bash
 docker compose up --build
 ```
 
-Esto levanta:
+Servicios levantados:
 
-- app (Node.js) en puerto 3000
-- db (PostgreSQL) en red interna de Docker para la app
+- `app` (Node.js) en puerto 3000 del contenedor
+- `db` (PostgreSQL) en red interna para la app
 
-Si el puerto 3000 ya esta ocupado en tu Linux, cambia APP_PORT al valor que necesites antes de ejecutar Docker Compose.
+Si el puerto local esta ocupado, define `APP_PORT` antes de levantar compose.
 
-### 3. Acceder a la aplicacion
+### 4. Acceso rapido
 
-- Inicio: http://localhost:${APP_PORT:-3000}/
-- Cliente: http://localhost:${APP_PORT:-3000}/ui/client
-- Empleado: http://localhost:${APP_PORT:-3000}/ui/empleado
-- Administrador: http://localhost:${APP_PORT:-3000}/ui/admin
-- Health check: http://localhost:${APP_PORT:-3000}/health
+- Inicio: `http://localhost:${APP_PORT:-3000}/`
+- Login: `http://localhost:${APP_PORT:-3000}/ui/login`
+- Cliente: `http://localhost:${APP_PORT:-3000}/ui/client`
+- Empleado: `http://localhost:${APP_PORT:-3000}/ui/empleado`
+- Admin: `http://localhost:${APP_PORT:-3000}/ui/admin`
+- Health: `http://localhost:${APP_PORT:-3000}/health`
 
-### 4. Usuarios semilla
+### 5. Usuarios semilla
 
-El script db/init.sql crea:
+- Admin: `admin@sgp.local` / `admin123`
+- Empleado: `empleado@sgp.local` / `empleado123`
 
-- Admin: admin@sgp.local
-- Empleado: empleado@sgp.local
-
-Las contrasenas estan definidas con hash bcrypt en la base inicial.
-
-- Password admin: admin123
-- Password empleado: empleado123
-
-### 5. Detener el entorno
+### 6. Detener entorno
 
 ```bash
 docker compose down
 ```
 
-Para eliminar tambien los datos de PostgreSQL:
+Eliminar tambien volumen de datos:
 
 ```bash
 docker compose down -v
@@ -124,17 +146,13 @@ docker compose down -v
 
 ## Ejecucion local sin Docker (opcional)
 
-1. Copiar variables:
-
-```bash
-cp .env.example .env
-```
-
-2. Instalar dependencias:
+1. Instalar dependencias:
 
 ```bash
 npm install
 ```
+
+2. Configurar variables de entorno (`DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`).
 
 3. Ejecutar:
 
@@ -142,8 +160,24 @@ npm install
 npm run dev
 ```
 
-## Referencia funcional
+## Endpoints API principales
 
-- [Documento IEEE830](Documentacion/formato_ieee830.md)
+- Auth: `/api/auth/*`
+- Clientes: `/api/clients/*`
+- Reservas: `/api/reservations/*`
+- Check-in: `/api/checkin/validate`
+- Pagos: `/api/payments/manual`
+- Reportes: `/api/reports/*`
+
+## Documentacion
+
+- [IEEE830 base](Documentacion/formato_ieee830.md)
+- [Analisis de cumplimiento y brechas](Documentacion/analisis_cumplimiento.md)
+- [Ficha tecnica](Documentacion/ficha_tecnica.md)
+- [Estudio de mercado](Documentacion/estudio_mercado.md)
+- [Financiacion y costos](Documentacion/financiacion_proyecto.md)
+- [Historias de usuario](Documentacion/historias_usuario.md)
+- [Manual de usuario](Documentacion/manual_usuario.md)
+- [Manual tecnico](Documentacion/manual_tecnico.md)
 - [Prompts utilizados](Documentacion/prompts.md)
-- [Diagrama de flujo:](Documentacion/diagrama.drawio)
+- [Diagrama de flujo](Documentacion/diagrama.drawio)
