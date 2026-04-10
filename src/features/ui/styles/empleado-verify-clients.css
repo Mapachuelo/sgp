@@ -300,15 +300,21 @@ input:focus {
 table {
   border-collapse: collapse;
   width: 100%;
-  min-width: max(100%, calc(var(--verify-visible-days, 7) * 116px + 98px));
+  min-width: max(100%, calc(var(--verify-visible-days, 7) * 98px + 76px));
 }
 
 th,
 td {
   border: 1px solid rgba(200,185,168,0.22);
-  padding: 0.4rem;
+  padding: 0.3rem;
   text-align: center;
   vertical-align: top;
+}
+
+thead th:first-child,
+tbody th {
+  width: 68px;
+  min-width: 68px;
 }
 
 th {
@@ -327,8 +333,8 @@ thead th {
 }
 
 td {
-  font-size: 0.72rem;
-  font-family: "Courier New", monospace;
+  font-size: 0.7rem;
+  font-family: "Outfit", sans-serif;
   transition: background 0.2s;
 }
 
@@ -340,17 +346,21 @@ td.booked        { background: #F7EDEA; }
 /* ── RESERVATION ITEMS ──────────────────────────── */
 .reservation-item {
   display: grid;
-  gap: 0.34rem;
-  padding: 0.25rem;
+  gap: 0.24rem;
+  padding: 0.2rem;
   border: 1px dashed rgba(201,185,168,0.5);
   border-radius: var(--radius-sm);
-  margin-bottom: 0.24rem;
+  margin-bottom: 0.16rem;
   transition: var(--transition);
 }
 
 .reservation-main-text {
   font-weight: 600;
   color: var(--stone-dk);
+  text-align: left;
+  line-height: 1.2;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .reservation-time {
@@ -435,7 +445,7 @@ td.booked        { background: #F7EDEA; }
 
 .reservation-actions {
   display: grid;
-  gap: 0.32rem;
+  gap: 0.24rem;
 }
 
 .download-qr-btn {
@@ -462,6 +472,11 @@ td.booked        { background: #F7EDEA; }
 .download-qr-btn:focus-visible {
   outline: 2px solid #334960;
   outline-offset: 2px;
+}
+
+.reservation-actions .verify-btn,
+.reservation-actions .download-qr-btn {
+  width: 100%;
 }
 
 /* ── CONFIG PANEL ───────────────────────────────── */
@@ -608,7 +623,7 @@ pre {
   }
 
   table {
-    min-width: max(100%, calc(var(--verify-visible-days, 3) * 100px + 74px));
+    min-width: max(100%, calc(var(--verify-visible-days, 3) * 88px + 66px));
   }
 
   th,
@@ -660,7 +675,7 @@ pre {
   }
 
   table {
-    min-width: max(100%, calc(var(--verify-visible-days, 4) * 104px + 80px));
+    min-width: max(100%, calc(var(--verify-visible-days, 4) * 92px + 70px));
   }
 
   .verify-controls {
@@ -701,13 +716,13 @@ pre {
   }
 
   .verify-layout {
-    width: min(1380px, 96vw);
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    width: min(1260px, 95vw);
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
     height: calc(100vh - 104px);
   }
 
   .output-panel {
-    width: min(1380px, 96vw);
+    width: min(1260px, 95vw);
   }
 
   .verify-main .calendar-shell {
@@ -717,26 +732,26 @@ pre {
 
 @media (min-width: 1200px) {
   .verify-layout {
-    width: min(1580px, 97vw);
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+    width: min(1360px, 95vw);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   }
 
   .output-panel {
-    width: min(1580px, 97vw);
+    width: min(1360px, 95vw);
   }
 }
 
 @media (min-width: 1440px) {
   .verify-layout {
-    width: min(1800px, 98vw);
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 470px);
+    width: min(1480px, 95vw);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
   }
 
   table {
-    min-width: max(100%, calc(var(--verify-visible-days, 7) * 132px + 112px));
+    min-width: max(100%, calc(var(--verify-visible-days, 7) * 100px + 82px));
   }
 
   .output-panel {
-    width: min(1800px, 98vw);
+    width: min(1480px, 95vw);
   }
 }

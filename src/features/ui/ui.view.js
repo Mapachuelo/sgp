@@ -468,7 +468,7 @@ function employeeCalendarView() {
   <section class="calendar-main panel">
     <div class="calendar-title-wrap">
       <h1>Calendario de disponibilidad</h1>
-      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
+      <p>Visualiza cupos, horarios ocupados y disponibilidad por peluquero.</p>
     </div>
 
     <div class="calendar-toolbar">
@@ -508,7 +508,7 @@ function employeeCalendarView() {
     <label>Cantidad de clientes</label>
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
-    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="reserveBtn" class="btn accent block hidden" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
 
     <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol empleado.</p>
@@ -822,7 +822,7 @@ function adminCalendarView() {
   <section class="calendar-main panel">
     <div class="calendar-title-wrap">
       <h1>Calendario de disponibilidad</h1>
-      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
+      <p>Visualiza cupos, horarios ocupados y disponibilidad por peluquero.</p>
     </div>
 
     <div class="calendar-toolbar">
@@ -862,7 +862,7 @@ function adminCalendarView() {
     <label>Cantidad de clientes</label>
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
-    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
+    <button id="reserveBtn" class="btn accent block hidden" type="button" disabled>Confirmar reserva</button>
     <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
 
     <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol administrador.</p>

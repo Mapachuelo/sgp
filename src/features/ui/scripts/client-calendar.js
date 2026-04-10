@@ -354,6 +354,7 @@
     }
 
     if (reserveBtn) {
+      reserveBtn.classList.toggle("hidden", !isClientContext);
       reserveBtn.disabled = !hasClientSession || !state.selectedSlot;
     }
   }
@@ -1185,7 +1186,9 @@
     target.textContent = "Seleccionado";
     updateSelectedSlotLabel();
 
-    if (!getToken()) {
+    if (!isClientContext) {
+      setFeedback("Horario seleccionado para consulta. Solo clientes pueden confirmar reservas.", "info");
+    } else if (!getToken()) {
       setFeedback("Horario seleccionado. Para confirmar reserva debes iniciar sesion.", "warn");
     } else {
       setFeedback("Horario seleccionado y listo para reservar.", "info");
