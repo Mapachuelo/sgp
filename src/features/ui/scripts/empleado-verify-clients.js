@@ -38,15 +38,6 @@
     localStorage.removeItem("admin_token");
   }
 
-  function setOutput(payload) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
-    }
-
-    output.textContent = JSON.stringify(payload, null, 2);
-  }
-
   function setFeedback(message, tone) {
     const element = byId("verifyFeedback");
     element.textContent = message;
@@ -262,8 +253,6 @@
     } catch (_error) {
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
-
-    setOutput(payload);
 
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || "Error en la solicitud");

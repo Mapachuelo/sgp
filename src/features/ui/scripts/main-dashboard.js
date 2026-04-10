@@ -7,15 +7,6 @@
 		return document.getElementById(id);
 	}
 
-	function setOutput(payload) {
-		const output = byId("apiOutput");
-		if (!output) {
-			return;
-		}
-
-		output.textContent = JSON.stringify(payload, null, 2);
-	}
-
 	function setFeedback(message, tone) {
 		const feedback = byId("loginFeedback");
 		if (!feedback) {
@@ -61,8 +52,6 @@
 		} catch (_error) {
 			payload = { ok: false, message: "Respuesta no valida del servidor" };
 		}
-
-		setOutput(payload);
 
 		if (!response.ok || !payload.ok) {
 			throw new Error(payload.message || "Error en la solicitud");
@@ -121,10 +110,31 @@
 		return /^\S+@\S+\.\S+$/.test(email);
 	}
 
+	function normalizePhoneInput(value) {
+		const compact = String(value || "").replace(/[^\d+]/g, "");
+		if (!compact) {
+			return "";
+		}
+
+		if (compact.startsWith("+")) {
+			return compact;
+		}
+
+		if (compact.startsWith("57")) {
+			return "+" + compact;
+		}
+
+		return "+57" + compact;
+	}
+
+	function isValidCoPhone(phone) {
+		return /^\+57\d{10}$/.test(phone);
+	}
+
 	async function registerClient() {
 		const firstName = (byId("registerFirstName").value || "").trim();
 		const lastName = (byId("registerLastName").value || "").trim();
-		const phone = (byId("registerPhone").value || "").trim();
+		const phone = normalizePhoneInput((byId("registerPhone").value || "").trim());
 		const email = (byId("registerEmail").value || "").trim();
 		const password = byId("registerPassword").value || "";
 
@@ -138,12 +148,18 @@
 			return;
 		}
 
+		if (!isValidCoPhone(phone)) {
+			setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
+			return;
+		}
+
 		if (password.length < 6) {
 			setFeedback("La password debe tener al menos 6 caracteres.", "warn");
 			return;
 		}
 
 		try {
+			byId("registerPhone").value = phone;
 			const payload = await callApi(
 				"/api/auth/register",
 				"POST",

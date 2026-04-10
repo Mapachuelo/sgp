@@ -40,15 +40,6 @@
     localStorage.removeItem("admin_token");
   }
 
-  function setOutput(payload) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
-    }
-
-    output.textContent = JSON.stringify(payload, null, 2);
-  }
-
   function setFeedback(message, tone) {
     const element = byId("dashboardFeedback");
     element.textContent = message;
@@ -134,6 +125,27 @@
     return /^\S+@\S+\.\S+$/.test(email);
   }
 
+  function normalizePhoneInput(value) {
+    const compact = String(value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      return "";
+    }
+
+    if (compact.startsWith("+")) {
+      return compact;
+    }
+
+    if (compact.startsWith("57")) {
+      return "+" + compact;
+    }
+
+    return "+57" + compact;
+  }
+
+  function isValidCoPhone(phone) {
+    return /^\+57\d{10}$/.test(phone);
+  }
+
   async function callApi(path, method, body) {
     const headers = {
       "Content-Type": "application/json"
@@ -156,8 +168,6 @@
     } catch (_error) {
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
-
-    setOutput(payload);
 
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || "Error en la solicitud");
@@ -193,7 +203,7 @@
   }
 
   async function saveEmployeeAccountEditor() {
-    const phone = (byId("employeeAccountPhone").value || "").trim();
+    const phone = normalizePhoneInput((byId("employeeAccountPhone").value || "").trim());
     const email = (byId("employeeAccountEmail").value || "").trim();
     const password = (byId("employeeAccountPassword").value || "").trim();
 
@@ -207,12 +217,18 @@
       return;
     }
 
+    if (!isValidCoPhone(phone)) {
+      setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
+      return;
+    }
+
     if (password.length < 6) {
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
 
     try {
+      byId("employeeAccountPhone").value = phone;
       await callApi("/api/auth/me/employee-account", "PUT", {
         phone: phone,
         email: email,

@@ -9,15 +9,6 @@
     return document.getElementById(id);
   }
 
-  function setOutput(data) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
-    }
-
-    output.textContent = JSON.stringify(data, null, 2);
-  }
-
   function setFeedback(message, tone) {
     const feedback = byId("dashboardFeedback");
     feedback.textContent = message;
@@ -33,24 +24,6 @@
     localStorage.removeItem("client_token");
     localStorage.removeItem("employee_token");
     localStorage.removeItem("admin_token");
-  }
-
-  function toDateInputValue(date) {
-    const year = String(date.getFullYear());
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return year + "-" + month + "-" + day;
-  }
-
-  function formatHour(isoText) {
-    const parsed = new Date(isoText);
-    if (Number.isNaN(parsed.getTime())) {
-      return isoText;
-    }
-
-    const hours = String(parsed.getHours()).padStart(2, "0");
-    const minutes = String(parsed.getMinutes()).padStart(2, "0");
-    return hours + ":" + minutes;
   }
 
   function isClientRole(user) {
@@ -78,6 +51,27 @@
 
   function isValidEmail(email) {
     return /^\S+@\S+\.\S+$/.test(email);
+  }
+
+  function normalizePhoneInput(value) {
+    const compact = String(value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      return "";
+    }
+
+    if (compact.startsWith("+")) {
+      return compact;
+    }
+
+    if (compact.startsWith("57")) {
+      return "+" + compact;
+    }
+
+    return "+57" + compact;
+  }
+
+  function isValidCoPhone(phone) {
+    return /^\+57\d{10}$/.test(phone);
   }
 
   function splitName(fullName) {
@@ -120,28 +114,12 @@
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
 
-    setOutput(payload);
-
     if (!response.ok || !payload.ok) {
       const message = payload.message || "Error en la solicitud";
       throw new Error(message);
     }
 
     return payload;
-  }
-
-  async function loadProfile() {
-    try {
-      const user = await ensureClientSession();
-      if (!user) {
-        setFeedback("Esta vista es solo para clientes autenticados.", "warn");
-        return;
-      }
-
-      setFeedback("Sesion valida para: " + user.email, "ok");
-    } catch (error) {
-      setFeedback(error.message, "warn");
-    }
   }
 
   function openProfileModal() {
@@ -209,7 +187,7 @@
     const firstName = (byId("clientProfileFirstName").value || "").trim();
     const lastName = (byId("clientProfileLastName").value || "").trim();
     const name = (firstName + " " + lastName).trim();
-    const phone = (byId("clientProfilePhone").value || "").trim();
+    const phone = normalizePhoneInput((byId("clientProfilePhone").value || "").trim());
     const email = (byId("clientProfileEmail").value || "").trim();
     const password = (byId("clientProfilePassword").value || "").trim();
 
@@ -223,12 +201,18 @@
       return;
     }
 
+    if (!isValidCoPhone(phone)) {
+      setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
+      return;
+    }
+
     if (password.length < 6) {
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
 
     try {
+      byId("clientProfilePhone").value = phone;
       const payload = await callApi("/api/clients/me", "PUT", {
         name: name,
         phone: phone,
@@ -264,55 +248,6 @@
     }
   }
 
-  async function loadAvailability() {
-    const dateInputElement = byId("availabilityDate");
-    const list = byId("availabilityList");
-    if (!dateInputElement || !list) {
-      return;
-    }
-
-    const dateInput = dateInputElement.value;
-    if (!dateInput) {
-      setFeedback("Selecciona una fecha para ver los cupos.", "warn");
-      return;
-    }
-
-    try {
-      const payload = await callApi(
-        "/api/reservations/availability?date=" + encodeURIComponent(dateInput),
-        "GET"
-      );
-
-      list.innerHTML = "";
-
-      if (!payload.data || payload.data.length === 0) {
-        const item = document.createElement("li");
-        item.textContent = "Sin reservas para esta fecha. Todos los cupos estan disponibles.";
-        list.appendChild(item);
-        setFeedback("Cupos cargados. No hay reservas para la fecha seleccionada.", "ok");
-        return;
-      }
-
-      payload.data.forEach(function (entry) {
-        const item = document.createElement("li");
-        item.textContent =
-          formatHour(entry.starts_at) +
-          " - " +
-          entry.stylist_name +
-          " (" +
-          entry.status +
-          ")";
-        list.appendChild(item);
-      });
-
-      setFeedback("Cupos cargados para " + dateInput + ".", "ok");
-    } catch (error) {
-      setFeedback(error.message, "warn");
-    }
-  }
-
-  byId("loadProfileBtn").addEventListener("click", loadProfile);
-
   const openProfileEditBtn = byId("openProfileEditBtn");
   if (openProfileEditBtn) {
     openProfileEditBtn.addEventListener("click", openProfileEditor);
@@ -342,10 +277,6 @@
     });
   }
 
-  const availabilityBtn = byId("availabilityBtn");
-  if (availabilityBtn) {
-    availabilityBtn.addEventListener("click", loadAvailability);
-  }
   byId("navLoginBtn").addEventListener("click", function () {
     location.href = LOGIN_PATH;
   });
@@ -357,12 +288,5 @@
     closeProfileModal();
   });
 
-  const availabilityDate = byId("availabilityDate");
-  if (availabilityDate) {
-    availabilityDate.value = toDateInputValue(new Date());
-  }
   refreshSessionState();
-  if (availabilityBtn && availabilityDate) {
-    loadAvailability();
-  }
 })();

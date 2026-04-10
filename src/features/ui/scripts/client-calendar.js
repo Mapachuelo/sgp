@@ -43,15 +43,6 @@
     return document.getElementById(id);
   }
 
-  function setOutput(data) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
-    }
-
-    output.textContent = JSON.stringify(data, null, 2);
-  }
-
   function setFeedback(message, tone) {
     const feedback = byId("calendarFeedback");
     if (!feedback) {
@@ -361,6 +352,27 @@
     return /^\S+@\S+\.\S+$/.test(email);
   }
 
+  function normalizePhoneInput(value) {
+    const compact = String(value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      return "";
+    }
+
+    if (compact.startsWith("+")) {
+      return compact;
+    }
+
+    if (compact.startsWith("57")) {
+      return "+" + compact;
+    }
+
+    return "+57" + compact;
+  }
+
+  function isValidCoPhone(phone) {
+    return /^\+57\d{10}$/.test(phone);
+  }
+
   async function refreshClientSessionState() {
     if (!isClientContext) {
       return;
@@ -444,7 +456,7 @@
     const firstName = (byId("clientProfileFirstName").value || "").trim();
     const lastName = (byId("clientProfileLastName").value || "").trim();
     const name = (firstName + " " + lastName).trim();
-    const phone = (byId("clientProfilePhone").value || "").trim();
+    const phone = normalizePhoneInput((byId("clientProfilePhone").value || "").trim());
     const email = (byId("clientProfileEmail").value || "").trim();
     const password = (byId("clientProfilePassword").value || "").trim();
 
@@ -458,12 +470,18 @@
       return;
     }
 
+    if (!isValidCoPhone(phone)) {
+      setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
+      return;
+    }
+
     if (password.length < 6) {
       setFeedback("La password debe tener al menos 6 caracteres.", "warn");
       return;
     }
 
     try {
+      byId("clientProfilePhone").value = phone;
       await callApi("/api/clients/me", "PUT", {
         name: name,
         phone: phone,
@@ -501,8 +519,6 @@
     } catch (_error) {
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
-
-    setOutput(payload);
 
     if (!response.ok || !payload.ok) {
       const message = payload.message || "Error en la solicitud";

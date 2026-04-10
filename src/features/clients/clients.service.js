@@ -13,6 +13,31 @@ function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
 }
 
+function normalizePhone(input) {
+  const compact = String(input || "").trim().replace(/[^\d+]/g, "");
+  if (!compact) {
+    return "";
+  }
+
+  if (compact.startsWith("+")) {
+    return compact;
+  }
+
+  if (compact.startsWith("57")) {
+    return "+" + compact;
+  }
+
+  return "+57" + compact;
+}
+
+function ensureCoPhone(phone) {
+  if (!/^\+57\d{10}$/.test(phone)) {
+    throw new HttpError(400, "El numero de telefono debe tener formato +57XXXXXXXXXX");
+  }
+
+  return phone;
+}
+
 async function getAllClients() {
   return listClients();
 }
@@ -28,7 +53,7 @@ async function getMyClientProfile(userId) {
 
 async function updateMyClientProfile(userId, input) {
   const name = (input.name || "").trim();
-  const phone = (input.phone || "").trim();
+  const phone = ensureCoPhone(normalizePhone(input.phone));
   const email = (input.email || "").trim().toLowerCase();
   const password = (input.password || "").trim();
 

@@ -25,6 +25,31 @@ function isValidEmail(email) {
   return /^\S+@\S+\.\S+$/.test(email);
 }
 
+function normalizePhone(input) {
+  const compact = String(input || "").trim().replace(/[^\d+]/g, "");
+  if (!compact) {
+    return "";
+  }
+
+  if (compact.startsWith("+")) {
+    return compact;
+  }
+
+  if (compact.startsWith("57")) {
+    return "+" + compact;
+  }
+
+  return "+57" + compact;
+}
+
+function ensureCoPhone(phone) {
+  if (!/^\+57\d{10}$/.test(phone)) {
+    throw new HttpError(400, "El numero de telefono debe tener formato +57XXXXXXXXXX");
+  }
+
+  return phone;
+}
+
 function toSha256Hex(value) {
   return crypto
     .createHash("sha256")
@@ -50,7 +75,7 @@ function signToken(user) {
 async function register(input) {
   const name = (input.name || "").trim();
   const email = (input.email || "").trim().toLowerCase();
-  const phone = (input.phone || "").trim();
+  const phone = ensureCoPhone(normalizePhone(input.phone));
   const password = (input.password || "").trim();
 
   if (!name || !email || !phone || !password) {
@@ -155,7 +180,7 @@ function normalizeRole(inputRole) {
 async function createEmployeeByAdmin(input) {
   const firstName = normalizeText(input.firstName);
   const lastName = normalizeText(input.lastName);
-  const phone = normalizeText(input.phone);
+  const phone = ensureCoPhone(normalizePhone(input.phone));
   const identification = normalizeText(input.identification);
   const email = normalizeText(input.email).toLowerCase();
   const password = normalizeText(input.password);
@@ -262,7 +287,7 @@ async function deleteEmployeeByAdmin(employeeIdInput, actorUserId) {
 
 async function updateRegisteredUserByAdmin(employeeIdInput, input, actorUserId) {
   const userId = parseEmployeeId(employeeIdInput);
-  const phone = normalizeText(input.phone);
+  const phone = ensureCoPhone(normalizePhone(input.phone));
   const email = normalizeText(input.email).toLowerCase();
   const password = normalizeText(input.password);
 
@@ -323,7 +348,7 @@ async function updateEmployeeOwnAccount(userId, input) {
     throw new HttpError(403, "Solo empleados pueden editar esta cuenta");
   }
 
-  const phone = normalizeText(input.phone);
+  const phone = ensureCoPhone(normalizePhone(input.phone));
   const email = normalizeText(input.email).toLowerCase();
   const password = normalizeText(input.password);
 

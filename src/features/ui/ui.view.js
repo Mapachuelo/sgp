@@ -67,7 +67,7 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
 function homeView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/">Prueba</a>
+  <a class="brand" href="/">SGP</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
     <a class="btn accent" href="/ui/login">Iniciar sesion</a>
@@ -88,7 +88,7 @@ function homeView() {
 function loginView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/">Prueba</a>
+  <a class="brand" href="/">SGP</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
     <a class="btn ghost" href="/">Volver</a>
@@ -127,7 +127,7 @@ function loginView() {
       <input id="registerLastName" type="text" placeholder="Apellido" />
 
       <label>Numero</label>
-      <input id="registerPhone" type="text" placeholder="Numero de telefono" />
+      <input id="registerPhone" type="text" placeholder="+573001234567" />
 
       <label>Correo</label>
       <input id="registerEmail" type="email" placeholder="correo@dominio.com" />
@@ -155,7 +155,7 @@ function loginView() {
 function clientView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/client">Prueba</a>
+  <a class="brand" href="/ui/client">SGP</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
     <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
@@ -174,13 +174,12 @@ function clientView() {
     </p>
     <div class="hero-actions">
       <a class="btn accent" href="/ui/client/calendar">Ver calendario</a>
-      <button id="loadProfileBtn" class="btn ghost" type="button">Validar sesion</button>
     </div>
     <p id="authBadge" class="badge">Sesion no iniciada</p>
   </section>
 
   <section class="panel feedback-panel">
-    <p id="dashboardFeedback" class="feedback info">Listo para conectar con el backend.</p>
+    <p id="dashboardFeedback" class="feedback info">Inicia sesion para gestionar tu cuenta.</p>
   </section>
 </main>
 
@@ -198,7 +197,7 @@ function clientView() {
     <input id="clientProfileLastName" type="text" placeholder="Apellido" />
 
     <label>Numero</label>
-    <input id="clientProfilePhone" type="text" placeholder="Numero de telefono" />
+    <input id="clientProfilePhone" type="text" placeholder="+573001234567" />
 
     <label>Correo</label>
     <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
@@ -227,7 +226,7 @@ function clientView() {
 function clientCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/client">Prueba</a>
+  <a class="brand" href="/ui/client">SGP</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client">Dashboard</a>
     <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
@@ -313,7 +312,7 @@ function clientCalendarView() {
     <input id="clientProfileLastName" type="text" placeholder="Apellido" />
 
     <label>Numero</label>
-    <input id="clientProfilePhone" type="text" placeholder="Numero de telefono" />
+    <input id="clientProfilePhone" type="text" placeholder="+573001234567" />
 
     <label>Correo</label>
     <input id="clientProfileEmail" type="email" placeholder="correo@dominio.com" />
@@ -342,7 +341,7 @@ function clientCalendarView() {
 function employeeView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/empleado">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">SGP</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -403,7 +402,7 @@ function employeeView() {
     <input id="employeeAccountIdentification" type="text" readonly />
 
     <label>Numero celular</label>
-    <input id="employeeAccountPhone" type="text" placeholder="Nuevo numero celular" />
+    <input id="employeeAccountPhone" type="text" placeholder="+573001234567" />
 
     <label>Correo</label>
     <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
@@ -430,7 +429,7 @@ function employeeView() {
 function employeeCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/empleado">Prueba</a>
+  <a class="brand" href="/ui/empleado">SGP</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -507,7 +506,7 @@ function employeeCalendarView() {
 function employeeVerifyClientsView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/empleado">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">SGP</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -559,7 +558,7 @@ function employeeVerifyClientsView() {
 function employeeValidateQrView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/empleado">Prueba</a>
+  <a class="emp-brand" href="/ui/empleado">SGP</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/calendar">Calendario</a>
@@ -608,7 +607,7 @@ function employeeValidateQrView() {
 function adminView() {
   const body = `
 <header class="admin-topbar">
-  <a class="admin-brand" href="/ui/admin">Prueba</a>
+  <a class="admin-brand" href="/ui/admin">SGP</a>
   <nav class="admin-nav">
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
@@ -648,7 +647,7 @@ function adminView() {
         <label>Apellido</label>
         <input id="lastName" type="text" placeholder="Apellido" />
         <label>Numero</label>
-        <input id="phone" type="text" placeholder="Numero de telefono" />
+        <input id="phone" type="text" placeholder="+573001234567" />
         <label>Identificacion</label>
         <input id="identification" type="text" placeholder="ID empleado" />
         <label>Correo</label>
@@ -717,7 +716,7 @@ function adminView() {
         <input id="editIdentification" type="text" readonly />
 
         <label>Numero</label>
-        <input id="editPhone" type="text" placeholder="Nuevo numero" />
+        <input id="editPhone" type="text" placeholder="+573001234567" />
 
         <label>Correo</label>
         <input id="editEmail" type="email" placeholder="Nuevo correo" />
@@ -767,7 +766,7 @@ function adminView() {
 function adminCalendarView() {
   const body = `
 <header class="topbar">
-  <a class="brand" href="/ui/admin">Prueba</a>
+  <a class="brand" href="/ui/admin">SGP</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
@@ -843,7 +842,7 @@ function adminCalendarView() {
 function adminVerifyClientsView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/admin">Prueba</a>
+  <a class="emp-brand" href="/ui/admin">SGP</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
@@ -893,7 +892,7 @@ function adminVerifyClientsView() {
 function adminValidateQrView() {
   const body = `
 <header class="emp-topbar">
-  <a class="emp-brand" href="/ui/admin">Prueba</a>
+  <a class="emp-brand" href="/ui/admin">SGP</a>
   <nav class="emp-nav">
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>

@@ -20,13 +20,25 @@
     localStorage.removeItem("admin_token");
   }
 
-  function setOutput(payload) {
-    const output = byId("apiOutput");
-    if (!output) {
-      return;
+  function normalizePhoneInput(value) {
+    const compact = String(value || "").replace(/[^\d+]/g, "");
+    if (!compact) {
+      return "";
     }
 
-    output.textContent = JSON.stringify(payload, null, 2);
+    if (compact.startsWith("+")) {
+      return compact;
+    }
+
+    if (compact.startsWith("57")) {
+      return "+" + compact;
+    }
+
+    return "+57" + compact;
+  }
+
+  function isValidCoPhone(phone) {
+    return /^\+57\d{10}$/.test(phone);
   }
 
   function roleLabel(role) {
@@ -164,8 +176,6 @@
       payload = { ok: false, message: "Respuesta no valida del servidor" };
     }
 
-    setOutput(payload);
-
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || "Error en la solicitud");
     }
@@ -214,6 +224,10 @@
       return "La password asignada debe tener al menos 6 caracteres";
     }
 
+    if (!isValidCoPhone(data.phone)) {
+      return "El numero debe tener formato +57XXXXXXXXXX.";
+    }
+
     return "";
   }
 
@@ -222,7 +236,7 @@
       role: byId("role").value,
       firstName: byId("firstName").value.trim(),
       lastName: byId("lastName").value.trim(),
-      phone: byId("phone").value.trim(),
+      phone: normalizePhoneInput(byId("phone").value.trim()),
       identification: byId("identification").value.trim(),
       email: byId("email").value.trim(),
       password: byId("password").value
@@ -386,9 +400,16 @@
       return;
     }
 
+    const normalizedPhone = normalizePhoneInput(phone);
+    if (!isValidCoPhone(normalizedPhone)) {
+      setFeedback("El numero debe tener formato +57XXXXXXXXXX.", "warn");
+      return;
+    }
+
     try {
+      byId("editPhone").value = normalizedPhone;
       await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "PUT", {
-        phone: phone,
+        phone: normalizedPhone,
         email: email,
         password: password
       });
