@@ -1081,11 +1081,11 @@
 
     try {
       const payload = await callApi("/api/reservations/me", "GET");
-      const reservations = payload.data || [];
+      const reservations = (payload.data || []).filter(function (reservation) {
+        return reservation && reservation.status === "booked";
+      });
 
-      const activeReservations = reservations.filter(function (reservation) {
-        return reservation.status === "booked";
-      }).length;
+      const activeReservations = reservations.length;
 
       setFeedback(
         "Reservas activas: " + String(activeReservations) + ". Solo una activa por servicio.",
@@ -1105,11 +1105,10 @@
 
         const time = toLocalTime(reservation.starts_at);
         const date = toLocalDate(reservation.starts_at);
-        const isActive = reservation.status === "booked";
 
         const status = document.createElement("span");
-        status.className = "reservation-state " + (isActive ? "active" : "inactive");
-        status.textContent = isActive ? "Activa" : "No activa";
+        status.className = "reservation-state active";
+        status.textContent = "Activa";
 
         const details = document.createElement("div");
         details.className = "reservation-main";
@@ -1137,14 +1136,12 @@
         item.appendChild(status);
         item.appendChild(details);
 
-        if (isActive) {
-          const cancelBtn = document.createElement("button");
-          cancelBtn.type = "button";
-          cancelBtn.className = "btn accent cancel-reservation-btn";
-          cancelBtn.textContent = "Eliminar activa";
-          cancelBtn.dataset.reservationId = String(reservation.id || "");
-          item.appendChild(cancelBtn);
-        }
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.className = "btn accent cancel-reservation-btn";
+        cancelBtn.textContent = "Eliminar reserva";
+        cancelBtn.dataset.reservationId = String(reservation.id || "");
+        item.appendChild(cancelBtn);
 
         list.appendChild(item);
       });
@@ -1194,9 +1191,9 @@
         "/api/reservations/me/" + encodeURIComponent(String(parsedId)),
         "DELETE"
       );
-      setFeedback("Reserva eliminada correctamente.", "ok");
       await refreshCalendar();
       await loadMyReservations();
+      setFeedback("Reservas actualizadas.", "ok");
     } catch (error) {
       setFeedback(error.message, "warn");
     }

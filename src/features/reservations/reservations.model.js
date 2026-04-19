@@ -1,4 +1,7 @@
 const { db } = require("../../config/db");
+const { env } = require("../../config/env");
+
+const APP_TIME_ZONE = env.appTimezone || "America/Bogota";
 
 async function ensureWorkScheduleTable(queryable = db) {
   await queryable.query(`
@@ -234,11 +237,11 @@ async function listReservedByDate(dateText) {
         r.status
       FROM reservation r
       JOIN app_user c ON c.id = r.client_id
-      WHERE DATE(r.starts_at) = $1
+      WHERE DATE(r.starts_at AT TIME ZONE $2) = $1
         AND r.status IN ('booked', 'checked_in')
       ORDER BY r.starts_at ASC
     `,
-    [dateText]
+    [dateText, APP_TIME_ZONE]
   );
 
   return result.rows;
@@ -572,8 +575,7 @@ async function findClientReservationById(reservationId, clientId) {
 async function cancelReservationByClient(reservationId, clientId) {
   const result = await db.query(
     `
-      UPDATE reservation
-      SET status = 'cancelled'
+      DELETE FROM reservation
       WHERE id = $1
         AND client_id = $2
         AND status = 'booked'
