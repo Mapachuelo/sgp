@@ -4,6 +4,10 @@ CREATE TABLE IF NOT EXISTS app_user (
   email VARCHAR(180) NOT NULL UNIQUE,
   phone VARCHAR(40) NOT NULL CHECK (phone ~ '^\+57[0-9]{10}$'),
   role VARCHAR(20) NOT NULL CHECK (role IN ('client', 'empleado', 'admin')),
+  is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+  blocked_reason VARCHAR(255),
+  blocked_by INT REFERENCES app_user(id) ON DELETE SET NULL,
+  blocked_at TIMESTAMPTZ,
   password_hash VARCHAR(255) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -53,6 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_reservation_starts_at ON reservation(starts_at);
 CREATE INDEX IF NOT EXISTS idx_reservation_client_id ON reservation(client_id);
 CREATE INDEX IF NOT EXISTS idx_reservation_stylist_id ON reservation(stylist_id);
 CREATE INDEX IF NOT EXISTS idx_payment_paid_at ON payment(paid_at);
+CREATE INDEX IF NOT EXISTS idx_app_user_client_blocked ON app_user(role, is_blocked);
 
 INSERT INTO app_user (name, email, phone, role, password_hash)
 VALUES

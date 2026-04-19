@@ -3,6 +3,7 @@ const QRCode = require("qrcode");
 const { HttpError } = require("../../shared/httpError");
 const { broadcast } = require("../../integrations/realtime/wsHub");
 const { getStylistsForCalendar } = require("../auth/auth.service");
+const { findClientModerationById } = require("../clients/clients.model");
 const {
   createReservation,
   listReservationsByClient,
@@ -23,7 +24,7 @@ const {
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
   saveEmployeeServiceTimes,
-  countActiveReservationsByClient,
+  countActiveReservationsByClientAndService,
   findClientReservationById,
   cancelReservationByClient
 } = require("./reservations.model");
@@ -34,7 +35,7 @@ const ANY_STYLIST_VALUE = "__any__";
 const DEFAULT_SERVICE_DURATION_MINUTES = 30;
 const MIN_SERVICE_DURATION_MINUTES = 1;
 const MAX_SERVICE_DURATION_MINUTES = 280;
-const MAX_ACTIVE_RESERVATIONS_BY_CLIENT = 3;
+const MIN_LEAD_TIME_MINUTES = 60;
 const MIN_CLIENT_COUNT_PER_RESERVATION = 1;
 const MAX_CLIENT_COUNT_PER_RESERVATION = 5;
 
@@ -44,8 +45,15 @@ function validateStartsAt(startsAtText) {
     throw new HttpError(400, "startsAt debe tener formato de fecha valido");
   }
 
-  if (startsAt.getTime() < Date.now()) {
+  const now = Date.now();
+
+  if (startsAt.getTime() < now) {
     throw new HttpError(400, "No se puede reservar en una fecha pasada");
+  }
+
+  const leadTimeMinutes = (startsAt.getTime() - now) / 60000;
+  if (leadTimeMinutes < MIN_LEAD_TIME_MINUTES) {
+    throw new HttpError(409, "Fuera de tiempo");
   }
 
   return startsAt;
@@ -331,7 +339,6 @@ async function hasStylistOverlap(
 
 async function validateStylistWorkingSchedule(stylistId, startsAt, endsAt) {
   const dateKey = toDateKeyFromDate(startsAt);
-  const startTimeKey = toTimeKeyFromDate(startsAt);
   const endTimeKey = toTimeKeyFromDate(endsAt);
 
   const [globalRows, employeeRows] = await Promise.all([
@@ -347,10 +354,6 @@ async function validateStylistWorkingSchedule(stylistId, startsAt, endsAt) {
 
   if (config.offDay) {
     throw new HttpError(409, "El peluquero no trabaja en la fecha seleccionada");
-  }
-
-  if (toMinutes(startTimeKey) < toMinutes(config.start)) {
-    throw new HttpError(409, "El horario seleccionado esta fuera de la jornada del peluquero");
   }
 
   if (toMinutes(endTimeKey) > toMinutes(config.end)) {
@@ -519,9 +522,29 @@ async function reserveAppointment(clientId, input) {
     throw new HttpError(400, "serviceName es obligatorio");
   }
 
-  const activeReservations = await countActiveReservationsByClient(clientId);
-  if (activeReservations >= MAX_ACTIVE_RESERVATIONS_BY_CLIENT) {
-    throw new HttpError(409, "Cada cliente solo puede tener hasta 3 reservas activas");
+  const client = await findClientModerationById(clientId);
+  if (!client) {
+    throw new HttpError(404, "Cliente no encontrado");
+  }
+
+  if (client.is_blocked) {
+    throw new HttpError(
+      403,
+      client.blocked_reason
+        ? "Cliente bloqueado por mal uso de la aplicacion: " + client.blocked_reason
+        : "Cliente bloqueado por mal uso de la aplicacion"
+    );
+  }
+
+  const activeReservationsForService = await countActiveReservationsByClientAndService(
+    clientId,
+    serviceName
+  );
+  if (activeReservationsForService > 0) {
+    throw new HttpError(
+      409,
+      "Solo puedes tener una reserva activa por servicio. Elimina la actual para volver a reservar"
+    );
   }
 
   const serviceCatalog = await listServiceCatalog();

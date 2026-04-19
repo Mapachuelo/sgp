@@ -151,12 +151,26 @@ async function login(input) {
     throw new HttpError(401, "Credenciales invalidas");
   }
 
+  if (user.role === "client" && user.is_blocked) {
+    throw new HttpError(
+      403,
+      user.blocked_reason
+        ? "Cliente bloqueado por mal uso de la aplicacion: " + user.blocked_reason
+        : "Cliente bloqueado por mal uso de la aplicacion"
+    );
+  }
+
   const validPassword = await bcrypt.compare(password, user.password_hash);
   if (!validPassword) {
     throw new HttpError(401, "Credenciales invalidas");
   }
 
-  const { password_hash: _passwordHash, ...safeUser } = user;
+  const {
+    password_hash: _passwordHash,
+    is_blocked: _isBlocked,
+    blocked_reason: _blockedReason,
+    ...safeUser
+  } = user;
   const token = signToken(safeUser);
 
   return { user: safeUser, token };

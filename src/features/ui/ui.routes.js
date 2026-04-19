@@ -6,10 +6,12 @@ const {
   employeeController,
   employeeVerifyClientsController,
   employeeValidateQrController,
+  employeeClientModerationController,
   adminController,
   adminCalendarController,
   adminVerifyClientsController,
-  adminValidateQrController
+  adminValidateQrController,
+  adminClientModerationController
 } = require("./ui.controller");
 
 const router = express.Router();
@@ -33,13 +35,16 @@ router.get("/ui/empleado/calendar", function (_req, res) {
 });
 router.get("/ui/empleado/verify-clients", employeeVerifyClientsController);
 router.get("/ui/empleado/validate-qr", employeeValidateQrController);
+router.get("/ui/empleado/client-moderation", employeeClientModerationController);
 router.get("/ui/employee", redirectToEmpleado);
 router.get("/ui/employee/calendar", redirectToEmpleado);
 router.get("/ui/employee/verify-clients", redirectToEmpleado);
 router.get("/ui/employee/validate-qr", redirectToEmpleado);
+router.get("/ui/employee/client-moderation", redirectToEmpleado);
 router.get("/ui/admin", adminController);
 router.get("/ui/admin/calendar", adminCalendarController);
 router.get("/ui/admin/verify-clients", adminVerifyClientsController);
 router.get("/ui/admin/validate-qr", adminValidateQrController);
+router.get("/ui/admin/client-moderation", adminClientModerationController);
 
 module.exports = { uiRouter: router };

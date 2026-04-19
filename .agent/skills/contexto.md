@@ -9,6 +9,7 @@
   - El proyecto debe ser desarrollado siguiendo las mejores prácticas de desarrollo de software, incluyendo la modularidad, la reutilización de código y la documentación adecuada.
   - Utilizando docker para facilitar el despliegue y la gestión de dependencias, asegurando que el entorno de desarrollo sea consistente y fácil de configurar para todos los miembros del equipo.
 
+- Hacer un chequeo de todo el backen que funcione bien según lo establecido.
 
 - A lo ultimo verificar si funciona la ejecución de docker.
 Ejecutar el docker con los nuevos cambios:

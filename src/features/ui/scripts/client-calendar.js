@@ -20,6 +20,7 @@
   const DEFAULT_SLOT_STEP_MINUTES = 30;
   const MIN_SERVICE_DURATION_MINUTES = 1;
   const MAX_SERVICE_DURATION_MINUTES = 280;
+  const MAX_CALENDAR_SLOT_DURATION_MINUTES = 24 * 60;
 
   const state = {
     days: [],
@@ -143,6 +144,40 @@
     return parsed;
   }
 
+  function normalizeCalendarDuration(minutesInput, fallback) {
+    const parsed = Number(minutesInput);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return fallback;
+    }
+
+    return Math.min(parsed, MAX_CALENDAR_SLOT_DURATION_MINUTES);
+  }
+
+  function getSelectedClientCount() {
+    const input = byId("clientCount");
+    const parsed = Number(input ? input.value : 1);
+
+    if (!Number.isInteger(parsed)) {
+      return 1;
+    }
+
+    if (parsed < 1) {
+      return 1;
+    }
+
+    if (parsed > 5) {
+      return 5;
+    }
+
+    return parsed;
+  }
+
+  function getEffectiveSlotDurationMinutes() {
+    const baseDuration = normalizeStepMinutes(state.selectedServiceDuration);
+    const clientCount = getSelectedClientCount();
+    return normalizeCalendarDuration(baseDuration * clientCount, baseDuration);
+  }
+
   function getViewportWidth() {
     if (window.visualViewport && Number(window.visualViewport.width) > 0) {
       return Number(window.visualViewport.width);
@@ -203,7 +238,7 @@
   }
 
   function getSlots(stepMinutes) {
-    const normalizedStep = normalizeStepMinutes(stepMinutes);
+    const normalizedStep = normalizeCalendarDuration(stepMinutes, DEFAULT_SLOT_STEP_MINUTES);
     const slots = [];
     const viewportConfig = state.viewportConfig || resolveViewportConfig();
 
@@ -235,7 +270,7 @@
 
   function isSlotInsideWorkingHours(slot, slotDurationMinutes, config) {
     const slotMinutes = toMinutes(slot);
-    const slotEndMinutes = slotMinutes + normalizeStepMinutes(slotDurationMinutes);
+    const slotEndMinutes = slotMinutes + normalizeCalendarDuration(slotDurationMinutes, DEFAULT_SLOT_STEP_MINUTES);
     return slotMinutes >= toMinutes(config.start) && slotEndMinutes <= toMinutes(config.end);
   }
 
@@ -257,7 +292,10 @@
       };
     }
 
-    const fallbackDuration = normalizeStepMinutes(reservation.duration_minutes);
+    const fallbackDuration = normalizeCalendarDuration(
+      reservation.duration_minutes,
+      DEFAULT_SLOT_STEP_MINUTES
+    );
     return {
       start: startsAt,
       end: new Date(startsAt.getTime() + fallbackDuration * 60000)
@@ -271,7 +309,10 @@
     }
 
     const slotStart = toLocalDateFromParts(dayKey, slot);
-    const slotEnd = new Date(slotStart.getTime() + normalizeStepMinutes(slotDurationMinutes) * 60000);
+    const slotEnd = new Date(
+      slotStart.getTime() +
+        normalizeCalendarDuration(slotDurationMinutes, DEFAULT_SLOT_STEP_MINUTES) * 60000
+    );
 
     return range.start.getTime() < slotEnd.getTime() && range.end.getTime() > slotStart.getTime();
   }
@@ -700,7 +741,7 @@
 
     head.appendChild(headRow);
 
-    const slotDurationMinutes = normalizeStepMinutes(state.selectedServiceDuration);
+    const slotDurationMinutes = getEffectiveSlotDurationMinutes();
     let selectedSlotIsVisible = false;
 
     getSlots(slotDurationMinutes).forEach(function (slot) {
@@ -1047,7 +1088,7 @@
       }).length;
 
       setFeedback(
-        "Reservas activas: " + String(activeReservations) + "/3.",
+        "Reservas activas: " + String(activeReservations) + ". Solo una activa por servicio.",
         "info"
       );
 
@@ -1328,7 +1369,14 @@
       const value = Number(clientCountInput.value || 1);
       if (!Number.isInteger(value) || value < 1) {
         clientCountInput.value = "1";
+      } else if (value > 5) {
+        clientCountInput.value = "5";
       }
+
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
+      setAuthUi();
+      renderCalendar();
     });
   }
 

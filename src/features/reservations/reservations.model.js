@@ -523,6 +523,21 @@ async function countActiveReservationsByClient(clientId) {
   return result.rows[0] ? result.rows[0].total : 0;
 }
 
+async function countActiveReservationsByClientAndService(clientId, serviceName) {
+  const result = await db.query(
+    `
+      SELECT COUNT(*)::INT AS total
+      FROM reservation
+      WHERE client_id = $1
+        AND status = 'booked'
+        AND LOWER(service_name) = LOWER($2)
+    `,
+    [clientId, serviceName]
+  );
+
+  return result.rows[0] ? result.rows[0].total : 0;
+}
+
 async function hasNoShowReservationForClient(clientId) {
   const result = await db.query(
     `
@@ -607,6 +622,7 @@ module.exports = {
   listEnabledServicesForEmployee,
   saveEmployeeServiceTimes,
   countActiveReservationsByClient,
+  countActiveReservationsByClientAndService,
   findClientReservationById,
   cancelReservationByClient
   ,hasNoShowReservationForClient
