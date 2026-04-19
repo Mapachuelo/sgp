@@ -369,6 +369,7 @@ function employeeView() {
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
@@ -383,6 +384,7 @@ function employeeView() {
     <div class="hero-actions">
       <a class="emp-btn solid" href="/ui/empleado/verify-clients">Verificar clientes</a>
       <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validar QR</a>
+      <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     </div>
     <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
@@ -458,6 +460,7 @@ function employeeCalendarView() {
     <a class="btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <a class="btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -534,6 +537,7 @@ function employeeVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -599,6 +603,7 @@ function employeeValidateQrView() {
     <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
@@ -639,6 +644,57 @@ function employeeValidateQrView() {
   );
 }
 
+function employeeClientModerationView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/empleado">Peluquería</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
+    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
+    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="moderation-layout">
+  <section class="moderation-panel">
+    <div class="panel-head">
+      <h1>Control de mal uso de clientes</h1>
+      <button id="refreshModerationBtn" class="emp-btn ghost" type="button">Actualizar tabla</button>
+    </div>
+    <p class="helper">Bloquea o desbloquea clientes por spam o uso indebido de la aplicacion.</p>
+    <p id="moderationFeedback" class="feedback info">Cargando clientes...</p>
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Correo</th>
+            <th>Numero</th>
+            <th>Activas</th>
+            <th>No Show</th>
+            <th>Estado</th>
+            <th>Motivo</th>
+            <th>Accion</th>
+          </tr>
+        </thead>
+        <tbody id="moderationTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+`;
+
+  return clientDocument(
+    "Peluquería - Sancionar Clientes",
+    "/ui-assets/styles/client-moderation.css",
+    body,
+    "/ui-assets/scripts/client-moderation.js"
+  );
+}
+
 function adminView() {
   const body = `
 <header class="admin-topbar">
@@ -647,6 +703,7 @@ function adminView() {
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <a class="admin-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="admin-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -659,6 +716,7 @@ function adminView() {
       <button id="openEmployeeModalBtn" class="admin-btn solid admin-session-only launcher-entry-btn" type="button">Ingreso empleado y administrador</button>
       <button id="openServicesModalBtn" class="admin-btn ghost admin-session-only" type="button">Servicios disponibles</button>
       <button id="openRegisteredModalBtn" class="admin-btn ghost admin-session-only" type="button">Lista registrados</button>
+      <a class="admin-btn ghost admin-session-only" href="/ui/admin/client-moderation">Sancionar clientes</a>
     </div>
     <p id="adminFeedback" class="feedback info">Panel de administracion listo.</p>
   </section>
@@ -810,6 +868,7 @@ function adminCalendarView() {
     <a class="btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <a class="btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -886,6 +945,7 @@ function adminVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -912,6 +972,10 @@ function adminVerifyClientsView() {
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
+      <label for="verifyEmployeeFilter">Empleado</label>
+      <select id="verifyEmployeeFilter">
+        <option value="__all_employees__">Todos los empleados</option>
+      </select>
       <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
@@ -950,6 +1014,7 @@ function adminValidateQrView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -989,6 +1054,56 @@ function adminValidateQrView() {
   );
 }
 
+function adminClientModerationView() {
+  const body = `
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/admin">Peluquería</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
+    <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
+  </nav>
+</header>
+
+<main class="moderation-layout">
+  <section class="moderation-panel">
+    <div class="panel-head">
+      <h1>Control de mal uso de clientes</h1>
+      <button id="refreshModerationBtn" class="emp-btn ghost" type="button">Actualizar tabla</button>
+    </div>
+    <p class="helper">Bloquea o desbloquea clientes por spam o uso indebido de la aplicacion.</p>
+    <p id="moderationFeedback" class="feedback info">Cargando clientes...</p>
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Correo</th>
+            <th>Numero</th>
+            <th>Activas</th>
+            <th>No Show</th>
+            <th>Estado</th>
+            <th>Motivo</th>
+            <th>Accion</th>
+          </tr>
+        </thead>
+        <tbody id="moderationTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+`;
+
+  return clientDocument(
+    "Peluquería - Admin Sancionar Clientes",
+    "/ui-assets/styles/client-moderation.css",
+    body,
+    "/ui-assets/scripts/client-moderation.js"
+  );
+}
+
 module.exports = {
   homeView,
   loginView,
@@ -998,8 +1113,10 @@ module.exports = {
   employeeCalendarView,
   employeeVerifyClientsView,
   employeeValidateQrView,
+  employeeClientModerationView,
   adminView,
   adminCalendarView,
   adminVerifyClientsView,
-  adminValidateQrView
+  adminValidateQrView,
+  adminClientModerationView
 };

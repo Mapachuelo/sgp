@@ -3,8 +3,11 @@ const {
   getAllClients,
   getMyClientProfile,
   updateMyClientProfile,
-  deleteMyClientProfile
-  ,deleteClientIfNoShow
+  deleteMyClientProfile,
+  deleteClientIfNoShow,
+  getClientsForModeration,
+  blockClientForMisuse,
+  unblockClientForMisuse
 } = require("./clients.service");
 
 const listClientsController = asyncHandler(async (_req, res) => {
@@ -33,10 +36,28 @@ const deleteClientByIdController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
+const listClientsForModerationController = asyncHandler(async (_req, res) => {
+  const data = await getClientsForModeration();
+  res.json({ ok: true, data });
+});
+
+const blockClientController = asyncHandler(async (req, res) => {
+  const data = await blockClientForMisuse(req.params.id, req.body, req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const unblockClientController = asyncHandler(async (req, res) => {
+  const data = await unblockClientForMisuse(req.params.id);
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   listClientsController,
   getMyProfileController,
   updateMyProfileController,
-  deleteMyProfileController
-  ,deleteClientByIdController
+  deleteMyProfileController,
+  deleteClientByIdController,
+  listClientsForModerationController,
+  blockClientController,
+  unblockClientController
 };

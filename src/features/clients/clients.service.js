@@ -5,7 +5,10 @@ const {
   findClientById,
   findUserByEmail,
   updateClient,
-  deleteClient
+  deleteClient,
+  listClientsForModeration,
+  blockClientById,
+  unblockClientById
 } = require("./clients.model");
 const { hasNoShowReservationForClient } = require("../reservations/reservations.model");
 
@@ -36,6 +39,15 @@ function ensureCoPhone(phone) {
   }
 
   return phone;
+}
+
+function parseClientId(clientIdInput) {
+  const clientId = Number(clientIdInput);
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    throw new HttpError(400, "clientId debe ser un numero entero positivo");
+  }
+
+  return clientId;
 }
 
 async function getAllClients() {
@@ -117,10 +129,40 @@ async function deleteClientIfNoShow(clientId) {
   return { deleted: true };
 }
 
+async function getClientsForModeration() {
+  return listClientsForModeration();
+}
+
+async function blockClientForMisuse(clientIdInput, input, actorUserId) {
+  const clientId = parseClientId(clientIdInput);
+  const reason = String((input && input.reason) || "").trim() || "Spam o mal uso de la aplicacion";
+
+  const updated = await blockClientById(clientId, reason, actorUserId);
+  if (!updated) {
+    throw new HttpError(404, "Cliente no encontrado");
+  }
+
+  return updated;
+}
+
+async function unblockClientForMisuse(clientIdInput) {
+  const clientId = parseClientId(clientIdInput);
+
+  const updated = await unblockClientById(clientId);
+  if (!updated) {
+    throw new HttpError(404, "Cliente no encontrado");
+  }
+
+  return updated;
+}
+
 module.exports = {
   getAllClients,
   getMyClientProfile,
   updateMyClientProfile,
-  deleteMyClientProfile
-  ,deleteClientIfNoShow
+  deleteMyClientProfile,
+  deleteClientIfNoShow,
+  getClientsForModeration,
+  blockClientForMisuse,
+  unblockClientForMisuse
 };

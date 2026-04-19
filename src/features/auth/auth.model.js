@@ -9,6 +9,11 @@ async function runRoleSchemaMigration(queryable = db) {
   `);
 
   await queryable.query(`
+    ALTER TABLE app_user
+    DROP CONSTRAINT IF EXISTS app_user_phone_co_check
+  `);
+
+  await queryable.query(`
     UPDATE app_user
     SET role = 'empleado'
     WHERE role = 'employee'
@@ -18,6 +23,32 @@ async function runRoleSchemaMigration(queryable = db) {
     ALTER TABLE app_user
     ADD CONSTRAINT app_user_role_check
     CHECK (role IN ('client', 'empleado', 'admin'))
+  `);
+
+  await queryable.query(`
+    ALTER TABLE app_user
+    ADD CONSTRAINT app_user_phone_co_check
+    CHECK (phone ~ '^\\+57[0-9]{10}$') NOT VALID
+  `);
+
+  await queryable.query(`
+    ALTER TABLE app_user
+    ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+
+  await queryable.query(`
+    ALTER TABLE app_user
+    ADD COLUMN IF NOT EXISTS blocked_reason VARCHAR(255)
+  `);
+
+  await queryable.query(`
+    ALTER TABLE app_user
+    ADD COLUMN IF NOT EXISTS blocked_by INT REFERENCES app_user(id) ON DELETE SET NULL
+  `);
+
+  await queryable.query(`
+    ALTER TABLE app_user
+    ADD COLUMN IF NOT EXISTS blocked_at TIMESTAMPTZ
   `);
 }
 
@@ -59,7 +90,7 @@ async function findUserByEmail(email) {
 
   const result = await db.query(
     `
-      SELECT id, name, email, phone, role, password_hash, created_at
+      SELECT id, name, email, phone, role, password_hash, created_at, is_blocked, blocked_reason
       FROM app_user
       WHERE email = $1
       LIMIT 1
@@ -91,7 +122,7 @@ async function findUserById(id) {
 
   const result = await db.query(
     `
-      SELECT id, name, email, phone, role, created_at
+      SELECT id, name, email, phone, role, created_at, is_blocked, blocked_reason
       FROM app_user
       WHERE id = $1
       LIMIT 1
@@ -109,7 +140,7 @@ async function createUser({ name, email, phone, role, passwordHash }) {
     `
       INSERT INTO app_user (name, email, phone, role, password_hash)
       VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, email, phone, role, created_at
+      RETURNING id, name, email, phone, role, created_at, is_blocked, blocked_reason
     `,
     [name, email, phone, role, passwordHash]
   );

@@ -2,8 +2,12 @@ CREATE TABLE IF NOT EXISTS app_user (
   id SERIAL PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
   email VARCHAR(180) NOT NULL UNIQUE,
-  phone VARCHAR(40) NOT NULL,
+  phone VARCHAR(40) NOT NULL CHECK (phone ~ '^\+57[0-9]{10}$'),
   role VARCHAR(20) NOT NULL CHECK (role IN ('client', 'empleado', 'admin')),
+  is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+  blocked_reason VARCHAR(255),
+  blocked_by INT REFERENCES app_user(id) ON DELETE SET NULL,
+  blocked_at TIMESTAMPTZ,
   password_hash VARCHAR(255) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -53,9 +57,10 @@ CREATE INDEX IF NOT EXISTS idx_reservation_starts_at ON reservation(starts_at);
 CREATE INDEX IF NOT EXISTS idx_reservation_client_id ON reservation(client_id);
 CREATE INDEX IF NOT EXISTS idx_reservation_stylist_id ON reservation(stylist_id);
 CREATE INDEX IF NOT EXISTS idx_payment_paid_at ON payment(paid_at);
+CREATE INDEX IF NOT EXISTS idx_app_user_client_blocked ON app_user(role, is_blocked);
 
 INSERT INTO app_user (name, email, phone, role, password_hash)
 VALUES
-  ('Administrador', 'admin@sgp.local', '000000000', 'admin', '$2a$10$AQkDm1Ckoru4XwnucC1tN.COeCHnLKf7BTImcDDxKK4yQ/c8CKY1O'),
-  ('Empleado', 'empleado@sgp.local', '111111111', 'empleado', '$2a$10$5/.076IhfYTj6r2IJJ/yHOKgLgrIeZOE/lVvkr1YyUBDSz5pbfwj2')
+  ('Administrador', 'admin@sgp.local', '+573000000001', 'admin', '$2a$10$AQkDm1Ckoru4XwnucC1tN.COeCHnLKf7BTImcDDxKK4yQ/c8CKY1O'),
+  ('Empleado', 'empleado@sgp.local', '+573000000002', 'empleado', '$2a$10$5/.076IhfYTj6r2IJJ/yHOKgLgrIeZOE/lVvkr1YyUBDSz5pbfwj2')
 ON CONFLICT (email) DO NOTHING;

@@ -1,8 +1,10 @@
 const crypto = require("crypto");
 const QRCode = require("qrcode");
+const { env } = require("../../config/env");
 const { HttpError } = require("../../shared/httpError");
 const { broadcast } = require("../../integrations/realtime/wsHub");
 const { getStylistsForCalendar } = require("../auth/auth.service");
+const { findClientModerationById } = require("../clients/clients.model");
 const {
   createReservation,
   listReservationsByClient,
@@ -23,7 +25,7 @@ const {
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
   saveEmployeeServiceTimes,
-  countActiveReservationsByClient,
+  countActiveReservationsByClientAndService,
   findClientReservationById,
   cancelReservationByClient
 } = require("./reservations.model");
@@ -34,9 +36,36 @@ const ANY_STYLIST_VALUE = "__any__";
 const DEFAULT_SERVICE_DURATION_MINUTES = 30;
 const MIN_SERVICE_DURATION_MINUTES = 1;
 const MAX_SERVICE_DURATION_MINUTES = 280;
-const MAX_ACTIVE_RESERVATIONS_BY_CLIENT = 3;
+const MIN_LEAD_TIME_MINUTES = 60;
 const MIN_CLIENT_COUNT_PER_RESERVATION = 1;
 const MAX_CLIENT_COUNT_PER_RESERVATION = 5;
+const APP_TIME_ZONE = env.appTimezone || "America/Bogota";
+
+function getDateTimePartsInTimeZone(date, timeZone) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = {};
+  parts.forEach(function (part) {
+    map[part.type] = part.value;
+  });
+
+  return {
+    year: map.year,
+    month: map.month,
+    day: map.day,
+    hour: map.hour,
+    minute: map.minute
+  };
+}
 
 function validateStartsAt(startsAtText) {
   const startsAt = new Date(startsAtText);
@@ -44,24 +73,28 @@ function validateStartsAt(startsAtText) {
     throw new HttpError(400, "startsAt debe tener formato de fecha valido");
   }
 
-  if (startsAt.getTime() < Date.now()) {
+  const now = Date.now();
+
+  if (startsAt.getTime() < now) {
     throw new HttpError(400, "No se puede reservar en una fecha pasada");
+  }
+
+  const leadTimeMinutes = (startsAt.getTime() - now) / 60000;
+  if (leadTimeMinutes < MIN_LEAD_TIME_MINUTES) {
+    throw new HttpError(409, "Fuera de tiempo");
   }
 
   return startsAt;
 }
 
 function toDateKeyFromDate(date) {
-  const year = String(date.getFullYear());
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return year + "-" + month + "-" + day;
+  const parts = getDateTimePartsInTimeZone(date, APP_TIME_ZONE);
+  return parts.year + "-" + parts.month + "-" + parts.day;
 }
 
 function toTimeKeyFromDate(date) {
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return hours + ":" + minutes;
+  const parts = getDateTimePartsInTimeZone(date, APP_TIME_ZONE);
+  return parts.hour + ":" + parts.minute;
 }
 
 function addMinutes(date, minutes) {
@@ -161,12 +194,12 @@ function normalizeScheduleEntry(input) {
 }
 
 function buildDateRange(startDate, daysCount) {
-  const start = new Date(startDate + "T00:00:00");
+  const start = new Date(startDate + "T00:00:00Z");
   const dates = [];
 
   for (let i = 0; i < daysCount; i += 1) {
     const next = new Date(start);
-    next.setDate(start.getDate() + i);
+    next.setUTCDate(start.getUTCDate() + i);
     dates.push(next.toISOString().slice(0, 10));
   }
 
@@ -350,7 +383,7 @@ async function validateStylistWorkingSchedule(stylistId, startsAt, endsAt) {
   }
 
   if (toMinutes(startTimeKey) < toMinutes(config.start)) {
-    throw new HttpError(409, "El horario seleccionado esta fuera de la jornada del peluquero");
+    throw new HttpError(409, "La reserva inicia antes de la jornada laboral del peluquero");
   }
 
   if (toMinutes(endTimeKey) > toMinutes(config.end)) {
@@ -519,9 +552,29 @@ async function reserveAppointment(clientId, input) {
     throw new HttpError(400, "serviceName es obligatorio");
   }
 
-  const activeReservations = await countActiveReservationsByClient(clientId);
-  if (activeReservations >= MAX_ACTIVE_RESERVATIONS_BY_CLIENT) {
-    throw new HttpError(409, "Cada cliente solo puede tener hasta 3 reservas activas");
+  const client = await findClientModerationById(clientId);
+  if (!client) {
+    throw new HttpError(404, "Cliente no encontrado");
+  }
+
+  if (client.is_blocked) {
+    throw new HttpError(
+      403,
+      client.blocked_reason
+        ? "Cliente bloqueado por mal uso de la aplicacion: " + client.blocked_reason
+        : "Cliente bloqueado por mal uso de la aplicacion"
+    );
+  }
+
+  const activeReservationsForService = await countActiveReservationsByClientAndService(
+    clientId,
+    serviceName
+  );
+  if (activeReservationsForService > 0) {
+    throw new HttpError(
+      409,
+      "Solo puedes tener una reserva activa por servicio. Elimina la actual para volver a reservar"
+    );
   }
 
   const serviceCatalog = await listServiceCatalog();
@@ -584,7 +637,11 @@ async function reserveAppointment(clientId, input) {
 
 async function getMyReservations(clientId) {
   const reservations = await listReservationsByClient(clientId);
-  return enrichReservationsWithDuration(reservations);
+  const activeReservations = (reservations || []).filter(function (reservation) {
+    return reservation.status === "booked";
+  });
+
+  return enrichReservationsWithDuration(activeReservations);
 }
 
 async function getAllReservations(authUser) {
@@ -598,7 +655,16 @@ async function getAllReservations(authUser) {
     reservations = await listAllReservations();
   }
 
-  return enrichReservationsWithDuration(reservations);
+  const enriched = await enrichReservationsWithDuration(reservations);
+
+  return enriched.map(function (reservation) {
+    const sanitized = {
+      ...reservation
+    };
+
+    delete sanitized.qr_data_url;
+    return sanitized;
+  });
 }
 
 async function cancelMyReservation(clientId, reservationIdInput) {
