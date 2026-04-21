@@ -665,9 +665,11 @@ thead th {
   inset: 0;
   background: rgba(61,61,61,0.5);
   backdrop-filter: blur(6px);
-  display: grid;
-  place-items: center;
-  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 2rem 1rem;
   z-index: 30;
   animation: fadeIn 0.25s ease;
 }
@@ -679,14 +681,13 @@ thead th {
 
 .modal-card {
   width: min(680px, 96vw);
-  max-height: 86vh;
-  overflow: auto;
   background: var(--ivory);
   border: 1px solid rgba(201,185,168,0.4);
   border-radius: var(--radius-lg);
   box-shadow: 0 24px 60px rgba(61,61,61,0.22);
   padding: 1.2rem;
   animation: modalPop 0.3s ease;
+  margin: auto;
 }
 
 @keyframes modalPop {
@@ -795,8 +796,8 @@ thead th {
 
 .reservations-modal-card {
   width: min(920px, 96vw);
-  max-height: 86vh;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .reservations-modal-card .modal-head h3 {
@@ -829,13 +830,8 @@ thead th {
 }
 
 .reservation-actions-menu {
-  position: static;
-  right: auto;
-  top: auto;
-  min-width: 0;
   width: 100%;
   margin-top: 0.34rem;
-  box-shadow: var(--shadow-sm);
 }
 
 /* ── OUTPUT ──────────────────────────────────────── */
