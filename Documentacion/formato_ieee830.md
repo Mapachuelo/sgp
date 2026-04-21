@@ -37,15 +37,15 @@ El SGP se compone de tres capas principales: **Web Front‑End**, **API Back‑E
 ## 2. Descripción General
 
 ### 2.1 Perspectiva del Producto  
-El SGP es un **producto independiente** que se integrará con los sistemas externos existentes: **servidor de correo y sistema de facturación**. *(Eliminado: pasarela de pagos)*
+El SGP es un **producto independiente** desplegable con Docker (app + PostgreSQL) y sin integraciones externas obligatorias en el MVP. El correo de confirmacion y otras integraciones quedan como mejoras futuras.
 
 ```
 ┌───────────────────────┐
-│   Servidor de Correo  │
+│    Frontend Web UI    │
 ├───────────────────────┤
-│      Sistema Web      │
+│   API Node.js/Express │
 ├───────────────────────┤
-│      Cobro Manual     │
+│     PostgreSQL 16     │
 └───────────────────────┘
 ```
 
@@ -59,6 +59,7 @@ El SGP es un **producto independiente** que se integrará con los sistemas exter
 | **F3** | Validación en Entrada | Escaneo del QR con control de horarios. |
 | **F4** | **Cobro Manual en Local** | Pago en efectivo con registro por estilista. *(Cambiado: Pagos en efectivo)* |
 | **F5** | Reportes Administrativos | Ventas, ocupación y métricas de uso. |
+| **F6** | Login Unificado | Inicio de sesion unico en `/ui/login` y redireccion por rol segun respuesta del backend. |
 
 ### 2.3 Características de los Usuarios  
 | Tipo de Usuario | Habilidades | Acciones Principales |
@@ -104,7 +105,7 @@ El SGP es un **producto independiente** que se integrará con los sistemas exter
 #### 3.1.3 Interfaz de Software (API)  
 | ID | Requisito | Descripción |
 |----|-----------|-------------|
-| API1 | Endpoints REST | `/api/clients`, `/api/reservations`, **`/api/payments/manual`**. *(Cambiado: payments → manual)* |
+| API1 | Endpoints REST | `/api/auth/*`, `/api/clients/*`, `/api/reservations/*`, `/api/checkin/validate`, `/api/payments/manual`, `/api/reports/*`. |
 | API2 | Autenticación JWT | Tokens con expiración 30 minutos. |
 
 #### 3.1.4 Interfaz de Comunicación  
@@ -116,9 +117,10 @@ El SGP es un **producto independiente** que se integrará con los sistemas exter
 
 | RF# | Nombre | Prioridad | Descripción |
 |-----|--------|-----------|-------------|
-| **RF1** | Registro de Cliente | Alta | El cliente ingresa nombre, email y teléfono; se envía un email de confirmación con código QR. |
+| **RF0** | Login Unificado | Alta | El sistema ofrece un unico formulario de inicio de sesion en `/ui/login` (correo y password) y redirige segun rol (`client`, `empleado`, `admin`). |
+| **RF1** | Registro de Cliente | Alta | El cliente crea cuenta con nombre, apellido, numero celular colombiano, correo y password. El QR se genera en la reserva, no en el registro. |
 | **RF2** | Reserva de Cita | Alta | Selección de servicio, fecha/hora; el sistema valida disponibilidad y genera QR único. |
-| **RF3** | Validación en Entrada | Alta | El empleado escanea el QR; el sistema verifica hora y estado (cita válida dentro ventana horaria). *(Cambiado: "pago confirmado" → "cita válida")* |
+| **RF3** | Validación en Entrada | Alta | El empleado/admin escanea el QR; el sistema valida estado activo (`booked`) y ventana horaria de validacion (±120 minutos respecto a la cita). |
 | **RF4*** | **Registro de Cobro Efectivo** | Alta | **Estilista registra monto del servicio en local, fecha, y captura pago en efectivo**. *(Cambiado: RF4 Pago Online → RF5)* |
 | **RF5** | Generación de Reportes | Baja | El administrador visualiza ventas por día, ocupación y clientes recurrentes. |
 
@@ -156,6 +158,7 @@ El SGP es un **producto independiente** que se integrará con los sistemas exter
 
 | Código RF | Requisito Funcional | Código F | Función Asociada | Estado Trazabilidad |
 |------------|---------------------|----------|------------------|---------------------|
+| **RF0** | Login Unificado | F6 | Login Unificado | ✅ Vinculado |
 | **RF1** | Registro de Cliente | F1 | Gestión de Clientes | ✅ Vinculado |
 | **RF2** | Reserva de Cita | F2 | Reservas Online | ✅ Vinculado |
 | **RF3** | Validación en Entrada | F3 | Validación en Entrada | ✅ Vinculado |

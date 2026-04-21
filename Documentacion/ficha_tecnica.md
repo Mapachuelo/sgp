@@ -20,14 +20,16 @@ Digitalizar y centralizar el ciclo operativo de una peluqueria:
 ## 3. Alcance funcional implementado
 
 - Autenticacion y autorizacion por roles (cliente, empleado, admin)
+- Login unificado en `/ui/login` con redireccion automatica por rol
 - Reserva con seleccion de servicio, estilista, fecha y hora
 - Generacion de QR unico por reserva
 - Descarga de QR desde interfaz de cliente
-- Check-in por token QR con ventana de validacion
+- Check-in por token QR con ventana de validacion (±120 minutos)
 - Registro de pago manual en efectivo por reserva
 - Reportes de ventas diarias, ocupacion y recurrencia de clientes
 - Gestion de empleados por administrador
 - Configuracion de catalogo de servicios y horarios
+- Moderacion de clientes (bloquear/desbloquear por admin/empleado)
 
 ## 4. Arquitectura tecnica
 
@@ -79,7 +81,7 @@ Digitalizar y centralizar el ciclo operativo de una peluqueria:
 
 ## 9. Restricciones conocidas
 
-- Flujo de correo de confirmacion no implementado en esta version
+- El MVP no incluye flujo de correo (registro y reserva operan sin SMTP)
 - No se incluye especificacion Swagger/OpenAPI
 - No se incluyen pruebas automatizadas en el repositorio actual
 
@@ -87,6 +89,8 @@ Digitalizar y centralizar el ciclo operativo de una peluqueria:
 
 - Descarga de QR: Implementada
 - Numero celular colombiano obligatorio (`+57XXXXXXXXXX`): Implementado en frontend y backend; reforzado a nivel DB para datos nuevos
+- Registro exclusivo para cliente: Implementado (`/api/auth/register` solo crea rol `client`)
+- Token de sesion unificado en frontend: Implementado (`sgp_token`)
 
 ## 11. Indicadores sugeridos para siguiente fase
 

@@ -67,7 +67,13 @@ db/
 ### 6.1 Docker
 
 ```bash
-docker compose up --build
+docker compose up --build -d
+```
+
+Detener servicios sin borrar contenedores:
+
+```bash
+docker compose stop
 ```
 
 ### 6.2 Local
@@ -93,25 +99,40 @@ npm run dev
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - `GET /api/auth/stylists`
-- `GET/POST/PUT/DELETE /api/auth/employees` (admin)
+- `GET /api/auth/me/employee-account` (empleado)
+- `PUT /api/auth/me/employee-account` (empleado)
+- `GET /api/auth/employees` (admin)
+- `POST /api/auth/employees` (admin)
+- `PUT /api/auth/employees/:employeeId` (admin)
+- `DELETE /api/auth/employees/:employeeId` (admin)
 
 ### 8.2 Clientes
 
 - `GET /api/clients` (admin)
+- `GET /api/clients/moderation` (admin/empleado)
 - `GET /api/clients/me` (client)
 - `PUT /api/clients/me` (client)
 - `DELETE /api/clients/me` (client)
+- `PUT /api/clients/:id/block` (admin/empleado)
+- `PUT /api/clients/:id/unblock` (admin/empleado)
 - `DELETE /api/clients/:id` (admin/empleado, con regla no-show)
 
 ### 8.3 Reservas
 
+- `GET /api/reservations/availability`
+- `GET /api/reservations/services` (publico u opcionalmente autenticado)
+- `POST /api/reservations/services` (admin)
+- `DELETE /api/reservations/services/:serviceId` (admin)
+- `GET /api/reservations/employee-service-times` (admin)
+- `PUT /api/reservations/employee-service-times` (admin)
+- `GET /api/reservations/work-schedule`
+- `GET /api/reservations/work-schedule/editable` (empleado/admin)
+- `PUT /api/reservations/work-schedule` (empleado/admin)
+- `DELETE /api/reservations/work-schedule` (empleado/admin)
 - `POST /api/reservations` (client)
 - `GET /api/reservations/me` (client)
 - `DELETE /api/reservations/me/:reservationId` (client)
 - `GET /api/reservations` (empleado/admin)
-- `GET /api/reservations/availability`
-- `GET/PUT/DELETE /api/reservations/work-schedule`
-- `GET/POST/DELETE /api/reservations/services`
 
 ### 8.4 Check-in
 
@@ -134,6 +155,12 @@ npm run dev
 - Datos de usuario y rol
 - Unicidad por correo
 - Telefono en formato colombiano
+- Soporta moderacion de cliente: `is_blocked`, `blocked_reason`, `blocked_by`, `blocked_at`
+
+### employee_profile
+
+- Tabla complementaria para cuentas internas (empleado/admin)
+- Guarda `last_name`, `identification` y `assigned_password` (hash SHA-256 de password asignada)
 
 ### reservation
 
@@ -153,11 +180,25 @@ npm run dev
 - Catalogo de servicios
 - Duracion por empleado/servicio
 
+### work_schedule / employee_work_schedule
+
+- Horario global por fecha (`work_schedule`)
+- Horario por empleado y fecha (`employee_work_schedule`)
+- Se fusionan para calcular disponibilidad efectiva
+
 ## 10. Realtime
 
 - Servidor WebSocket en ruta `/ws`
 - Emision backend cuando cambia disponibilidad (`availability.updated`)
 - Estado actual: frontend aun no suscribe activamente este canal
+
+## 10.1 Reglas de negocio operativas
+
+- Reserva minima con 60 minutos de anticipacion (`Fuera de tiempo` en caso contrario).
+- Una sola reserva activa por cliente y servicio.
+- `clientCount` permitido entre 1 y 5.
+- Cliente bloqueado no puede iniciar sesion ni reservar.
+- Validacion QR en ventana de ±120 minutos respecto a la hora de la cita.
 
 ## 11. Operacion y mantenimiento
 
@@ -181,3 +222,6 @@ npm run dev
 - Error de conexion DB en Docker: verificar estado `db` con healthcheck.
 - `401/403` en API: revisar token/rol.
 - Conflictos de reserva (`409`): horario ocupado o reglas de agenda.
+- Error `Fuera de tiempo` en reservas: la cita debe crearse con al menos 60 minutos de anticipacion.
+- Error `Solo puedes tener una reserva activa por servicio`: cliente ya tiene una reserva `booked` para ese servicio.
+- Error de validacion QR fuera de ventana: token valido pero cita fuera de ±120 minutos.

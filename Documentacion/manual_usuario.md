@@ -12,11 +12,14 @@ Este manual describe el uso funcional del Sistema de Gestion de Peluqueria (SGP)
 
 Rutas principales:
 
+- Dashboard principal: `/`
 - Login: `/ui/login`
 - Cliente: `/ui/client`
 - Calendario cliente: `/ui/client/calendar`
 - Empleado: `/ui/empleado`
 - Administrador: `/ui/admin`
+
+Nota: la ruta `/` redirige al dashboard de cliente y muestra las acciones "Ver calendario" e "Iniciar sesion".
 
 ## 3. Flujo para cliente
 
@@ -36,7 +39,9 @@ Rutas principales:
 
 1. Ingresar correo y contraseña.
 2. Clic en "Entrar".
-3. El sistema redirige al panel de cliente.
+3. El sistema redirige automaticamente segun rol de la cuenta (`client`, `empleado`, `admin`).
+
+Nota: el login unificado no solicita selector manual de rol.
 
 ### 3.3 Reservar cita
 
@@ -46,6 +51,12 @@ Rutas principales:
 4. Seleccionar peluquero (o "cualquier peluquero").
 5. Definir cantidad de clientes.
 6. Clic en "Confirmar reserva".
+
+Reglas aplicadas por el sistema:
+
+- La reserva debe hacerse con al menos 60 minutos de anticipacion.
+- Solo se permite una reserva activa por servicio para el mismo cliente.
+- La cantidad de clientes por reserva debe estar entre 1 y 5.
 
 ### 3.4 Descargar QR
 
@@ -117,8 +128,10 @@ Nota: el numero de telefono mantiene validacion colombiana obligatoria.
 
 - "Credenciales invalidas": correo o contraseña incorrectos.
 - "El numero debe tener formato +57XXXXXXXXXX": telefono invalido.
-- "Cada cliente solo puede tener hasta 3 reservas activas": limite de reservas alcanzado.
+- "Solo puedes tener una reserva activa por servicio": ya existe una reserva activa del mismo servicio.
+- "Fuera de tiempo": la reserva fue solicitada con menos de 60 minutos de anticipacion.
 - "La reserva ya tiene cobro registrado": intento de cobro duplicado.
+- "Cliente bloqueado por mal uso de la aplicacion": cuenta bloqueada por empleado/admin.
 
 ## 7. Buenas practicas de uso
 

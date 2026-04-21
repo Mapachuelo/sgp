@@ -17,15 +17,16 @@ Se revisaron:
 
 - El sistema implementa los modulos nucleares: autenticacion, clientes, reservas con QR, check-in por QR, cobro manual y reportes.
 - Existen requisitos implementados que no estaban bien documentados (por ejemplo: descarga de QR y validacion de celular colombiano).
-- Existen requisitos con cumplimiento parcial o pendiente (correo de confirmacion, consumo WebSocket en frontend, cobertura de pruebas, Swagger, plan formal de disponibilidad/contingencia, HTTPS/AES-256 en despliegue real).
+- Existen requisitos con cumplimiento parcial o pendiente (consumo WebSocket en frontend, cobertura de pruebas, Swagger, plan formal de disponibilidad/contingencia, HTTPS/AES-256 en despliegue real).
+- El login es unificado en `/ui/login` y redirige por rol; no existe selector de rol manual en la vista.
 
 ## 4. Matriz de cumplimiento funcional (RF)
 
 | Requisito | Estado | Evidencia tecnica | Observacion |
 |---|---|---|---|
-| RF1 Registro de cliente | Parcial | Registro con `POST /api/auth/register` | Se registra cliente con validaciones, pero no se envia correo de confirmacion con QR en el estado actual. |
+| RF1 Registro de cliente | Cumple | Registro con `POST /api/auth/register` | Se registra cliente con nombre, apellido, correo, telefono colombiano y password. El QR se genera al crear la reserva. |
 | RF2 Reserva de cita y QR unico | Cumple | `POST /api/reservations` + generacion `qr_token` y `qr_data_url` | El QR se genera por reserva y se devuelve en la respuesta. |
-| RF3 Validacion en entrada por QR | Cumple | `POST /api/checkin/validate` | Se valida estado y ventana horaria de la cita. |
+| RF3 Validacion en entrada por QR | Cumple | `POST /api/checkin/validate` | Se valida estado y ventana horaria (±120 minutos) de la cita. |
 | RF4 Registro de cobro efectivo | Cumple | `POST /api/payments/manual` | Cobro manual por empleado/admin, evita cobro duplicado por reserva. |
 | RF5 Reportes administrativos | Cumple | `/api/reports/daily-sales`, `/api/reports/occupancy`, `/api/reports/recurrent-clients` | Reportes disponibles para rol admin. |
 
@@ -66,12 +67,11 @@ Se revisaron:
 
 ## 8. Brechas priorizadas (backlog de cierre)
 
-1. Implementar envio real de correo de confirmacion con QR en el flujo de registro/reserva.
-2. Agregar cliente WebSocket en frontend para refresco de disponibilidad en tiempo real.
-3. Publicar especificacion Swagger/OpenAPI y coleccion de pruebas.
-4. Implementar pruebas automatizadas (unitarias + integracion) y objetivo de cobertura > 80%.
-5. Definir y documentar estrategia de despliegue seguro (HTTPS, cifrado en reposo, backups, contingencia).
-6. Completar estrategia de internacionalizacion (es/en) y auditoria de accesibilidad WCAG 2.1 AA.
+1. Agregar cliente WebSocket en frontend para refresco de disponibilidad en tiempo real.
+2. Publicar especificacion Swagger/OpenAPI y coleccion de pruebas.
+3. Implementar pruebas automatizadas (unitarias + integracion) y objetivo de cobertura > 80%.
+4. Definir y documentar estrategia de despliegue seguro (HTTPS, cifrado en reposo, backups, contingencia).
+5. Completar estrategia de internacionalizacion (es/en) y auditoria de accesibilidad WCAG 2.1 AA.
 
 ## 9. Conclusion
 

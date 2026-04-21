@@ -29,6 +29,7 @@
 
 1. Si las credenciales son correctas, el sistema entrega token JWT y redirige segun rol.
 2. Si las credenciales son invalidas, se muestra mensaje de error.
+3. El formulario de login es unificado en `/ui/login` y no requiere selector manual de rol.
 
 ## HU-03 Reserva de cita
 
@@ -40,8 +41,10 @@
 ### Criterios de aceptacion
 
 1. La reserva solo se confirma en horarios disponibles.
-2. El sistema limita reservas activas por cliente segun regla del negocio.
+2. El sistema permite solo una reserva activa por servicio para cada cliente.
 3. El sistema genera token QR unico por reserva.
+4. La reserva debe solicitarse con minimo 60 minutos de anticipacion.
+5. `clientCount` debe estar entre 1 y 5.
 
 ## HU-04 Descarga de QR
 
@@ -64,8 +67,9 @@
 
 ### Criterios de aceptacion
 
-1. Si el QR corresponde a una reserva activa en ventana de validacion, se registra check-in.
-2. Si el QR no existe o esta fuera de ventana, se rechaza.
+1. Si el QR corresponde a una reserva activa en ventana de validacion (±120 minutos), se registra check-in.
+2. Si el QR no existe, se rechaza con error de reserva no encontrada.
+3. Si la reserva ya no esta activa o esta fuera de ventana, se rechaza.
 
 ## HU-06 Cobro manual de servicio
 
