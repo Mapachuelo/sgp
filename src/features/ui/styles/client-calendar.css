@@ -479,25 +479,22 @@ thead th {
 
 .reservations-list {
   margin: 0;
-  padding-left: 1.1rem;
+  padding: 0;
+  list-style: none;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 .reservation-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 0.55rem;
 }
 
 .reservation-card {
   border: 1px solid rgba(201,185,168,0.4);
   border-radius: var(--radius-md);
   background: var(--ivory-dk);
-  padding: 0.85rem;
-  align-items: flex-start;
+  padding: 0.9rem;
   transition: var(--transition);
 }
 
@@ -505,11 +502,17 @@ thead th {
   box-shadow: var(--shadow-sm);
 }
 
+.reservation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .reservation-main {
   display: grid;
-  gap: 0.22rem;
-  flex: 1;
-  min-width: 220px;
+  gap: 0.24rem;
+  min-width: 0;
 }
 
 .reservation-line {
@@ -538,6 +541,117 @@ thead th {
   color: #7a3a2a;
   background: var(--reserved-bg);
   border-color: var(--reserved-line);
+}
+
+.reservation-menu-wrap {
+  position: relative;
+}
+
+.reservation-menu-toggle {
+  border: 1px solid var(--sand-dk);
+  background: #fff;
+  color: var(--stone-dk);
+  border-radius: 999px;
+  height: 34px;
+  padding: 0 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.reservation-menu-toggle:hover {
+  border-color: var(--terra-lt);
+  box-shadow: var(--shadow-sm);
+}
+
+.hamburger-lines {
+  display: inline-grid;
+  gap: 2px;
+}
+
+.hamburger-lines span {
+  display: block;
+  width: 13px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.menu-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.reservation-actions-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  min-width: 240px;
+  background: #fff;
+  border: 1px solid rgba(201,185,168,0.5);
+  border-radius: 12px;
+  box-shadow: 0 14px 30px rgba(61,61,61,0.16);
+  padding: 0.34rem;
+  z-index: 20;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.reservation-action-btn {
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--ivory-dk);
+  color: var(--stone-dk);
+  font-family: "Outfit", sans-serif;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.reservation-action-btn:hover {
+  border-color: var(--sand-dk);
+  background: var(--sand-lt);
+}
+
+.reservation-action-btn.danger {
+  color: #7a3a2a;
+  background: var(--reserved-bg);
+}
+
+.reservation-action-btn.danger:hover {
+  border-color: var(--reserved-line);
+}
+
+.reservation-qr-preview {
+  border: 1px dashed var(--sand-dk);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 0.7rem;
+  display: grid;
+  justify-items: start;
+  gap: 0.45rem;
+}
+
+.reservation-qr-label {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--stone);
+  font-weight: 600;
+}
+
+.reservation-qr-image {
+  width: min(180px, 100%);
+  border: 1px solid var(--sand-dk);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 0.42rem;
 }
 
 .reservation-item .btn {
@@ -675,8 +789,12 @@ thead th {
 .reservations-modal-card .reservations-list {
   list-style: none;
   padding-left: 0;
-  max-height: 62vh;
+  max-height: 68vh;
   overflow: auto;
+}
+
+.reservations-modal-card {
+  width: min(920px, 96vw);
 }
 
 /* ── OUTPUT ──────────────────────────────────────── */

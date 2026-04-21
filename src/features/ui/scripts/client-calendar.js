@@ -33,6 +33,7 @@
     selectedServiceDuration: DEFAULT_SLOT_STEP_MINUTES,
     serviceDurationByName: {},
     serviceDurationByNameAndStylist: {},
+    reservationQrById: {},
     viewportConfig: {
       dayCount: FULL_DAY_COUNT,
       startHour: FULL_START_HOUR,
@@ -597,20 +598,70 @@
     inputElement.value = compact;
   }
 
-  function downloadClientQr() {
-    const qrImage = byId("qrImage");
-    if (!qrImage || !qrImage.src || qrImage.classList.contains("hidden")) {
-      setFeedback("No hay un QR generado para descargar.", "warn");
+  function closeAllReservationMenus(exceptMenuId) {
+    document.querySelectorAll(".reservation-actions-menu").forEach(function (menu) {
+      if (exceptMenuId && menu.id === exceptMenuId) {
+        return;
+      }
+
+      menu.classList.add("hidden");
+      const reservationId = String(menu.dataset.reservationId || "");
+      const toggle = byId("reservationMenuToggle-" + reservationId);
+      if (toggle) {
+        toggle.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  function downloadReservationQr(reservationId) {
+    const parsedId = Number(reservationId);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      setFeedback("No se pudo identificar la reserva para descargar el QR.", "warn");
+      return;
+    }
+
+    const qrDataUrl = state.reservationQrById[String(parsedId)] || "";
+    if (!qrDataUrl) {
+      setFeedback("No hay QR disponible para esta reserva.", "warn");
       return;
     }
 
     const anchor = document.createElement("a");
-    anchor.href = qrImage.src;
-    anchor.download = "qr-reserva-cliente.png";
+    anchor.href = qrDataUrl;
+    anchor.download = "qr-reserva-" + String(parsedId) + ".png";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
     setFeedback("Descarga de QR iniciada.", "ok");
+  }
+
+  function toggleReservationQrPreview(reservationId) {
+    const parsedId = Number(reservationId);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      setFeedback("No se pudo identificar la reserva para mostrar el QR.", "warn");
+      return;
+    }
+
+    const qrDataUrl = state.reservationQrById[String(parsedId)] || "";
+    if (!qrDataUrl) {
+      setFeedback("No hay QR disponible para esta reserva.", "warn");
+      return;
+    }
+
+    const preview = byId("reservationQrPreview-" + String(parsedId));
+    if (!preview) {
+      setFeedback("No se pudo mostrar el QR de la reserva.", "warn");
+      return;
+    }
+
+    const shouldShow = preview.classList.contains("hidden");
+    preview.classList.toggle("hidden", !shouldShow);
+    setFeedback(
+      shouldShow
+        ? "QR de ingreso visible para la reserva seleccionada."
+        : "QR de ingreso oculto.",
+      "info"
+    );
   }
 
   async function callApi(path, method, body) {
@@ -1034,22 +1085,11 @@
         clientCount: clientCount
       });
 
-      const qrImage = byId("qrImage");
-      const downloadQrBtn = byId("downloadQrBtn");
       if (payload.data && payload.data.qr_data_url) {
-        qrImage.src = payload.data.qr_data_url;
-        qrImage.classList.remove("hidden");
-        if (downloadQrBtn) {
-          downloadQrBtn.classList.remove("hidden");
-        }
+        setFeedback("Reserva registrada con exito. Gestiona tu QR en Mis reservas.", "ok");
       } else {
-        qrImage.classList.add("hidden");
-        if (downloadQrBtn) {
-          downloadQrBtn.classList.add("hidden");
-        }
+        setFeedback("Reserva registrada con exito.", "ok");
       }
-
-      setFeedback("Reserva registrada con exito.", "ok");
       await refreshCalendar();
       await loadMyReservations();
     } catch (error) {
@@ -1084,6 +1124,7 @@
       const reservations = (payload.data || []).filter(function (reservation) {
         return reservation && reservation.status === "booked";
       });
+      state.reservationQrById = {};
 
       const activeReservations = reservations.length;
 
@@ -1100,15 +1141,76 @@
       }
 
       reservations.forEach(function (reservation) {
+        const reservationId = Number(reservation.id);
+        if (!Number.isInteger(reservationId) || reservationId <= 0) {
+          return;
+        }
+
+        state.reservationQrById[String(reservationId)] = String(reservation.qr_data_url || "");
+
         const item = document.createElement("li");
         item.className = "reservation-item reservation-card";
 
         const time = toLocalTime(reservation.starts_at);
         const date = toLocalDate(reservation.starts_at);
 
+        const head = document.createElement("div");
+        head.className = "reservation-head";
+
         const status = document.createElement("span");
         status.className = "reservation-state active";
         status.textContent = "Activa";
+
+        const menuWrap = document.createElement("div");
+        menuWrap.className = "reservation-menu-wrap";
+
+        const menuToggle = document.createElement("button");
+        menuToggle.type = "button";
+        menuToggle.className = "reservation-menu-toggle";
+        menuToggle.dataset.reservationId = String(reservationId);
+        menuToggle.id = "reservationMenuToggle-" + String(reservationId);
+        menuToggle.setAttribute("aria-haspopup", "true");
+        menuToggle.setAttribute("aria-expanded", "false");
+        menuToggle.setAttribute("aria-label", "Acciones de reserva");
+        menuToggle.innerHTML =
+          '<span class="hamburger-lines" aria-hidden="true"><span></span><span></span><span></span></span>' +
+          '<span class="menu-label">Acciones</span>';
+
+        const menu = document.createElement("div");
+        menu.className = "reservation-actions-menu hidden";
+        menu.id = "reservationActionsMenu-" + String(reservationId);
+        menu.dataset.reservationId = String(reservationId);
+        menuToggle.setAttribute("aria-controls", menu.id);
+
+        const downloadBtn = document.createElement("button");
+        downloadBtn.type = "button";
+        downloadBtn.className = "reservation-action-btn";
+        downloadBtn.dataset.action = "download-qr";
+        downloadBtn.dataset.reservationId = String(reservationId);
+        downloadBtn.textContent = "Descargar codigo QR";
+
+        const showBtn = document.createElement("button");
+        showBtn.type = "button";
+        showBtn.className = "reservation-action-btn";
+        showBtn.dataset.action = "show-qr";
+        showBtn.dataset.reservationId = String(reservationId);
+        showBtn.textContent = "Mostrar codigo QR para ingreso";
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "reservation-action-btn danger";
+        deleteBtn.dataset.action = "delete-reservation";
+        deleteBtn.dataset.reservationId = String(reservationId);
+        deleteBtn.textContent = "Eliminar reserva";
+
+        menu.appendChild(downloadBtn);
+        menu.appendChild(showBtn);
+        menu.appendChild(deleteBtn);
+        menuWrap.appendChild(menuToggle);
+        menuWrap.appendChild(menu);
+
+        head.appendChild(status);
+        head.appendChild(menuWrap);
 
         const details = document.createElement("div");
         details.className = "reservation-main";
@@ -1133,16 +1235,32 @@
         details.appendChild(lineClient);
         details.appendChild(lineService);
 
-        item.appendChild(status);
+        const qrPreview = document.createElement("div");
+        qrPreview.className = "reservation-qr-preview hidden";
+        qrPreview.id = "reservationQrPreview-" + String(reservationId);
+
+        if (reservation.qr_data_url) {
+          const qrLabel = document.createElement("p");
+          qrLabel.className = "reservation-qr-label";
+          qrLabel.textContent = "Codigo QR para ingreso";
+
+          const qrImage = document.createElement("img");
+          qrImage.className = "reservation-qr-image";
+          qrImage.src = String(reservation.qr_data_url);
+          qrImage.alt = "QR reserva " + String(reservationId);
+
+          qrPreview.appendChild(qrLabel);
+          qrPreview.appendChild(qrImage);
+        } else {
+          const missingQr = document.createElement("p");
+          missingQr.className = "reservation-qr-label";
+          missingQr.textContent = "QR no disponible para esta reserva.";
+          qrPreview.appendChild(missingQr);
+        }
+
+        item.appendChild(head);
         item.appendChild(details);
-
-        const cancelBtn = document.createElement("button");
-        cancelBtn.type = "button";
-        cancelBtn.className = "btn accent cancel-reservation-btn";
-        cancelBtn.textContent = "Eliminar reserva";
-        cancelBtn.dataset.reservationId = String(reservation.id || "");
-        item.appendChild(cancelBtn);
-
+        item.appendChild(qrPreview);
         list.appendChild(item);
       });
     } catch (error) {
@@ -1172,6 +1290,7 @@
     }
 
     modal.classList.add("hidden");
+    closeAllReservationMenus();
   }
 
   async function cancelReservation(reservationId) {
@@ -1181,7 +1300,7 @@
       return;
     }
 
-    const accepted = window.confirm("Deseas eliminar esta reserva?");
+    const accepted = window.confirm("Estas seguro de borrar la reserva");
     if (!accepted) {
       return;
     }
@@ -1265,17 +1384,62 @@
   if (myReservationsList) {
     myReservationsList.addEventListener("click", function (event) {
       const target = event.target;
-      if (!(target instanceof HTMLButtonElement)) {
+      if (!(target instanceof Element)) {
         return;
       }
 
-      if (!target.classList.contains("cancel-reservation-btn")) {
+      const menuToggle = target.closest(".reservation-menu-toggle");
+      if (menuToggle) {
+        const reservationId = String(menuToggle.dataset.reservationId || "");
+        const menu = byId("reservationActionsMenu-" + reservationId);
+        if (!menu) {
+          return;
+        }
+
+        const isOpening = menu.classList.contains("hidden");
+        closeAllReservationMenus(isOpening ? menu.id : "");
+        menu.classList.toggle("hidden", !isOpening);
+        menuToggle.setAttribute("aria-expanded", isOpening ? "true" : "false");
         return;
       }
 
-      cancelReservation(target.dataset.reservationId);
+      const actionBtn = target.closest(".reservation-action-btn");
+      if (!actionBtn) {
+        return;
+      }
+
+      const reservationId = String(actionBtn.dataset.reservationId || "");
+      const action = String(actionBtn.dataset.action || "");
+      closeAllReservationMenus();
+
+      if (action === "download-qr") {
+        downloadReservationQr(reservationId);
+        return;
+      }
+
+      if (action === "show-qr") {
+        toggleReservationQrPreview(reservationId);
+        return;
+      }
+
+      if (action === "delete-reservation") {
+        cancelReservation(reservationId);
+      }
     });
   }
+
+  document.addEventListener("click", function (event) {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    if (target.closest(".reservation-menu-wrap")) {
+      return;
+    }
+
+    closeAllReservationMenus();
+  });
 
   const navLoginBtn = byId("navLoginBtn");
   if (navLoginBtn) {
@@ -1294,11 +1458,6 @@
       const qrImage = byId("qrImage");
       if (qrImage) {
         qrImage.classList.add("hidden");
-      }
-
-      const downloadQrBtn = byId("downloadQrBtn");
-      if (downloadQrBtn) {
-        downloadQrBtn.classList.add("hidden");
       }
 
       if (!isClientContext) {
@@ -1353,11 +1512,6 @@
       setAuthUi();
       renderCalendar();
     });
-  }
-
-  const downloadQrBtn = byId("downloadQrBtn");
-  if (downloadQrBtn) {
-    downloadQrBtn.addEventListener("click", downloadClientQr);
   }
 
   const clientCountInput = byId("clientCount");
