@@ -525,3 +525,11 @@ Instrucciones:
 - Leer el archivo contexto.md.
 - En "ver mis reservas" en clientes al eliminar una reserva la reserva eliminada no se deba ver, se borra para siempre y no queda un mensaje de reserva borrada, solo se ven las reservas activas.
 - Un empleado colocar un día no trabajar hay un error que no deja hacer una reserva un día antes de ese día no trabajar para un cliente hacer la reserva.
+
+## Instrucciones:
+- El diseño en el modulo de "Control de mal uso de clientes" el css no es responsivo, al hamburgues cuando es pequeño para celular esta en pantalla grande y cuando se vuelve pequeño no esta en haburguer.
+
+## Instrucciones:
+- Sigue igual, tome en cuenta el diseño de css de los demás modulos y compare, son diferentes, no se ven iguales cuando son responsive.
+
+
