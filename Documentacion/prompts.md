@@ -532,4 +532,11 @@ Instrucciones:
 ## Instrucciones:
 - Sigue igual, tome en cuenta el diseño de css de los demás modulos y compare, son diferentes, no se ven iguales cuando son responsive.
 
+# Revisión de documentación
+Eres un Arquitecto de Software con experiencia en ver el funcionamiento del backend y documentarlo.
 
+Tarea: Lee todo el funcionamiento del backende, lo analizas y lo que tienes va editando los archivos Documentación que cosas faltan para que sea igual a documentación como el backend.
+
+Instrucciones: 
+- Leer el archivo contexto.md.
+- Leer los archivos de la carpeta Documentacion y editar si es necesario.
