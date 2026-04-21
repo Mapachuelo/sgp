@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.5.2 Safari/537.36" version="29.6.1">
   <diagram name="Página-1" id="fgJKfrBXzAAO4e-4__BK">
-    <mxGraphModel dx="5656" dy="3420" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="4040" dy="2443" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -97,13 +97,13 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-27" parent="mbbaPgOEDHlnAN8qxBe8-13" style="rhombus;whiteSpace=wrap;html=1;" value="¿Tienes cuenta?" vertex="1">
           <mxGeometry height="140" width="140" x="320" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-28" parent="mbbaPgOEDHlnAN8qxBe8-13" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de registro&lt;div&gt;cliente&lt;/div&gt;" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-28" parent="mbbaPgOEDHlnAN8qxBe8-13" style="rounded=1;whiteSpace=wrap;html=1;" value="Registro de nueva cuenta&lt;div&gt;(solo client)&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="640" y="130" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-29" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-13" source="mbbaPgOEDHlnAN8qxBe8-30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-35">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-30" parent="mbbaPgOEDHlnAN8qxBe8-13" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de cuenta&lt;div&gt;y rol&lt;/div&gt;" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-30" parent="mbbaPgOEDHlnAN8qxBe8-13" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de cuenta&lt;div&gt;(correo y password)&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="640" y="260" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-31" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-13" source="mbbaPgOEDHlnAN8qxBe8-35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-30">
@@ -440,13 +440,13 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-120" parent="mbbaPgOEDHlnAN8qxBe8-106" style="rhombus;whiteSpace=wrap;html=1;" value="¿Tienes cuenta?" vertex="1">
           <mxGeometry height="140" width="140" x="320" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-121" parent="mbbaPgOEDHlnAN8qxBe8-106" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de registro&lt;div&gt;cliente&lt;/div&gt;" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-121" parent="mbbaPgOEDHlnAN8qxBe8-106" style="rounded=1;whiteSpace=wrap;html=1;" value="Registro de nueva cuenta&lt;div&gt;(solo client)&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="640" y="130" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-122" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-106" source="mbbaPgOEDHlnAN8qxBe8-123" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-128">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-123" parent="mbbaPgOEDHlnAN8qxBe8-106" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de cuenta&lt;div&gt;y rol&lt;/div&gt;" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-123" parent="mbbaPgOEDHlnAN8qxBe8-106" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de cuenta&lt;div&gt;(correo y password)&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="640" y="260" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-124" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-106" source="mbbaPgOEDHlnAN8qxBe8-128" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-123">
@@ -833,7 +833,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-224" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-205" source="mbbaPgOEDHlnAN8qxBe8-225" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-223">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-225" parent="mbbaPgOEDHlnAN8qxBe8-205" style="rounded=1;whiteSpace=wrap;html=1;" value="Codigo qr" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-225" parent="mbbaPgOEDHlnAN8qxBe8-205" style="rounded=1;whiteSpace=wrap;html=1;" value="No aplica (QR solo cliente)" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="720" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-226" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-205" source="mbbaPgOEDHlnAN8qxBe8-227" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-213">
@@ -860,7 +860,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-231" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-228" source="mbbaPgOEDHlnAN8qxBe8-232" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-236">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-232" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rounded=1;whiteSpace=wrap;html=1;" value="Registro qr" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-232" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rounded=1;whiteSpace=wrap;html=1;" value="Escanear/ingresar QR" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="170" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-233" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-228" source="mbbaPgOEDHlnAN8qxBe8-236" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-232">
@@ -879,7 +879,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-235" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-228" source="mbbaPgOEDHlnAN8qxBe8-236" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-238">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-236" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rhombus;whiteSpace=wrap;html=1;" value="¿Qr en lista?" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-236" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rhombus;whiteSpace=wrap;html=1;" value="¿QR valido y reserva activa en ventana?" vertex="1">
           <mxGeometry height="130" width="140" x="45" y="280" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-237" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-228" source="mbbaPgOEDHlnAN8qxBe8-238" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-243">
@@ -909,13 +909,13 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-243" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rhombus;whiteSpace=wrap;html=1;" value="¿Validad otro codigo qr ?" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-243" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rhombus;whiteSpace=wrap;html=1;" value="¿Validar otro codigo QR?" vertex="1">
           <mxGeometry height="120" width="107.5" x="61" y="560" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-244" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-228" source="mbbaPgOEDHlnAN8qxBe8-245" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-246">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-245" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rounded=1;whiteSpace=wrap;html=1;" value="Ir sitio web empleado" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-245" parent="mbbaPgOEDHlnAN8qxBe8-228" style="rounded=1;whiteSpace=wrap;html=1;" value="Ir a sitio web empleado" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="730" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-246" parent="mbbaPgOEDHlnAN8qxBe8-228" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
@@ -1014,13 +1014,13 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-273" parent="mbbaPgOEDHlnAN8qxBe8-259" style="rhombus;whiteSpace=wrap;html=1;" value="¿Tienes cuenta?" vertex="1">
           <mxGeometry height="140" width="140" x="320" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-274" parent="mbbaPgOEDHlnAN8qxBe8-259" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de registro&lt;div&gt;cliente&lt;/div&gt;" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-274" parent="mbbaPgOEDHlnAN8qxBe8-259" style="rounded=1;whiteSpace=wrap;html=1;" value="Registro de nueva cuenta&lt;div&gt;(solo client)&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="640" y="130" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-275" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-259" source="mbbaPgOEDHlnAN8qxBe8-276" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-281">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-276" parent="mbbaPgOEDHlnAN8qxBe8-259" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de cuenta&lt;div&gt;y rol&lt;/div&gt;" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-276" parent="mbbaPgOEDHlnAN8qxBe8-259" style="rounded=1;whiteSpace=wrap;html=1;" value="Ingreso de cuenta&lt;div&gt;(correo y password)&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="120" x="640" y="260" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-277" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-259" source="mbbaPgOEDHlnAN8qxBe8-281" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-276">
@@ -1335,7 +1335,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-354" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-339" source="mbbaPgOEDHlnAN8qxBe8-355" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-363">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-355" parent="mbbaPgOEDHlnAN8qxBe8-339" style="rounded=1;whiteSpace=wrap;html=1;" value="sitio web empleado" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-355" parent="mbbaPgOEDHlnAN8qxBe8-339" style="rounded=1;whiteSpace=wrap;html=1;" value="sitio web administrador" vertex="1">
           <mxGeometry height="60" width="120" x="47" y="380" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-356" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-339" source="mbbaPgOEDHlnAN8qxBe8-359" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-347">
@@ -1442,7 +1442,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-383" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-364" source="mbbaPgOEDHlnAN8qxBe8-384" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-382">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-384" parent="mbbaPgOEDHlnAN8qxBe8-364" style="rounded=1;whiteSpace=wrap;html=1;" value="Codigo qr" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-384" parent="mbbaPgOEDHlnAN8qxBe8-364" style="rounded=1;whiteSpace=wrap;html=1;" value="No aplica (QR solo cliente)" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="720" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-385" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-364" source="mbbaPgOEDHlnAN8qxBe8-386" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-372">
@@ -1469,7 +1469,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-390" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-387" source="mbbaPgOEDHlnAN8qxBe8-391" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-395">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-391" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rounded=1;whiteSpace=wrap;html=1;" value="Registro qr" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-391" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rounded=1;whiteSpace=wrap;html=1;" value="Escanear/ingresar QR" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="170" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-392" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-387" source="mbbaPgOEDHlnAN8qxBe8-395" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-391">
@@ -1488,7 +1488,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-394" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-387" source="mbbaPgOEDHlnAN8qxBe8-395" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-397">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-395" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rhombus;whiteSpace=wrap;html=1;" value="¿Qr en lista?" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-395" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rhombus;whiteSpace=wrap;html=1;" value="¿QR valido y reserva activa en ventana?" vertex="1">
           <mxGeometry height="130" width="140" x="45" y="280" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-396" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-387" source="mbbaPgOEDHlnAN8qxBe8-397" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-402">
@@ -1518,13 +1518,13 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-402" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rhombus;whiteSpace=wrap;html=1;" value="¿Validad otro codigo qr ?" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-402" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rhombus;whiteSpace=wrap;html=1;" value="¿Validar otro codigo QR?" vertex="1">
           <mxGeometry height="120" width="107.5" x="61" y="560" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-403" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-387" source="mbbaPgOEDHlnAN8qxBe8-404" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-405">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-404" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rounded=1;whiteSpace=wrap;html=1;" value="Ir sitio web empleado" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-404" parent="mbbaPgOEDHlnAN8qxBe8-387" style="rounded=1;whiteSpace=wrap;html=1;" value="Ir a sitio web administrador" vertex="1">
           <mxGeometry height="60" width="120" x="55" y="730" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-405" parent="mbbaPgOEDHlnAN8qxBe8-387" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
@@ -1573,7 +1573,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-415" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-406" source="mbbaPgOEDHlnAN8qxBe8-416" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-418">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-416" parent="mbbaPgOEDHlnAN8qxBe8-406" style="rhombus;whiteSpace=wrap;html=1;" value="¿Error ingreso de datos?" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-416" parent="mbbaPgOEDHlnAN8qxBe8-406" style="rhombus;whiteSpace=wrap;html=1;" value="¿Datos de cuenta validos?" vertex="1">
           <mxGeometry height="130" width="130" x="245" y="285" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-417" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-406" source="mbbaPgOEDHlnAN8qxBe8-418" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="mbbaPgOEDHlnAN8qxBe8-422">
@@ -1636,7 +1636,7 @@
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-433" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-406" source="mbbaPgOEDHlnAN8qxBe8-434" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="mbbaPgOEDHlnAN8qxBe8-436">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="mbbaPgOEDHlnAN8qxBe8-434" parent="mbbaPgOEDHlnAN8qxBe8-406" style="rhombus;whiteSpace=wrap;html=1;" value="¿Desea eliminar empleaddo?" vertex="1">
+        <mxCell id="mbbaPgOEDHlnAN8qxBe8-434" parent="mbbaPgOEDHlnAN8qxBe8-406" style="rhombus;whiteSpace=wrap;html=1;" value="¿Desea eliminar empleado?" vertex="1">
           <mxGeometry height="120" width="125" x="700" y="215" as="geometry" />
         </mxCell>
         <mxCell id="mbbaPgOEDHlnAN8qxBe8-435" edge="1" parent="mbbaPgOEDHlnAN8qxBe8-406" source="mbbaPgOEDHlnAN8qxBe8-436" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="mbbaPgOEDHlnAN8qxBe8-430">
