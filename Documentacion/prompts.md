@@ -484,3 +484,44 @@ Instrucciones:
 ## Instrucciones: 
 - Calendario de disponibilidad el empleado puede reservarse asi mismo.
 - En verificar clientes la tabla el diseño es un poco tosco, toma mucho espacio de ancho y se ve mal visualmente porque todos no esta en ese tipo de anchura los demás.
+
+# Arreglar errores y mejorar funcionalidades
+Eres un senior backend developer de nodejs.
+
+Tarea: Tomar en cuenta las instrucciones para mejorar el manejo de la app, dando restricciones de mal uso.
+
+Instrucciones:
+- Leer el archivo contexto.md.
+- A la hora de un cliente hacer una reserva solo sea de 1 por servicio, si hay muchos servicios el cliente puede pedir uno de cada uno solo 1 vez a menos que borre su reserva, pero puede hacer cupo de 5 personas maximo (Grupo familiar)
+- Un cliente por ejemplo son las 20:00 y quiere hacer una reserva a las 21:00 y esta disponible se pueda reservar, antes de tiempo no se podra hacer la reserva, debe hacer un mensaje de "Fuera de tiempo".
+- El empleado puede sancionar clientes que hacen mal uso de la aplicación, cree una nueva pestaña para el empleado y administrador para bloquear a cliente que haga mal uso de la app con spam, la tabla sea responsive como las que estan disponibles tomando en cuenta.
+
+## Instrucciones:
+- El boton de de sancionar cliente no sé ve visible.
+- Un cliente al elegir un día del calendario siempre da fuera de tiempo, a lo que me refiero antes de la hora real por ejemplo son las 20:00 horas, un cliente quiere hacer una reserva de las para 20:30 no se va poder por el tiempo corto que el cliente cumpla para llegar al local no después de tiempo.
+
+Reglas: 
+- Hacer un chequeo de todo el backen que funcione bien según lo establecido.
+
+## Instrucciones:
+- El empleado no tiene "El servicio excede la jornada laboral del peluquero" a menos que el empleado coloque el horario del día que ya debería estar establecido, ya que es un problema que en la tabla del cliente se vea disponible y a la hora de reservar da mensaje de "El servicio excede la jornada laboral del peluquero".
+
+Reglas: 
+- Hacer un chequeo de todo el backen que funcione bien según lo establecido.
+
+## instrucciones:
+- Leer el archivo contexto.md.
+- El empleado no tiene "El horario seleccionado esta fuera de la jornada del peluquero" a menos que el empleado lo coloque por él, quite ese "El horario seleccionado esta fuera de la jornada del peluquero" de bloqueo a todos los empleados, solo se pueden hacer reservas lo que esta en la tabla dada y el empleado hace que día trabajar, la tabla se va ver reflejado que día y horario el empleado va ir a trabajar he estar disponible.
+
+## Instrucciones:
+- En "ver mis reservas" en clientes al eliminar una reserva la reserva eliminada no se deba ver, se borra para siempre y no queda un mensaje de reserva borrada, solo se ven las reservas activas.
+
+# Prompt con nuevas reglas en archivo contexto.md
+Eres un senior backend developer de nodejs.
+
+Tarea: Tomar en cuenta las instrucciones para mejorar el manejo de la app, dando restricciones de mal uso.
+
+Instrucciones:
+- Leer el archivo contexto.md.
+- En "ver mis reservas" en clientes al eliminar una reserva la reserva eliminada no se deba ver, se borra para siempre y no queda un mensaje de reserva borrada, solo se ven las reservas activas.
+- Un empleado colocar un día no trabajar hay un error que no deja hacer una reserva un día antes de ese día no trabajar para un cliente hacer la reserva.
