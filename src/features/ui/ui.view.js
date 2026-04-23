@@ -302,12 +302,10 @@ function clientCalendarView() {
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
     <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
-      <button id="downloadQrBtn" class="btn ghost block hidden" type="button">Descargar QR</button>
     <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
     <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a iniciar sesion</a>
 
     <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
-    <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
   </aside>
 </main>
 
