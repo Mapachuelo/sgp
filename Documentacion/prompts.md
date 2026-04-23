@@ -540,3 +540,22 @@ Tarea: Lee todo el funcionamiento del backende, lo analizas y lo que tienes va e
 Instrucciones: 
 - Leer el archivo contexto.md.
 - Leer los archivos de la carpeta Documentacion y editar si es necesario.
+
+# Cambio de boton reserva
+Eres un senior frontend developer.
+
+Tarea: Mejorar el diseño de la pagina web de los archivos css, aprovechando el espacio disponible y no dejando tanto espacios vacios.
+
+Instrucciones:
+- Leer el archivo contexto.md.
+- Un cliente al hacer una reserva le dan un qr, eso esta bien, no cambie eso, lo que requiero en vez de eso en vez de mostrar el codigo qr se quede en un boton dentro de reservas, dentro de las reservas el boton tenga un hamburguer que tenga de primero descargar codigo qr, el otro de mostrar el codigo qr para el ingreso y de ultimo sea eliminar reserva pero al dar click da un mensaje de "Estas seguro de borrar la reserva" y si el cliente quiere sí lo borra si no no lo devuelve a la parte de reservas.
+
+## Instrucciones:
+- El diseño de las reservas implementadas debe ser responsive según los diseño del css de los tamaños dados.
+- El boton de cerrar en reservas no se ve, no tiene visibilidad con los demás.
+
+## Instrucciones: 
+- En ventana completa de computador se ve una parte entrecortada, quiero que se vea todas las opciones para un manejo visual adecuado.
+
+##  Instrucciones: 
+ - El diseño no es visualmente agradable, no se debe expandir mucho, que se expanda un poquiero para mostar el boton de borrar pero no todo el lugar que esta.
