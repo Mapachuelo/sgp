@@ -559,3 +559,35 @@ Instrucciones:
 
 ##  Instrucciones: 
  - El diseño no es visualmente agradable, no se debe expandir mucho, que se expanda un poquiero para mostar el boton de borrar pero no todo el lugar que esta.
+
+# 
+Actúa como un Senior Backend Developer (Node.js) experto en arquitectura de sistemas y diseño de APIs robustas.
+
+Contexto del Proyecto:
+Estoy trabajando en un sistema de gestión de reservas. El archivo contexto.md contiene la estructura actual del proyecto. Tu objetivo es refactorizar la lógica de negocio y añadir validaciones para evitar inconsistencias y mal uso del sistema.
+
+Instrucciones:
+- Leer el documento contexto.md para meyor entendimiento de la base del proyecto.
+
+Tareas y Reglas de Negocio a Implementar:
+
+- Conflictos de Disponibilidad: Si un empleado marca un día como "No laborable", el sistema debe identificar automáticamente todas las reservas activas de ese día y cambiar su estado a CANCELADA_POR_EMPLEADO.
+
+- Trazabilidad de Reservas: Al crear un pedido (order/booking), es obligatorio vincular el ID del empleado seleccionado. El cliente debe poder visualizar claramente con qué profesional realizó la reserva.
+
+- Gestión de Cancelaciones: Implementar una distinción de estados. Si el usuario cancela su propia cita, el estado debe actualizarse específicamente a CANCELADA_POR_CLIENTE.
+
+- Integridad de Datos (Bug Fix): Resolver el error de duplicidad en los listados de reservas. Asegúrate de que las consultas (queries) utilicen identificadores únicos y filtros adecuados.
+
+- Ciclo de Vida y Limpieza de Reservas:
+
+- Reservas Expiradas: Si la fecha ya pasó y no se marcó como completada, mostrar el estado como "Servicio atrasado/tardado".
+
+- Sincronización: El Administrador y el Empleado deben ver la lista de inasistencias.
+
+- Vista del Cliente: Las reservas finalizadas o canceladas deben desaparecer de la vista del cliente tras 7 días para mantener la interfaz limpia.
+
+- Hard Delete: Las reservas marcadas como "Borradas" o "Inactivas" deben ser filtradas permanentemente de la respuesta de la API para el rol de cliente.
+
+Entregable:
+Proporciona el código en Node.js (puedes usar Express/Fastify según el contexto) y las actualizaciones necesarias en los esquemas de base de datos o controladores. Explica brevemente por qué elegiste esa solución para evitar el mal uso.
