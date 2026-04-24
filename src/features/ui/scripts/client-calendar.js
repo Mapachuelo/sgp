@@ -36,6 +36,7 @@
     serviceDurationByNameAndStylist: {},
     reservationQrById: {},
     myReservations: [],
+    myReservationsLoadVersion: 0,
     viewportConfig: {
       dayCount: FULL_DAY_COUNT,
       startHour: FULL_START_HOUR,
@@ -1194,6 +1195,9 @@
   }
 
   async function loadMyReservations() {
+    const loadVersion = state.myReservationsLoadVersion + 1;
+    state.myReservationsLoadVersion = loadVersion;
+
     const list = byId("myReservationsList");
     if (!list) {
       return;
@@ -1219,11 +1223,32 @@
 
     try {
       const payload = await callApi("/api/reservations/me", "GET");
+      if (loadVersion !== state.myReservationsLoadVersion) {
+        return;
+      }
+
       const reservations = (payload.data || []).filter(function (reservation) {
         return reservation && reservation.status;
       });
+
+      const seenReservations = new Set();
+      const uniqueReservations = reservations.filter(function (reservation) {
+        const reservationId = Number(reservation && reservation.id);
+        if (!Number.isInteger(reservationId) || reservationId <= 0) {
+          return true;
+        }
+
+        const key = String(reservationId);
+        if (seenReservations.has(key)) {
+          return false;
+        }
+
+        seenReservations.add(key);
+        return true;
+      });
+
       const hiddenIds = getHiddenReservationIds();
-      const visibleReservations = reservations.filter(function (reservation) {
+      const visibleReservations = uniqueReservations.filter(function (reservation) {
         const reservationId = Number(reservation && reservation.id);
         if (!Number.isInteger(reservationId) || reservationId <= 0) {
           return true;
@@ -1380,6 +1405,10 @@
         list.appendChild(item);
       });
     } catch (error) {
+      if (loadVersion !== state.myReservationsLoadVersion) {
+        return;
+      }
+
       updatePurgeReservationsButton();
       const item = document.createElement("li");
       item.textContent = error.message;
