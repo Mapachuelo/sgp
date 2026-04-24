@@ -80,8 +80,11 @@ El SGP es un **producto independiente** desplegable con Docker (app + PostgreSQL
 - *(Eliminado: La pasarela de pagos aceptará tarjetas Visa/MasterCard/PayPal)*
 
 ### 2.6 Evolución Previsible  
-1. Integración con sistemas de fidelización (puntos y recompensas).
-2. Módulo móvil nativo para iOS/Android.
+1. Módulo móvil nativo para iOS/Android.
+2. Módulo de pago online.
+3. Módulo de descripción de bloqueo de cuenta.
+4. Restricciones de módulos a empleados especificos.
+5. Mejorar una busqueda de empleados y clientes (Cuando hay muchos clientes y empleados).
 
 ---
 
