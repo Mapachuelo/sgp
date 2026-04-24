@@ -591,3 +591,32 @@ Tareas y Reglas de Negocio a Implementar:
 
 Entregable:
 Proporciona el código en Node.js (puedes usar Express/Fastify según el contexto) y las actualizaciones necesarias en los esquemas de base de datos o controladores. Explica brevemente por qué elegiste esa solución para evitar el mal uso.
+
+# Diseño de reservas 
+Actúa como un Senior de frontend Developer experto en css y en diseño web.
+
+Tarea: Tu objetivo es leer ciertos archivos asignados de una guía de como llevar el diseño para la pagina web y sea más intuitiva para los clientes.
+
+Instrucciones:
+- Leer el documento contexto.md.
+- En la parte de reservas de un cliente, al lado de cerrar la ventana haya un boton de borrar, cuya función es borrar todas las reservas que fueron canceladas por el empleado, el cliente y servicio tardado o atrasado. memos a las reservas activas.
+
+## Instrucciones:
+- Con el cambio de boton borrar listas anteriores no funciona, sale siempre "Se borraron 0 reservas y 3 no pudieron eliminarse.", ten en cuenta toda la estructura del backend para no destruirlo.
+- El diseño de reserva cuando hay muchas reservas la ventana sube y no se ve nada la parte superior, hacer lo mismo que hace la lista del calendario, tomar en cuenta su función de tener un escroll para bajar y la lista no sea tan larga para buscarla, el diseño debe ser responsive acuerdo que esta en el css.
+
+## Instrucciones:
+- Hay un error cuando el cliente ve por primera vez las reservas se ven duplicadas y al momento de salir he volver a entrar se arregla ¿Puede buscar la causante y comprobarlo si se arregla ? Ten en cuenta el backend que no se dañe lo demás.
+
+## Instrucciones:
+- El diseño al abrir la pestaba hamburguer en reservas se ve por debajo del exterior de la ventana flotante,  quiero que este arriba de todo y no se vea tapado, cuando el disño esta responsivo pequeño al abrir el hamburguer sea un menu de opciones y no una ventana que se despliega. Ten en cuenta que la ventana es flotante y fija en eso, el boton debe verse fuera de la ventana.
+
+## Instrucciones:
+- El diseño responsive de celular funciona pero no se ve bien las lineas de los lados.
+- En pantalla para computador no ha cambiado nada, lo de atras se sobre pone al diseño que estoy pidiendo.
+
+## Instrucciones:
+- funciona el boton para dispositivo celular, el problema es de la pantalla grande, cambiaremos eso, en vez que el menu este de lado este en la izquiera para aprovechar el espacio ?.
+
+## Instrucciones:
+- Cuando el administrador coloque un día completo de no trabajo se vea reflejado en el calendario de los empleados en verificar clientes.
