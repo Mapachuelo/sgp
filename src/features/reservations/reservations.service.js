@@ -27,7 +27,8 @@ const {
   saveEmployeeServiceTimes,
   countActiveReservationsByClientAndService,
   findClientReservationById,
-  cancelReservationByClient
+  cancelReservationByClient,
+  cancelReservationsByDate
 } = require("./reservations.model");
 
 const DEFAULT_START = "06:00";
@@ -39,6 +40,7 @@ const MAX_SERVICE_DURATION_MINUTES = 280;
 const MIN_LEAD_TIME_MINUTES = 60;
 const MIN_CLIENT_COUNT_PER_RESERVATION = 1;
 const MAX_CLIENT_COUNT_PER_RESERVATION = 5;
+const CLIENT_HISTORY_RETENTION_DAYS = 7;
 const APP_TIME_ZONE = env.appTimezone || "America/Bogota";
 
 function getDateTimePartsInTimeZone(date, timeZone) {
@@ -99,6 +101,97 @@ function toTimeKeyFromDate(date) {
 
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60000);
+}
+
+function getReservationAgeMs(reservation) {
+  const startsAt = new Date(reservation && reservation.starts_at);
+  if (Number.isNaN(startsAt.getTime())) {
+    return null;
+  }
+
+  return Date.now() - startsAt.getTime();
+}
+
+function isPastDueReservation(reservation) {
+  const ageMs = getReservationAgeMs(reservation);
+  const status = String(reservation && reservation.status || "");
+
+  return ageMs !== null && ageMs > 0 && status !== "cancelled";
+}
+
+function getReservationStatusLabel(reservation) {
+  if (!reservation) {
+    return "Desconocido";
+  }
+
+  const status = String(reservation.status || "");
+  const cancelledBy = String(reservation.cancelled_by_role || "");
+
+  if (status === "cancelled") {
+    if (cancelledBy === "employee" || cancelledBy === "empleado" || cancelledBy === "admin") {
+      return "Cancelada por empleado";
+    }
+
+    return "Cancelada por cliente";
+  }
+
+  if (isPastDueReservation(reservation)) {
+    return "Servicio atrasado/tardado";
+  }
+
+  if (status === "checked_in") {
+    return "Ingreso validado";
+  }
+
+  return "Reserva activa";
+}
+
+function isVisibleToClient(reservation) {
+  const status = String((reservation && reservation.status) || "");
+  if (!status) {
+    return false;
+  }
+
+  const ageMs = getReservationAgeMs(reservation);
+  if (ageMs === null) {
+    return false;
+  }
+
+  if (status === "booked" || status === "checked_in" || status === "cancelled") {
+    return ageMs <= CLIENT_HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  }
+
+  return false;
+}
+
+function decorateReservation(reservation) {
+  if (!reservation) {
+    return reservation;
+  }
+
+  return {
+    ...reservation,
+    is_inasistencia: isPastDueReservation(reservation),
+    status_label: getReservationStatusLabel(reservation),
+    status_code: String(reservation.status || "").toUpperCase()
+  };
+}
+
+function dedupeReservationsById(reservations) {
+  const seen = new Map();
+
+  (reservations || []).forEach(function (reservation) {
+    const id = Number(reservation && reservation.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return;
+    }
+
+    if (!seen.has(id)) {
+      seen.set(id, reservation);
+    }
+  });
+
+  return Array.from(seen.values());
 }
 
 function isRangeOverlapping(startA, endA, startB, endB) {
@@ -596,7 +689,7 @@ async function reserveAppointment(clientId, input) {
   });
 
   const dateKey = toDateKeyFromDate(startsAt);
-  const reservationsOfDate = await listReservedByDate(dateKey);
+  const reservationsOfDate = dedupeReservationsById(await listReservedByDate(dateKey));
   const durationMapCache = {};
 
   const selection = await resolveStylistSelection(
@@ -629,7 +722,7 @@ async function reserveAppointment(clientId, input) {
   broadcast("availability.updated", { date: dateKey, reservedSlots: availability });
 
   return {
-    ...reservation,
+    ...decorateReservation(reservation),
     duration_minutes: selection.durationMinutes,
     ends_at: selection.endsAt.toISOString()
   };
@@ -637,11 +730,21 @@ async function reserveAppointment(clientId, input) {
 
 async function getMyReservations(clientId) {
   const reservations = await listReservationsByClient(clientId);
-  const activeReservations = (reservations || []).filter(function (reservation) {
-    return reservation.status === "booked";
+  const visibleReservations = dedupeReservationsById(reservations).filter(function (reservation) {
+    return isVisibleToClient(reservation);
   });
 
-  return enrichReservationsWithDuration(activeReservations);
+  const enriched = await enrichReservationsWithDuration(visibleReservations);
+
+  return enriched.map(function (reservation) {
+    const decorated = decorateReservation(reservation);
+
+    if (decorated.status !== "booked") {
+      delete decorated.qr_data_url;
+    }
+
+    return decorated;
+  });
 }
 
 async function getAllReservations(authUser) {
@@ -655,11 +758,11 @@ async function getAllReservations(authUser) {
     reservations = await listAllReservations();
   }
 
-  const enriched = await enrichReservationsWithDuration(reservations);
+  const enriched = await enrichReservationsWithDuration(dedupeReservationsById(reservations));
 
   return enriched.map(function (reservation) {
     const sanitized = {
-      ...reservation
+      ...decorateReservation(reservation)
     };
 
     delete sanitized.qr_data_url;
@@ -687,12 +790,12 @@ async function cancelMyReservation(clientId, reservationIdInput) {
   const availability = await getAvailabilityByDate(reservationDate);
   broadcast("availability.updated", { date: reservationDate, reservedSlots: availability });
 
-  return cancelled;
+  return decorateReservation(cancelled);
 }
 
 async function getAvailabilityByDate(dateText) {
   const date = normalizeDateText(dateText, "date");
-  const reservations = await listReservedByDate(date);
+  const reservations = dedupeReservationsById(await listReservedByDate(date));
 
   if (!reservations || reservations.length === 0) {
     return [];
@@ -830,6 +933,23 @@ async function saveWorkSchedule(entriesInput, authUser) {
     await upsertWorkSchedule(normalized, authUser.sub);
   } else {
     await upsertEmployeeWorkSchedule(normalized, authUser.sub, authUser.sub);
+  }
+
+  const offDayEntries = normalized.filter(function (entry) {
+    return entry.offDay;
+  });
+
+  for (const entry of offDayEntries) {
+    await cancelReservationsByDate({
+      dateText: entry.date,
+      cancelledByRole: authUser.role === "admin" ? "employee" : "employee",
+      cancelledByUserId: authUser.sub,
+      stylistId: authUser.role === "admin" ? null : authUser.sub,
+      stylistName: authUser.role === "admin" ? null : String(authUser.name || "")
+    });
+
+    const availability = await getAvailabilityByDate(entry.date);
+    broadcast("availability.updated", { date: entry.date, reservedSlots: availability });
   }
 
   return normalized;

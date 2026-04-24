@@ -23,8 +23,12 @@ CREATE TABLE IF NOT EXISTS reservation (
   qr_token UUID NOT NULL UNIQUE,
   qr_data_url TEXT NOT NULL,
   status VARCHAR(20) NOT NULL CHECK (status IN ('booked', 'checked_in', 'cancelled')) DEFAULT 'booked',
+  cancelled_at TIMESTAMPTZ,
+  cancelled_by_role VARCHAR(20),
+  cancelled_by_user_id INT REFERENCES app_user(id) ON DELETE SET NULL,
   checked_in_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS payment (
@@ -56,6 +60,8 @@ CREATE TABLE IF NOT EXISTS employee_service_time (
 CREATE INDEX IF NOT EXISTS idx_reservation_starts_at ON reservation(starts_at);
 CREATE INDEX IF NOT EXISTS idx_reservation_client_id ON reservation(client_id);
 CREATE INDEX IF NOT EXISTS idx_reservation_stylist_id ON reservation(stylist_id);
+CREATE INDEX IF NOT EXISTS idx_reservation_status ON reservation(status);
+CREATE INDEX IF NOT EXISTS idx_reservation_starts_at_status ON reservation(starts_at, status);
 CREATE INDEX IF NOT EXISTS idx_payment_paid_at ON payment(paid_at);
 CREATE INDEX IF NOT EXISTS idx_app_user_client_blocked ON app_user(role, is_blocked);
 

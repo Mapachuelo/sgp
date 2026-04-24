@@ -1122,11 +1122,13 @@
     try {
       const payload = await callApi("/api/reservations/me", "GET");
       const reservations = (payload.data || []).filter(function (reservation) {
-        return reservation && reservation.status === "booked";
+        return reservation && reservation.status;
       });
       state.reservationQrById = {};
 
-      const activeReservations = reservations.length;
+      const activeReservations = reservations.filter(function (reservation) {
+        return reservation.status === "booked";
+      }).length;
 
       setFeedback(
         "Reservas activas: " + String(activeReservations) + ". Solo una activa por servicio.",
@@ -1158,11 +1160,15 @@
         head.className = "reservation-head";
 
         const status = document.createElement("span");
-        status.className = "reservation-state active";
-        status.textContent = "Activa";
+        status.className =
+          "reservation-state " + (reservation.status === "cancelled" ? "inactive" : "active");
+        status.textContent = reservation.status_label || "Activa";
 
         const menuWrap = document.createElement("div");
         menuWrap.className = "reservation-menu-wrap";
+        if (reservation.status !== "booked") {
+          menuWrap.classList.add("hidden");
+        }
 
         const menuToggle = document.createElement("button");
         menuToggle.type = "button";
