@@ -85,6 +85,7 @@ El SGP es un **producto independiente** desplegable con Docker (app + PostgreSQL
 3. Módulo de descripción de bloqueo de cuenta.
 4. Restricciones de módulos a empleados especificos.
 5. Mejorar una busqueda de empleados y clientes (Cuando hay muchos clientes y empleados).
+6. Mensaje a whatsapp para los clientes con sus reservas.
 
 ---
 
