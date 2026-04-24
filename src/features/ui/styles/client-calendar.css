@@ -488,6 +488,8 @@ thead th {
 .reservation-item {
   display: grid;
   gap: 0.55rem;
+  position: relative;
+  overflow: visible;
 }
 
 .reservation-card {
@@ -496,6 +498,8 @@ thead th {
   background: var(--ivory-dk);
   padding: 0.9rem;
   transition: var(--transition);
+  position: relative;
+  overflow: visible;
 }
 
 .reservation-card:hover {
@@ -507,6 +511,8 @@ thead th {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+  position: relative;
+  overflow: visible;
 }
 
 .reservation-main {
@@ -596,7 +602,7 @@ thead th {
   border-radius: 12px;
   box-shadow: 0 14px 30px rgba(61,61,61,0.16);
   padding: 0.44rem;
-  z-index: 20;
+  z-index: 3000;
   display: grid;
   gap: 0.32rem;
 }
@@ -670,7 +676,7 @@ thead th {
   justify-content: center;
   overflow-y: auto;
   padding: 2rem 1rem;
-  z-index: 30;
+  z-index: 1300;
   animation: fadeIn 0.25s ease;
 }
 
@@ -811,16 +817,18 @@ thead th {
   padding-left: 0;
   max-height: calc(78vh - 90px);
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: visible;
   padding-right: 0.2rem;
 }
 
 .reservations-modal-card {
   width: min(920px, 96vw);
   max-height: min(82vh, 760px);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
+  position: relative;
+  isolation: isolate;
 }
 
 .reservations-modal-card .modal-head h3 {
@@ -999,17 +1007,6 @@ pre {
     display: none;
   }
 
-
-@media (max-width: 767px) {
-  .reservations-modal-card {
-    max-height: 88vh;
-    width: min(96vw, 720px);
-  }
-
-  .reservations-modal-card .reservations-list {
-    max-height: calc(84vh - 108px);
-  }
-}
   .topbar-actions {
     display: flex;
     width: auto;
@@ -1039,6 +1036,49 @@ pre {
   th,
   td {
     white-space: nowrap;
+  }
+}
+
+@media (max-width: 767px) {
+  .reservations-modal-card {
+    max-height: 88vh;
+    width: min(96vw, 720px);
+  }
+
+  .reservations-modal-card .reservations-list {
+    max-height: calc(84vh - 108px);
+  }
+
+  .reservation-menu-wrap {
+    width: 100%;
+    position: static;
+  }
+
+  .reservation-menu-toggle {
+    width: 100%;
+    justify-content: space-between;
+    border-radius: var(--radius-sm);
+  }
+
+  .reservation-actions-menu {
+    position: static;
+    right: auto;
+    top: auto;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(201,185,168,0.6);
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+    background: var(--ivory);
+    padding: 0.36rem;
+    margin-top: 0.45rem;
+    z-index: 1;
+  }
+
+  .reservation-action-btn {
+    border: 1px solid rgba(201,185,168,0.55);
+    border-radius: 8px;
+    background: #fff;
   }
 }
 
