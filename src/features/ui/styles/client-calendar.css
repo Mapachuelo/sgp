@@ -985,8 +985,8 @@ pre {
 
   .reservation-actions-menu {
     position: absolute;
-    right: 0;
-    top: calc(100% + 0.28rem);
+    right: calc(100% + 0.4rem);
+    top: 0;
     min-width: 228px;
     width: max-content;
     max-width: min(320px, calc(100vw - 4rem));
