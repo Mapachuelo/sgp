@@ -14,6 +14,7 @@
       ? "/ui/login"
       : "/ui/login";
   const ANY_STYLIST_VALUE = "__any__";
+  const HIDDEN_CLIENT_RESERVATIONS_PREFIX = "sgp_hidden_client_reservations_";
   const FULL_START_HOUR = 6;
   const FULL_END_HOUR = 22;
   const FULL_DAY_COUNT = 7;
@@ -34,6 +35,8 @@
     serviceDurationByName: {},
     serviceDurationByNameAndStylist: {},
     reservationQrById: {},
+    myReservations: [],
+    myReservationsLoadVersion: 0,
     viewportConfig: {
       dayCount: FULL_DAY_COUNT,
       startHour: FULL_START_HOUR,
@@ -67,6 +70,67 @@
 
   function getToken() {
     return localStorage.getItem(TOKEN_KEY) || "";
+  }
+
+  function getHiddenReservationsStorageKey() {
+    const clientId = Number(state.currentUser && state.currentUser.id);
+    if (Number.isInteger(clientId) && clientId > 0) {
+      return HIDDEN_CLIENT_RESERVATIONS_PREFIX + String(clientId);
+    }
+
+    const token = getToken();
+    if (!token) {
+      return HIDDEN_CLIENT_RESERVATIONS_PREFIX + "guest";
+    }
+
+    return HIDDEN_CLIENT_RESERVATIONS_PREFIX + token.slice(0, 24);
+  }
+
+  function getHiddenReservationIds() {
+    const key = getHiddenReservationsStorageKey();
+    const raw = localStorage.getItem(key);
+
+    if (!raw) {
+      return new Set();
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return new Set();
+      }
+
+      return new Set(
+        parsed
+          .map(function (value) {
+            return String(value || "").trim();
+          })
+          .filter(Boolean)
+      );
+    } catch (_error) {
+      return new Set();
+    }
+  }
+
+  function saveHiddenReservationIds(hiddenIds) {
+    const key = getHiddenReservationsStorageKey();
+    const values = Array.from(hiddenIds.values());
+    localStorage.setItem(key, JSON.stringify(values));
+  }
+
+  function hideReservationsInHistory(reservations) {
+    const hiddenIds = getHiddenReservationIds();
+
+    (reservations || []).forEach(function (reservation) {
+      const reservationId = Number(reservation && reservation.id);
+      if (!Number.isInteger(reservationId) || reservationId <= 0) {
+        return;
+      }
+
+      hiddenIds.add(String(reservationId));
+    });
+
+    saveHiddenReservationIds(hiddenIds);
   }
 
   function clearToken() {
@@ -613,6 +677,39 @@
     });
   }
 
+  function isReservationRemovable(reservation) {
+    if (!reservation) {
+      return false;
+    }
+
+    const status = String(reservation.status || "").toLowerCase();
+    const isLateService = Boolean(reservation.is_inasistencia);
+
+    if (status === "cancelled") {
+      return true;
+    }
+
+    if (isLateService) {
+      return true;
+    }
+
+    const statusLabel = String(reservation.status_label || "").toLowerCase();
+    return statusLabel.includes("atrasado") || statusLabel.includes("tardado");
+  }
+
+  function updatePurgeReservationsButton() {
+    const button = byId("purgeMyReservationsBtn");
+    if (!button) {
+      return;
+    }
+
+    const removableCount = (state.myReservations || []).filter(isReservationRemovable).length;
+    button.disabled = removableCount === 0;
+    button.textContent = removableCount > 0
+      ? "Borrar canceladas/tardadas (" + String(removableCount) + ")"
+      : "Borrar canceladas/tardadas";
+  }
+
   function downloadReservationQr(reservationId) {
     const parsedId = Number(reservationId);
     if (!Number.isInteger(parsedId) || parsedId <= 0) {
@@ -1098,12 +1195,17 @@
   }
 
   async function loadMyReservations() {
+    const loadVersion = state.myReservationsLoadVersion + 1;
+    state.myReservationsLoadVersion = loadVersion;
+
     const list = byId("myReservationsList");
     if (!list) {
       return;
     }
 
     list.innerHTML = "";
+    state.myReservations = [];
+    updatePurgeReservationsButton();
 
     if (!isClientContext) {
       const item = document.createElement("li");
@@ -1121,26 +1223,61 @@
 
     try {
       const payload = await callApi("/api/reservations/me", "GET");
-      const reservations = (payload.data || []).filter(function (reservation) {
-        return reservation && reservation.status === "booked";
-      });
-      state.reservationQrById = {};
+      if (loadVersion !== state.myReservationsLoadVersion) {
+        return;
+      }
 
-      const activeReservations = reservations.length;
+      const reservations = (payload.data || []).filter(function (reservation) {
+        return reservation && reservation.status;
+      });
+
+      const seenReservations = new Set();
+      const uniqueReservations = reservations.filter(function (reservation) {
+        const reservationId = Number(reservation && reservation.id);
+        if (!Number.isInteger(reservationId) || reservationId <= 0) {
+          return true;
+        }
+
+        const key = String(reservationId);
+        if (seenReservations.has(key)) {
+          return false;
+        }
+
+        seenReservations.add(key);
+        return true;
+      });
+
+      const hiddenIds = getHiddenReservationIds();
+      const visibleReservations = uniqueReservations.filter(function (reservation) {
+        const reservationId = Number(reservation && reservation.id);
+        if (!Number.isInteger(reservationId) || reservationId <= 0) {
+          return true;
+        }
+
+        return !hiddenIds.has(String(reservationId));
+      });
+
+      state.myReservations = visibleReservations;
+      state.reservationQrById = {};
+      updatePurgeReservationsButton();
+
+      const activeReservations = visibleReservations.filter(function (reservation) {
+        return reservation.status === "booked";
+      }).length;
 
       setFeedback(
         "Reservas activas: " + String(activeReservations) + ". Solo una activa por servicio.",
         "info"
       );
 
-      if (reservations.length === 0) {
+      if (visibleReservations.length === 0) {
         const item = document.createElement("li");
-        item.textContent = "No tienes reservas registradas.";
+        item.textContent = "No tienes reservas visibles.";
         list.appendChild(item);
         return;
       }
 
-      reservations.forEach(function (reservation) {
+      visibleReservations.forEach(function (reservation) {
         const reservationId = Number(reservation.id);
         if (!Number.isInteger(reservationId) || reservationId <= 0) {
           return;
@@ -1158,11 +1295,15 @@
         head.className = "reservation-head";
 
         const status = document.createElement("span");
-        status.className = "reservation-state active";
-        status.textContent = "Activa";
+        status.className =
+          "reservation-state " + (reservation.status === "cancelled" ? "inactive" : "active");
+        status.textContent = reservation.status_label || "Activa";
 
         const menuWrap = document.createElement("div");
         menuWrap.className = "reservation-menu-wrap";
+        if (reservation.status !== "booked") {
+          menuWrap.classList.add("hidden");
+        }
 
         const menuToggle = document.createElement("button");
         menuToggle.type = "button";
@@ -1264,6 +1405,11 @@
         list.appendChild(item);
       });
     } catch (error) {
+      if (loadVersion !== state.myReservationsLoadVersion) {
+        return;
+      }
+
+      updatePurgeReservationsButton();
       const item = document.createElement("li");
       item.textContent = error.message;
       list.appendChild(item);
@@ -1318,6 +1464,41 @@
     }
   }
 
+  async function purgeRemovableReservations() {
+    if (!isClientContext) {
+      return;
+    }
+
+    if (!getToken()) {
+      setFeedback("Debes iniciar sesion para borrar reservas canceladas o tardadas.", "warn");
+      return;
+    }
+
+    const removableReservations = (state.myReservations || []).filter(isReservationRemovable);
+    if (removableReservations.length === 0) {
+      setFeedback("No hay reservas canceladas o tardadas para borrar.", "info");
+      return;
+    }
+
+    const accepted = window.confirm(
+      "Se borraran " +
+        String(removableReservations.length) +
+        " reservas canceladas/tardadas. Las reservas activas no se eliminaran."
+    );
+    if (!accepted) {
+      return;
+    }
+
+    hideReservationsInHistory(removableReservations);
+    await loadMyReservations();
+    setFeedback(
+      "Se limpiaron " +
+        String(removableReservations.length) +
+        " reservas canceladas/tardadas de tu lista.",
+      "ok"
+    );
+  }
+
   byId("calendarBody").addEventListener("click", function (event) {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement)) {
@@ -1370,6 +1551,12 @@
   const closeReservationsModalBtn = byId("closeMyReservationsModalBtn");
   if (closeReservationsModalBtn) {
     closeReservationsModalBtn.addEventListener("click", closeMyReservationsModal);
+  }
+
+  const purgeReservationsBtn = byId("purgeMyReservationsBtn");
+  if (purgeReservationsBtn) {
+    purgeReservationsBtn.addEventListener("click", purgeRemovableReservations);
+    updatePurgeReservationsButton();
   }
 
   const reservationsModal = byId("myReservationsModal");

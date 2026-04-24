@@ -3,6 +3,61 @@ const { env } = require("../../config/env");
 
 const APP_TIME_ZONE = env.appTimezone || "America/Bogota";
 
+let reservationSchemaReady = null;
+
+async function ensureReservationSchema(queryable = db) {
+  if (queryable !== db) {
+    await ensureReservationStylistIdColumn(queryable);
+    await queryable.query(`
+      ALTER TABLE reservation
+      ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ
+    `);
+    await queryable.query(`
+      ALTER TABLE reservation
+      ADD COLUMN IF NOT EXISTS cancelled_by_role VARCHAR(20)
+    `);
+    await queryable.query(`
+      ALTER TABLE reservation
+      ADD COLUMN IF NOT EXISTS cancelled_by_user_id INT REFERENCES app_user(id) ON DELETE SET NULL
+    `);
+    await queryable.query(`
+      ALTER TABLE reservation
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    `);
+    return;
+  }
+
+  if (!reservationSchemaReady) {
+    reservationSchemaReady = (async function () {
+      await ensureReservationStylistIdColumn();
+      await db.query(`
+        ALTER TABLE reservation
+        ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ
+      `);
+      await db.query(`
+        ALTER TABLE reservation
+        ADD COLUMN IF NOT EXISTS cancelled_by_role VARCHAR(20)
+      `);
+      await db.query(`
+        ALTER TABLE reservation
+        ADD COLUMN IF NOT EXISTS cancelled_by_user_id INT REFERENCES app_user(id) ON DELETE SET NULL
+      `);
+      await db.query(`
+        ALTER TABLE reservation
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      `);
+      await db.query(`
+        CREATE INDEX IF NOT EXISTS idx_reservation_status ON reservation(status)
+      `);
+      await db.query(`
+        CREATE INDEX IF NOT EXISTS idx_reservation_starts_at_status ON reservation(starts_at, status)
+      `);
+    })();
+  }
+
+  return reservationSchemaReady;
+}
+
 async function ensureWorkScheduleTable(queryable = db) {
   await queryable.query(`
     CREATE TABLE IF NOT EXISTS work_schedule (
@@ -80,7 +135,7 @@ async function ensureReservationStylistIdColumn(queryable = db) {
 }
 
 async function createReservation(data) {
-  await ensureReservationStylistIdColumn();
+  await ensureReservationSchema();
 
   const result = await db.query(
     `
@@ -96,7 +151,7 @@ async function createReservation(data) {
         status
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'booked')
-      RETURNING id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, qr_data_url, status, created_at
+      RETURNING id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, qr_data_url, status, cancelled_at, cancelled_by_role, cancelled_by_user_id, checked_in_at, created_at, updated_at
     `,
     [
       data.clientId,
@@ -114,7 +169,7 @@ async function createReservation(data) {
 }
 
 async function findOverlappingReservation({ stylistName, startsAt }) {
-  await ensureReservationStylistIdColumn();
+  await ensureReservationSchema();
 
   const result = await db.query(
     `
@@ -132,7 +187,7 @@ async function findOverlappingReservation({ stylistName, startsAt }) {
 }
 
 async function listReservationsByClient(clientId) {
-  await ensureReservationStylistIdColumn();
+  await ensureReservationSchema();
 
   const result = await db.query(
     `
@@ -148,12 +203,16 @@ async function listReservationsByClient(clientId) {
         r.qr_token,
         r.qr_data_url,
         r.status,
+        r.cancelled_at,
+        r.cancelled_by_role,
+        r.cancelled_by_user_id,
         r.checked_in_at,
-        r.created_at
+        r.created_at,
+        r.updated_at
       FROM reservation r
       JOIN app_user c ON c.id = r.client_id
       WHERE r.client_id = $1
-      ORDER BY r.starts_at DESC
+      ORDER BY r.starts_at DESC, r.id DESC
     `,
     [clientId]
   );
@@ -162,7 +221,7 @@ async function listReservationsByClient(clientId) {
 }
 
 async function listAllReservations() {
-  await ensureReservationStylistIdColumn();
+  await ensureReservationSchema();
 
   const result = await db.query(
     `
@@ -178,11 +237,15 @@ async function listAllReservations() {
         r.qr_token,
         r.qr_data_url,
         r.status,
+        r.cancelled_at,
+        r.cancelled_by_role,
+        r.cancelled_by_user_id,
         r.checked_in_at,
-        r.created_at
+        r.created_at,
+        r.updated_at
       FROM reservation r
       JOIN app_user c ON c.id = r.client_id
-      ORDER BY r.starts_at DESC
+      ORDER BY r.starts_at DESC, r.id DESC
     `
   );
 
@@ -190,7 +253,7 @@ async function listAllReservations() {
 }
 
 async function listReservationsByStylist(stylistId, stylistName) {
-  await ensureReservationStylistIdColumn();
+  await ensureReservationSchema();
 
   const result = await db.query(
     `
@@ -206,13 +269,17 @@ async function listReservationsByStylist(stylistId, stylistName) {
         r.qr_token,
         r.qr_data_url,
         r.status,
+        r.cancelled_at,
+        r.cancelled_by_role,
+        r.cancelled_by_user_id,
         r.checked_in_at,
-        r.created_at
+        r.created_at,
+        r.updated_at
       FROM reservation r
       JOIN app_user c ON c.id = r.client_id
       WHERE r.stylist_id = $1
          OR (r.stylist_id IS NULL AND r.stylist_name = $2)
-      ORDER BY r.starts_at DESC
+      ORDER BY r.starts_at DESC, r.id DESC
     `,
     [stylistId, stylistName]
   );
@@ -221,7 +288,7 @@ async function listReservationsByStylist(stylistId, stylistName) {
 }
 
 async function listReservedByDate(dateText) {
-  await ensureReservationStylistIdColumn();
+  await ensureReservationSchema();
 
   const result = await db.query(
     `
@@ -234,12 +301,15 @@ async function listReservedByDate(dateText) {
         r.stylist_id,
         r.starts_at,
         r.client_count,
-        r.status
+        r.status,
+        r.cancelled_by_role,
+        r.cancelled_at,
+        r.updated_at
       FROM reservation r
       JOIN app_user c ON c.id = r.client_id
       WHERE DATE(r.starts_at AT TIME ZONE $2) = $1
         AND r.status IN ('booked', 'checked_in')
-      ORDER BY r.starts_at ASC
+      ORDER BY r.starts_at ASC, r.id ASC
     `,
     [dateText, APP_TIME_ZONE]
   );
@@ -513,6 +583,8 @@ async function saveEmployeeServiceTimes(employeeId, entries, updatedBy) {
 }
 
 async function countActiveReservationsByClient(clientId) {
+  await ensureReservationSchema();
+
   const result = await db.query(
     `
       SELECT COUNT(*)::INT AS total
@@ -527,6 +599,8 @@ async function countActiveReservationsByClient(clientId) {
 }
 
 async function countActiveReservationsByClientAndService(clientId, serviceName) {
+  await ensureReservationSchema();
+
   const result = await db.query(
     `
       SELECT COUNT(*)::INT AS total
@@ -542,6 +616,8 @@ async function countActiveReservationsByClientAndService(clientId, serviceName) 
 }
 
 async function hasNoShowReservationForClient(clientId) {
+  await ensureReservationSchema();
+
   const result = await db.query(
     `
       SELECT 1
@@ -558,9 +634,11 @@ async function hasNoShowReservationForClient(clientId) {
 }
 
 async function findClientReservationById(reservationId, clientId) {
+  await ensureReservationSchema();
+
   const result = await db.query(
     `
-      SELECT id, client_id, status, starts_at
+      SELECT id, client_id, status, starts_at, cancelled_at, cancelled_by_role, cancelled_by_user_id
       FROM reservation
       WHERE id = $1
         AND client_id = $2
@@ -573,18 +651,51 @@ async function findClientReservationById(reservationId, clientId) {
 }
 
 async function cancelReservationByClient(reservationId, clientId) {
+  await ensureReservationSchema();
+
   const result = await db.query(
     `
-      DELETE FROM reservation
+      UPDATE reservation
+      SET status = 'cancelled',
+          cancelled_by_role = 'client',
+          cancelled_by_user_id = $3,
+          cancelled_at = NOW(),
+          updated_at = NOW()
       WHERE id = $1
         AND client_id = $2
         AND status = 'booked'
-      RETURNING id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, checked_in_at, created_at
+      RETURNING id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, cancelled_at, cancelled_by_role, cancelled_by_user_id, checked_in_at, created_at, updated_at
     `,
-    [reservationId, clientId]
+    [reservationId, clientId, clientId]
   );
 
   return result.rows[0] || null;
+}
+
+async function cancelReservationsByDate({ dateText, cancelledByRole, cancelledByUserId, stylistId, stylistName }) {
+  await ensureReservationSchema();
+
+  const result = await db.query(
+    `
+      UPDATE reservation
+      SET status = 'cancelled',
+          cancelled_by_role = $3,
+          cancelled_by_user_id = $4,
+          cancelled_at = NOW(),
+          updated_at = NOW()
+      WHERE DATE(starts_at AT TIME ZONE $1) = $2
+        AND status IN ('booked', 'checked_in')
+        AND (
+          $5::INT IS NULL
+          OR stylist_id = $5
+          OR (stylist_id IS NULL AND stylist_name = $6)
+        )
+      RETURNING id, client_id, service_name, stylist_name, stylist_id, starts_at, client_count, qr_token, status, cancelled_at, cancelled_by_role, cancelled_by_user_id, checked_in_at, created_at, updated_at
+    `,
+    [APP_TIME_ZONE, dateText, cancelledByRole, cancelledByUserId, stylistId || null, stylistName || null]
+  );
+
+  return result.rows;
 }
 
 async function deleteServiceCatalogEntry(serviceId) {
@@ -626,6 +737,7 @@ module.exports = {
   countActiveReservationsByClient,
   countActiveReservationsByClientAndService,
   findClientReservationById,
-  cancelReservationByClient
-  ,hasNoShowReservationForClient
+  cancelReservationByClient,
+  cancelReservationsByDate,
+  hasNoShowReservationForClient
 };

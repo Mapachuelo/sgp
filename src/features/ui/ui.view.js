@@ -313,7 +313,10 @@ function clientCalendarView() {
   <div class="modal-card reservations-modal-card">
     <div class="modal-head">
       <h3 id="myReservationsModalTitle">Mis reservas</h3>
-      <button id="closeMyReservationsModalBtn" class="btn ghost" type="button">Cerrar</button>
+      <div class="modal-head-actions">
+        <button id="purgeMyReservationsBtn" class="btn ghost" type="button">Borrar canceladas/tardadas</button>
+        <button id="closeMyReservationsModalBtn" class="btn ghost" type="button">Cerrar</button>
+      </div>
     </div>
     <ul id="myReservationsList" class="reservations-list"></ul>
   </div>
