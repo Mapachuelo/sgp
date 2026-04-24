@@ -868,11 +868,22 @@
 
     const reservationsPayload = await callApi("/api/reservations", "GET");
     const viewportConfig = state.viewportConfig || resolveViewportConfig();
+    const selectedStylist = getSelectedStylist();
+    const effectiveStylistId = isAdminContext
+      ? (selectedStylist ? selectedStylist.id : null)
+      : (currentUser && (currentUser.id || currentUser.sub));
+
+    const scheduleParams = new URLSearchParams({
+      start: byId("weekStart").value,
+      days: String(viewportConfig.dayCount)
+    });
+
+    if (effectiveStylistId) {
+      scheduleParams.set("stylistId", String(effectiveStylistId));
+    }
+
     const schedulePayload = await callApi(
-      "/api/reservations/work-schedule/editable?start=" +
-        encodeURIComponent(byId("weekStart").value) +
-        "&days=" +
-        encodeURIComponent(String(viewportConfig.dayCount)),
+      "/api/reservations/work-schedule?" + scheduleParams.toString(),
       "GET"
     );
 
