@@ -181,3 +181,4 @@ npm run dev
 - [Manual tecnico](Documentacion/manual_tecnico.md)
 - [Prompts utilizados](Documentacion/prompts.md)
 - [Diagrama de flujo](Documentacion/diagrama.drawio)
+- [Tiempo](Documentacion/tiempo.md)
