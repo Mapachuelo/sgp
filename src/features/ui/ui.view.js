@@ -121,13 +121,6 @@ function loginView() {
     <p class="eyebrow">Acceso al sistema</p>
     <h1>Iniciar sesion</h1>
 
-    <label for="loginRole">Rol</label>
-    <select id="loginRole" class="role-select">
-      <option value="client">client</option>
-      <option value="empleado">empleado</option>
-      <option value="admin">admin</option>
-    </select>
-
     <label>Correo</label>
     <input id="loginEmail" type="email" placeholder="correo@dominio.com" />
 
@@ -137,7 +130,7 @@ function loginView() {
     <button id="loginBtn" class="btn accent block" type="button">Entrar</button>
 
     <button id="openRegisterBtn" class="btn ghost block" type="button">Crear nueva cuenta de cliente</button>
-    <p id="loginRoleHint" class="feedback info">Elige un rol para iniciar sesion. Solo client puede registrarse.</p>
+    <p id="loginRoleHint" class="feedback info">El rol se detecta automaticamente segun el correo registrado.</p>
 
     <p id="loginFeedback" class="feedback info">Ingresa correo y password para entrar.</p>
   </section>
@@ -267,22 +260,48 @@ function clientCalendarView() {
 </header>
 
 <main class="calendar-layout">
+  <!-- EMPLOYEE SELECTOR & MY RESERVATIONS SECTION -->
+  <section class="employee-selector-section panel">
+    <div class="employee-selector-header">
+      <h2>Selecciona peluquero</h2>
+      <p>Elige con quién deseas agendar</p>
+    </div>
+    
+    <label for="stylistName">Peluquero</label>
+    <select id="stylistName">
+      <option value="__any__">Cualquier peluquero</option>
+    </select>
+
+    <!-- MY RESERVATIONS PREVIEW (inside employee selector) -->
+    <div class="my-reservations-preview-section">
+      <div class="reservations-preview-header">
+        <h3>Mis próximas reservas</h3>
+        <button id="myReservationsBtn" class="btn ghost mini" type="button">Ver todas</button>
+      </div>
+      <div id="myReservationsPreview" class="reservations-preview-list">
+        <p class="preview-placeholder">Cargando...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALENDAR MAIN SECTION (Primary Display) -->
   <section class="calendar-main panel">
     <div class="calendar-title-wrap">
-      <h1>Calendario de disponibilidad</h1>
-      <p>Visualiza cupos, selecciona horario y confirma reserva.</p>
+      <h1>Disponibilidad por hora</h1>
+      <p>Selecciona una fecha y hora disponible para agendar</p>
     </div>
 
     <div class="calendar-toolbar">
-      <label for="weekStart">Inicio del rango</label>
+      <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
-      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar</button>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
     <div class="legend-row">
       <span class="legend available">Disponible</span>
-      <span class="legend reserved">Reservado</span>
+      <span class="legend reserved">Ocupado</span>
+      <span class="legend off-day">Cerrado</span>
     </div>
 
     <div class="calendar-shell">
@@ -292,31 +311,44 @@ function clientCalendarView() {
       </table>
     </div>
   </section>
-
-  <aside class="booking-panel panel">
-    <h2>Ingreso de reserva</h2>
-    <p id="selectedSlotText" class="selected-slot">Selecciona un horario disponible.</p>
-
-    <label>Servicio</label>
-    <select id="serviceName">
-      <option value="">Selecciona un servicio</option>
-    </select>
-
-    <label>Peluquero</label>
-    <select id="stylistName">
-      <option value="__any__">Cualquier peluquero</option>
-    </select>
-
-    <label>Cantidad de clientes</label>
-    <input id="clientCount" type="number" min="1" max="5" value="1" />
-
-    <button id="reserveBtn" class="btn accent block" type="button" disabled>Confirmar reserva</button>
-    <button id="myReservationsBtn" class="btn ghost block" type="button">Ver mis reservas</button>
-    <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a iniciar sesion</a>
-
-    <p id="calendarFeedback" class="feedback info">Puedes revisar cupos sin iniciar sesion.</p>
-  </aside>
 </main>
+
+<!-- BOOKING MODAL (Floating Window for All Reservations) -->
+<div id="bookingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="bookingModalTitle">
+  <div class="modal-card booking-modal-card">
+    <div class="modal-head">
+      <h2 id="bookingModalTitle">Confirmar reserva</h2>
+      <button id="closeBookingModalBtn" class="btn ghost" type="button">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <p id="selectedSlotText" class="selected-slot">Horario seleccionado</p>
+
+      <label for="bookingServiceName">Servicio</label>
+      <select id="bookingServiceName">
+        <option value="">Selecciona un servicio</option>
+      </select>
+
+      <label for="bookingStylistName">Peluquero</label>
+      <select id="bookingStylistName">
+        <option value="__any__">Cualquier peluquero</option>
+      </select>
+
+      <label for="bookingClientCount">Cantidad de personas</label>
+      <input id="bookingClientCount" type="number" min="1" max="5" value="1" />
+
+      <p id="bookingTimeEstimate" class="time-estimate-info hidden"></p>
+      <p id="bookingError" class="feedback warn hidden"></p>
+      <p id="calendarFeedback" class="feedback info">Inicia sesión para confirmar la reserva</p>
+      <a id="goLoginLink" class="inline-link hidden" href="/ui/login">Ir a iniciar sesión</a>
+    </div>
+
+    <div class="modal-actions">
+      <button id="closeBookingModalBtn2" class="btn ghost" type="button">Cancelar</button>
+      <button id="confirmBookingBtn" class="btn accent" type="button" disabled>Confirmar</button>
+    </div>
+  </div>
+</div>
 
 <div id="myReservationsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="myReservationsModalTitle">
   <div class="modal-card reservations-modal-card">

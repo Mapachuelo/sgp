@@ -124,12 +124,6 @@ body {
   letter-spacing: 0.02em;
 }
 
-.btn.mini {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.8rem;
-  border-radius: 6px;
-}
-
 .btn:hover {
   transform: translateY(-2px);
 }
@@ -160,13 +154,15 @@ body {
   border-color: var(--terra-lt);
 }
 
-.calendar-toolbar .btn.ghost {
+.calendar-toolbar .btn.ghost,
+.booking-panel .btn.ghost {
   background: var(--ivory);
   color: var(--stone-dk);
   border: 1px solid var(--sand-dk);
 }
 
-.calendar-toolbar .btn.ghost:hover {
+.calendar-toolbar .btn.ghost:hover,
+.booking-panel .btn.ghost:hover {
   background: var(--ivory-dk);
   border-color: var(--terra-lt);
 }
@@ -258,10 +254,12 @@ body {
 /* ── MY RESERVATIONS PREVIEW SECTION ────────────── */
 .my-reservations-preview-section {
   display: grid;
-  gap: 0.55rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(201,185,168,0.3);
+  gap: 0.65rem;
+  background: linear-gradient(135deg, var(--available-bg), var(--ivory-dk));
+  border: 1px solid var(--available-line);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .reservations-preview-header {
@@ -275,32 +273,24 @@ body {
 .reservations-preview-header h3 {
   margin: 0;
   font-family: "Playfair Display", serif;
-  font-size: 0.95rem;
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
   color: var(--stone-dk);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .reservations-preview-list {
   display: grid;
-  gap: 0.5rem;
-  max-height: 150px;
+  gap: 0.6rem;
+  max-height: 180px;
   overflow-y: auto;
 }
 
 .preview-placeholder {
   margin: 0;
-  padding: 0.4rem 0;
-  color: var(--stone-lt);
-  font-size: 0.85rem;
+  padding: 0.6rem 0;
+  color: var(--stone);
+  font-size: 0.9rem;
   text-align: center;
-}
-
-.preview-item {
-  padding: 0.55rem !important;
-  border-radius: 6px !important;
-  border-left: 3px solid var(--available-line) !important;
-  background: rgba(237,246,240,0.5) !important;
-  font-size: 0.85rem !important;
 }
 
 @keyframes fadeUp {
@@ -1309,6 +1299,12 @@ pre {
 
   .calendar-shell {
     min-height: 0;
+  }
+
+  .booking-panel {
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
   }
 
   .api-output-panel {
