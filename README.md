@@ -1,6 +1,6 @@
 # Sistema de Gestion de Peluqueria (SGP)
 
-Aplicacion web para la gestion operativa de una peluqueria, con arquitectura modular por funcionalidades, base de datos PostgreSQL y despliegue con Podman o Docker.
+Aplicacion web para la gestion operativa de una peluqueria, con arquitectura modular por funcionalidades, base de datos PostgreSQL y despliegue con Podman.
 
 ## Alcance funcional implementado
 
@@ -43,7 +43,7 @@ Aplicacion web para la gestion operativa de una peluqueria, con arquitectura mod
 
 - Podman
 - podman-compose
-- Docker compatible
+
 
 ## Arquitectura y estructura
 
@@ -70,8 +70,8 @@ src/
 		middlewares/
 db/
 	init.sql
-docker-compose.yml
-Dockerfile
+podman/podman-compose.yml
+Containerfile
 ```
 
 ## Modulos funcionales

@@ -37,7 +37,7 @@ Digitalizar y centralizar el ciclo operativo de una peluqueria:
 - Backend: Node.js + Express (CommonJS)
 - Base de datos: PostgreSQL
 - Tiempo real: WebSocket (`ws`)
-- Infraestructura: Docker + Docker Compose
+- Infraestructura: Podman + podman-compose
 - UI: HTML + CSS + JavaScript vanilla servidos por Express
 
 ## 5. Stack tecnologico
@@ -53,8 +53,8 @@ Digitalizar y centralizar el ciclo operativo de una peluqueria:
 
 ## 6. Requisitos minimos de despliegue
 
-- Docker Engine
-- Docker Compose Plugin
+- Podman
+- podman-compose
 - 2 contenedores: app + db
 - Puerto app configurable por `APP_PORT` (host)
 

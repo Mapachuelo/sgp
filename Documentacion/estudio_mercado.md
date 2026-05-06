@@ -32,7 +32,7 @@ Evaluar viabilidad comercial del Sistema de Gestion de Peluqueria (SGP) para mic
 - QR unico por reserva para validacion rapida en entrada.
 - Registro formal de cobro manual por reserva.
 - Reportes operativos para decisiones del administrador.
-- Plataforma desplegable en infraestructura economica (Docker).
+- Plataforma desplegable en infraestructura economica (Podman).
 
 ## 5. Analisis competitivo (referencial)
 

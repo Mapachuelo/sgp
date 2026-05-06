@@ -1,24 +1,24 @@
-- Tecnologías a usar: Nodejs, postgresql, docker.
+- Tecnologías a usar: Nodejs, postgresql, podman.
 - No utilizar frameworks de css, solo css puro.
 - utilizar css separado de todos los archivos.
 - Requisitos:
   - El proyecto debe ser desarrollado utilizando Nodejs.
   - La base de datos debe ser postgresql.
-  - El proyecto debe ser dockerizado para facilitar su despliegue y ejecución.
+  - El proyecto debe ser contenedorizado con Podman para facilitar su despliegue y ejecución.
   - siempre utilizar javascript, no usar typescript.
   - El proyecto debe ser desarrollado siguiendo las mejores prácticas de desarrollo de software, incluyendo la modularidad, la reutilización de código y la documentación adecuada.
-  - Utilizando docker para facilitar el despliegue y la gestión de dependencias, asegurando que el entorno de desarrollo sea consistente y fácil de configurar para todos los miembros del equipo.
+  - Utilizando Podman para facilitar el despliegue y la gestión de dependencias, asegurando que el entorno de desarrollo sea consistente y fácil de configurar para todos los miembros del equipo.
 
 - Hacer un chequeo de todo el backen que funcione bien según lo establecido.
 
-- A lo ultimo verificar si funciona la ejecución de docker.
-Ejecutar el docker con los nuevos cambios:
+- A lo ultimo verificar si funciona la ejecución de Podman.
+Ejecutar Podman con los nuevos cambios:
 ``bash
-docker compose up --build -d
+podman-compose up --build -d
 ``
 y para parar el servicio:
 ```bash
-docker compose stop
+podman-compose stop
 ```
 no borrarlo.
 
