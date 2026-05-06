@@ -1,4 +1,4 @@
-function clientDocument(title, stylesheetPath, body, scriptPath) {
+function clientDocument(title, stylesheetPath, body, scriptPath, bodyClass = "") {
   return `<!doctype html>
 <html lang="es">
   <head>
@@ -7,7 +7,7 @@ function clientDocument(title, stylesheetPath, body, scriptPath) {
     <title>SGP</title>
     <link rel="stylesheet" href="${stylesheetPath}" />
   </head>
-  <body>
+  <body${bodyClass ? ` class="${bodyClass}"` : ""}>
     ${body}
     <script>
       (function () {
@@ -94,14 +94,15 @@ function homeView() {
   </nav>
 </header>
 
-<main class="dashboard-wrap" aria-label="dashboard-principal"></main>
+<main class="dashboard-wrap home-shell" aria-label="dashboard-principal"></main>
   `;
 
   return clientDocument(
     "SGP - Dashboard",
     "/ui-assets/styles/client-dashboard.css",
     body,
-    "/ui-assets/scripts/main-dashboard.js"
+    "/ui-assets/scripts/main-dashboard.js",
+    "home-page"
   );
 }
 
@@ -120,6 +121,13 @@ function loginView() {
     <p class="eyebrow">Acceso al sistema</p>
     <h1>Iniciar sesion</h1>
 
+    <label for="loginRole">Rol</label>
+    <select id="loginRole" class="role-select">
+      <option value="client">client</option>
+      <option value="empleado">empleado</option>
+      <option value="admin">admin</option>
+    </select>
+
     <label>Correo</label>
     <input id="loginEmail" type="email" placeholder="correo@dominio.com" />
 
@@ -129,6 +137,7 @@ function loginView() {
     <button id="loginBtn" class="btn accent block" type="button">Entrar</button>
 
     <button id="openRegisterBtn" class="btn ghost block" type="button">Crear nueva cuenta de cliente</button>
+    <p id="loginRoleHint" class="feedback info">Elige un rol para iniciar sesion. Solo client puede registrarse.</p>
 
     <p id="loginFeedback" class="feedback info">Ingresa correo y password para entrar.</p>
   </section>

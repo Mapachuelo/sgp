@@ -1,6 +1,6 @@
 # Sistema de Gestion de Peluqueria (SGP)
 
-Aplicacion web para la gestion operativa de una peluqueria, con arquitectura modular por funcionalidades, base de datos PostgreSQL y despliegue con Docker.
+Aplicacion web para la gestion operativa de una peluqueria, con arquitectura modular por funcionalidades, base de datos PostgreSQL y despliegue con Podman o Docker.
 
 ## Alcance funcional implementado
 
@@ -41,8 +41,9 @@ Aplicacion web para la gestion operativa de una peluqueria, con arquitectura mod
 
 ### Infraestructura
 
-- Docker
-- Docker Compose
+- Podman
+- podman-compose
+- Docker compatible
 
 ## Arquitectura y estructura
 
@@ -83,13 +84,15 @@ Dockerfile
 - `reports`: ventas diarias, ocupacion y recurrencia.
 - `ui`: vistas HTML/CSS/JS por rol (cliente, empleado, admin).
 
-## Ejecucion con Docker (Linux y Windows)
+## Ejecucion con Podman
 
 ### 1. Requisitos
 
 - Git
-- Docker Engine
-- Docker Compose Plugin
+- Podman
+- podman-compose
+
+En Linux no necesitas `sudo` si usas Podman en modo rootless.
 
 ### 2. Clonar repositorio
 
@@ -108,7 +111,7 @@ git clone git@github.com:Mapachuelo/prueba.git
 ### 3. Levantar servicios
 
 ```bash
-docker compose up --build
+podman-compose up --build -d
 ```
 
 Servicios levantados:
@@ -117,6 +120,12 @@ Servicios levantados:
 - `db` (PostgreSQL) en red interna para la app
 
 Si el puerto local esta ocupado, define `APP_PORT` antes de levantar compose.
+
+Tambien puedes usar el atajo del proyecto:
+
+```bash
+make up
+```
 
 ### 4. Acceso rapido
 
@@ -135,16 +144,22 @@ Si el puerto local esta ocupado, define `APP_PORT` antes de levantar compose.
 ### 6. Detener entorno
 
 ```bash
-docker compose down
+podman-compose stop
 ```
 
 Eliminar tambien volumen de datos:
 
 ```bash
-docker compose down -v
+podman-compose down -v
 ```
 
-## Ejecucion local sin Docker (opcional)
+Atajos equivalentes:
+
+```bash
+make down
+```
+
+## Ejecucion local sin contenedores (opcional)
 
 1. Instalar dependencias:
 

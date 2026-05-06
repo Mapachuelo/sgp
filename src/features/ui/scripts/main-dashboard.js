@@ -31,6 +31,37 @@
 		setRegisterFeedback("Completa los datos y revisa el mensaje si alguna casilla falla.", "info");
 	}
 
+	function getSelectedRole() {
+		const roleSelect = byId("loginRole");
+		return roleSelect ? String(roleSelect.value || "client").trim().toLowerCase() : "client";
+	}
+
+	function normalizeRole(role) {
+		return String(role || "").trim().toLowerCase();
+	}
+
+	function syncLoginMode() {
+		const selectedRole = getSelectedRole();
+		const openRegisterBtn = byId("openRegisterBtn");
+		const roleHint = byId("loginRoleHint");
+
+		if (openRegisterBtn) {
+			openRegisterBtn.classList.toggle("hidden", selectedRole !== "client");
+		}
+
+		if (roleHint) {
+			if (selectedRole === "client") {
+				roleHint.textContent = "Los clientes pueden registrarse desde esta pantalla.";
+			} else {
+				roleHint.textContent = "Las cuentas de empleado y administrador solo ingresan con usuarios asignados.";
+			}
+		}
+
+		if (selectedRole !== "client") {
+			closeRegisterModal();
+		}
+	}
+
 	function getToken() {
 		return localStorage.getItem(TOKEN_KEY) || "";
 	}
@@ -87,11 +118,17 @@
 	}
 
 	async function login() {
+		const selectedRole = getSelectedRole();
 		const email = (byId("loginEmail").value || "").trim();
 		const password = byId("loginPassword").value || "";
 
 		if (!email || !password) {
 			setFeedback("Correo y password son obligatorios.", "warn");
+			return;
+		}
+
+		if (!["client", "empleado", "admin"].includes(selectedRole)) {
+			setFeedback("Selecciona un rol valido para continuar.", "warn");
 			return;
 		}
 
@@ -109,6 +146,14 @@
 			const user = payload.data && payload.data.user;
 			if (!user || !user.role) {
 				setFeedback("No se pudo identificar el rol de la cuenta.", "warn");
+				return;
+			}
+
+			if (normalizeRole(user.role) !== selectedRole) {
+				setFeedback(
+					"La cuenta corresponde al rol " + user.role + ", no al rol seleccionado.",
+					"warn"
+				);
 				return;
 			}
 
@@ -146,6 +191,11 @@
 	}
 
 	async function registerClient() {
+		if (getSelectedRole() !== "client") {
+			setRegisterFeedback("El registro solo esta disponible para client.", "warn");
+			return;
+		}
+
 		const firstName = (byId("registerFirstName").value || "").trim();
 		const lastName = (byId("registerLastName").value || "").trim();
 		const rawPhone = (byId("registerPhone").value || "").trim();
@@ -199,6 +249,8 @@
 				"/api/auth/register",
 				"POST",
 				{
+					firstName: firstName,
+					lastName: lastName,
 					name: firstName + " " + lastName,
 					phone: phone,
 					email: email,
@@ -274,6 +326,7 @@
 		return;
 	}
 
+	const roleSelect = byId("loginRole");
 	const loginBtn = byId("loginBtn");
 	const openRegisterBtn = byId("openRegisterBtn");
 	const registerBtn = byId("registerBtn");
@@ -283,6 +336,10 @@
 
 	if (loginBtn) {
 		loginBtn.addEventListener("click", login);
+	}
+
+	if (roleSelect) {
+		roleSelect.addEventListener("change", syncLoginMode);
 	}
 
 	if (openRegisterBtn) {
@@ -308,6 +365,8 @@
 			}
 		});
 	}
+
+		syncLoginMode();
 
 	redirectIfActiveSession();
 })();
