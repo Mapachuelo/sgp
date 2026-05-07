@@ -1128,27 +1128,6 @@
       state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
     }
 
-    // populate mobile modal stylist select if present
-    const bookingStylistSelect = byId("bookingStylistName");
-    if (bookingStylistSelect) {
-      bookingStylistSelect.innerHTML = "";
-      const anyOptionMobile = document.createElement("option");
-      anyOptionMobile.value = ANY_STYLIST_VALUE;
-      anyOptionMobile.textContent = "Cualquier peluquero";
-      bookingStylistSelect.appendChild(anyOptionMobile);
-
-      state.stylists.forEach(function (stylist) {
-        if (isEmployeeContext && Number(stylist.id) !== Number(profile.id)) {
-          return;
-        }
-
-        const option = document.createElement("option");
-        option.value = String(stylist.id);
-        option.textContent = stylist.name;
-        bookingStylistSelect.appendChild(option);
-      });
-    }
-
     const serviceSelect = byId("serviceName");
     if (serviceSelect) {
       serviceSelect.innerHTML = "";
@@ -1257,15 +1236,10 @@
     const mainClientCount = byId("clientCount");
 
     const bookingService = byId("bookingServiceName");
-    const bookingStylist = byId("bookingStylistName");
     const bookingClientCount = byId("bookingClientCount");
 
     if (bookingService && mainService) {
       bookingService.value = mainService.value || "";
-    }
-
-    if (bookingStylist && mainStylist) {
-      bookingStylist.value = mainStylist.value || ANY_STYLIST_VALUE;
     }
 
     if (bookingClientCount && mainClientCount) {
@@ -1308,7 +1282,7 @@
     }
 
     const serviceName = (byId("bookingServiceName") || byId("serviceName")).value.trim();
-    const stylistId = (byId("bookingStylistName") || byId("stylistName")).value;
+    const stylistId = byId("stylistName").value;
     const clientCount = Number((byId("bookingClientCount") || byId("clientCount")).value || 1);
 
     if (!serviceName || !stylistId) {
@@ -1943,18 +1917,6 @@
       });
     }
 
-    const bookingStylist = byId("bookingStylistName");
-    if (bookingStylist) {
-      bookingStylist.addEventListener("change", function () {
-        const mainStylist = byId("stylistName");
-        if (mainStylist) {
-          mainStylist.value = bookingStylist.value;
-          state.selectedStylist = mainStylist.value || ANY_STYLIST_VALUE;
-        }
-        computeMobileEstimate();
-      });
-    }
-
     const bookingClientCount = byId("bookingClientCount");
     if (bookingClientCount) {
       bookingClientCount.addEventListener("input", function () {
@@ -1988,7 +1950,6 @@
     if (confirmBtn) {
       confirmBtn.addEventListener("click", function () {
         const bookingService = byId("bookingServiceName");
-        const bookingStylist = byId("bookingStylistName");
         const bookingClientCount = byId("bookingClientCount");
 
         const mainService = byId("serviceName");
@@ -1997,10 +1958,6 @@
 
         if (bookingService && mainService) {
           mainService.value = bookingService.value;
-        }
-        if (bookingStylist && mainStylist) {
-          mainStylist.value = bookingStylist.value;
-          state.selectedStylist = mainStylist.value || ANY_STYLIST_VALUE;
         }
         if (bookingClientCount && mainClient) {
           mainClient.value = bookingClientCount.value;

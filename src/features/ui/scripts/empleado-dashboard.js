@@ -1,5 +1,5 @@
 (function () {
-  const TOKEN_KEYS = ["sgp_token", "employee_token", "admin_token"];
+  const TOKEN_KEY = "sgp_token";
   const LOGIN_PATH = "/ui/login";
   const EMPLOYEE_DASHBOARD_PATH = "/ui/empleado";
   const state = {
@@ -15,14 +15,7 @@
   }
 
   function getToken() {
-    for (const key of TOKEN_KEYS) {
-      const value = localStorage.getItem(key);
-      if (value) {
-        return value;
-      }
-    }
-
-    return "";
+    return localStorage.getItem(TOKEN_KEY) || "";
   }
 
   function getRole(user) {
@@ -32,9 +25,7 @@
   }
 
   function clearToken() {
-    TOKEN_KEYS.forEach(function (key) {
-      localStorage.removeItem(key);
-    });
+    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem("client_token");
     localStorage.removeItem("employee_token");
     localStorage.removeItem("admin_token");

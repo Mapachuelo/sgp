@@ -130,7 +130,7 @@ function loginView() {
     <button id="loginBtn" class="btn accent block" type="button">Entrar</button>
 
     <button id="openRegisterBtn" class="btn ghost block" type="button">Crear nueva cuenta de cliente</button>
-    <p id="loginRoleHint" class="feedback info">El rol se detecta automaticamente segun el correo registrado.</p>
+    <p id="loginRoleHint" class="feedback info">El rol se detecta automaticamente con tu correo y contraseña.</p>
 
     <p id="loginFeedback" class="feedback info">Ingresa correo y password para entrar.</p>
   </section>
@@ -327,11 +327,6 @@ function clientCalendarView() {
       <label for="bookingServiceName">Servicio</label>
       <select id="bookingServiceName">
         <option value="">Selecciona un servicio</option>
-      </select>
-
-      <label for="bookingStylistName">Peluquero</label>
-      <select id="bookingStylistName">
-        <option value="__any__">Cualquier peluquero</option>
       </select>
 
       <label for="bookingClientCount">Cantidad de personas</label>
@@ -904,14 +899,14 @@ function adminView() {
 
 function adminCalendarView() {
   const body = `
-<header class="topbar">
-  <a class="brand" href="/ui/admin">SGP</a>
-  <nav class="topbar-actions">
-    <a class="btn ghost" href="/ui/admin">Gestion empleados</a>
-    <a class="btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
-    <a class="btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
-    <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
+<header class="admin-topbar">
+  <a class="admin-brand" href="/ui/admin">SGP</a>
+  <nav class="admin-nav">
+    <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
+    <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
+    <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
+    <a class="admin-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
+    <button id="navLogoutBtn" class="admin-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 

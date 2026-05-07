@@ -326,7 +326,7 @@
 
 	const roleHint = byId("loginRoleHint");
 	if (roleHint) {
-		roleHint.textContent = "El rol se detecta automaticamente segun el correo registrado.";
+		roleHint.textContent = "Selecciona tu rol e ingresa correo y password.";
 	}
 
 	redirectIfActiveSession();

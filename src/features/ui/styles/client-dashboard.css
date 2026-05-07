@@ -45,7 +45,7 @@ body {
 }
 
 body.home-page {
-  background: #ffffff;
+  background: linear-gradient(168deg, var(--sand-lt) 0%, var(--ivory-dk) 100%);
 }
 
 /* ── TOPBAR ─────────────────────────────────────── */
