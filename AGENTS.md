@@ -82,9 +82,25 @@ async function login() {
 - **Layout vertical**: En todos los tamaños de pantalla.
 
 ### Modal de Reserva
-- **Servicio**: Selector obligatorio.
-- **Peluquero**: NO está en el modal (se selecciona arriba).
-- **Cantidad de personas**: Input numérico (1-5).
+- **Servicio**: Selector obligatorio. Se sincroniza automáticamente con los servicios disponibles desde `/api/reservations/services`.
+- **Peluquero**: NO está en el modal (se selecciona arriba en el selector principal).
+- **Cantidad de personas**: Input numérico (1-5), limitado automáticamente según el horario disponible.
+- **Sincronización**: Al abrir el modal, los servicios se cargan directamente desde `state.services` (no requiere selector principal en la vista).
+
+### Validación de Horario Laboral
+- El sistema calcula automáticamente el máximo de personas permitido según:
+  - Hora de inicio seleccionada
+  - Hora de fin del horario laboral del empleado
+  - Duración del servicio por persona
+- Si la cantidad de personas sobrepasa el tiempo disponible:
+  - Se muestra advertencia: "Se sobrepasa el tiempo estimado que está disponible del empleado. Máximo X persona(s) para este horario."
+  - El botón "Confirmar" se deshabilita
+  - El input de cantidad se limita al máximo permitido
+
+### Sincronización de Servicios
+- Los servicios se cargan desde `/api/reservations/services`
+- El selector del modal se sincroniza automáticamente con el selector principal al abrirse
+- Si un servicio nuevo se agrega, aparece inmediatamente en ambos selectores
 
 ### Estilos Clave
 ```css

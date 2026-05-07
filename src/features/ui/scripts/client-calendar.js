@@ -31,7 +31,9 @@
     selectedSlot: null,
     currentUser: null,
     stylists: [],
+    services: [],
     selectedStylist: ANY_STYLIST_VALUE,
+    selectedServiceName: "",
     selectedServiceDuration: DEFAULT_SLOT_STEP_MINUTES,
     serviceDurationByName: {},
     serviceDurationByNameAndStylist: {},
@@ -401,19 +403,35 @@
 
   function inferServiceDurationMinutes(serviceName) {
     const trimmedName = String(serviceName || "").trim();
+    if (!trimmedName) {
+      return DEFAULT_SLOT_STEP_MINUTES;
+    }
+
     const selectedStylist = String(state.selectedStylist || ANY_STYLIST_VALUE);
     const byStylist = state.serviceDurationByNameAndStylist[trimmedName] || {};
+    
+    // First try to get duration for specific stylist
     const configuredByStylist = Number(byStylist[selectedStylist]);
-
-    if (Number.isInteger(configuredByStylist)) {
+    if (Number.isInteger(configuredByStylist) && configuredByStylist > 0) {
       return normalizeStepMinutes(configuredByStylist);
     }
 
+    // If no stylist-specific duration, use general service duration
     const configuredDuration = state.serviceDurationByName[trimmedName];
-    if (Number.isInteger(configuredDuration)) {
+    if (Number.isInteger(configuredDuration) && configuredDuration > 0) {
       return normalizeStepMinutes(configuredDuration);
     }
 
+    // Fallback: try to get any stylist duration for this service
+    const stylistIds = Object.keys(byStylist);
+    if (stylistIds.length > 0) {
+      const firstStylistDuration = Number(byStylist[stylistIds[0]]);
+      if (Number.isInteger(firstStylistDuration) && firstStylistDuration > 0) {
+        return normalizeStepMinutes(firstStylistDuration);
+      }
+    }
+
+    // Last resort: infer from availability data
     let inferred = null;
     Object.keys(state.availabilityByDate).forEach(function (dayKey) {
       const entries = state.availabilityByDate[dayKey] || [];
@@ -1104,6 +1122,7 @@
     const isEmployeeContext = profile.role === "empleado" || profile.role === "employee";
 
     state.stylists = stylistsPayload.data || [];
+    state.services = servicesPayload.data || [];
 
     const stylistSelect = byId("stylistName");
     if (stylistSelect) {
@@ -1157,13 +1176,6 @@
 
       updateSelectedServiceDuration();
     }
-
-    // populate booking modal service select if present
-    const bookingServiceSelect = byId("bookingServiceName");
-    if (bookingServiceSelect && serviceSelect) {
-      bookingServiceSelect.innerHTML = serviceSelect.innerHTML;
-      bookingServiceSelect.value = serviceSelect.value || "";
-    }
   }
 
   function addMinutesToDate(date, minutes) {
@@ -1197,12 +1209,35 @@
     const schedule = state.workScheduleByDate[slot.date] || defaultSchedule();
     const endMinutes = toMinutes(endText);
     const allowedEndMinutes = toMinutes(schedule.end);
+    const startMinutes = toMinutes(slot.time);
+    const availableMinutes = allowedEndMinutes - startMinutes;
 
     const errorEl = byId("bookingError");
     const confirmBtn = byId("confirmBookingBtn");
+    
+    // calculate max allowed client count based on available time
+    const maxAllowedClients = base > 0 ? Math.floor(availableMinutes / base) : 5;
+    const safeMaxClients = Math.min(maxAllowedClients, 5);
+    
+    // update max attribute on client count inputs
+    const mainClientCount = byId("clientCount");
+    const modalClientCount = byId("bookingClientCount");
+    if (mainClientCount) {
+      mainClientCount.max = String(safeMaxClients);
+      if (Number(mainClientCount.value) > safeMaxClients) {
+        mainClientCount.value = String(safeMaxClients);
+      }
+    }
+    if (modalClientCount) {
+      modalClientCount.max = String(safeMaxClients);
+      if (Number(modalClientCount.value) > safeMaxClients) {
+        modalClientCount.value = String(safeMaxClients);
+      }
+    }
+    
     if (endMinutes > allowedEndMinutes) {
       if (errorEl) {
-        errorEl.textContent = "Se sobrepasa el tiempo estimado que está disponible del empleado";
+        errorEl.textContent = "Se sobrepasa el tiempo estimado que está disponible del empleado. Máximo " + safeMaxClients + " persona(s) para este horario.";
         errorEl.classList.remove("hidden");
       }
       if (confirmBtn) {
@@ -1214,6 +1249,43 @@
       }
       if (confirmBtn) {
         confirmBtn.disabled = !isClientContext || !getToken();
+      }
+    }
+  }
+
+  function applyMaxClientCountLimit() {
+    const slot = state.selectedSlot;
+    if (!slot) {
+      return;
+    }
+
+    const serviceName = (byId("bookingServiceName") || byId("serviceName")).value || "";
+    const base = inferServiceDurationMinutes(serviceName);
+    if (!base || base <= 0) {
+      return;
+    }
+
+    const schedule = state.workScheduleByDate[slot.date] || defaultSchedule();
+    const startMinutes = toMinutes(slot.time);
+    const allowedEndMinutes = toMinutes(schedule.end);
+    const availableMinutes = allowedEndMinutes - startMinutes;
+
+    const maxAllowedClients = Math.floor(availableMinutes / base);
+    const safeMaxClients = Math.min(Math.max(maxAllowedClients, 1), 5);
+
+    const mainClientCount = byId("clientCount");
+    const modalClientCount = byId("bookingClientCount");
+    
+    if (mainClientCount) {
+      mainClientCount.max = String(safeMaxClients);
+      if (Number(mainClientCount.value) > safeMaxClients) {
+        mainClientCount.value = String(safeMaxClients);
+      }
+    }
+    if (modalClientCount) {
+      modalClientCount.max = String(safeMaxClients);
+      if (Number(modalClientCount.value) > safeMaxClients) {
+        modalClientCount.value = String(safeMaxClients);
       }
     }
   }
@@ -1230,21 +1302,36 @@
       selectedText.textContent = "Horario seleccionado: " + slot.date + " a las " + slot.time;
     }
 
-    // sync selects values from top-level selectors
-    const mainService = byId("serviceName");
-    const mainStylist = byId("stylistName");
-    const mainClientCount = byId("clientCount");
-
+    // populate service selector in modal
     const bookingService = byId("bookingServiceName");
-    const bookingClientCount = byId("bookingClientCount");
-
-    if (bookingService && mainService) {
-      bookingService.value = mainService.value || "";
+    if (bookingService) {
+      bookingService.innerHTML = "";
+      
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.textContent = "Selecciona un servicio";
+      bookingService.appendChild(defaultOption);
+      
+      // load services from state
+      if (state.services && state.services.length > 0) {
+        state.services.forEach(function (service) {
+          const option = document.createElement("option");
+          option.value = service.name;
+          option.textContent = service.name;
+          bookingService.appendChild(option);
+        });
+      }
     }
 
+    // sync client count
+    const mainClientCount = byId("clientCount");
+    const bookingClientCount = byId("bookingClientCount");
     if (bookingClientCount && mainClientCount) {
       bookingClientCount.value = mainClientCount.value || 1;
     }
+
+    // calculate and apply max client count based on work schedule
+    applyMaxClientCountLimit();
 
     modal.classList.remove("hidden");
     computeMobileEstimate();
@@ -1913,6 +2000,8 @@
         if (mainService) {
           mainService.value = bookingService.value;
         }
+        state.selectedServiceName = bookingService.value;
+        applyMaxClientCountLimit();
         computeMobileEstimate();
       });
     }
@@ -1920,11 +2009,12 @@
     const bookingClientCount = byId("bookingClientCount");
     if (bookingClientCount) {
       bookingClientCount.addEventListener("input", function () {
+        const maxAllowed = Number(bookingClientCount.max || 5);
         const val = Number(bookingClientCount.value || 1);
         if (!Number.isInteger(val) || val < 1) {
           bookingClientCount.value = "1";
-        } else if (val > 5) {
-          bookingClientCount.value = "5";
+        } else if (val > maxAllowed) {
+          bookingClientCount.value = String(maxAllowed);
         }
 
         const mainClient = byId("clientCount");
@@ -1979,11 +2069,17 @@
   const clientCountInput = byId("clientCount");
   if (clientCountInput) {
     clientCountInput.addEventListener("input", function () {
+      const maxAllowed = Number(clientCountInput.max || 5);
       const value = Number(clientCountInput.value || 1);
       if (!Number.isInteger(value) || value < 1) {
         clientCountInput.value = "1";
-      } else if (value > 5) {
-        clientCountInput.value = "5";
+      } else if (value > maxAllowed) {
+        clientCountInput.value = String(maxAllowed);
+      }
+
+      const modalClient = byId("bookingClientCount");
+      if (modalClient) {
+        modalClient.value = clientCountInput.value;
       }
 
       state.selectedSlot = null;
