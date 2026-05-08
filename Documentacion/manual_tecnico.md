@@ -64,16 +64,16 @@ db/
 
 ## 6. Ejecucion
 
-### 6.1 Docker
+### 6.1 Podman
 
 ```bash
-docker compose up --build -d
+podman-compose up --build -d
 ```
 
 Detener servicios sin borrar contenedores:
 
 ```bash
-docker compose stop
+podman-compose stop
 ```
 
 ### 6.2 Local
@@ -219,7 +219,7 @@ npm run dev
 ## 12. Troubleshooting rapido
 
 - Error `DATABASE_URL is required`: validar variables de entorno.
-- Error de conexion DB en Docker: verificar estado `db` con healthcheck.
+- Error de conexion DB en Podman: verificar estado `db` con healthcheck.
 - `401/403` en API: revisar token/rol.
 - Conflictos de reserva (`409`): horario ocupado o reglas de agenda.
 - Error `Fuera de tiempo` en reservas: la cita debe crearse con al menos 60 minutos de anticipacion.

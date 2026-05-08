@@ -15,6 +15,7 @@
 
 		feedback.textContent = message;
 		feedback.className = "feedback " + tone;
+		feedback.classList.remove("hidden");
 	}
 
 	function setRegisterFeedback(message, tone) {
@@ -30,6 +31,11 @@
 	function resetRegisterFeedback() {
 		setRegisterFeedback("Completa los datos y revisa el mensaje si alguna casilla falla.", "info");
 	}
+
+	function normalizeRole(role) {
+		return String(role || "").trim().toLowerCase();
+	}
+
 
 	function getToken() {
 		return localStorage.getItem(TOKEN_KEY) || "";
@@ -68,7 +74,9 @@
 		}
 
 		if (!response.ok || !payload.ok) {
-			throw new Error(payload.message || "Error en la solicitud");
+			const error = new Error(payload.message || "Error en la solicitud");
+			error.status = response.status;
+			throw error;
 		}
 
 		return payload;
@@ -199,6 +207,8 @@
 				"/api/auth/register",
 				"POST",
 				{
+					firstName: firstName,
+					lastName: lastName,
 					name: firstName + " " + lastName,
 					phone: phone,
 					email: email,
@@ -255,6 +265,10 @@
 	}
 
 	async function redirectIfActiveSession() {
+		if (!isLoginPage) {
+			return;
+		}
+
 		const token = getToken();
 		if (!token) {
 			return;
@@ -265,8 +279,10 @@
 			if (payload.data && payload.data.role) {
 				window.location.href = getHomeByRole(payload.data.role);
 			}
-		} catch (_error) {
-			localStorage.removeItem(TOKEN_KEY);
+		} catch (error) {
+			if (error && (error.status === 401 || error.status === 403)) {
+				localStorage.removeItem(TOKEN_KEY);
+			}
 		}
 	}
 

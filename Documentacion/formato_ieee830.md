@@ -37,7 +37,7 @@ El SGP se compone de tres capas principales: **Web Front‑End**, **API Back‑E
 ## 2. Descripción General
 
 ### 2.1 Perspectiva del Producto  
-El SGP es un **producto independiente** desplegable con Docker (app + PostgreSQL) y sin integraciones externas obligatorias en el MVP. El correo de confirmacion y otras integraciones quedan como mejoras futuras.
+El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL) y sin integraciones externas obligatorias en el MVP. El correo de confirmacion y otras integraciones quedan como mejoras futuras.
 
 ```
 ┌───────────────────────┐
@@ -139,7 +139,7 @@ El SGP es un **producto independiente** desplegable con Docker (app + PostgreSQL
 | **RNF3** | Fiabilidad | Tiempo medio entre fallos (MTBF) ≥ 99.9 % durante operación normal. |
 | **RNF4** | Disponibilidad | Sistema disponible 24/7 con un plan de contingencia que garantice < 1 h de downtime anual. |
 | **RNF5** | Mantenibilidad | Código modular, pruebas unitarias > 80 % cobertura; documentación API auto‑generada (Swagger). |
-| **RNF6** | Portabilidad | Backend basado en Node.js/Express, compatible con Docker y Kubernetes. |
+| **RNF6** | Portabilidad | Backend basado en Node.js/Express, compatible con Podman y Kubernetes. |
 
 ### 3.4 Otros Requisitos
 

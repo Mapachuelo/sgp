@@ -681,6 +681,34 @@
       offCheckbox.checked = Boolean(config.offDay);
       offLabel.appendChild(offCheckbox);
       offLabel.appendChild(document.createTextNode(" Dia no laboral"));
+      offCheckbox.addEventListener("change", function () {
+        const applyAll = window.confirm(
+          "¿Aplicar este cambio a todos los días iguales de la semana (Aceptar = sí, Cancelar = solo este día)?"
+        );
+
+        const targetDate = new Date(dayKey + "T00:00:00");
+        const targetWeekday = targetDate.getDay();
+
+        if (applyAll) {
+          state.days.forEach(function (d) {
+            const key = toDateKey(d);
+            const wk = new Date(key + "T00:00:00").getDay();
+            if (wk === targetWeekday) {
+              if (!state.scheduleConfig[key]) {
+                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
+              }
+              state.scheduleConfig[key].offDay = offCheckbox.checked;
+            }
+          });
+        } else {
+          if (!state.scheduleConfig[dayKey]) {
+            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
+          }
+          state.scheduleConfig[dayKey].offDay = offCheckbox.checked;
+        }
+
+        renderConfigPanel();
+      });
       card.appendChild(offLabel);
 
       const rangeWrap = document.createElement("div");
@@ -692,11 +720,67 @@
       startInput.dataset.dayKey = dayKey;
       startInput.dataset.field = "start";
 
+      startInput.addEventListener("change", function () {
+        const applyAll = window.confirm(
+          "¿Aplicar este horario a todos los días iguales de la semana (Aceptar = sí, Cancelar = solo este día)?"
+        );
+        const targetDate = new Date(dayKey + "T00:00:00");
+        const targetWeekday = targetDate.getDay();
+
+        if (applyAll) {
+          state.days.forEach(function (d) {
+            const key = toDateKey(d);
+            const wk = new Date(key + "T00:00:00").getDay();
+            if (wk === targetWeekday) {
+              if (!state.scheduleConfig[key]) {
+                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
+              }
+              state.scheduleConfig[key].start = startInput.value;
+            }
+          });
+        } else {
+          if (!state.scheduleConfig[dayKey]) {
+            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
+          }
+          state.scheduleConfig[dayKey].start = startInput.value;
+        }
+
+        renderConfigPanel();
+      });
+
       const endInput = document.createElement("input");
       endInput.type = "time";
       endInput.value = config.end;
       endInput.dataset.dayKey = dayKey;
       endInput.dataset.field = "end";
+
+      endInput.addEventListener("change", function () {
+        const applyAll = window.confirm(
+          "¿Aplicar este horario a todos los días iguales de la semana (Aceptar = sí, Cancelar = solo este día)?"
+        );
+        const targetDate = new Date(dayKey + "T00:00:00");
+        const targetWeekday = targetDate.getDay();
+
+        if (applyAll) {
+          state.days.forEach(function (d) {
+            const key = toDateKey(d);
+            const wk = new Date(key + "T00:00:00").getDay();
+            if (wk === targetWeekday) {
+              if (!state.scheduleConfig[key]) {
+                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
+              }
+              state.scheduleConfig[key].end = endInput.value;
+            }
+          });
+        } else {
+          if (!state.scheduleConfig[dayKey]) {
+            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
+          }
+          state.scheduleConfig[dayKey].end = endInput.value;
+        }
+
+        renderConfigPanel();
+      });
 
       rangeWrap.appendChild(startInput);
       rangeWrap.appendChild(endInput);

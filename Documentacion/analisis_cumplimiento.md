@@ -10,7 +10,7 @@ Se revisaron:
 
 - Documento IEEE830: `Documentacion/formato_ieee830.md`.
 - Codigo backend y frontend en `src/`.
-- Configuracion de despliegue en Docker y base de datos.
+- Configuracion de despliegue en Podman y base de datos.
 - README actual del proyecto.
 
 ## 3. Resultado ejecutivo
@@ -39,7 +39,7 @@ Se revisaron:
 | RNF3 Fiabilidad MTBF >= 99.9% | Pendiente | No hay sistema de observabilidad/SLI/SLO documentado. |
 | RNF4 Disponibilidad 24/7 con contingencia | Pendiente | No existe runbook formal de contingencia ni RTO/RPO documentado. |
 | RNF5 Mantenibilidad (>80% tests + Swagger) | Parcial | Arquitectura modular si existe; faltan pruebas automatizadas y especificacion Swagger. |
-| RNF6 Portabilidad Docker/Kubernetes | Parcial | Docker implementado; manifiestos Kubernetes no incluidos. |
+| RNF6 Portabilidad Podman/Kubernetes | Parcial | Podman implementado; manifiestos Kubernetes no incluidos. |
 
 ## 6. Requisitos de interfaz y comunicacion
 

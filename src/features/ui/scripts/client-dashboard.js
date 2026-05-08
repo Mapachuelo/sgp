@@ -126,7 +126,9 @@
 
     if (!response.ok || !payload.ok) {
       const message = payload.message || "Error en la solicitud";
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
     }
 
     return payload;
@@ -299,8 +301,10 @@
       const payload = await callApi("/api/auth/me", "GET");
       state.currentUser = payload.data || null;
       setAuthUi();
-    } catch (_error) {
-      clearToken();
+    } catch (error) {
+      if (error && (error.status === 401 || error.status === 403)) {
+        clearToken();
+      }
       state.currentUser = null;
       setAuthUi();
     }

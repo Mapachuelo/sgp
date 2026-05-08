@@ -25,12 +25,15 @@
 
   const state = {
     days: [],
+    weekStart: "",
     availabilityByDate: {},
     workScheduleByDate: {},
     selectedSlot: null,
     currentUser: null,
     stylists: [],
+    services: [],
     selectedStylist: ANY_STYLIST_VALUE,
+    selectedServiceName: "",
     selectedServiceDuration: DEFAULT_SLOT_STEP_MINUTES,
     serviceDurationByName: {},
     serviceDurationByNameAndStylist: {},
@@ -46,6 +49,14 @@
 
   function byId(id) {
     return document.getElementById(id);
+  }
+
+  function getToday() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
   }
 
   function setFeedback(message, tone) {
@@ -392,19 +403,35 @@
 
   function inferServiceDurationMinutes(serviceName) {
     const trimmedName = String(serviceName || "").trim();
+    if (!trimmedName) {
+      return DEFAULT_SLOT_STEP_MINUTES;
+    }
+
     const selectedStylist = String(state.selectedStylist || ANY_STYLIST_VALUE);
     const byStylist = state.serviceDurationByNameAndStylist[trimmedName] || {};
+    
+    // First try to get duration for specific stylist
     const configuredByStylist = Number(byStylist[selectedStylist]);
-
-    if (Number.isInteger(configuredByStylist)) {
+    if (Number.isInteger(configuredByStylist) && configuredByStylist > 0) {
       return normalizeStepMinutes(configuredByStylist);
     }
 
+    // If no stylist-specific duration, use general service duration
     const configuredDuration = state.serviceDurationByName[trimmedName];
-    if (Number.isInteger(configuredDuration)) {
+    if (Number.isInteger(configuredDuration) && configuredDuration > 0) {
       return normalizeStepMinutes(configuredDuration);
     }
 
+    // Fallback: try to get any stylist duration for this service
+    const stylistIds = Object.keys(byStylist);
+    if (stylistIds.length > 0) {
+      const firstStylistDuration = Number(byStylist[stylistIds[0]]);
+      if (Number.isInteger(firstStylistDuration) && firstStylistDuration > 0) {
+        return normalizeStepMinutes(firstStylistDuration);
+      }
+    }
+
+    // Last resort: infer from availability data
     let inferred = null;
     Object.keys(state.availabilityByDate).forEach(function (dayKey) {
       const entries = state.availabilityByDate[dayKey] || [];
@@ -786,7 +813,9 @@
 
     if (!response.ok || !payload.ok) {
       const message = payload.message || "Error en la solicitud";
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
     }
 
     return payload;
@@ -975,6 +1004,8 @@
       updateSelectedSlotLabel();
       setAuthUi();
     }
+
+
   }
 
   async function fetchAvailabilityByDay(dayKey) {
@@ -1020,10 +1051,16 @@
   }
 
   async function refreshCalendar() {
-    const startValue = byId("weekStart").value;
+    const weekStartInput = byId("weekStart");
+    const startValue = state.weekStart || (weekStartInput ? weekStartInput.value : "");
     if (!startValue) {
       setFeedback("Selecciona una fecha de inicio.", "warn");
       return;
+    }
+
+    state.weekStart = startValue;
+    if (weekStartInput && weekStartInput.value !== startValue) {
+      weekStartInput.value = startValue;
     }
 
     state.viewportConfig = resolveViewportConfig();
@@ -1035,7 +1072,9 @@
     try {
       state.workScheduleByDate = await fetchWorkScheduleRange(startValue, state.viewportConfig.dayCount);
     } catch (error) {
-      setFeedback("No se pudo cargar configuracion laboral: " + error.message, "warn");
+      if (error && (error.status === 401 || error.status === 403)) {
+        clearToken();
+      }
     }
 
     const promises = state.days.map(async function (day) {
@@ -1083,14 +1122,40 @@
     const isEmployeeContext = profile.role === "empleado" || profile.role === "employee";
 
     state.stylists = stylistsPayload.data || [];
+    state.services = servicesPayload.data || [];
 
+    // Populate stylist selector in booking modal
+    const bookingStylistSelect = byId("bookingStylistName");
+    if (bookingStylistSelect) {
+      bookingStylistSelect.innerHTML = "";
+
+      const anyOption = document.createElement("option");
+      anyOption.value = ANY_STYLIST_VALUE;
+      anyOption.textContent = "Selecciona al empleado";
+      bookingStylistSelect.appendChild(anyOption);
+
+      state.stylists.forEach(function (stylist) {
+        if (isEmployeeContext && Number(stylist.id) !== Number(profile.id)) {
+          return;
+        }
+
+        const option = document.createElement("option");
+        option.value = String(stylist.id);
+        option.textContent = stylist.name;
+        bookingStylistSelect.appendChild(option);
+      });
+
+      state.selectedStylist = bookingStylistSelect.value || ANY_STYLIST_VALUE;
+    }
+
+    // Also populate legacy stylist selector (for employee/admin views)
     const stylistSelect = byId("stylistName");
     if (stylistSelect) {
       stylistSelect.innerHTML = "";
 
       const anyOption = document.createElement("option");
       anyOption.value = ANY_STYLIST_VALUE;
-      anyOption.textContent = "Cualquier peluquero";
+      anyOption.textContent = "Selecciona al empleado";
       stylistSelect.appendChild(anyOption);
 
       state.stylists.forEach(function (stylist) {
@@ -1107,6 +1172,20 @@
       state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
     }
 
+    // Build service duration maps (used by modal and calendar regardless of view)
+    (servicesPayload.data || []).forEach(function (service) {
+      const serviceName = String(service.name || "").trim();
+      const duration = normalizeStepMinutes(service.duration_minutes || service.durationMinutes);
+      state.serviceDurationByName[serviceName] = duration;
+
+      const stylistDurations = service.stylist_durations || {};
+      const normalizedByStylist = {};
+      Object.keys(stylistDurations).forEach(function (stylistId) {
+        normalizedByStylist[String(stylistId)] = normalizeStepMinutes(stylistDurations[stylistId]);
+      });
+      state.serviceDurationByNameAndStylist[serviceName] = normalizedByStylist;
+    });
+
     const serviceSelect = byId("serviceName");
     if (serviceSelect) {
       serviceSelect.innerHTML = "";
@@ -1121,21 +1200,172 @@
         option.value = service.name;
         option.textContent = service.name;
         serviceSelect.appendChild(option);
-
-        const serviceName = String(service.name || "").trim();
-        const duration = normalizeStepMinutes(service.duration_minutes || service.durationMinutes);
-        state.serviceDurationByName[serviceName] = duration;
-
-        const stylistDurations = service.stylist_durations || {};
-        const normalizedByStylist = {};
-        Object.keys(stylistDurations).forEach(function (stylistId) {
-          normalizedByStylist[String(stylistId)] = normalizeStepMinutes(stylistDurations[stylistId]);
-        });
-        state.serviceDurationByNameAndStylist[serviceName] = normalizedByStylist;
       });
 
       updateSelectedServiceDuration();
     }
+  }
+
+  function addMinutesToDate(date, minutes) {
+    return new Date(date.getTime() + Number(minutes) * 60000);
+  }
+
+  function computeMobileEstimate() {
+    const slot = state.selectedSlot;
+    if (!slot) {
+      return;
+    }
+
+    const serviceName = (byId("bookingServiceName") || byId("serviceName")).value || "";
+    const clientCount = Number((byId("bookingClientCount") || byId("clientCount")).value || 1);
+    const base = inferServiceDurationMinutes(serviceName);
+    const totalDuration = normalizeCalendarDuration(base * clientCount, base);
+
+    const startDate = toLocalDateFromParts(slot.date, slot.time);
+    const endDate = addMinutesToDate(startDate, totalDuration);
+
+    const startText = String(slot.time);
+    const endText = String(endDate.getHours()).padStart(2, "0") + ":" + String(endDate.getMinutes()).padStart(2, "0");
+
+    const estimateEl = byId("bookingTimeEstimate");
+    if (estimateEl) {
+      estimateEl.textContent = "Inicio: " + startText + "  Fin estimada: " + endText;
+      estimateEl.classList.remove("hidden");
+    }
+
+    // validate against schedule
+    const schedule = state.workScheduleByDate[slot.date] || defaultSchedule();
+    const endMinutes = toMinutes(endText);
+    const allowedEndMinutes = toMinutes(schedule.end);
+    const startMinutes = toMinutes(slot.time);
+    const availableMinutes = allowedEndMinutes - startMinutes;
+
+    const errorEl = byId("bookingError");
+    const confirmBtn = byId("confirmBookingBtn");
+    
+    // calculate max allowed client count based on available time
+    const maxAllowedClients = base > 0 ? Math.floor(availableMinutes / base) : 5;
+    const safeMaxClients = Math.min(Math.max(maxAllowedClients, 1), 5);
+    
+    // update max attribute on client count inputs
+    const mainClientCount = byId("clientCount");
+    const modalClientCount = byId("bookingClientCount");
+    if (mainClientCount) {
+      mainClientCount.max = String(safeMaxClients);
+    }
+    if (modalClientCount) {
+      modalClientCount.max = String(safeMaxClients);
+    }
+    
+    if (clientCount > safeMaxClients || endMinutes > allowedEndMinutes) {
+      if (errorEl) {
+        errorEl.textContent = "Se sobrepasa el tiempo estimado que está disponible del empleado. Máximo " + safeMaxClients + " persona(s) para este horario.";
+        errorEl.classList.remove("hidden");
+      }
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+      }
+    } else {
+      if (errorEl) {
+        errorEl.classList.add("hidden");
+      }
+      if (confirmBtn) {
+        confirmBtn.disabled = !isClientContext || !getToken();
+      }
+    }
+  }
+
+  function applyMaxClientCountLimit() {
+    const slot = state.selectedSlot;
+    if (!slot) {
+      return;
+    }
+
+    const serviceName = (byId("bookingServiceName") || byId("serviceName")).value || "";
+    const base = inferServiceDurationMinutes(serviceName);
+    if (!base || base <= 0) {
+      return;
+    }
+
+    const schedule = state.workScheduleByDate[slot.date] || defaultSchedule();
+    const startMinutes = toMinutes(slot.time);
+    const allowedEndMinutes = toMinutes(schedule.end);
+    const availableMinutes = allowedEndMinutes - startMinutes;
+
+    const maxAllowedClients = Math.floor(availableMinutes / base);
+    const safeMaxClients = Math.min(Math.max(maxAllowedClients, 1), 5);
+
+    const mainClientCount = byId("clientCount");
+    const modalClientCount = byId("bookingClientCount");
+    
+    if (mainClientCount) {
+      mainClientCount.max = String(safeMaxClients);
+    }
+    if (modalClientCount) {
+      modalClientCount.max = String(safeMaxClients);
+    }
+  }
+
+  function openBookingModal() {
+    const modal = byId("bookingModal");
+    if (!modal || !state.selectedSlot) {
+      return;
+    }
+
+    const slot = state.selectedSlot;
+    const selectedText = byId("selectedSlotText");
+    if (selectedText) {
+      selectedText.textContent = "Horario seleccionado: " + slot.date + " a las " + slot.time;
+    }
+
+    // sync stylist selector in modal
+    const bookingStylist = byId("bookingStylistName");
+    if (bookingStylist) {
+      bookingStylist.value = state.selectedStylist || ANY_STYLIST_VALUE;
+    }
+
+    // populate service selector in modal
+    const bookingService = byId("bookingServiceName");
+    if (bookingService) {
+      bookingService.innerHTML = "";
+      
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.textContent = "Selecciona un servicio";
+      bookingService.appendChild(defaultOption);
+      
+      // load services from state
+      if (state.services && state.services.length > 0) {
+        state.services.forEach(function (service) {
+          const option = document.createElement("option");
+          option.value = service.name;
+          option.textContent = service.name;
+          bookingService.appendChild(option);
+        });
+      }
+    }
+
+    // sync client count
+    const mainClientCount = byId("clientCount");
+    const bookingClientCount = byId("bookingClientCount");
+    if (bookingClientCount && mainClientCount) {
+      bookingClientCount.value = mainClientCount.value || 1;
+    }
+
+    // calculate and apply max client count based on work schedule
+    applyMaxClientCountLimit();
+
+    modal.classList.remove("hidden");
+    computeMobileEstimate();
+  }
+
+  function closeBookingModal() {
+    const modal = byId("bookingModal");
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add("hidden");
   }
 
   function toIsoFromSelection(selection) {
@@ -1160,9 +1390,9 @@
       return;
     }
 
-    const serviceName = byId("serviceName").value.trim();
-    const stylistId = byId("stylistName").value;
-    const clientCount = Number(byId("clientCount").value || 1);
+    const serviceName = (byId("bookingServiceName") || byId("serviceName")).value.trim();
+    const stylistId = (byId("bookingStylistName") || byId("stylistName")).value;
+    const clientCount = Number((byId("bookingClientCount") || byId("clientCount")).value || 1);
 
     if (!serviceName || !stylistId) {
       setFeedback("Servicio y peluquero son obligatorios.", "warn");
@@ -1171,6 +1401,28 @@
 
     if (!Number.isInteger(clientCount) || clientCount < 1 || clientCount > 5) {
       setFeedback("La cantidad de clientes debe estar entre 1 y 5.", "warn");
+      return;
+    }
+
+    const hasActiveReservation = state.myReservations.some(function (res) {
+      if (res.status !== "booked") return false;
+      const resDate = toLocalDate(res.starts_at);
+      const resTime = toLocalTime(res.starts_at);
+      return resDate === state.selectedSlot.date &&
+             resTime === state.selectedSlot.time &&
+             String(res.stylist_id) === String(stylistId);
+    });
+
+    if (hasActiveReservation) {
+      const errorEl = byId("bookingError");
+      if (errorEl) {
+        errorEl.textContent = "Ya tienes una reserva activa con ese empleado a esa hora. Cancela la reserva existente o elige otro horario.";
+        errorEl.classList.remove("hidden");
+      }
+      const confirmBtn = byId("confirmBookingBtn");
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+      }
       return;
     }
 
@@ -1187,11 +1439,70 @@
       } else {
         setFeedback("Reserva registrada con exito.", "ok");
       }
+      closeBookingModal();
       await refreshCalendar();
       await loadMyReservations();
     } catch (error) {
       setFeedback(error.message, "warn");
     }
+  }
+
+  function populateMyReservationsPreview() {
+    const preview = byId("myReservationsPreview");
+    if (!preview) {
+      return;
+    }
+
+    preview.innerHTML = "";
+
+    if (!isClientContext || !getToken()) {
+      const p = document.createElement("p");
+      p.className = "preview-placeholder";
+      p.textContent = isClientContext
+        ? "Inicia sesion para ver tus reservas"
+        : "Reservas visibles solo para clientes";
+      preview.appendChild(p);
+      return;
+    }
+
+    const now = new Date();
+    const upcoming = state.myReservations
+      .filter(function (res) {
+        const startDate = new Date(res.starts_at);
+        return res.status === "booked" && startDate > now;
+      })
+      .sort(function (a, b) {
+        return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime();
+      })
+      .slice(0, 3);
+
+    if (upcoming.length === 0) {
+      const p = document.createElement("p");
+      p.className = "preview-placeholder";
+      p.textContent = "No tienes reservas proximas";
+      preview.appendChild(p);
+      return;
+    }
+
+    upcoming.forEach(function (res) {
+      const time = toLocalTime(res.starts_at);
+      const date = toLocalDate(res.starts_at);
+      const serviceName = res.service_name || "Servicio";
+      const stylistName = res.stylist_name || "Peluquero";
+
+      const item = document.createElement("div");
+      item.className = "preview-item";
+      item.style.padding = "0.6rem";
+      item.style.borderRadius = "6px";
+      item.style.borderLeft = "3px solid var(--available-line)";
+      item.style.background = "rgba(237,246,240,0.5)";
+      item.style.fontSize = "0.85rem";
+      item.innerHTML =
+        '<strong>' + serviceName + '</strong><br/>' +
+        date + ' a las ' + time + '<br/>' +
+        '<span style="color: var(--stone); font-size: 0.8rem;">Con: ' + stylistName + '</span>';
+      preview.appendChild(item);
+    });
   }
 
   async function loadMyReservations() {
@@ -1404,6 +1715,8 @@
         item.appendChild(qrPreview);
         list.appendChild(item);
       });
+
+      populateMyReservationsPreview();
     } catch (error) {
       if (loadVersion !== state.myReservationsLoadVersion) {
         return;
@@ -1413,6 +1726,8 @@
       const item = document.createElement("li");
       item.textContent = error.message;
       list.appendChild(item);
+
+      populateMyReservationsPreview();
     }
   }
 
@@ -1499,15 +1814,17 @@
     );
   }
 
-  byId("calendarBody").addEventListener("click", function (event) {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) {
-      return;
-    }
+  const calendarBody = byId("calendarBody");
+  if (calendarBody) {
+    calendarBody.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) {
+        return;
+      }
 
-    if (!target.classList.contains("available")) {
-      return;
-    }
+      if (!target.classList.contains("available")) {
+        return;
+      }
 
     const date = target.dataset.date;
     const time = target.dataset.time;
@@ -1533,10 +1850,64 @@
     }
 
     setAuthUi();
-  });
 
-  byId("refreshCalendarBtn").addEventListener("click", refreshCalendar);
-  byId("reserveBtn").addEventListener("click", createReservation);
+    if (isClientContext) {
+      openBookingModal();
+    }
+    });
+  }
+
+  const employeeDropdownBtn = byId("employeeDropdownBtn");
+  const employeeDropdownList = byId("employeeDropdownList");
+  if (employeeDropdownBtn && employeeDropdownList) {
+    function renderEmployeeDropdown(query) {
+      employeeDropdownList.innerHTML = "";
+      const filtered = state.stylists.filter(function (s) {
+        return !query || s.name.toLowerCase().includes(query);
+      });
+
+      const allOption = document.createElement("button");
+      allOption.type = "button";
+      allOption.className = "dropdown-item";
+      allOption.textContent = "Cualquier empleado";
+      allOption.addEventListener("click", function () {
+        state.selectedStylist = ANY_STYLIST_VALUE;
+        employeeDropdownBtn.textContent = "Seleccionar empleado";
+        employeeDropdownList.classList.add("hidden");
+        refreshCalendar();
+      });
+      employeeDropdownList.appendChild(allOption);
+
+      filtered.forEach(function (stylist) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "dropdown-item";
+        item.textContent = stylist.name;
+        item.addEventListener("click", function () {
+          state.selectedStylist = String(stylist.id);
+          employeeDropdownBtn.textContent = stylist.name;
+          employeeDropdownList.classList.add("hidden");
+          refreshCalendar();
+        });
+        employeeDropdownList.appendChild(item);
+      });
+    }
+
+    employeeDropdownBtn.addEventListener("click", function () {
+      employeeDropdownList.classList.toggle("hidden");
+      if (!employeeDropdownList.classList.contains("hidden")) {
+        renderEmployeeDropdown("");
+      }
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!employeeDropdownBtn.contains(e.target) && !employeeDropdownList.contains(e.target)) {
+        employeeDropdownList.classList.add("hidden");
+      }
+    });
+  }
+  
+  // Note: confirmBookingBtn listener is registered in registerBookingControls() above
   const myReservationsBtn = byId("myReservationsBtn");
   if (myReservationsBtn) {
     myReservationsBtn.addEventListener("click", function () {
@@ -1686,6 +2057,8 @@
   if (stylistSelect) {
     stylistSelect.addEventListener("change", function () {
       state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
+      // keep selected date fixed when filtering stylists
+      state.weekStart = byId("weekStart").value || state.weekStart;
       refreshCalendar();
     });
   }
@@ -1697,18 +2070,117 @@
       state.selectedSlot = null;
       updateSelectedSlotLabel();
       setAuthUi();
+      // preserve date selection while changing service
+      state.weekStart = byId("weekStart").value || state.weekStart;
       renderCalendar();
     });
   }
 
+  const weekStartInput = byId("weekStart");
+  if (weekStartInput) {
+    weekStartInput.addEventListener("change", function () {
+      state.weekStart = weekStartInput.value || state.weekStart;
+    });
+  }
+
+  // Booking modal controls (register once)
+  (function registerBookingControls() {
+    const bookingStylist = byId("bookingStylistName");
+    if (bookingStylist) {
+      bookingStylist.addEventListener("change", function () {
+        state.selectedStylist = bookingStylist.value || ANY_STYLIST_VALUE;
+        state.weekStart = byId("weekStart").value || state.weekStart;
+        refreshCalendar();
+        applyMaxClientCountLimit();
+        computeMobileEstimate();
+      });
+    }
+
+    const bookingService = byId("bookingServiceName");
+    if (bookingService) {
+      bookingService.addEventListener("change", function () {
+        const mainService = byId("serviceName");
+        if (mainService) {
+          mainService.value = bookingService.value;
+        }
+        state.selectedServiceName = bookingService.value;
+        applyMaxClientCountLimit();
+        computeMobileEstimate();
+      });
+    }
+
+    const bookingClientCount = byId("bookingClientCount");
+    if (bookingClientCount) {
+      bookingClientCount.addEventListener("input", function () {
+        const val = Number(bookingClientCount.value || 1);
+        if (!Number.isInteger(val) || val < 1) {
+          bookingClientCount.value = "1";
+        }
+
+        const mainClient = byId("clientCount");
+        if (mainClient) {
+          mainClient.value = bookingClientCount.value;
+        }
+
+        computeMobileEstimate();
+      });
+    }
+
+    const closeBtn = byId("closeBookingModalBtn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function () {
+        closeBookingModal();
+      });
+    }
+
+    const confirmBtn = byId("confirmBookingBtn");
+    if (confirmBtn) {
+      confirmBtn.addEventListener("click", function () {
+        const bookingService = byId("bookingServiceName");
+        const bookingStylist = byId("bookingStylistName");
+        const bookingClientCount = byId("bookingClientCount");
+
+        const mainService = byId("serviceName");
+        const mainStylist = byId("stylistName");
+        const mainClient = byId("clientCount");
+
+        if (bookingService && mainService) {
+          mainService.value = bookingService.value;
+        }
+        if (bookingStylist && mainStylist) {
+          mainStylist.value = bookingStylist.value;
+        }
+        if (bookingClientCount && mainClient) {
+          mainClient.value = bookingClientCount.value;
+        }
+
+        createReservation()
+          .then(function () {
+            closeBookingModal();
+            state.selectedSlot = null;
+            updateSelectedSlotLabel();
+          })
+          .catch(function (error) {
+            setFeedback(error.message, "warn");
+          });
+      });
+    }
+  })();
+
   const clientCountInput = byId("clientCount");
   if (clientCountInput) {
     clientCountInput.addEventListener("input", function () {
+      const maxAllowed = Number(clientCountInput.max || 5);
       const value = Number(clientCountInput.value || 1);
       if (!Number.isInteger(value) || value < 1) {
         clientCountInput.value = "1";
-      } else if (value > 5) {
-        clientCountInput.value = "5";
+      } else if (value > maxAllowed) {
+        clientCountInput.value = String(maxAllowed);
+      }
+
+      const modalClient = byId("bookingClientCount");
+      if (modalClient) {
+        modalClient.value = clientCountInput.value;
       }
 
       state.selectedSlot = null;
@@ -1731,7 +2203,8 @@
     });
   }
 
-  byId("weekStart").value = toDateInputValue(new Date());
+  state.weekStart = toDateInputValue(new Date());
+  byId("weekStart").value = state.weekStart;
   state.viewportConfig = resolveViewportConfig();
   syncResponsiveCssVars();
   updateSelectedSlotLabel();
@@ -1762,6 +2235,15 @@
   });
 
   const boot = function () {
+    // Initialize weekStart with today's date if not set
+    if (!state.weekStart) {
+      state.weekStart = getToday();
+      const weekStartInput = byId("weekStart");
+      if (weekStartInput) {
+        weekStartInput.value = state.weekStart;
+      }
+    }
+
     refreshClientSessionState()
       .then(function () {
         return loadCatalogs().catch(function (error) {

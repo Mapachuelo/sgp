@@ -103,7 +103,7 @@ Instrucciones de flujo:
 - Primero, desarrolla el código interno de cada funcionalidad (lógica, controladores, modelos).
 - Establece una interfaz simple html sin css para observar si funcionalidad de todo los modulos, de tanto cliente, empleado y administrador.
 - Por último, establece las conexiones e integraciones entre los distintos módulos.
-- Crer documentación de como ejecutar la pagina web utilizando docker en linux.
+- Crer documentación de como ejecutar la pagina web utilizando podman en linux.
 
 Documentación de referencia:
 - Analiza el archivo formato_ieee830.md para entender el contexto y la funcionalidad de la página web a crear.

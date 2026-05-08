@@ -78,12 +78,18 @@ function signToken(user) {
 }
 
 async function register(input) {
-  const name = (input.name || "").trim();
+  const firstName = normalizeText(input.firstName);
+  const lastName = normalizeText(input.lastName);
+  const name = normalizeText(input.name) || [firstName, lastName].filter(Boolean).join(" ");
   const email = (input.email || "").trim().toLowerCase();
   const phoneRaw = normalizePhone(input.phone);
   const password = (input.password || "").trim();
 
   if (!name) {
+    throw new HttpError(400, "La casilla nombre es obligatoria");
+  }
+
+  if (!firstName && !lastName && !name) {
     throw new HttpError(400, "La casilla nombre es obligatoria");
   }
 
@@ -141,6 +147,7 @@ async function register(input) {
 async function login(input) {
   const email = (input.email || "").trim().toLowerCase();
   const password = (input.password || "").trim();
+  const requestedRole = String(input.role || "").trim().toLowerCase();
 
   if (!email || !password) {
     throw new HttpError(400, "email y password son obligatorios");
@@ -149,6 +156,10 @@ async function login(input) {
   const user = await findUserByEmail(email);
   if (!user) {
     throw new HttpError(401, "Credenciales invalidas");
+  }
+
+  if (requestedRole && user.role !== requestedRole) {
+    throw new HttpError(401, "Credenciales invalidas para el rol seleccionado");
   }
 
   if (user.role === "client" && user.is_blocked) {
