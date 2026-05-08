@@ -94,11 +94,50 @@ function homeView() {
   </nav>
 </header>
 
-<main class="dashboard-wrap home-shell" aria-label="dashboard-principal"></main>
+<main class="dashboard-wrap home-shell" aria-label="inicio-principal">
+  <section class="hero panel">
+    <p class="eyebrow">Bienvenido a SGP</p>
+    <h1>Tu estilo, nuestro compromiso</h1>
+    <p>
+      <!-- EDITAR AQUI: Descripción principal de la página de inicio -->
+      Reserva tu cita de manera rápida y sencilla. Explora nuestro calendario, selecciona el servicio que necesitas y encuentra al profesional ideal para ti.
+    </p>
+    <div class="hero-actions">
+      <a class="btn accent" href="/ui/client/calendar">Ver calendario</a>
+      <a class="btn ghost" href="/ui/login">Iniciar sesion</a>
+    </div>
+  </section>
+
+  <section class="info-grid">
+    <article class="info-card panel">
+      <h3>Como funciona</h3>
+      <p>
+        <!-- EDITAR AQUI: Explicación del proceso de reserva -->
+        1. Inicia sesión o crea tu cuenta. 2. Explora el calendario y selecciona un horario disponible. 3. Elige tu servicio y confirma tu reserva.
+      </p>
+    </article>
+
+    <article class="info-card panel">
+      <h3>Nuestros servicios</h3>
+      <p>
+        <!-- EDITAR AQUI: Lista de servicios ofrecidos -->
+        Cortes, coloración, tratamientos capilares y más. Consulta la disponibilidad de cada servicio en el calendario.
+      </p>
+    </article>
+
+    <article class="info-card panel">
+      <h3>Horarios de atención</h3>
+      <p>
+        <!-- EDITAR AQUI: Horarios de atención del negocio -->
+        Lunes a Sábado: 8:00 AM - 8:00 PM. Domingos y festivos: Cerrado.
+      </p>
+    </article>
+  </section>
+</main>
   `;
 
   return clientDocument(
-    "SGP - Dashboard",
+    "SGP - Inicio",
     "/ui-assets/styles/client-dashboard.css",
     body,
     "/ui-assets/scripts/main-dashboard.js",
@@ -112,7 +151,7 @@ function loginView() {
   <a class="brand" href="/">SGP</a>
   <nav class="topbar-actions">
     <a class="btn ghost" href="/ui/client/calendar">Ver calendario</a>
-    <a class="btn ghost" href="/">Volver</a>
+    <a class="btn ghost" href="/ui/client">Volver</a>
   </nav>
 </header>
 
@@ -130,9 +169,8 @@ function loginView() {
     <button id="loginBtn" class="btn accent block" type="button">Entrar</button>
 
     <button id="openRegisterBtn" class="btn ghost block" type="button">Crear nueva cuenta de cliente</button>
-    <p id="loginRoleHint" class="feedback info">El rol se detecta automaticamente con tu correo y contraseña.</p>
 
-    <p id="loginFeedback" class="feedback info">Ingresa correo y password para entrar.</p>
+    <p id="loginFeedback" class="feedback warn hidden"></p>
   </section>
 
   <div id="registerModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="registerTitle">
@@ -201,10 +239,6 @@ function clientView() {
     </div>
     <p id="authBadge" class="badge">Sesion no iniciada</p>
   </section>
-
-  <section class="panel feedback-panel">
-    <p id="dashboardFeedback" class="feedback info">Inicia sesion para gestionar tu cuenta.</p>
-  </section>
 </main>
 
 <div id="clientProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clientProfileTitle">
@@ -240,7 +274,7 @@ function clientView() {
 `;
 
   return clientDocument(
-    "SGP - Dashboard Cliente",
+    "SGP - Inicio Cliente",
     "/ui-assets/styles/client-dashboard.css",
     body,
     "/ui-assets/scripts/client-dashboard.js"
@@ -252,7 +286,7 @@ function clientCalendarView() {
 <header class="topbar">
   <a class="brand" href="/ui/client">SGP</a>
   <nav class="topbar-actions">
-    <a class="btn ghost" href="/ui/client">Dashboard</a>
+    <a class="btn ghost" href="/ui/client">Inicio</a>
     <button id="openProfileEditBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
     <button id="navLoginBtn" class="btn accent" type="button">Iniciar sesion</button>
     <button id="navLogoutBtn" class="btn ghost hidden" type="button">Cerrar sesion</button>
@@ -260,30 +294,6 @@ function clientCalendarView() {
 </header>
 
 <main class="calendar-layout">
-  <!-- EMPLOYEE SELECTOR & MY RESERVATIONS SECTION -->
-  <section class="employee-selector-section panel">
-    <div class="employee-selector-header">
-      <h2>Selecciona peluquero</h2>
-      <p>Elige con quién deseas agendar</p>
-    </div>
-    
-    <label for="stylistName">Peluquero</label>
-    <select id="stylistName">
-      <option value="__any__">Cualquier peluquero</option>
-    </select>
-
-    <!-- MY RESERVATIONS PREVIEW (inside employee selector) -->
-    <div class="my-reservations-preview-section">
-      <div class="reservations-preview-header">
-        <h3>Mis próximas reservas</h3>
-        <button id="myReservationsBtn" class="btn ghost mini" type="button">Ver todas</button>
-      </div>
-      <div id="myReservationsPreview" class="reservations-preview-list">
-        <p class="preview-placeholder">Cargando...</p>
-      </div>
-    </div>
-  </section>
-
   <!-- CALENDAR MAIN SECTION (Primary Display) -->
   <section class="calendar-main panel">
     <div class="calendar-title-wrap">
@@ -294,7 +304,10 @@ function clientCalendarView() {
     <div class="calendar-toolbar">
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
-      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar</button>
+      <div class="employee-dropdown">
+        <button id="employeeDropdownBtn" type="button" class="btn ghost">Seleccionar empleado</button>
+        <div id="employeeDropdownList" class="dropdown-list hidden"></div>
+      </div>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
@@ -324,6 +337,11 @@ function clientCalendarView() {
     <div class="modal-body">
       <p id="selectedSlotText" class="selected-slot">Horario seleccionado</p>
 
+      <label for="bookingStylistName">Peluquero</label>
+      <select id="bookingStylistName">
+        <option value="__any__">Selecciona al empleado</option>
+      </select>
+
       <label for="bookingServiceName">Servicio</label>
       <select id="bookingServiceName">
         <option value="">Selecciona un servicio</option>
@@ -339,7 +357,7 @@ function clientCalendarView() {
     </div>
 
     <div class="modal-actions">
-      <button id="closeBookingModalBtn2" class="btn ghost" type="button">Cancelar</button>
+      <button id="myReservationsBtn" class="btn ghost" type="button">Mis reservas</button>
       <button id="confirmBookingBtn" class="btn accent" type="button" disabled>Confirmar</button>
     </div>
   </div>
@@ -403,7 +421,7 @@ function employeeView() {
 <header class="emp-topbar">
   <a class="emp-brand" href="/ui/empleado">SGP</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
@@ -482,7 +500,7 @@ function employeeView() {
 `;
 
   return clientDocument(
-    "SGP - Empleado Dashboard",
+    "SGP - Empleado Inicio",
     "/ui-assets/styles/empleado-dashboard.css",
     body,
     "/ui-assets/scripts/empleado-dashboard.js"
@@ -494,7 +512,7 @@ function employeeCalendarView() {
 <header class="topbar">
   <a class="brand" href="/ui/empleado">SGP</a>
   <nav class="topbar-actions">
-    <a class="btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="btn ghost" href="/ui/empleado">Inicio</a>
     <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a class="btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
@@ -571,7 +589,7 @@ function employeeVerifyClientsView() {
 <header class="emp-topbar">
   <a class="emp-brand" href="/ui/empleado">SGP</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
@@ -637,7 +655,7 @@ function employeeValidateQrView() {
 <header class="emp-topbar">
   <a class="emp-brand" href="/ui/empleado">SGP</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
@@ -686,7 +704,7 @@ function employeeClientModerationView() {
 <header class="emp-topbar">
   <a class="emp-brand" href="/ui/empleado">SGP</a>
   <nav class="emp-nav">
-    <a class="emp-btn ghost" href="/ui/empleado">Dashboard</a>
+    <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>

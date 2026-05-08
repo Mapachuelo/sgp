@@ -15,6 +15,7 @@
 
 		feedback.textContent = message;
 		feedback.className = "feedback " + tone;
+		feedback.classList.remove("hidden");
 	}
 
 	function setRegisterFeedback(message, tone) {
@@ -322,11 +323,6 @@
 				closeRegisterModal();
 			}
 		});
-	}
-
-	const roleHint = byId("loginRoleHint");
-	if (roleHint) {
-		roleHint.textContent = "Selecciona tu rol e ingresa correo y password.";
 	}
 
 	redirectIfActiveSession();

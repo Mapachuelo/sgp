@@ -201,114 +201,6 @@ body {
   }
 }
 
-/* ── EMPLOYEE SELECTOR SECTION ──────────────────── */
-.employee-selector-section {
-  display: grid;
-  gap: 0.5rem;
-  background: linear-gradient(135deg, var(--sand-lt), var(--ivory-dk));
-  border: 1px solid rgba(201,185,168,0.35);
-  border-radius: var(--radius-md);
-  padding: 0.85rem 1rem;
-  box-shadow: var(--shadow-sm);
-}
-
-.employee-selector-header {
-  margin: 0 0 0.25rem 0;
-}
-
-.employee-selector-header h2 {
-  margin: 0;
-  font-family: "Playfair Display", serif;
-  font-size: clamp(1.1rem, 1.8vw, 1.4rem);
-  color: var(--stone-dk);
-  font-weight: 700;
-}
-
-.employee-selector-header p {
-  margin: 0.2rem 0 0;
-  color: var(--stone);
-  font-size: 0.85rem;
-}
-
-.employee-selector-section label {
-  font-weight: 600;
-  font-size: 0.78rem;
-  color: var(--stone);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  display: block;
-  margin-bottom: 0.35rem;
-}
-
-.employee-selector-section select {
-  width: 100%;
-  border: 1.5px solid var(--sand-dk);
-  border-radius: var(--radius-sm);
-  padding: 0.55rem 0.7rem;
-  font-family: "Outfit", sans-serif;
-  font-size: 0.88rem;
-  background: #fff;
-  color: var(--stone-dk);
-  transition: var(--transition);
-  cursor: pointer;
-}
-
-.employee-selector-section select:hover,
-.employee-selector-section select:focus {
-  outline: none;
-  border-color: var(--terra);
-  box-shadow: 0 0 0 3px rgba(192,115,90,0.1), var(--shadow-sm);
-  background: #fff;
-}
-
-/* ── MY RESERVATIONS PREVIEW SECTION ────────────── */
-.my-reservations-preview-section {
-  display: grid;
-  gap: 0.55rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(201,185,168,0.3);
-}
-
-.reservations-preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.reservations-preview-header h3 {
-  margin: 0;
-  font-family: "Playfair Display", serif;
-  font-size: 0.95rem;
-  color: var(--stone-dk);
-  font-weight: 600;
-}
-
-.reservations-preview-list {
-  display: grid;
-  gap: 0.5rem;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-.preview-placeholder {
-  margin: 0;
-  padding: 0.4rem 0;
-  color: var(--stone-lt);
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-.preview-item {
-  padding: 0.55rem !important;
-  border-radius: 6px !important;
-  border-left: 3px solid var(--available-line) !important;
-  background: rgba(237,246,240,0.5) !important;
-  font-size: 0.85rem !important;
-}
-
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -318,7 +210,8 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
+  height: calc(100vh - 120px);
 }
 
 .calendar-title-wrap h1 {
@@ -359,7 +252,6 @@ body {
   padding: 0.68rem 0.8rem;
   font-family: "Outfit", sans-serif;
   font-size: 0.92rem;
-  width: 100%;
   transition: var(--transition);
   background: var(--ivory);
   color: var(--stone-dk);
@@ -372,9 +264,50 @@ body {
   background: #fff;
 }
 
-.calendar-toolbar input {
+.calendar-toolbar input[type="date"] {
+  width: 100%;
+  max-width: 180px;
+}
+
+.calendar-toolbar input[type="text"] {
   width: 100%;
   max-width: 220px;
+}
+
+.employee-dropdown {
+  position: relative;
+}
+
+.dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  margin-top: 0.35rem;
+  background: #fff;
+  border: 1px solid rgba(201,185,168,0.6);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  min-width: 180px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 0.88rem;
+  color: var(--stone-dk);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background: var(--sand-lt);
 }
 
 /* ── BADGES & LEGENDS ───────────────────────────── */
@@ -526,6 +459,48 @@ thead th {
   gap: 0.7rem;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+.booking-modal-card .modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1.2rem 0.6rem;
+  border-bottom: 1px solid var(--sand);
+}
+
+.booking-modal-card .modal-head h2 {
+  margin: 0;
+  font-family: "Playfair Display", serif;
+  font-size: 1.2rem;
+  color: var(--stone-dk);
+}
+
+.booking-modal-card .btn.ghost {
+  background: var(--ivory);
+  color: var(--stone-dk);
+  border: 1px solid var(--sand-dk);
+}
+
+.booking-modal-card .btn.ghost:hover {
+  background: var(--ivory-dk);
+  border-color: var(--terra-lt);
+}
+
+.booking-modal-card .modal-actions {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.8rem 1.2rem 1rem;
+  border-top: 1px solid var(--sand);
+}
+
+.booking-modal-card .modal-actions .btn {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
 .selected-slot {
@@ -1309,7 +1284,8 @@ pre {
   }
 
   .calendar-main {
-    overflow: visible;
+    overflow: hidden;
+    height: calc(100vh - 120px);
   }
 
   .calendar-shell {

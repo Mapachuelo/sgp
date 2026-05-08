@@ -1124,13 +1124,38 @@
     state.stylists = stylistsPayload.data || [];
     state.services = servicesPayload.data || [];
 
+    // Populate stylist selector in booking modal
+    const bookingStylistSelect = byId("bookingStylistName");
+    if (bookingStylistSelect) {
+      bookingStylistSelect.innerHTML = "";
+
+      const anyOption = document.createElement("option");
+      anyOption.value = ANY_STYLIST_VALUE;
+      anyOption.textContent = "Selecciona al empleado";
+      bookingStylistSelect.appendChild(anyOption);
+
+      state.stylists.forEach(function (stylist) {
+        if (isEmployeeContext && Number(stylist.id) !== Number(profile.id)) {
+          return;
+        }
+
+        const option = document.createElement("option");
+        option.value = String(stylist.id);
+        option.textContent = stylist.name;
+        bookingStylistSelect.appendChild(option);
+      });
+
+      state.selectedStylist = bookingStylistSelect.value || ANY_STYLIST_VALUE;
+    }
+
+    // Also populate legacy stylist selector (for employee/admin views)
     const stylistSelect = byId("stylistName");
     if (stylistSelect) {
       stylistSelect.innerHTML = "";
 
       const anyOption = document.createElement("option");
       anyOption.value = ANY_STYLIST_VALUE;
-      anyOption.textContent = "Cualquier peluquero";
+      anyOption.textContent = "Selecciona al empleado";
       stylistSelect.appendChild(anyOption);
 
       state.stylists.forEach(function (stylist) {
@@ -1147,6 +1172,20 @@
       state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
     }
 
+    // Build service duration maps (used by modal and calendar regardless of view)
+    (servicesPayload.data || []).forEach(function (service) {
+      const serviceName = String(service.name || "").trim();
+      const duration = normalizeStepMinutes(service.duration_minutes || service.durationMinutes);
+      state.serviceDurationByName[serviceName] = duration;
+
+      const stylistDurations = service.stylist_durations || {};
+      const normalizedByStylist = {};
+      Object.keys(stylistDurations).forEach(function (stylistId) {
+        normalizedByStylist[String(stylistId)] = normalizeStepMinutes(stylistDurations[stylistId]);
+      });
+      state.serviceDurationByNameAndStylist[serviceName] = normalizedByStylist;
+    });
+
     const serviceSelect = byId("serviceName");
     if (serviceSelect) {
       serviceSelect.innerHTML = "";
@@ -1161,17 +1200,6 @@
         option.value = service.name;
         option.textContent = service.name;
         serviceSelect.appendChild(option);
-
-        const serviceName = String(service.name || "").trim();
-        const duration = normalizeStepMinutes(service.duration_minutes || service.durationMinutes);
-        state.serviceDurationByName[serviceName] = duration;
-
-        const stylistDurations = service.stylist_durations || {};
-        const normalizedByStylist = {};
-        Object.keys(stylistDurations).forEach(function (stylistId) {
-          normalizedByStylist[String(stylistId)] = normalizeStepMinutes(stylistDurations[stylistId]);
-        });
-        state.serviceDurationByNameAndStylist[serviceName] = normalizedByStylist;
       });
 
       updateSelectedServiceDuration();
@@ -1302,6 +1330,12 @@
       selectedText.textContent = "Horario seleccionado: " + slot.date + " a las " + slot.time;
     }
 
+    // sync stylist selector in modal
+    const bookingStylist = byId("bookingStylistName");
+    if (bookingStylist) {
+      bookingStylist.value = state.selectedStylist || ANY_STYLIST_VALUE;
+    }
+
     // populate service selector in modal
     const bookingService = byId("bookingServiceName");
     if (bookingService) {
@@ -1369,7 +1403,7 @@
     }
 
     const serviceName = (byId("bookingServiceName") || byId("serviceName")).value.trim();
-    const stylistId = byId("stylistName").value;
+    const stylistId = (byId("bookingStylistName") || byId("stylistName")).value;
     const clientCount = Number((byId("bookingClientCount") || byId("clientCount")).value || 1);
 
     if (!serviceName || !stylistId) {
@@ -1379,6 +1413,28 @@
 
     if (!Number.isInteger(clientCount) || clientCount < 1 || clientCount > 5) {
       setFeedback("La cantidad de clientes debe estar entre 1 y 5.", "warn");
+      return;
+    }
+
+    const hasActiveReservation = state.myReservations.some(function (res) {
+      if (res.status !== "booked") return false;
+      const resDate = toLocalDate(res.starts_at);
+      const resTime = toLocalTime(res.starts_at);
+      return resDate === state.selectedSlot.date &&
+             resTime === state.selectedSlot.time &&
+             String(res.stylist_id) === String(stylistId);
+    });
+
+    if (hasActiveReservation) {
+      const errorEl = byId("bookingError");
+      if (errorEl) {
+        errorEl.textContent = "Ya tienes una reserva activa con ese empleado a esa hora. Cancela la reserva existente o elige otro horario.";
+        errorEl.classList.remove("hidden");
+      }
+      const confirmBtn = byId("confirmBookingBtn");
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+      }
       return;
     }
 
@@ -1813,7 +1869,55 @@
     });
   }
 
-  byId("refreshCalendarBtn").addEventListener("click", refreshCalendar);
+  const employeeDropdownBtn = byId("employeeDropdownBtn");
+  const employeeDropdownList = byId("employeeDropdownList");
+  if (employeeDropdownBtn && employeeDropdownList) {
+    function renderEmployeeDropdown(query) {
+      employeeDropdownList.innerHTML = "";
+      const filtered = state.stylists.filter(function (s) {
+        return !query || s.name.toLowerCase().includes(query);
+      });
+
+      const allOption = document.createElement("button");
+      allOption.type = "button";
+      allOption.className = "dropdown-item";
+      allOption.textContent = "Cualquier empleado";
+      allOption.addEventListener("click", function () {
+        state.selectedStylist = ANY_STYLIST_VALUE;
+        employeeDropdownBtn.textContent = "Seleccionar empleado";
+        employeeDropdownList.classList.add("hidden");
+        refreshCalendar();
+      });
+      employeeDropdownList.appendChild(allOption);
+
+      filtered.forEach(function (stylist) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "dropdown-item";
+        item.textContent = stylist.name;
+        item.addEventListener("click", function () {
+          state.selectedStylist = String(stylist.id);
+          employeeDropdownBtn.textContent = stylist.name;
+          employeeDropdownList.classList.add("hidden");
+          refreshCalendar();
+        });
+        employeeDropdownList.appendChild(item);
+      });
+    }
+
+    employeeDropdownBtn.addEventListener("click", function () {
+      employeeDropdownList.classList.toggle("hidden");
+      if (!employeeDropdownList.classList.contains("hidden")) {
+        renderEmployeeDropdown("");
+      }
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!employeeDropdownBtn.contains(e.target) && !employeeDropdownList.contains(e.target)) {
+        employeeDropdownList.classList.add("hidden");
+      }
+    });
+  }
   
   // Note: confirmBookingBtn listener is registered in registerBookingControls() above
   const myReservationsBtn = byId("myReservationsBtn");
@@ -1993,6 +2097,17 @@
 
   // Booking modal controls (register once)
   (function registerBookingControls() {
+    const bookingStylist = byId("bookingStylistName");
+    if (bookingStylist) {
+      bookingStylist.addEventListener("change", function () {
+        state.selectedStylist = bookingStylist.value || ANY_STYLIST_VALUE;
+        state.weekStart = byId("weekStart").value || state.weekStart;
+        refreshCalendar();
+        applyMaxClientCountLimit();
+        computeMobileEstimate();
+      });
+    }
+
     const bookingService = byId("bookingServiceName");
     if (bookingService) {
       bookingService.addEventListener("change", function () {
@@ -2026,20 +2141,18 @@
       });
     }
 
-    const closeBtn1 = byId("closeBookingModalBtn");
-    const closeBtn2 = byId("closeBookingModalBtn2");
-    [closeBtn1, closeBtn2].forEach(function (btn) {
-      if (btn) {
-        btn.addEventListener("click", function () {
-          closeBookingModal();
-        });
-      }
-    });
+    const closeBtn = byId("closeBookingModalBtn");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function () {
+        closeBookingModal();
+      });
+    }
 
     const confirmBtn = byId("confirmBookingBtn");
     if (confirmBtn) {
       confirmBtn.addEventListener("click", function () {
         const bookingService = byId("bookingServiceName");
+        const bookingStylist = byId("bookingStylistName");
         const bookingClientCount = byId("bookingClientCount");
 
         const mainService = byId("serviceName");
@@ -2048,6 +2161,9 @@
 
         if (bookingService && mainService) {
           mainService.value = bookingService.value;
+        }
+        if (bookingStylist && mainStylist) {
+          mainStylist.value = bookingStylist.value;
         }
         if (bookingClientCount && mainClient) {
           mainClient.value = bookingClientCount.value;
