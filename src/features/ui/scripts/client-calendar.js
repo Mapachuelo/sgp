@@ -1245,25 +1245,19 @@
     
     // calculate max allowed client count based on available time
     const maxAllowedClients = base > 0 ? Math.floor(availableMinutes / base) : 5;
-    const safeMaxClients = Math.min(maxAllowedClients, 5);
+    const safeMaxClients = Math.min(Math.max(maxAllowedClients, 1), 5);
     
     // update max attribute on client count inputs
     const mainClientCount = byId("clientCount");
     const modalClientCount = byId("bookingClientCount");
     if (mainClientCount) {
       mainClientCount.max = String(safeMaxClients);
-      if (Number(mainClientCount.value) > safeMaxClients) {
-        mainClientCount.value = String(safeMaxClients);
-      }
     }
     if (modalClientCount) {
       modalClientCount.max = String(safeMaxClients);
-      if (Number(modalClientCount.value) > safeMaxClients) {
-        modalClientCount.value = String(safeMaxClients);
-      }
     }
     
-    if (endMinutes > allowedEndMinutes) {
+    if (clientCount > safeMaxClients || endMinutes > allowedEndMinutes) {
       if (errorEl) {
         errorEl.textContent = "Se sobrepasa el tiempo estimado que está disponible del empleado. Máximo " + safeMaxClients + " persona(s) para este horario.";
         errorEl.classList.remove("hidden");
@@ -1306,15 +1300,9 @@
     
     if (mainClientCount) {
       mainClientCount.max = String(safeMaxClients);
-      if (Number(mainClientCount.value) > safeMaxClients) {
-        mainClientCount.value = String(safeMaxClients);
-      }
     }
     if (modalClientCount) {
       modalClientCount.max = String(safeMaxClients);
-      if (Number(modalClientCount.value) > safeMaxClients) {
-        modalClientCount.value = String(safeMaxClients);
-      }
     }
   }
 
@@ -2124,12 +2112,9 @@
     const bookingClientCount = byId("bookingClientCount");
     if (bookingClientCount) {
       bookingClientCount.addEventListener("input", function () {
-        const maxAllowed = Number(bookingClientCount.max || 5);
         const val = Number(bookingClientCount.value || 1);
         if (!Number.isInteger(val) || val < 1) {
           bookingClientCount.value = "1";
-        } else if (val > maxAllowed) {
-          bookingClientCount.value = String(maxAllowed);
         }
 
         const mainClient = byId("clientCount");
