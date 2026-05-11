@@ -130,6 +130,44 @@ body {
   font-size: clamp(1.5rem, 2.4vw, 2.1rem);
 }
 
+.panel-head input[type="text"] {
+  border: 1.5px solid var(--sand-dk);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.9rem;
+  background: var(--ivory);
+  color: var(--stone-dk);
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.panel-head input[type="text"]:focus {
+  outline: none;
+  border-color: var(--terra);
+  box-shadow: 0 0 0 3px rgba(192,115,90,0.1);
+}
+
+.access-denied {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.access-denied h2 {
+  font-family: "Playfair Display", serif;
+  color: var(--warn);
+  margin-bottom: 0.5rem;
+}
+
+.access-denied p {
+  color: var(--stone);
+  margin-bottom: 1.5rem;
+}
+
+.access-denied .emp-btn.solid {
+  display: inline-block;
+}
+
 .helper {
   margin: 0.55rem 0 0.85rem;
   color: var(--stone);

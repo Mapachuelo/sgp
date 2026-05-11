@@ -807,6 +807,18 @@
     state.days.forEach(function (day) {
       const cell = document.createElement("th");
       cell.textContent = toLabel(day);
+      cell.style.cursor = "pointer";
+      cell.title = "Clic para marcar como no laboral";
+
+      var dayKey = toDateKey(day);
+      cell.addEventListener("click", function () {
+        var config = getDayConfig(dayKey);
+        config.offDay = !config.offDay;
+        saveScheduleConfig();
+        renderConfigPanel();
+        renderCalendar();
+      });
+
       headRow.appendChild(cell);
     });
 
@@ -1051,6 +1063,30 @@
   }
 
   byId("reloadBtn").addEventListener("click", refreshAll);
+
+  function saveScheduleConfig() {
+    updateConfigFromForm();
+    callApi("/api/reservations/work-schedule", "PUT", {
+      entries: state.days.map(function (day) {
+        var dayKey = toDateKey(day);
+        var config = getDayConfig(dayKey);
+        return {
+          date: dayKey,
+          offDay: Boolean(config.offDay),
+          start: config.start,
+          end: config.end
+        };
+      })
+    })
+      .then(function () {
+        setFeedback("Dia actualizado automaticamente.", "ok");
+        return refreshAll();
+      })
+      .catch(function (error) {
+        setFeedback(error.message, "warn");
+      });
+  }
+
   const verifyEmployeeFilter = byId("verifyEmployeeFilter");
   if (verifyEmployeeFilter) {
     verifyEmployeeFilter.addEventListener("change", function () {

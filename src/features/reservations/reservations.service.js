@@ -25,7 +25,7 @@ const {
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
   saveEmployeeServiceTimes,
-  countActiveReservationsByClientAndService,
+  countActiveReservationsByClient,
   findClientReservationById,
   cancelReservationByClient,
   cancelReservationsByDate
@@ -37,8 +37,9 @@ const ANY_STYLIST_VALUE = "__any__";
 const DEFAULT_SERVICE_DURATION_MINUTES = 30;
 const MIN_SERVICE_DURATION_MINUTES = 1;
 const MAX_SERVICE_DURATION_MINUTES = 280;
-const MIN_LEAD_TIME_MINUTES = 60;
+const MIN_LEAD_TIME_MINUTES = 15;
 const MIN_CLIENT_COUNT_PER_RESERVATION = 1;
+const MAX_ACTIVE_RESERVATIONS_PER_CLIENT = 5;
 const MAX_CLIENT_COUNT_PER_RESERVATION = 5;
 const CLIENT_HISTORY_RETENTION_DAYS = 7;
 const APP_TIME_ZONE = env.appTimezone || "America/Bogota";
@@ -83,7 +84,7 @@ function validateStartsAt(startsAtText) {
 
   const leadTimeMinutes = (startsAt.getTime() - now) / 60000;
   if (leadTimeMinutes < MIN_LEAD_TIME_MINUTES) {
-    throw new HttpError(409, "Fuera de tiempo");
+    throw new HttpError(409, "La reserva debe hacerse con al menos " + MIN_LEAD_TIME_MINUTES + " minutos de anticipacion");
   }
 
   return startsAt;
@@ -498,12 +499,8 @@ async function evaluateStylistCandidate(
     stylist.id,
     service,
     durationMapCache,
-    true
+    false
   );
-
-  if (!durationResult.enabled) {
-    throw new HttpError(409, "El peluquero seleccionado no tiene configurado ese servicio");
-  }
 
   const totalDurationMinutes = durationResult.durationMinutes * clientCount;
   const endsAt = addMinutes(startsAt, totalDurationMinutes);
@@ -659,14 +656,11 @@ async function reserveAppointment(clientId, input) {
     );
   }
 
-  const activeReservationsForService = await countActiveReservationsByClientAndService(
-    clientId,
-    serviceName
-  );
-  if (activeReservationsForService > 0) {
+  const activeReservationsCount = await countActiveReservationsByClient(clientId);
+  if (activeReservationsCount >= MAX_ACTIVE_RESERVATIONS_PER_CLIENT) {
     throw new HttpError(
       409,
-      "Solo puedes tener una reserva activa por servicio. Elimina la actual para volver a reservar"
+      "Has alcanzado el maximo de " + MAX_ACTIVE_RESERVATIONS_PER_CLIENT + " reservas activas. Cancela alguna existente para crear una nueva."
     );
   }
 

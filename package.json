@@ -24,13 +24,19 @@
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.5.1",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
     "qrcode": "^1.5.4",
     "ws": "^8.18.0"
   },
   "bugs": {
     "url": "https://github.com/Mapachuelo/prueba/issues"
   },
-  "homepage": "https://github.com/Mapachuelo/prueba#readme"
+  "homepage": "https://github.com/Mapachuelo/prueba#readme",
+  "devDependencies": {
+    "pino-pretty": "^13.1.3"
+  }
 }

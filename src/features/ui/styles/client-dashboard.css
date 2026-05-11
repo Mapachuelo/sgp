@@ -658,3 +658,24 @@ pre {
     padding: 1.7rem;
   }
 }
+
+.ws-toast {
+  position: fixed;
+  bottom: 1.2rem;
+  right: 1.2rem;
+  background: var(--wood-dk);
+  color: var(--ivory);
+  padding: 0.75rem 1.2rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-md);
+  z-index: 9999;
+  max-width: 320px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.ws-toast.hidden {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}

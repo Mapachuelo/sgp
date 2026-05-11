@@ -319,6 +319,25 @@ select:focus {
   color: var(--stone-dk);
 }
 
+.list-head input[type="text"] {
+  border: 1.5px solid var(--sand-dk);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.9rem;
+  background: var(--ivory);
+  color: var(--stone-dk);
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.list-head input[type="text"]:focus {
+  outline: none;
+  border-color: var(--terra);
+  box-shadow: 0 0 0 3px rgba(192,115,90,0.1);
+}
+
 .table-shell {
   margin-top: 1rem;
   border: 1px solid rgba(201,185,168,0.35);

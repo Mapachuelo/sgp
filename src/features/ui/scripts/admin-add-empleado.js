@@ -295,6 +295,8 @@
     byId("password").value = "";
   }
 
+  let allEmployees = [];
+
   function renderEmployees(rows) {
     const body = byId("employeesTableBody");
     body.innerHTML = "";
@@ -378,7 +380,26 @@
 
   async function loadEmployees() {
     const payload = await callApi("/api/auth/employees", "GET");
-    renderEmployees(payload.data || []);
+    allEmployees = payload.data || [];
+    applyEmployeeSearch();
+  }
+
+  function applyEmployeeSearch() {
+    const searchInput = byId("employeeSearchInput");
+    var query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    var filtered = allEmployees;
+
+    if (query) {
+      filtered = allEmployees.filter(function (emp) {
+        var name = (emp.name || "").toLowerCase();
+        var lastName = (emp.last_name || "").toLowerCase();
+        var email = (emp.email || "").toLowerCase();
+        var identification = (emp.identification || "").toLowerCase();
+        return name.includes(query) || lastName.includes(query) || email.includes(query) || identification.includes(query);
+      });
+    }
+
+    renderEmployees(filtered);
   }
 
   async function createEmployee(event) {
@@ -847,6 +868,13 @@
 
   setupAdminModals();
 
+  const employeeSearchInput = byId("employeeSearchInput");
+  if (employeeSearchInput) {
+    employeeSearchInput.addEventListener("input", function () {
+      applyEmployeeSearch();
+    });
+  }
+
   if (!getToken()) {
     setSessionUi(false);
     window.location.href = LOGIN_PATH;
@@ -858,6 +886,7 @@
       })
       .then(function () {
         setFeedback("Sesion de administrador activa.", "ok");
+        initWsNotifications();
       })
       .catch(function (error) {
         clearToken();
@@ -865,5 +894,31 @@
         setFeedback(error.message, "warn");
         window.location.href = LOGIN_PATH;
       });
+  }
+
+  function initWsNotifications() {
+    if (!window.SgpWebSocket) return;
+
+    window.SgpWebSocket.connect();
+
+    window.SgpWebSocket.on("availability.updated", function (payload) {
+      setFeedback("Disponibilidad actualizada: " + (payload.date || ""), "info");
+      loadEmployees();
+    });
+
+    window.SgpWebSocket.on("*", function (type) {
+      if (type === "connected") return;
+      showWsToast("Notificacion: " + type);
+    });
+  }
+
+  function showWsToast(message) {
+    var toast = byId("wsToast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.remove("hidden");
+    setTimeout(function () {
+      toast.classList.add("hidden");
+    }, 4000);
   }
 })();

@@ -4,6 +4,7 @@ const {
   optionalAuth,
   requireRole
 } = require("../../shared/middlewares/auth.middleware");
+const { apiLimiter } = require("../../shared/middlewares/rateLimit.middleware");
 const {
   createReservationController,
   myReservationsController,
@@ -53,7 +54,7 @@ router.delete(
   requireRole("empleado", "admin"),
   resetWorkScheduleController
 );
-router.post("/", requireAuth, requireRole("client"), createReservationController);
+router.post("/", apiLimiter, requireAuth, requireRole("client"), createReservationController);
 router.get("/me", requireAuth, requireRole("client"), myReservationsController);
 router.delete("/me/:reservationId", requireAuth, requireRole("client"), cancelMyReservationController);
 router.get("/", requireAuth, requireRole("empleado", "admin"), listReservationsController);
