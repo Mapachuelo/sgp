@@ -65,9 +65,15 @@ async function ensureWorkScheduleTable(queryable = db) {
       off_day BOOLEAN NOT NULL DEFAULT FALSE,
       start_time TIME NOT NULL DEFAULT '06:00',
       end_time TIME NOT NULL DEFAULT '22:00',
+      blocked_hours JSONB NOT NULL DEFAULT '[]',
       updated_by INT REFERENCES app_user(id) ON DELETE SET NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `);
+
+  await queryable.query(`
+    ALTER TABLE work_schedule
+    ADD COLUMN IF NOT EXISTS blocked_hours JSONB NOT NULL DEFAULT '[]'
   `);
 }
 
@@ -79,10 +85,16 @@ async function ensureEmployeeWorkScheduleTable(queryable = db) {
       off_day BOOLEAN NOT NULL DEFAULT FALSE,
       start_time TIME NOT NULL DEFAULT '06:00',
       end_time TIME NOT NULL DEFAULT '22:00',
+      blocked_hours JSONB NOT NULL DEFAULT '[]',
       updated_by INT REFERENCES app_user(id) ON DELETE SET NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (work_date, employee_id)
     )
+  `);
+
+  await queryable.query(`
+    ALTER TABLE employee_work_schedule
+    ADD COLUMN IF NOT EXISTS blocked_hours JSONB NOT NULL DEFAULT '[]'
   `);
 }
 
@@ -326,7 +338,8 @@ async function listWorkScheduleByRange(startDate, daysCount) {
         work_date::TEXT AS work_date,
         off_day,
         TO_CHAR(start_time, 'HH24:MI') AS start_time,
-        TO_CHAR(end_time, 'HH24:MI') AS end_time
+        TO_CHAR(end_time, 'HH24:MI') AS end_time,
+        blocked_hours
       FROM work_schedule
       WHERE work_date >= $1::DATE
         AND work_date < ($1::DATE + ($2::INT * INTERVAL '1 day'))
@@ -347,7 +360,8 @@ async function listEmployeeWorkScheduleByRange(startDate, daysCount, employeeId)
         work_date::TEXT AS work_date,
         off_day,
         TO_CHAR(start_time, 'HH24:MI') AS start_time,
-        TO_CHAR(end_time, 'HH24:MI') AS end_time
+        TO_CHAR(end_time, 'HH24:MI') AS end_time,
+        blocked_hours
       FROM employee_work_schedule
       WHERE employee_id = $3
         AND work_date >= $1::DATE
@@ -367,17 +381,18 @@ async function upsertWorkSchedule(entries, updatedBy) {
     for (const entry of entries) {
       await client.query(
         `
-          INSERT INTO work_schedule (work_date, off_day, start_time, end_time, updated_by, updated_at)
-          VALUES ($1::DATE, $2, $3::TIME, $4::TIME, $5, NOW())
+          INSERT INTO work_schedule (work_date, off_day, start_time, end_time, blocked_hours, updated_by, updated_at)
+          VALUES ($1::DATE, $2, $3::TIME, $4::TIME, $5::JSONB, $6, NOW())
           ON CONFLICT (work_date)
           DO UPDATE SET
             off_day = EXCLUDED.off_day,
             start_time = EXCLUDED.start_time,
             end_time = EXCLUDED.end_time,
+            blocked_hours = EXCLUDED.blocked_hours,
             updated_by = EXCLUDED.updated_by,
             updated_at = NOW()
         `,
-        [entry.date, entry.offDay, entry.start, entry.end, updatedBy]
+        [entry.date, entry.offDay, entry.start, entry.end, JSON.stringify(entry.blockedHours || []), updatedBy]
       );
     }
   });
@@ -396,19 +411,21 @@ async function upsertEmployeeWorkSchedule(entries, updatedBy, employeeId) {
             off_day,
             start_time,
             end_time,
+            blocked_hours,
             updated_by,
             updated_at
           )
-          VALUES ($1::DATE, $2, $3, $4::TIME, $5::TIME, $6, NOW())
+          VALUES ($1::DATE, $2, $3, $4::TIME, $5::TIME, $6::JSONB, $7, NOW())
           ON CONFLICT (work_date, employee_id)
           DO UPDATE SET
             off_day = EXCLUDED.off_day,
             start_time = EXCLUDED.start_time,
             end_time = EXCLUDED.end_time,
+            blocked_hours = EXCLUDED.blocked_hours,
             updated_by = EXCLUDED.updated_by,
             updated_at = NOW()
         `,
-        [entry.date, employeeId, entry.offDay, entry.start, entry.end, updatedBy]
+        [entry.date, employeeId, entry.offDay, entry.start, entry.end, JSON.stringify(entry.blockedHours || []), updatedBy]
       );
     }
   });

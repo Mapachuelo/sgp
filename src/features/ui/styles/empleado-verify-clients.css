@@ -364,6 +364,7 @@ td.empty         { color: var(--stone-lt); }
 td.outside-hours { background: var(--sand-lt); color: var(--stone-lt); }
 td.off-day       { background: var(--sand); color: var(--wood-dk); font-weight: 700; }
 td.booked        { background: #F7EDEA; }
+td.blocked-hour  { background: var(--stone-dk); color: var(--ivory); font-weight: 600; }
 
 /* ── RESERVATION ITEMS ──────────────────────────── */
 .reservation-item {
@@ -788,4 +789,71 @@ pre {
   .output-panel {
     width: min(1480px, 95vw);
   }
+}
+
+/* ── DASHBOARD CONSISTENCY ─────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.stats-grid article {
+  background: linear-gradient(135deg, var(--ivory), #fff);
+  border: 1px solid rgba(201,185,168,0.35);
+  border-radius: var(--radius-md);
+  padding: 1.2rem;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.stats-grid article:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.stats-grid article::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.stats-grid article:nth-child(1)::before { background: linear-gradient(90deg, var(--terra), var(--terra-lt)); }
+.stats-grid article:nth-child(2)::before { background: linear-gradient(90deg, var(--wood), var(--wood-lt)); }
+.stats-grid article:nth-child(3)::before { background: linear-gradient(90deg, var(--ok), #6ba882); }
+
+.stats-grid h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--stone);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stats-grid p {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--stone-dk);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgba(74,124,95,0.1);
+  color: var(--ok);
+  border: 1px solid rgba(74,124,95,0.2);
+}
+
+.badge.hidden {
+  display: none;
 }

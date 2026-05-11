@@ -352,12 +352,35 @@
     return {
       offDay: false,
       start: "06:00",
-      end: "22:00"
+      end: "22:00",
+      blockedHours: []
     };
   }
 
   function getDayConfig(dayKey) {
-    return state.scheduleConfig[dayKey] || defaultSchedule();
+    const config = state.scheduleConfig[dayKey] || defaultSchedule();
+    if (!Array.isArray(config.blockedHours)) {
+      config.blockedHours = [];
+    }
+    return config;
+  }
+
+  function isHourBlocked(dayKey, slot) {
+    const config = getDayConfig(dayKey);
+    return config.blockedHours.includes(slot);
+  }
+
+  function toggleHourBlocked(dayKey, slot) {
+    const config = getDayConfig(dayKey);
+    const idx = config.blockedHours.indexOf(slot);
+    if (idx >= 0) {
+      config.blockedHours.splice(idx, 1);
+    } else {
+      config.blockedHours.push(slot);
+    }
+    if (!state.scheduleConfig[dayKey]) {
+      state.scheduleConfig[dayKey] = config;
+    }
   }
 
   function parseTimeToMinutes(timeText) {
@@ -695,14 +718,14 @@
             const wk = new Date(key + "T00:00:00").getDay();
             if (wk === targetWeekday) {
               if (!state.scheduleConfig[key]) {
-                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
+                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
               }
               state.scheduleConfig[key].offDay = offCheckbox.checked;
             }
           });
         } else {
           if (!state.scheduleConfig[dayKey]) {
-            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
+            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
           }
           state.scheduleConfig[dayKey].offDay = offCheckbox.checked;
         }
@@ -733,14 +756,14 @@
             const wk = new Date(key + "T00:00:00").getDay();
             if (wk === targetWeekday) {
               if (!state.scheduleConfig[key]) {
-                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
+                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
               }
               state.scheduleConfig[key].start = startInput.value;
             }
           });
         } else {
           if (!state.scheduleConfig[dayKey]) {
-            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
+            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
           }
           state.scheduleConfig[dayKey].start = startInput.value;
         }
@@ -767,14 +790,14 @@
             const wk = new Date(key + "T00:00:00").getDay();
             if (wk === targetWeekday) {
               if (!state.scheduleConfig[key]) {
-                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
+                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
               }
               state.scheduleConfig[key].end = endInput.value;
             }
           });
         } else {
           if (!state.scheduleConfig[dayKey]) {
-            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
+            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
           }
           state.scheduleConfig[dayKey].end = endInput.value;
         }
@@ -849,6 +872,21 @@
           return;
         }
 
+        if (isHourBlocked(dayKey, slot)) {
+          cell.className = "blocked-hour";
+          cell.textContent = "Hora no laboral";
+          cell.style.cursor = "pointer";
+          cell.title = "Clic para habilitar esta hora";
+          cell.addEventListener("click", function () {
+            toggleHourBlocked(dayKey, slot);
+            saveScheduleConfig();
+            renderConfigPanel();
+            renderCalendar();
+          });
+          row.appendChild(cell);
+          return;
+        }
+
         const reservations = getReservationsForSlot(reservationsByDay, dayKey, slot, slotStepMinutes).filter(function (reservation) {
           return reservation.status === "booked" || reservation.status === "checked_in";
         });
@@ -856,6 +894,14 @@
         if (reservations.length === 0) {
           cell.className = "empty";
           cell.textContent = "-";
+          cell.style.cursor = "pointer";
+          cell.title = "Clic para marcar como hora no laboral";
+          cell.addEventListener("click", function () {
+            toggleHourBlocked(dayKey, slot);
+            saveScheduleConfig();
+            renderConfigPanel();
+            renderCalendar();
+          });
           row.appendChild(cell);
           return;
         }
@@ -995,7 +1041,8 @@
       state.scheduleConfig[entry.date] = {
         offDay: Boolean(entry.offDay),
         start: entry.start || "06:00",
-        end: entry.end || "22:00"
+        end: entry.end || "22:00",
+        blockedHours: Array.isArray(entry.blockedHours) ? entry.blockedHours : []
       };
     });
   }
@@ -1062,7 +1109,10 @@
     renderCalendar();
   }
 
-  byId("reloadBtn").addEventListener("click", refreshAll);
+  const reloadBtn = byId("reloadBtn");
+  if (reloadBtn) {
+    reloadBtn.addEventListener("click", refreshAll);
+  }
 
   function saveScheduleConfig() {
     updateConfigFromForm();
@@ -1074,7 +1124,8 @@
           date: dayKey,
           offDay: Boolean(config.offDay),
           start: config.start,
-          end: config.end
+          end: config.end,
+          blockedHours: config.blockedHours || []
         };
       })
     })
@@ -1106,7 +1157,8 @@
           date: dayKey,
           offDay: Boolean(config.offDay),
           start: config.start,
-          end: config.end
+          end: config.end,
+          blockedHours: config.blockedHours || []
         };
       })
     })

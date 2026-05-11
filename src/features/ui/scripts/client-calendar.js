@@ -343,7 +343,8 @@
     return {
       offDay: false,
       start: "06:00",
-      end: "22:00"
+      end: "22:00",
+      blockedHours: []
     };
   }
 
@@ -356,6 +357,11 @@
     const slotMinutes = toMinutes(slot);
     const slotEndMinutes = slotMinutes + normalizeCalendarDuration(slotDurationMinutes, DEFAULT_SLOT_STEP_MINUTES);
     return slotMinutes >= toMinutes(config.start) && slotEndMinutes <= toMinutes(config.end);
+  }
+
+  function isHourBlocked(dayKey, slot, schedule) {
+    const blocked = Array.isArray(schedule.blockedHours) ? schedule.blockedHours : [];
+    return blocked.includes(slot);
   }
 
   function toLocalDateFromParts(dateText, timeText) {
@@ -980,6 +986,10 @@
           button.classList.add("reserved");
           button.textContent = "Fuera horario";
           button.disabled = true;
+        } else if (isHourBlocked(dayKey, slot, schedule)) {
+          button.classList.add("reserved");
+          button.textContent = "Hora no disponible";
+          button.disabled = true;
         } else if (isOccupied) {
           button.classList.add("reserved");
           button.textContent = "Ocupado";
@@ -1051,7 +1061,8 @@
       map[entry.date] = {
         offDay: Boolean(entry.offDay),
         start: entry.start || "06:00",
-        end: entry.end || "22:00"
+        end: entry.end || "22:00",
+        blockedHours: Array.isArray(entry.blockedHours) ? entry.blockedHours : []
       };
     });
 

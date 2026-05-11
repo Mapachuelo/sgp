@@ -275,6 +275,7 @@ function normalizeScheduleEntry(input) {
   const offDay = Boolean(input.offDay);
   const start = String(input.start || DEFAULT_START).trim();
   const end = String(input.end || DEFAULT_END).trim();
+  const blockedHours = Array.isArray(input.blockedHours) ? input.blockedHours : [];
 
   if (!isValidTimeText(start) || !isValidTimeText(end)) {
     throw new HttpError(400, "start y end deben tener formato HH:MM");
@@ -284,7 +285,7 @@ function normalizeScheduleEntry(input) {
     throw new HttpError(400, "start no puede ser mayor que end");
   }
 
-  return { date, offDay, start, end };
+  return { date, offDay, start, end, blockedHours };
 }
 
 function buildDateRange(startDate, daysCount) {
@@ -306,7 +307,8 @@ function mapScheduleRows(rows) {
     map[row.work_date] = {
       offDay: Boolean(row.off_day),
       start: row.start_time,
-      end: row.end_time
+      end: row.end_time,
+      blockedHours: Array.isArray(row.blocked_hours) ? row.blocked_hours : []
     };
   });
 
@@ -808,14 +810,16 @@ async function getWorkScheduleRange(startDateInput, daysInput) {
     const config = indexed[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
 
     return {
       date,
       offDay: config.offDay,
       start: config.start,
-      end: config.end
+      end: config.end,
+      blockedHours: config.blockedHours || []
     };
   });
 }
@@ -828,13 +832,15 @@ function mergeScheduleByDate(globalRows, employeeRows, startDate, days) {
     const globalConfig = globalMap[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
 
     const employeeConfig = employeeMap[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
 
     if (globalConfig.offDay) {
@@ -842,7 +848,8 @@ function mergeScheduleByDate(globalRows, employeeRows, startDate, days) {
         date,
         offDay: true,
         start: globalConfig.start,
-        end: globalConfig.end
+        end: globalConfig.end,
+        blockedHours: globalConfig.blockedHours || []
       };
     }
 
@@ -850,7 +857,8 @@ function mergeScheduleByDate(globalRows, employeeRows, startDate, days) {
       date,
       offDay: employeeConfig.offDay,
       start: employeeConfig.start,
-      end: employeeConfig.end
+      end: employeeConfig.end,
+      blockedHours: employeeConfig.blockedHours || []
     };
   });
 }
@@ -884,14 +892,16 @@ async function getEditableWorkScheduleForUser(startDateInput, daysInput, authUse
       const config = indexed[date] || {
         offDay: false,
         start: DEFAULT_START,
-        end: DEFAULT_END
+        end: DEFAULT_END,
+        blockedHours: []
       };
 
       return {
         date,
         offDay: config.offDay,
         start: config.start,
-        end: config.end
+        end: config.end,
+        blockedHours: config.blockedHours || []
       };
     });
   }
@@ -903,14 +913,16 @@ async function getEditableWorkScheduleForUser(startDateInput, daysInput, authUse
     const config = indexed[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
 
     return {
       date,
       offDay: config.offDay,
       start: config.start,
-      end: config.end
+      end: config.end,
+      blockedHours: config.blockedHours || []
     };
   });
 }

@@ -518,14 +518,15 @@ function employeeView() {
 
 function employeeCalendarView() {
   const body = `
-<header class="topbar">
-  <a class="brand" href="/ui/empleado">SGP</a>
-  <nav class="topbar-actions">
-    <a class="btn ghost" href="/ui/empleado">Inicio</a>
-    <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
-    <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
-    <button id="openEmployeeAccountBtn" class="btn ghost hidden" type="button">Editar cuenta</button>
-    <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/empleado">SGP</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
+    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -539,7 +540,7 @@ function employeeCalendarView() {
     <div class="calendar-toolbar">
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
-      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <button id="refreshCalendarBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
@@ -573,8 +574,8 @@ function employeeCalendarView() {
     <label>Cantidad de clientes</label>
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
-    <button id="reserveBtn" class="btn accent block hidden" type="button" disabled>Confirmar reserva</button>
-    <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
+    <button id="reserveBtn" class="emp-btn solid block hidden" type="button" disabled>Confirmar reserva</button>
+    <button id="myReservationsBtn" class="emp-btn ghost block hidden" type="button">Mis reservas</button>
 
     <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol empleado.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
@@ -583,13 +584,47 @@ function employeeCalendarView() {
     <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
+
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="+573001234567" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Contraseña</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
+
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
     "SGP - Calendario Empleado",
     "/ui-assets/styles/client-calendar.css",
     body,
-    "/ui-assets/scripts/client-calendar.js"
+    ["/ui-assets/scripts/empleado-dashboard.js", "/ui-assets/scripts/client-calendar.js"]
   );
 }
 
@@ -603,7 +638,7 @@ function employeeVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -630,7 +665,7 @@ function employeeVerifyClientsView() {
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
     </div>
-    <p id="verifySlotHelper" class="helper">Haz clic en un dia para marcarlo como no laboral.</p>
+    <p id="verifySlotHelper" class="helper">Haz clic en un dia para marcarlo como no laboral. Haz clic en una hora vacia para bloquearla.</p>
     <div class="calendar-shell">
       <table>
         <thead id="verifyHead"></thead>
@@ -702,7 +737,7 @@ function employeeValidateQrView() {
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -785,7 +820,7 @@ function employeeClientModerationView() {
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -801,13 +836,47 @@ function employeeClientModerationView() {
     </div>
   </section>
 </main>
+
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="+573001234567" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Contraseña</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
+
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
     "SGP - Sancionar Clientes",
     "/ui-assets/styles/client-moderation.css",
     body,
-    ""
+    ["/ui-assets/scripts/empleado-dashboard.js"]
   );
 }
 
