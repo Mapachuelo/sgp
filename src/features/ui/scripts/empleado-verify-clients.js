@@ -20,6 +20,7 @@
     selectedStylistId: ALL_EMPLOYEES_VALUE,
     reservations: [],
     scheduleConfig: {},
+    blockedPatterns: [],
     slotStepMinutes: DEFAULT_SLOT_STEP_MINUTES,
     viewportConfig: {
       dayCount: FULL_DAY_COUNT,
@@ -352,12 +353,35 @@
     return {
       offDay: false,
       start: "06:00",
-      end: "22:00"
+      end: "22:00",
+      blockedHours: []
     };
   }
 
   function getDayConfig(dayKey) {
-    return state.scheduleConfig[dayKey] || defaultSchedule();
+    const config = state.scheduleConfig[dayKey] || defaultSchedule();
+    if (!Array.isArray(config.blockedHours)) {
+      config.blockedHours = [];
+    }
+    return config;
+  }
+
+  function isHourBlocked(dayKey, slot) {
+    const config = getDayConfig(dayKey);
+    return config.blockedHours.includes(slot);
+  }
+
+  function toggleHourBlocked(dayKey, slot) {
+    const config = getDayConfig(dayKey);
+    const idx = config.blockedHours.indexOf(slot);
+    if (idx >= 0) {
+      config.blockedHours.splice(idx, 1);
+    } else {
+      config.blockedHours.push(slot);
+    }
+    if (!state.scheduleConfig[dayKey]) {
+      state.scheduleConfig[dayKey] = config;
+    }
   }
 
   function parseTimeToMinutes(timeText) {
@@ -682,31 +706,10 @@
       offLabel.appendChild(offCheckbox);
       offLabel.appendChild(document.createTextNode(" Dia no laboral"));
       offCheckbox.addEventListener("change", function () {
-        const applyAll = window.confirm(
-          "¿Aplicar este cambio a todos los días iguales de la semana (Aceptar = sí, Cancelar = solo este día)?"
-        );
-
-        const targetDate = new Date(dayKey + "T00:00:00");
-        const targetWeekday = targetDate.getDay();
-
-        if (applyAll) {
-          state.days.forEach(function (d) {
-            const key = toDateKey(d);
-            const wk = new Date(key + "T00:00:00").getDay();
-            if (wk === targetWeekday) {
-              if (!state.scheduleConfig[key]) {
-                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
-              }
-              state.scheduleConfig[key].offDay = offCheckbox.checked;
-            }
-          });
-        } else {
-          if (!state.scheduleConfig[dayKey]) {
-            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
-          }
-          state.scheduleConfig[dayKey].offDay = offCheckbox.checked;
+        if (!state.scheduleConfig[dayKey]) {
+          state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
         }
-
+        state.scheduleConfig[dayKey].offDay = offCheckbox.checked;
         renderConfigPanel();
       });
       card.appendChild(offLabel);
@@ -721,30 +724,10 @@
       startInput.dataset.field = "start";
 
       startInput.addEventListener("change", function () {
-        const applyAll = window.confirm(
-          "¿Aplicar este horario a todos los días iguales de la semana (Aceptar = sí, Cancelar = solo este día)?"
-        );
-        const targetDate = new Date(dayKey + "T00:00:00");
-        const targetWeekday = targetDate.getDay();
-
-        if (applyAll) {
-          state.days.forEach(function (d) {
-            const key = toDateKey(d);
-            const wk = new Date(key + "T00:00:00").getDay();
-            if (wk === targetWeekday) {
-              if (!state.scheduleConfig[key]) {
-                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
-              }
-              state.scheduleConfig[key].start = startInput.value;
-            }
-          });
-        } else {
-          if (!state.scheduleConfig[dayKey]) {
-            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
-          }
-          state.scheduleConfig[dayKey].start = startInput.value;
+        if (!state.scheduleConfig[dayKey]) {
+          state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
         }
-
+        state.scheduleConfig[dayKey].start = startInput.value;
         renderConfigPanel();
       });
 
@@ -755,30 +738,10 @@
       endInput.dataset.field = "end";
 
       endInput.addEventListener("change", function () {
-        const applyAll = window.confirm(
-          "¿Aplicar este horario a todos los días iguales de la semana (Aceptar = sí, Cancelar = solo este día)?"
-        );
-        const targetDate = new Date(dayKey + "T00:00:00");
-        const targetWeekday = targetDate.getDay();
-
-        if (applyAll) {
-          state.days.forEach(function (d) {
-            const key = toDateKey(d);
-            const wk = new Date(key + "T00:00:00").getDay();
-            if (wk === targetWeekday) {
-              if (!state.scheduleConfig[key]) {
-                state.scheduleConfig[key] = { offDay: false, start: "06:00", end: "22:00" };
-              }
-              state.scheduleConfig[key].end = endInput.value;
-            }
-          });
-        } else {
-          if (!state.scheduleConfig[dayKey]) {
-            state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00" };
-          }
-          state.scheduleConfig[dayKey].end = endInput.value;
+        if (!state.scheduleConfig[dayKey]) {
+          state.scheduleConfig[dayKey] = { offDay: false, start: "06:00", end: "22:00", blockedHours: [] };
         }
-
+        state.scheduleConfig[dayKey].end = endInput.value;
         renderConfigPanel();
       });
 
@@ -788,6 +751,119 @@
 
       container.appendChild(card);
     });
+  }
+
+  const DAY_LABELS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
+
+  function renderPatternsPanel() {
+    const container = byId("blockedPatternsList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    state.blockedPatterns.forEach(function (pattern) {
+      const row = document.createElement("div");
+      row.className = "pattern-item";
+
+      const info = document.createElement("span");
+      info.className = "pattern-info";
+      info.textContent = DAY_LABELS[pattern.dayOfWeek] + " " + pattern.startTime + " - " + pattern.endTime;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "pattern-remove-btn";
+      removeBtn.textContent = "X";
+      removeBtn.addEventListener("click", function () {
+        callApi("/api/reservations/blocked-patterns/" + encodeURIComponent(pattern.id), "DELETE")
+          .then(function () {
+            state.blockedPatterns = state.blockedPatterns.filter(function (p) {
+              return p.id !== pattern.id;
+            });
+            renderPatternsPanel();
+            refreshAll();
+            setFeedback("Patron eliminado.", "ok");
+          })
+          .catch(function (error) {
+            setFeedback(error.message, "warn");
+          });
+      });
+
+      row.appendChild(info);
+      row.appendChild(removeBtn);
+      container.appendChild(row);
+    });
+  }
+
+  function getSelectedDays() {
+    var preset = byId("patternPreset");
+    if (preset && preset.value === "weekdays") {
+      return [1, 2, 3, 4, 5];
+    }
+    if (preset && preset.value === "weekend") {
+      return [6, 0];
+    }
+
+    var checkboxes = document.querySelectorAll("#patternDayCheckboxes input[type='checkbox']");
+    var days = [];
+    checkboxes.forEach(function (cb) {
+      if (cb.checked) {
+        days.push(Number(cb.value));
+      }
+    });
+    return days;
+  }
+
+  function addPatternFromForm() {
+    var startInput = byId("patternStart");
+    var endInput = byId("patternEnd");
+
+    if (!startInput || !endInput) return;
+
+    var startTime = startInput.value;
+    var endTime = endInput.value;
+
+    if (!startTime || !endTime) {
+      setFeedback("Selecciona hora de inicio y fin.", "warn");
+      return;
+    }
+
+    var days = getSelectedDays();
+    if (days.length === 0) {
+      setFeedback("Selecciona al menos un dia.", "warn");
+      return;
+    }
+
+    var promises = days.map(function (dayOfWeek) {
+      return callApi("/api/reservations/blocked-patterns", "POST", {
+        dayOfWeek: dayOfWeek,
+        startTime: startTime,
+        endTime: endTime
+      }).then(function (result) {
+        if (result.data && !state.blockedPatterns.some(function (p) { return p.id === result.data.id; })) {
+          state.blockedPatterns.push(result.data);
+        }
+      });
+    });
+
+    Promise.all(promises)
+      .then(function () {
+        renderPatternsPanel();
+        refreshAll();
+        setFeedback("Patron agregado.", "ok");
+      })
+      .catch(function (error) {
+        setFeedback(error.message, "warn");
+      });
+  }
+
+  function loadPatterns() {
+    return callApi("/api/reservations/blocked-patterns", "GET")
+      .then(function (result) {
+        state.blockedPatterns = result.data || [];
+        renderPatternsPanel();
+      })
+      .catch(function () {
+        state.blockedPatterns = [];
+      });
   }
 
   function renderCalendar() {
@@ -807,6 +883,18 @@
     state.days.forEach(function (day) {
       const cell = document.createElement("th");
       cell.textContent = toLabel(day);
+      cell.style.cursor = "pointer";
+      cell.title = "Clic para marcar como no laboral";
+
+      var dayKey = toDateKey(day);
+      cell.addEventListener("click", function () {
+        var config = getDayConfig(dayKey);
+        config.offDay = !config.offDay;
+        saveScheduleConfig();
+        renderConfigPanel();
+        renderCalendar();
+      });
+
       headRow.appendChild(cell);
     });
 
@@ -825,14 +913,29 @@
 
         if (config.offDay) {
           cell.className = "off-day";
-          cell.textContent = "No laboral";
+          cell.textContent = "Horario no laboral";
           row.appendChild(cell);
           return;
         }
 
         if (!isSlotInsideWorkingHours(slot, config, slotStepMinutes)) {
-          cell.className = "outside-hours";
-          cell.textContent = "Fuera horario";
+          cell.className = "blocked-hour";
+          cell.textContent = "Horario no laboral";
+          row.appendChild(cell);
+          return;
+        }
+
+        if (isHourBlocked(dayKey, slot)) {
+          cell.className = "blocked-hour";
+          cell.textContent = "Horario no laboral";
+          cell.style.cursor = "pointer";
+          cell.title = "Clic para habilitar esta hora";
+          cell.addEventListener("click", function () {
+            toggleHourBlocked(dayKey, slot);
+            saveScheduleConfig();
+            renderConfigPanel();
+            renderCalendar();
+          });
           row.appendChild(cell);
           return;
         }
@@ -844,6 +947,14 @@
         if (reservations.length === 0) {
           cell.className = "empty";
           cell.textContent = "-";
+          cell.style.cursor = "pointer";
+          cell.title = "Clic para marcar como hora no laboral";
+          cell.addEventListener("click", function () {
+            toggleHourBlocked(dayKey, slot);
+            saveScheduleConfig();
+            renderConfigPanel();
+            renderCalendar();
+          });
           row.appendChild(cell);
           return;
         }
@@ -972,7 +1083,12 @@
     );
 
     state.reservations = reservationsPayload.data || [];
-    state.slotStepMinutes = resolveSlotStepFromReservations();
+    var slotIntervalSelect = byId("slotIntervalSelect");
+    if (slotIntervalSelect && slotIntervalSelect.value) {
+      state.slotStepMinutes = Number(slotIntervalSelect.value);
+    } else {
+      state.slotStepMinutes = resolveSlotStepFromReservations();
+    }
     state.scheduleConfig = {};
 
     (schedulePayload.data || []).forEach(function (entry) {
@@ -983,7 +1099,8 @@
       state.scheduleConfig[entry.date] = {
         offDay: Boolean(entry.offDay),
         start: entry.start || "06:00",
-        end: entry.end || "22:00"
+        end: entry.end || "22:00",
+        blockedHours: Array.isArray(entry.blockedHours) ? entry.blockedHours : []
       };
     });
   }
@@ -996,9 +1113,17 @@
       state.days = buildDayRange(start, state.viewportConfig.dayCount);
 
       await loadData();
+      await loadPatterns();
+
+      var slotIntervalSelect = byId("slotIntervalSelect");
+      if (slotIntervalSelect) {
+        slotIntervalSelect.value = String(state.slotStepMinutes);
+      }
+
       updateTodaySummary();
       updateSlotHelper();
       renderConfigPanel();
+      renderPatternsPanel();
       renderCalendar();
       setFeedback("Calendario de verificacion actualizado.", "ok");
     } catch (error) {
@@ -1050,13 +1175,87 @@
     renderCalendar();
   }
 
-  byId("reloadBtn").addEventListener("click", refreshAll);
+  const weekStartInput = byId("weekStart");
+  if (weekStartInput) {
+    weekStartInput.addEventListener("change", refreshAll);
+  }
+
+  function saveScheduleConfig() {
+    updateConfigFromForm();
+    callApi("/api/reservations/work-schedule", "PUT", {
+      entries: state.days.map(function (day) {
+        var dayKey = toDateKey(day);
+        var config = getDayConfig(dayKey);
+        return {
+          date: dayKey,
+          offDay: Boolean(config.offDay),
+          start: config.start,
+          end: config.end,
+          blockedHours: config.blockedHours || []
+        };
+      })
+    })
+      .then(function () {
+        setFeedback("Dia actualizado automaticamente.", "ok");
+        return refreshAll();
+      })
+      .catch(function (error) {
+        setFeedback(error.message, "warn");
+      });
+  }
+
   const verifyEmployeeFilter = byId("verifyEmployeeFilter");
   if (verifyEmployeeFilter) {
     verifyEmployeeFilter.addEventListener("change", function () {
       state.selectedStylistId = String(verifyEmployeeFilter.value || ALL_EMPLOYEES_VALUE);
-      applyStylistFilter();
-      setFeedback("Filtro de empleado aplicado en el calendario.", "info");
+      refreshAll();
+    });
+  }
+
+  var slotIntervalSelect = byId("slotIntervalSelect");
+  if (slotIntervalSelect) {
+    slotIntervalSelect.addEventListener("change", function () {
+      state.slotStepMinutes = Number(slotIntervalSelect.value) || DEFAULT_SLOT_STEP_MINUTES;
+      renderCalendar();
+      updateSlotHelper();
+    });
+  }
+
+  var patternPreset = byId("patternPreset");
+  if (patternPreset) {
+    patternPreset.addEventListener("change", function () {
+      var checkboxes = document.querySelectorAll("#patternDayCheckboxes input[type='checkbox']");
+      var val = patternPreset.value;
+      checkboxes.forEach(function (cb) {
+        if (val === "custom") {
+          cb.checked = false;
+        } else if (val === "weekdays") {
+          cb.checked = cb.value >= "1" && cb.value <= "5";
+        } else if (val === "weekend") {
+          cb.checked = cb.value === "6" || cb.value === "0";
+        }
+      });
+    });
+  }
+
+  var configTabSchedule = byId("configTabSchedule");
+  var configTabPatterns = byId("configTabPatterns");
+  var configSectionSchedule = byId("configSectionSchedule");
+  var configSectionPatterns = byId("configSectionPatterns");
+
+  if (configTabSchedule && configTabPatterns) {
+    configTabSchedule.addEventListener("click", function () {
+      configTabSchedule.classList.add("active");
+      configTabPatterns.classList.remove("active");
+      configSectionSchedule.classList.remove("hidden");
+      configSectionPatterns.classList.add("hidden");
+    });
+
+    configTabPatterns.addEventListener("click", function () {
+      configTabPatterns.classList.add("active");
+      configTabSchedule.classList.remove("active");
+      configSectionPatterns.classList.remove("hidden");
+      configSectionSchedule.classList.add("hidden");
     });
   }
 
@@ -1070,7 +1269,8 @@
           date: dayKey,
           offDay: Boolean(config.offDay),
           start: config.start,
-          end: config.end
+          end: config.end,
+          blockedHours: config.blockedHours || []
         };
       })
     })
@@ -1099,6 +1299,11 @@
         setFeedback(error.message, "warn");
       });
   });
+
+  var addPatternBtn = byId("addPatternBtn");
+  if (addPatternBtn) {
+    addPatternBtn.addEventListener("click", addPatternFromForm);
+  }
   byId("logoutBtn").addEventListener("click", function () {
     clearToken();
     setSessionUi(false);

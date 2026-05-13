@@ -3,6 +3,7 @@ const {
   requireAuth,
   requireRole
 } = require("../../shared/middlewares/auth.middleware");
+const { loginLimiter } = require("../../shared/middlewares/rateLimit.middleware");
 const {
   registerController,
   loginController,
@@ -19,7 +20,7 @@ const {
 const router = express.Router();
 
 router.post("/register", registerController);
-router.post("/login", loginController);
+router.post("/login", loginLimiter, loginController);
 router.get("/stylists", stylistsController);
 router.get("/me", requireAuth, meController);
 router.get("/me/employee-account", requireAuth, requireRole("empleado"), employeeOwnAccountController);

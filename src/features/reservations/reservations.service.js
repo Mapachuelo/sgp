@@ -25,10 +25,13 @@ const {
   deleteServiceCatalogEntry,
   listEmployeeServiceTimesByEmployee,
   saveEmployeeServiceTimes,
-  countActiveReservationsByClientAndService,
+  countActiveReservationsByClient,
   findClientReservationById,
   cancelReservationByClient,
-  cancelReservationsByDate
+  cancelReservationsByDate,
+  listEmployeeBlockedPatterns,
+  createEmployeeBlockedPattern,
+  deleteEmployeeBlockedPattern
 } = require("./reservations.model");
 
 const DEFAULT_START = "06:00";
@@ -37,8 +40,9 @@ const ANY_STYLIST_VALUE = "__any__";
 const DEFAULT_SERVICE_DURATION_MINUTES = 30;
 const MIN_SERVICE_DURATION_MINUTES = 1;
 const MAX_SERVICE_DURATION_MINUTES = 280;
-const MIN_LEAD_TIME_MINUTES = 60;
+const MIN_LEAD_TIME_MINUTES = 15;
 const MIN_CLIENT_COUNT_PER_RESERVATION = 1;
+const MAX_ACTIVE_RESERVATIONS_PER_CLIENT = 5;
 const MAX_CLIENT_COUNT_PER_RESERVATION = 5;
 const CLIENT_HISTORY_RETENTION_DAYS = 7;
 const APP_TIME_ZONE = env.appTimezone || "America/Bogota";
@@ -83,7 +87,7 @@ function validateStartsAt(startsAtText) {
 
   const leadTimeMinutes = (startsAt.getTime() - now) / 60000;
   if (leadTimeMinutes < MIN_LEAD_TIME_MINUTES) {
-    throw new HttpError(409, "Fuera de tiempo");
+    throw new HttpError(409, "La reserva debe hacerse con al menos " + MIN_LEAD_TIME_MINUTES + " minutos de anticipacion");
   }
 
   return startsAt;
@@ -274,6 +278,7 @@ function normalizeScheduleEntry(input) {
   const offDay = Boolean(input.offDay);
   const start = String(input.start || DEFAULT_START).trim();
   const end = String(input.end || DEFAULT_END).trim();
+  const blockedHours = Array.isArray(input.blockedHours) ? input.blockedHours : [];
 
   if (!isValidTimeText(start) || !isValidTimeText(end)) {
     throw new HttpError(400, "start y end deben tener formato HH:MM");
@@ -283,7 +288,7 @@ function normalizeScheduleEntry(input) {
     throw new HttpError(400, "start no puede ser mayor que end");
   }
 
-  return { date, offDay, start, end };
+  return { date, offDay, start, end, blockedHours };
 }
 
 function buildDateRange(startDate, daysCount) {
@@ -305,7 +310,8 @@ function mapScheduleRows(rows) {
     map[row.work_date] = {
       offDay: Boolean(row.off_day),
       start: row.start_time,
-      end: row.end_time
+      end: row.end_time,
+      blockedHours: Array.isArray(row.blocked_hours) ? row.blocked_hours : []
     };
   });
 
@@ -498,12 +504,8 @@ async function evaluateStylistCandidate(
     stylist.id,
     service,
     durationMapCache,
-    true
+    false
   );
-
-  if (!durationResult.enabled) {
-    throw new HttpError(409, "El peluquero seleccionado no tiene configurado ese servicio");
-  }
 
   const totalDurationMinutes = durationResult.durationMinutes * clientCount;
   const endsAt = addMinutes(startsAt, totalDurationMinutes);
@@ -659,14 +661,11 @@ async function reserveAppointment(clientId, input) {
     );
   }
 
-  const activeReservationsForService = await countActiveReservationsByClientAndService(
-    clientId,
-    serviceName
-  );
-  if (activeReservationsForService > 0) {
+  const activeReservationsCount = await countActiveReservationsByClient(clientId);
+  if (activeReservationsCount >= MAX_ACTIVE_RESERVATIONS_PER_CLIENT) {
     throw new HttpError(
       409,
-      "Solo puedes tener una reserva activa por servicio. Elimina la actual para volver a reservar"
+      "Has alcanzado el maximo de " + MAX_ACTIVE_RESERVATIONS_PER_CLIENT + " reservas activas. Cancela alguna existente para crear una nueva."
     );
   }
 
@@ -814,14 +813,16 @@ async function getWorkScheduleRange(startDateInput, daysInput) {
     const config = indexed[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
 
     return {
       date,
       offDay: config.offDay,
       start: config.start,
-      end: config.end
+      end: config.end,
+      blockedHours: config.blockedHours || []
     };
   });
 }
@@ -834,13 +835,15 @@ function mergeScheduleByDate(globalRows, employeeRows, startDate, days) {
     const globalConfig = globalMap[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
 
     const employeeConfig = employeeMap[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
 
     if (globalConfig.offDay) {
@@ -848,7 +851,8 @@ function mergeScheduleByDate(globalRows, employeeRows, startDate, days) {
         date,
         offDay: true,
         start: globalConfig.start,
-        end: globalConfig.end
+        end: globalConfig.end,
+        blockedHours: globalConfig.blockedHours || []
       };
     }
 
@@ -856,7 +860,8 @@ function mergeScheduleByDate(globalRows, employeeRows, startDate, days) {
       date,
       offDay: employeeConfig.offDay,
       start: employeeConfig.start,
-      end: employeeConfig.end
+      end: employeeConfig.end,
+      blockedHours: employeeConfig.blockedHours || []
     };
   });
 }
@@ -870,12 +875,29 @@ async function getWorkScheduleRangeByStylist(startDateInput, daysInput, stylistI
     throw new HttpError(400, "stylistId debe ser un numero entero positivo");
   }
 
-  const [globalRows, employeeRows] = await Promise.all([
+  const [globalRows, employeeRows, patterns] = await Promise.all([
     listWorkScheduleByRange(startDate, days),
-    listEmployeeWorkScheduleByRange(startDate, days, stylistId)
+    listEmployeeWorkScheduleByRange(startDate, days, stylistId),
+    listEmployeeBlockedPatterns(stylistId)
   ]);
 
-  return mergeScheduleByDate(globalRows, employeeRows, startDate, days);
+  const normalizedPatterns = patterns.map(function (p) {
+    return {
+      dayOfWeek: p.day_of_week,
+      startTime: p.start_time,
+      endTime: p.end_time
+    };
+  });
+
+  const merged = mergeScheduleByDate(globalRows, employeeRows, startDate, days);
+
+  return merged.map(function (entry) {
+    const patternBlocked = buildBlockedHoursFromPatterns(normalizedPatterns, entry.date);
+    return {
+      ...entry,
+      blockedHours: mergeBlockedHours(entry.blockedHours, patternBlocked)
+    };
+  });
 }
 
 async function getEditableWorkScheduleForUser(startDateInput, daysInput, authUser) {
@@ -890,33 +912,50 @@ async function getEditableWorkScheduleForUser(startDateInput, daysInput, authUse
       const config = indexed[date] || {
         offDay: false,
         start: DEFAULT_START,
-        end: DEFAULT_END
+        end: DEFAULT_END,
+        blockedHours: []
       };
 
       return {
         date,
         offDay: config.offDay,
         start: config.start,
-        end: config.end
+        end: config.end,
+        blockedHours: config.blockedHours || []
       };
     });
   }
 
-  const rows = await listEmployeeWorkScheduleByRange(startDate, days, authUser.sub);
+  const [rows, patterns] = await Promise.all([
+    listEmployeeWorkScheduleByRange(startDate, days, authUser.sub),
+    listEmployeeBlockedPatterns(authUser.sub)
+  ]);
+
   const indexed = mapScheduleRows(rows);
+  const normalizedPatterns = patterns.map(function (p) {
+    return {
+      dayOfWeek: p.day_of_week,
+      startTime: p.start_time,
+      endTime: p.end_time
+    };
+  });
 
   return buildDateRange(startDate, days).map(function (date) {
     const config = indexed[date] || {
       offDay: false,
       start: DEFAULT_START,
-      end: DEFAULT_END
+      end: DEFAULT_END,
+      blockedHours: []
     };
+
+    const patternBlocked = buildBlockedHoursFromPatterns(normalizedPatterns, date);
 
     return {
       date,
       offDay: config.offDay,
       start: config.start,
-      end: config.end
+      end: config.end,
+      blockedHours: mergeBlockedHours(config.blockedHours, patternBlocked)
     };
   });
 }
@@ -1194,6 +1233,107 @@ async function saveEmployeeServiceTimesByAdmin(employeeIdInput, entriesInput, au
   return getEmployeeServiceTimesByAdmin(employeeId);
 }
 
+function normalizeTimeText(timeInput) {
+  const time = String(timeInput || "").trim();
+  if (!/^\d{1,2}:\d{2}$/.test(time)) {
+    throw new HttpError(400, "start_time y end_time deben tener formato HH:MM");
+  }
+  return time;
+}
+
+function normalizeDayOfWeek(dayInput) {
+  const day = Number(dayInput);
+  if (!Number.isInteger(day) || day < 0 || day > 6) {
+    throw new HttpError(400, "day_of_week debe ser un entero entre 0 (domingo) y 6 (sabado)");
+  }
+  return day;
+}
+
+async function getEmployeeBlockedPatterns(employeeId) {
+  const patterns = await listEmployeeBlockedPatterns(employeeId);
+  return patterns.map(function (p) {
+    return {
+      id: p.id,
+      dayOfWeek: p.day_of_week,
+      startTime: p.start_time,
+      endTime: p.end_time
+    };
+  });
+}
+
+async function addEmployeeBlockedPattern(employeeId, dayOfWeekInput, startTimeInput, endTimeInput) {
+  const dayOfWeek = normalizeDayOfWeek(dayOfWeekInput);
+  const startTime = normalizeTimeText(startTimeInput);
+  const endTime = normalizeTimeText(endTimeInput);
+
+  if (toMinutes(startTime) >= toMinutes(endTime)) {
+    throw new HttpError(400, "start_time debe ser menor que end_time");
+  }
+
+  const created = await createEmployeeBlockedPattern(employeeId, dayOfWeek, startTime, endTime);
+  if (!created) {
+    return null;
+  }
+
+  return {
+    id: created.id,
+    dayOfWeek: created.day_of_week,
+    startTime: created.start_time,
+    endTime: created.end_time
+  };
+}
+
+async function removeEmployeeBlockedPattern(patternId, employeeId) {
+  const deleted = await deleteEmployeeBlockedPattern(patternId, employeeId);
+  if (!deleted) {
+    throw new HttpError(404, "Patron no encontrado");
+  }
+  return { id: deleted.id };
+}
+
+function buildBlockedHoursFromPatterns(patterns, dateStr) {
+  if (!patterns || patterns.length === 0) {
+    return [];
+  }
+
+  const date = new Date(dateStr + "T00:00:00");
+  if (Number.isNaN(date.getTime())) {
+    return [];
+  }
+
+  const dayOfWeek = date.getDay();
+  const matchingPatterns = patterns.filter(function (p) {
+    return p.dayOfWeek === dayOfWeek;
+  });
+
+  const blockedHours = [];
+  const seen = new Set();
+  matchingPatterns.forEach(function (pattern) {
+    const startMin = toMinutes(pattern.startTime);
+    const endMin = toMinutes(pattern.endTime);
+
+    for (let min = startMin; min < endMin; min += 5) {
+      const hour = Math.floor(min / 60);
+      const minute = min % 60;
+      const slot = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+      if (!seen.has(slot)) {
+        seen.add(slot);
+        blockedHours.push(slot);
+      }
+    }
+  });
+
+  return blockedHours.sort();
+}
+
+function mergeBlockedHours(explicit, fromPatterns) {
+  const set = new Set(explicit || []);
+  (fromPatterns || []).forEach(function (h) {
+    set.add(h);
+  });
+  return Array.from(set).sort();
+}
+
 module.exports = {
   reserveAppointment,
   cancelMyReservation,
@@ -1210,5 +1350,10 @@ module.exports = {
   createServiceByAdmin,
   deleteServiceByAdmin,
   getEmployeeServiceTimesByAdmin,
-  saveEmployeeServiceTimesByAdmin
+  saveEmployeeServiceTimesByAdmin,
+  getEmployeeBlockedPatterns,
+  addEmployeeBlockedPattern,
+  removeEmployeeBlockedPattern,
+  buildBlockedHoursFromPatterns,
+  mergeBlockedHours
 };

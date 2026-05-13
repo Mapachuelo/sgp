@@ -68,9 +68,8 @@
       return;
     }
 
-    const isDashboardView = isEmployeeDashboardPath(window.location.pathname);
     const isEmployee = getRole(user) === "empleado" || getRole(user) === "employee";
-    editButton.classList.toggle("hidden", !(isEmployee && isDashboardView));
+    editButton.classList.toggle("hidden", !isEmployee);
   }
 
   function splitName(fullName) {
@@ -411,5 +410,29 @@
     window.location.href = LOGIN_PATH;
   } else {
     loadStats();
+  }
+
+  if (window.SgpWebSocket) {
+    window.SgpWebSocket.connect();
+
+    window.SgpWebSocket.on("availability.updated", function (payload) {
+      setFeedback("Disponibilidad actualizada: " + (payload.date || ""), "info");
+      loadStats();
+    });
+
+    window.SgpWebSocket.on("*", function (type) {
+      if (type === "connected") return;
+      showWsToast("Notificacion: " + type);
+    });
+  }
+
+  function showWsToast(message) {
+    var toast = byId("wsToast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.remove("hidden");
+    setTimeout(function () {
+      toast.classList.add("hidden");
+    }, 4000);
   }
 })();

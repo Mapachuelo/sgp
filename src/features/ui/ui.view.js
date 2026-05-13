@@ -9,6 +9,7 @@ function clientDocument(title, stylesheetPath, body, scriptPath, bodyClass = "")
   </head>
   <body${bodyClass ? ` class="${bodyClass}"` : ""}>
     ${body}
+    <div id="wsToast" class="ws-toast hidden" role="status" aria-live="polite"></div>
     <script>
       (function () {
         function ensureToggle(headerSelector, navSelector, buttonClassName) {
@@ -79,7 +80,8 @@ function clientDocument(title, stylesheetPath, body, scriptPath, bodyClass = "")
         window.addEventListener("resize", syncDesktopState);
       })();
     </script>
-    <script src="${scriptPath}"></script>
+    <script src="/ui-assets/scripts/ws-client.js"></script>
+${Array.isArray(scriptPath) ? scriptPath.map(function (s) { return '    <script src="' + s + '"></script>'; }).join("\n") : '    <script src="' + scriptPath + '"></script>'}
   </body>
 </html>`;
 }
@@ -308,6 +310,15 @@ function clientCalendarView() {
         <button id="employeeDropdownBtn" type="button" class="btn ghost">Seleccionar empleado</button>
         <div id="employeeDropdownList" class="dropdown-list hidden"></div>
       </div>
+      <label for="slotIntervalSelect">Intervalo</label>
+      <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="60">60 min</option>
+        <option value="120">120 min</option>
+      </select>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
@@ -424,8 +435,6 @@ function employeeView() {
     <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
-    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
@@ -439,7 +448,7 @@ function employeeView() {
     <div class="hero-actions">
       <a class="emp-btn solid" href="/ui/empleado/verify-clients">Verificar clientes</a>
       <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validar QR</a>
-      <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
+      <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     </div>
     <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
@@ -509,14 +518,14 @@ function employeeView() {
 
 function employeeCalendarView() {
   const body = `
-<header class="topbar">
-  <a class="brand" href="/ui/empleado">SGP</a>
-  <nav class="topbar-actions">
-    <a class="btn ghost" href="/ui/empleado">Inicio</a>
-    <a class="btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
-    <a class="btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
-    <a class="btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
-    <button id="navLogoutBtn" class="btn ghost" type="button">Cerrar sesion</button>
+<header class="emp-topbar">
+  <a class="emp-brand" href="/ui/empleado">SGP</a>
+  <nav class="emp-nav">
+    <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
+    <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
+    <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
+    <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -530,7 +539,6 @@ function employeeCalendarView() {
     <div class="calendar-toolbar">
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
-      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
@@ -564,8 +572,8 @@ function employeeCalendarView() {
     <label>Cantidad de clientes</label>
     <input id="clientCount" type="number" min="1" max="5" value="1" />
 
-    <button id="reserveBtn" class="btn accent block hidden" type="button" disabled>Confirmar reserva</button>
-    <button id="myReservationsBtn" class="btn ghost block hidden" type="button">Mis reservas</button>
+    <button id="reserveBtn" class="emp-btn solid block hidden" type="button" disabled>Confirmar reserva</button>
+    <button id="myReservationsBtn" class="emp-btn ghost block hidden" type="button">Mis reservas</button>
 
     <p id="calendarFeedback" class="feedback info">Calendario sincronizado para rol empleado.</p>
     <img id="qrImage" class="qr-image hidden" alt="QR de reserva" />
@@ -574,13 +582,47 @@ function employeeCalendarView() {
     <ul id="myReservationsList" class="reservations-list"></ul>
   </aside>
 </main>
+
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="+573001234567" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Contraseña</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
+
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
     "SGP - Calendario Empleado",
     "/ui-assets/styles/client-calendar.css",
     body,
-    "/ui-assets/scripts/client-calendar.js"
+    ["/ui-assets/scripts/empleado-dashboard.js", "/ui-assets/scripts/client-calendar.js"]
   );
 }
 
@@ -592,9 +634,8 @@ function employeeVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -620,9 +661,17 @@ function employeeVerifyClientsView() {
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
-      <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
+      <label for="slotIntervalSelect">Intervalo</label>
+      <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="60">60 min</option>
+        <option value="120">120 min</option>
+      </select>
     </div>
-    <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
+    <p id="verifySlotHelper" class="helper">Haz clic en un dia para marcarlo como no laboral. Haz clic en una hora vacia para bloquearla.</p>
     <div class="calendar-shell">
       <table>
         <thead id="verifyHead"></thead>
@@ -632,21 +681,89 @@ function employeeVerifyClientsView() {
   </section>
 
   <aside class="emp-panel config-panel">
-    <h2>Configuracion laboral</h2>
-    <p>Define dias no laborales y rango de trabajo por dia.</p>
-    <div id="workConfigList" class="config-list"></div>
-    <button id="saveConfigBtn" class="emp-btn solid block" type="button">Guardar configuracion</button>
-    <button id="resetConfigBtn" class="emp-btn ghost block" type="button">Restablecer</button>
+    <h2>Configuracion</h2>
+    <div class="config-tabs">
+      <button id="configTabSchedule" class="config-tab active" type="button">Horario semanal</button>
+      <button id="configTabPatterns" class="config-tab" type="button">Bloqueos recurrentes</button>
+    </div>
+
+    <div id="configSectionSchedule" class="config-section">
+      <p>Define dias no laborales y rango de trabajo por dia.</p>
+      <div id="workConfigList" class="config-list"></div>
+      <button id="saveConfigBtn" class="emp-btn solid block" type="button">Guardar configuracion</button>
+      <button id="resetConfigBtn" class="emp-btn ghost block" type="button">Restablecer</button>
+    </div>
+
+    <div id="configSectionPatterns" class="config-section hidden">
+      <p>Horas fijas que se bloquean automaticamente cada semana.</p>
+      <div class="pattern-form">
+        <select id="patternPreset">
+          <option value="custom">Seleccionar dias</option>
+          <option value="weekdays">Lunes a Viernes</option>
+          <option value="weekend">Sabado y Domingo</option>
+        </select>
+      </div>
+      <div id="patternDayCheckboxes" class="pattern-days">
+        <label><input type="checkbox" value="1" /> Lun</label>
+        <label><input type="checkbox" value="2" /> Mar</label>
+        <label><input type="checkbox" value="3" /> Mie</label>
+        <label><input type="checkbox" value="4" /> Jue</label>
+        <label><input type="checkbox" value="5" /> Vie</label>
+        <label><input type="checkbox" value="6" /> Sab</label>
+        <label><input type="checkbox" value="0" /> Dom</label>
+      </div>
+      <div class="pattern-form">
+        <input id="patternStart" type="time" value="17:00" />
+        <input id="patternEnd" type="time" value="19:00" />
+        <button id="addPatternBtn" class="emp-btn solid" type="button">Agregar</button>
+      </div>
+      <div id="blockedPatternsList" class="pattern-list"></div>
+    </div>
+
     <p id="verifyFeedback" class="feedback info">La configuracion se guarda localmente en el navegador.</p>
   </aside>
 </main>
+
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="+573001234567" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Contraseña</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
+
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
     "SGP - Verificar Clientes",
     "/ui-assets/styles/empleado-verify-clients.css",
     body,
-    "/ui-assets/scripts/empleado-verify-clients.js"
+    ["/ui-assets/scripts/empleado-dashboard.js", "/ui-assets/scripts/empleado-verify-clients.js"]
   );
 }
 
@@ -658,9 +775,8 @@ function employeeValidateQrView() {
     <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -688,6 +804,40 @@ function employeeValidateQrView() {
   </aside>
 </main>
 
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="+573001234567" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Contraseña</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
+
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 `;
 
@@ -695,7 +845,7 @@ function employeeValidateQrView() {
     "SGP - Validacion QR",
     "/ui-assets/styles/empleado-validate-qr.css",
     body,
-    "/ui-assets/scripts/empleado-validate-qr.js"
+    ["/ui-assets/scripts/empleado-dashboard.js", "/ui-assets/scripts/empleado-validate-qr.js"]
   );
 }
 
@@ -707,9 +857,8 @@ function employeeClientModerationView() {
     <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/empleado/client-moderation">Sancionar clientes</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -717,36 +866,55 @@ function employeeClientModerationView() {
   <section class="moderation-panel">
     <div class="panel-head">
       <h1>Control de mal uso de clientes</h1>
-      <button id="refreshModerationBtn" class="emp-btn ghost" type="button">Actualizar tabla</button>
     </div>
-    <p class="helper">Bloquea o desbloquea clientes por spam o uso indebido de la aplicacion.</p>
-    <p id="moderationFeedback" class="feedback info">Cargando clientes...</p>
-    <div class="table-shell">
-      <table>
-        <thead>
-          <tr>
-            <th>Cliente</th>
-            <th>Correo</th>
-            <th>Numero</th>
-            <th>Activas</th>
-            <th>No Show</th>
-            <th>Estado</th>
-            <th>Motivo</th>
-            <th>Accion</th>
-          </tr>
-        </thead>
-        <tbody id="moderationTableBody"></tbody>
-      </table>
+    <div class="access-denied">
+      <h2>Acceso restringido</h2>
+      <p>Solo los administradores pueden gestionar sanciones de clientes.</p>
+      <a class="emp-btn solid" href="/ui/empleado">Volver al panel</a>
     </div>
   </section>
 </main>
+
+<div id="employeeAccountModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="employeeAccountTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="employeeAccountTitle">Editar cuenta de empleado</h2>
+      <button id="closeEmployeeAccountBtn" class="emp-btn ghost" type="button">Cerrar</button>
+    </div>
+
+    <label>Nombre</label>
+    <input id="employeeAccountFirstName" type="text" readonly />
+
+    <label>Apellido</label>
+    <input id="employeeAccountLastName" type="text" readonly />
+
+    <label>Numero de documento</label>
+    <input id="employeeAccountIdentification" type="text" readonly />
+
+    <label>Numero celular</label>
+    <input id="employeeAccountPhone" type="text" placeholder="+573001234567" />
+
+    <label>Correo</label>
+    <input id="employeeAccountEmail" type="email" placeholder="Nuevo correo" />
+
+    <label>Contraseña</label>
+    <input id="employeeAccountPassword" type="password" placeholder="Mínimo 6 caracteres" />
+
+    <p id="employeeAccountFeedback" class="feedback info">Completa numero celular, correo y password para guardar.</p>
+
+    <div class="modal-actions">
+      <button id="cancelEmployeeAccountBtn" class="emp-btn ghost" type="button">Cancelar</button>
+      <button id="saveEmployeeAccountBtn" class="emp-btn solid" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 `;
 
   return clientDocument(
     "SGP - Sancionar Clientes",
     "/ui-assets/styles/client-moderation.css",
     body,
-    "/ui-assets/scripts/client-moderation.js"
+    ["/ui-assets/scripts/empleado-dashboard.js"]
   );
 }
 
@@ -758,7 +926,6 @@ function adminView() {
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="admin-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="admin-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -771,7 +938,7 @@ function adminView() {
       <button id="openEmployeeModalBtn" class="admin-btn solid admin-session-only launcher-entry-btn" type="button">Ingreso empleado y administrador</button>
       <button id="openServicesModalBtn" class="admin-btn ghost admin-session-only" type="button">Servicios disponibles</button>
       <button id="openRegisteredModalBtn" class="admin-btn ghost admin-session-only" type="button">Lista registrados</button>
-      <a class="admin-btn ghost admin-session-only" href="/ui/admin/client-moderation">Sancionar clientes</a>
+      <button id="openModerationModalBtn" class="admin-btn ghost admin-session-only" type="button">Sancionar clientes</button>
     </div>
     <p id="adminFeedback" class="feedback info">Panel de administracion listo.</p>
   </section>
@@ -829,6 +996,7 @@ function adminView() {
         <button id="closeRegisteredModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
       </div>
       <div class="list-head">
+        <input id="employeeSearchInput" type="text" placeholder="Buscar por nombre, correo o identificacion..." />
         <button id="refreshEmployeesBtn" class="admin-btn ghost" type="button">Actualizar</button>
       </div>
       <p id="adminRegisteredFeedback" class="feedback info">Desde esta tabla puedes editar, eliminar o configurar tiempos de servicios.</p>
@@ -849,6 +1017,38 @@ function adminView() {
         </table>
       </div>
       <p id="tempPasswordHint" class="temp-password hidden"></p>
+    </div>
+  </div>
+
+  <div id="adminModerationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminModerationTitle">
+    <div class="modal-card admin-modal-card wide list-panel">
+      <div class="modal-head">
+        <h2 id="adminModerationTitle">Control de mal uso de clientes</h2>
+        <button id="closeModerationModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <p class="helper">Bloquea o desbloquea clientes por spam o uso indebido de la aplicacion.</p>
+      <div class="list-head">
+        <input id="moderationSearchInput" type="text" placeholder="Buscar por nombre o correo..." />
+        <button id="refreshModerationBtn" class="admin-btn ghost" type="button">Actualizar tabla</button>
+      </div>
+      <p id="moderationFeedback" class="feedback info">Cargando clientes...</p>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Correo</th>
+              <th>Numero</th>
+              <th>Activas</th>
+              <th>No Show</th>
+              <th>Estado</th>
+              <th>Motivo</th>
+              <th>Accion</th>
+            </tr>
+          </thead>
+          <tbody id="moderationTableBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -923,7 +1123,6 @@ function adminCalendarView() {
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="admin-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="navLogoutBtn" class="admin-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -938,7 +1137,15 @@ function adminCalendarView() {
     <div class="calendar-toolbar">
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
-      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <label for="slotIntervalSelect">Intervalo</label>
+      <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="60">60 min</option>
+        <option value="120">120 min</option>
+      </select>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
@@ -1000,7 +1207,6 @@ function adminVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -1031,7 +1237,15 @@ function adminVerifyClientsView() {
       <select id="verifyEmployeeFilter">
         <option value="__all_employees__">Todos los empleados</option>
       </select>
-      <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
+      <label for="slotIntervalSelect">Intervalo</label>
+      <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="60">60 min</option>
+        <option value="120">120 min</option>
+      </select>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
@@ -1069,8 +1283,7 @@ function adminValidateQrView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -1117,7 +1330,6 @@ function adminClientModerationView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -1126,6 +1338,7 @@ function adminClientModerationView() {
   <section class="moderation-panel">
     <div class="panel-head">
       <h1>Control de mal uso de clientes</h1>
+      <input id="moderationSearchInput" type="text" placeholder="Buscar por nombre o correo..." />
       <button id="refreshModerationBtn" class="emp-btn ghost" type="button">Actualizar tabla</button>
     </div>
     <p class="helper">Bloquea o desbloquea clientes por spam o uso indebido de la aplicacion.</p>

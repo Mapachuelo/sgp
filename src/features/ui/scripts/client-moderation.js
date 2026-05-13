@@ -112,6 +112,8 @@
     return user;
   }
 
+  let allClients = [];
+
   function renderTable(rows) {
     const body = byId("moderationTableBody");
     if (!body) {
@@ -197,9 +199,25 @@
 
   async function loadModerationTable() {
     const payload = await callApi("/api/clients/moderation", "GET");
-    const rows = payload.data || [];
-    renderTable(rows);
+    allClients = payload.data || [];
+    applyModerationSearch();
     setFeedback("Tabla de moderacion actualizada.", "ok");
+  }
+
+  function applyModerationSearch() {
+    const searchInput = byId("moderationSearchInput");
+    var query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    var filtered = allClients;
+
+    if (query) {
+      filtered = allClients.filter(function (client) {
+        var name = (client.name || "").toLowerCase();
+        var email = (client.email || "").toLowerCase();
+        return name.includes(query) || email.includes(query);
+      });
+    }
+
+    renderTable(filtered);
   }
 
   async function blockClient(clientId) {
@@ -222,17 +240,19 @@
   }
 
   async function unblockClient(clientId) {
-    const accepted = window.confirm("Deseas desbloquear este cliente?");
-    if (!accepted) {
-      return;
-    }
-
     await callApi("/api/clients/" + encodeURIComponent(clientId) + "/unblock", "PUT");
     setFeedback("Cliente desbloqueado correctamente.", "ok");
     await loadModerationTable();
   }
 
   function bindEvents() {
+    const searchInput = byId("moderationSearchInput");
+    if (searchInput) {
+      searchInput.addEventListener("input", function () {
+        applyModerationSearch();
+      });
+    }
+
     const refreshButton = byId("refreshModerationBtn");
     if (refreshButton) {
       refreshButton.addEventListener("click", function () {

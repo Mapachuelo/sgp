@@ -361,7 +361,29 @@
     setAuthUi();
     setFeedback("Sesion cerrada.", "info");
     closeProfileModal();
+    if (window.SgpWebSocket) {
+      window.SgpWebSocket.disconnect();
+    }
   });
 
   refreshSessionState();
+
+  if (window.SgpWebSocket) {
+    window.SgpWebSocket.connect();
+
+    window.SgpWebSocket.on("*", function (type) {
+      if (type === "connected") return;
+      showWsToast("Notificacion: " + type);
+    });
+  }
+
+  function showWsToast(message) {
+    var toast = byId("wsToast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.remove("hidden");
+    setTimeout(function () {
+      toast.classList.add("hidden");
+    }, 4000);
+  }
 })();

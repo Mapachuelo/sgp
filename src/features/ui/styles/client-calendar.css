@@ -274,6 +274,25 @@ body {
   max-width: 220px;
 }
 
+.calendar-toolbar select {
+  border: 1.5px solid var(--sand-dk);
+  border-radius: var(--radius-sm);
+  padding: 0.68rem 0.8rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.92rem;
+  transition: var(--transition);
+  background: var(--ivory);
+  color: var(--stone-dk);
+  cursor: pointer;
+}
+
+.calendar-toolbar select:focus {
+  outline: none;
+  border-color: var(--terra);
+  box-shadow: 0 0 0 3px rgba(192,115,90,0.1), var(--shadow-sm);
+  background: #fff;
+}
+
 .employee-dropdown {
   position: relative;
 }

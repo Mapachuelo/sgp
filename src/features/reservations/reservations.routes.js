@@ -4,6 +4,7 @@ const {
   optionalAuth,
   requireRole
 } = require("../../shared/middlewares/auth.middleware");
+const { apiLimiter } = require("../../shared/middlewares/rateLimit.middleware");
 const {
   createReservationController,
   myReservationsController,
@@ -18,7 +19,10 @@ const {
   createServiceController,
   deleteServiceController,
   employeeServiceTimesController,
-  saveEmployeeServiceTimesController
+  saveEmployeeServiceTimesController,
+  getBlockedPatternsController,
+  addBlockedPatternController,
+  removeBlockedPatternController
 } = require("./reservations.controller");
 
 const router = express.Router();
@@ -53,9 +57,12 @@ router.delete(
   requireRole("empleado", "admin"),
   resetWorkScheduleController
 );
-router.post("/", requireAuth, requireRole("client"), createReservationController);
+router.post("/", apiLimiter, requireAuth, requireRole("client"), createReservationController);
 router.get("/me", requireAuth, requireRole("client"), myReservationsController);
 router.delete("/me/:reservationId", requireAuth, requireRole("client"), cancelMyReservationController);
 router.get("/", requireAuth, requireRole("empleado", "admin"), listReservationsController);
+router.get("/blocked-patterns", requireAuth, requireRole("empleado", "admin"), getBlockedPatternsController);
+router.post("/blocked-patterns", requireAuth, requireRole("empleado", "admin"), addBlockedPatternController);
+router.delete("/blocked-patterns/:patternId", requireAuth, requireRole("empleado", "admin"), removeBlockedPatternController);
 
 module.exports = { reservationsRouter: router };
