@@ -28,7 +28,10 @@ const {
   countActiveReservationsByClient,
   findClientReservationById,
   cancelReservationByClient,
-  cancelReservationsByDate
+  cancelReservationsByDate,
+  listEmployeeBlockedPatterns,
+  createEmployeeBlockedPattern,
+  deleteEmployeeBlockedPattern
 } = require("./reservations.model");
 
 const DEFAULT_START = "06:00";
@@ -872,12 +875,29 @@ async function getWorkScheduleRangeByStylist(startDateInput, daysInput, stylistI
     throw new HttpError(400, "stylistId debe ser un numero entero positivo");
   }
 
-  const [globalRows, employeeRows] = await Promise.all([
+  const [globalRows, employeeRows, patterns] = await Promise.all([
     listWorkScheduleByRange(startDate, days),
-    listEmployeeWorkScheduleByRange(startDate, days, stylistId)
+    listEmployeeWorkScheduleByRange(startDate, days, stylistId),
+    listEmployeeBlockedPatterns(stylistId)
   ]);
 
-  return mergeScheduleByDate(globalRows, employeeRows, startDate, days);
+  const normalizedPatterns = patterns.map(function (p) {
+    return {
+      dayOfWeek: p.day_of_week,
+      startTime: p.start_time,
+      endTime: p.end_time
+    };
+  });
+
+  const merged = mergeScheduleByDate(globalRows, employeeRows, startDate, days);
+
+  return merged.map(function (entry) {
+    const patternBlocked = buildBlockedHoursFromPatterns(normalizedPatterns, entry.date);
+    return {
+      ...entry,
+      blockedHours: mergeBlockedHours(entry.blockedHours, patternBlocked)
+    };
+  });
 }
 
 async function getEditableWorkScheduleForUser(startDateInput, daysInput, authUser) {
@@ -906,8 +926,19 @@ async function getEditableWorkScheduleForUser(startDateInput, daysInput, authUse
     });
   }
 
-  const rows = await listEmployeeWorkScheduleByRange(startDate, days, authUser.sub);
+  const [rows, patterns] = await Promise.all([
+    listEmployeeWorkScheduleByRange(startDate, days, authUser.sub),
+    listEmployeeBlockedPatterns(authUser.sub)
+  ]);
+
   const indexed = mapScheduleRows(rows);
+  const normalizedPatterns = patterns.map(function (p) {
+    return {
+      dayOfWeek: p.day_of_week,
+      startTime: p.start_time,
+      endTime: p.end_time
+    };
+  });
 
   return buildDateRange(startDate, days).map(function (date) {
     const config = indexed[date] || {
@@ -917,12 +948,14 @@ async function getEditableWorkScheduleForUser(startDateInput, daysInput, authUse
       blockedHours: []
     };
 
+    const patternBlocked = buildBlockedHoursFromPatterns(normalizedPatterns, date);
+
     return {
       date,
       offDay: config.offDay,
       start: config.start,
       end: config.end,
-      blockedHours: config.blockedHours || []
+      blockedHours: mergeBlockedHours(config.blockedHours, patternBlocked)
     };
   });
 }
@@ -1200,6 +1233,107 @@ async function saveEmployeeServiceTimesByAdmin(employeeIdInput, entriesInput, au
   return getEmployeeServiceTimesByAdmin(employeeId);
 }
 
+function normalizeTimeText(timeInput) {
+  const time = String(timeInput || "").trim();
+  if (!/^\d{1,2}:\d{2}$/.test(time)) {
+    throw new HttpError(400, "start_time y end_time deben tener formato HH:MM");
+  }
+  return time;
+}
+
+function normalizeDayOfWeek(dayInput) {
+  const day = Number(dayInput);
+  if (!Number.isInteger(day) || day < 0 || day > 6) {
+    throw new HttpError(400, "day_of_week debe ser un entero entre 0 (domingo) y 6 (sabado)");
+  }
+  return day;
+}
+
+async function getEmployeeBlockedPatterns(employeeId) {
+  const patterns = await listEmployeeBlockedPatterns(employeeId);
+  return patterns.map(function (p) {
+    return {
+      id: p.id,
+      dayOfWeek: p.day_of_week,
+      startTime: p.start_time,
+      endTime: p.end_time
+    };
+  });
+}
+
+async function addEmployeeBlockedPattern(employeeId, dayOfWeekInput, startTimeInput, endTimeInput) {
+  const dayOfWeek = normalizeDayOfWeek(dayOfWeekInput);
+  const startTime = normalizeTimeText(startTimeInput);
+  const endTime = normalizeTimeText(endTimeInput);
+
+  if (toMinutes(startTime) >= toMinutes(endTime)) {
+    throw new HttpError(400, "start_time debe ser menor que end_time");
+  }
+
+  const created = await createEmployeeBlockedPattern(employeeId, dayOfWeek, startTime, endTime);
+  if (!created) {
+    return null;
+  }
+
+  return {
+    id: created.id,
+    dayOfWeek: created.day_of_week,
+    startTime: created.start_time,
+    endTime: created.end_time
+  };
+}
+
+async function removeEmployeeBlockedPattern(patternId, employeeId) {
+  const deleted = await deleteEmployeeBlockedPattern(patternId, employeeId);
+  if (!deleted) {
+    throw new HttpError(404, "Patron no encontrado");
+  }
+  return { id: deleted.id };
+}
+
+function buildBlockedHoursFromPatterns(patterns, dateStr) {
+  if (!patterns || patterns.length === 0) {
+    return [];
+  }
+
+  const date = new Date(dateStr + "T00:00:00");
+  if (Number.isNaN(date.getTime())) {
+    return [];
+  }
+
+  const dayOfWeek = date.getDay();
+  const matchingPatterns = patterns.filter(function (p) {
+    return p.dayOfWeek === dayOfWeek;
+  });
+
+  const blockedHours = [];
+  const seen = new Set();
+  matchingPatterns.forEach(function (pattern) {
+    const startMin = toMinutes(pattern.startTime);
+    const endMin = toMinutes(pattern.endTime);
+
+    for (let min = startMin; min < endMin; min += 15) {
+      const hour = Math.floor(min / 60);
+      const minute = min % 60;
+      const slot = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+      if (!seen.has(slot)) {
+        seen.add(slot);
+        blockedHours.push(slot);
+      }
+    }
+  });
+
+  return blockedHours.sort();
+}
+
+function mergeBlockedHours(explicit, fromPatterns) {
+  const set = new Set(explicit || []);
+  (fromPatterns || []).forEach(function (h) {
+    set.add(h);
+  });
+  return Array.from(set).sort();
+}
+
 module.exports = {
   reserveAppointment,
   cancelMyReservation,
@@ -1216,5 +1350,10 @@ module.exports = {
   createServiceByAdmin,
   deleteServiceByAdmin,
   getEmployeeServiceTimesByAdmin,
-  saveEmployeeServiceTimesByAdmin
+  saveEmployeeServiceTimesByAdmin,
+  getEmployeeBlockedPatterns,
+  addEmployeeBlockedPattern,
+  removeEmployeeBlockedPattern,
+  buildBlockedHoursFromPatterns,
+  mergeBlockedHours
 };

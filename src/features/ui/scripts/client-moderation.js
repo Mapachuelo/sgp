@@ -240,11 +240,6 @@
   }
 
   async function unblockClient(clientId) {
-    const accepted = window.confirm("Deseas desbloquear este cliente?");
-    if (!accepted) {
-      return;
-    }
-
     await callApi("/api/clients/" + encodeURIComponent(clientId) + "/unblock", "PUT");
     setFeedback("Cliente desbloqueado correctamente.", "ok");
     await loadModerationTable();

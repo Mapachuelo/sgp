@@ -664,6 +664,13 @@ function employeeVerifyClientsView() {
     <div class="inline-controls verify-controls">
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
+      <label for="slotIntervalSelect">Intervalo</label>
+      <select id="slotIntervalSelect">
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="45">45 min</option>
+        <option value="60">60 min</option>
+      </select>
     </div>
     <p id="verifySlotHelper" class="helper">Haz clic en un dia para marcarlo como no laboral. Haz clic en una hora vacia para bloquearla.</p>
     <div class="calendar-shell">
@@ -675,11 +682,45 @@ function employeeVerifyClientsView() {
   </section>
 
   <aside class="emp-panel config-panel">
-    <h2>Configuracion laboral</h2>
-    <p>Define dias no laborales y rango de trabajo por dia.</p>
-    <div id="workConfigList" class="config-list"></div>
-    <button id="saveConfigBtn" class="emp-btn solid block" type="button">Guardar configuracion</button>
-    <button id="resetConfigBtn" class="emp-btn ghost block" type="button">Restablecer</button>
+    <h2>Configuracion</h2>
+    <div class="config-tabs">
+      <button id="configTabSchedule" class="config-tab active" type="button">Horario semanal</button>
+      <button id="configTabPatterns" class="config-tab" type="button">Bloqueos recurrentes</button>
+    </div>
+
+    <div id="configSectionSchedule" class="config-section">
+      <p>Define dias no laborales y rango de trabajo por dia.</p>
+      <div id="workConfigList" class="config-list"></div>
+      <button id="saveConfigBtn" class="emp-btn solid block" type="button">Guardar configuracion</button>
+      <button id="resetConfigBtn" class="emp-btn ghost block" type="button">Restablecer</button>
+    </div>
+
+    <div id="configSectionPatterns" class="config-section hidden">
+      <p>Horas fijas que se bloquean automaticamente cada semana.</p>
+      <div class="pattern-form">
+        <select id="patternPreset">
+          <option value="custom">Seleccionar dias</option>
+          <option value="weekdays">Lunes a Viernes</option>
+          <option value="weekend">Sabado y Domingo</option>
+        </select>
+      </div>
+      <div id="patternDayCheckboxes" class="pattern-days">
+        <label><input type="checkbox" value="1" /> Lun</label>
+        <label><input type="checkbox" value="2" /> Mar</label>
+        <label><input type="checkbox" value="3" /> Mie</label>
+        <label><input type="checkbox" value="4" /> Jue</label>
+        <label><input type="checkbox" value="5" /> Vie</label>
+        <label><input type="checkbox" value="6" /> Sab</label>
+        <label><input type="checkbox" value="0" /> Dom</label>
+      </div>
+      <div class="pattern-form">
+        <input id="patternStart" type="time" value="17:00" />
+        <input id="patternEnd" type="time" value="19:00" />
+        <button id="addPatternBtn" class="emp-btn solid" type="button">Agregar</button>
+      </div>
+      <div id="blockedPatternsList" class="pattern-list"></div>
+    </div>
+
     <p id="verifyFeedback" class="feedback info">La configuracion se guarda localmente en el navegador.</p>
   </aside>
 </main>

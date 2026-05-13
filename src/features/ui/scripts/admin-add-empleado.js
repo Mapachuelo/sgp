@@ -505,17 +505,6 @@
       return;
     }
 
-    const accepted = window.confirm(
-      "Eliminar al usuario " +
-        (employeeName || "seleccionado") +
-        " (rol " +
-        roleLabel(employeeRole || "") +
-        ") de la base de datos?"
-    );
-    if (!accepted) {
-      return;
-    }
-
     try {
       await callApi("/api/auth/employees/" + encodeURIComponent(employeeId), "DELETE");
       setTempPasswordHint("");
@@ -582,13 +571,6 @@
 
   async function deleteService(serviceId, serviceName) {
     if (!serviceId) {
-      return;
-    }
-
-    const accepted = window.confirm(
-      "Eliminar el servicio \"" + (serviceName || "") + "\"?"
-    );
-    if (!accepted) {
       return;
     }
 

@@ -15,7 +15,10 @@ const {
   createServiceByAdmin,
   deleteServiceByAdmin,
   getEmployeeServiceTimesByAdmin,
-  saveEmployeeServiceTimesByAdmin
+  saveEmployeeServiceTimesByAdmin,
+  getEmployeeBlockedPatterns,
+  addEmployeeBlockedPattern,
+  removeEmployeeBlockedPattern
 } = require("./reservations.service");
 
 const createReservationController = asyncHandler(async (req, res) => {
@@ -98,6 +101,25 @@ const saveEmployeeServiceTimesController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
+const getBlockedPatternsController = asyncHandler(async (req, res) => {
+  const data = await getEmployeeBlockedPatterns(req.auth.sub);
+  res.json({ ok: true, data });
+});
+
+const addBlockedPatternController = asyncHandler(async (req, res) => {
+  const { dayOfWeek, startTime, endTime } = req.body;
+  const data = await addEmployeeBlockedPattern(req.auth.sub, dayOfWeek, startTime, endTime);
+  if (!data) {
+    return res.json({ ok: true, data: null, message: "Patron ya existente" });
+  }
+  res.status(201).json({ ok: true, data });
+});
+
+const removeBlockedPatternController = asyncHandler(async (req, res) => {
+  const data = await removeEmployeeBlockedPattern(req.params.patternId, req.auth.sub);
+  res.json({ ok: true, data });
+});
+
 module.exports = {
   createReservationController,
   myReservationsController,
@@ -112,5 +134,8 @@ module.exports = {
   createServiceController,
   deleteServiceController,
   employeeServiceTimesController,
-  saveEmployeeServiceTimesController
+  saveEmployeeServiceTimesController,
+  getBlockedPatternsController,
+  addBlockedPatternController,
+  removeBlockedPatternController
 };

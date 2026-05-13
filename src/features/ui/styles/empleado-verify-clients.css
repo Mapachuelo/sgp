@@ -860,3 +860,130 @@ pre {
 .badge.hidden {
   display: none;
 }
+
+/* ── CONFIG TABS ───────────────────────────────── */
+.config-tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+}
+
+.config-tab {
+  flex: 1;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(200,185,168,0.3);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--stone);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.config-tab:hover {
+  background: rgba(200,185,168,0.1);
+}
+
+.config-tab.active {
+  background: var(--stone-dk);
+  color: var(--ivory);
+  border-color: var(--stone-dk);
+}
+
+.config-section {
+  margin-top: 0.5rem;
+}
+
+.config-section.hidden {
+  display: none;
+}
+
+/* ── PATTERNS PANEL ────────────────────────────── */
+.pattern-form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.pattern-form select,
+.pattern-form input[type="time"] {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(200,185,168,0.3);
+  border-radius: 6px;
+  background: var(--ivory);
+  color: var(--stone-dk);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.85rem;
+}
+
+.pattern-form select {
+  min-width: 140px;
+}
+
+.pattern-days {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+
+.pattern-days label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid rgba(200,185,168,0.25);
+  border-radius: 5px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pattern-days label:hover {
+  background: rgba(200,185,168,0.1);
+}
+
+.pattern-days input[type="checkbox"] {
+  accent-color: var(--stone-dk);
+}
+
+.pattern-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pattern-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.7rem;
+  background: var(--sand-lt);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.pattern-info {
+  color: var(--stone-dk);
+  font-weight: 500;
+}
+
+.pattern-remove-btn {
+  background: none;
+  border: none;
+  color: var(--terra);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.pattern-remove-btn:hover {
+  background: rgba(204,96,70,0.1);
+}

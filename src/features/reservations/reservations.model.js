@@ -98,6 +98,20 @@ async function ensureEmployeeWorkScheduleTable(queryable = db) {
   `);
 }
 
+async function ensureEmployeeBlockedPatternTable(queryable = db) {
+  await queryable.query(`
+    CREATE TABLE IF NOT EXISTS employee_blocked_pattern (
+      id SERIAL PRIMARY KEY,
+      employee_id INT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+      day_of_week INT NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (employee_id, day_of_week, start_time, end_time)
+    )
+  `);
+}
+
 async function ensureServiceCatalogTable(queryable = db) {
   await queryable.query(`
     CREATE TABLE IF NOT EXISTS service_catalog (
@@ -458,6 +472,53 @@ async function deleteEmployeeWorkScheduleByRange(startDate, daysCount, employeeI
   );
 }
 
+async function listEmployeeBlockedPatterns(employeeId) {
+  await ensureEmployeeBlockedPatternTable();
+
+  const result = await db.query(
+    `
+      SELECT id, employee_id, day_of_week, TO_CHAR(start_time, 'HH24:MI') AS start_time, TO_CHAR(end_time, 'HH24:MI') AS end_time
+      FROM employee_blocked_pattern
+      WHERE employee_id = $1
+      ORDER BY day_of_week ASC, start_time ASC
+    `,
+    [employeeId]
+  );
+
+  return result.rows;
+}
+
+async function createEmployeeBlockedPattern(employeeId, dayOfWeek, startTime, endTime) {
+  await ensureEmployeeBlockedPatternTable();
+
+  const result = await db.query(
+    `
+      INSERT INTO employee_blocked_pattern (employee_id, day_of_week, start_time, end_time)
+      VALUES ($1, $2, $3::TIME, $4::TIME)
+      ON CONFLICT (employee_id, day_of_week, start_time, end_time) DO NOTHING
+      RETURNING id, employee_id, day_of_week, TO_CHAR(start_time, 'HH24:MI') AS start_time, TO_CHAR(end_time, 'HH24:MI') AS end_time
+    `,
+    [employeeId, dayOfWeek, startTime, endTime]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function deleteEmployeeBlockedPattern(patternId, employeeId) {
+  await ensureEmployeeBlockedPatternTable();
+
+  const result = await db.query(
+    `
+      DELETE FROM employee_blocked_pattern
+      WHERE id = $1 AND employee_id = $2
+      RETURNING id
+    `,
+    [patternId, employeeId]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function listServiceCatalog() {
   await ensureServiceCatalogTable();
 
@@ -756,5 +817,8 @@ module.exports = {
   findClientReservationById,
   cancelReservationByClient,
   cancelReservationsByDate,
-  hasNoShowReservationForClient
+  hasNoShowReservationForClient,
+  listEmployeeBlockedPatterns,
+  createEmployeeBlockedPattern,
+  deleteEmployeeBlockedPattern
 };

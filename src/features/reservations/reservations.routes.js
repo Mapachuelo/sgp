@@ -19,7 +19,10 @@ const {
   createServiceController,
   deleteServiceController,
   employeeServiceTimesController,
-  saveEmployeeServiceTimesController
+  saveEmployeeServiceTimesController,
+  getBlockedPatternsController,
+  addBlockedPatternController,
+  removeBlockedPatternController
 } = require("./reservations.controller");
 
 const router = express.Router();
@@ -58,5 +61,8 @@ router.post("/", apiLimiter, requireAuth, requireRole("client"), createReservati
 router.get("/me", requireAuth, requireRole("client"), myReservationsController);
 router.delete("/me/:reservationId", requireAuth, requireRole("client"), cancelMyReservationController);
 router.get("/", requireAuth, requireRole("empleado", "admin"), listReservationsController);
+router.get("/blocked-patterns", requireAuth, requireRole("empleado", "admin"), getBlockedPatternsController);
+router.post("/blocked-patterns", requireAuth, requireRole("empleado", "admin"), addBlockedPatternController);
+router.delete("/blocked-patterns/:patternId", requireAuth, requireRole("empleado", "admin"), removeBlockedPatternController);
 
 module.exports = { reservationsRouter: router };

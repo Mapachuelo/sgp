@@ -1881,11 +1881,6 @@
       return;
     }
 
-    const accepted = window.confirm("Estas seguro de borrar la reserva");
-    if (!accepted) {
-      return;
-    }
-
     try {
       await callApi(
         "/api/reservations/me/" + encodeURIComponent(String(parsedId)),
@@ -1912,15 +1907,6 @@
     const removableReservations = (state.myReservations || []).filter(isReservationRemovable);
     if (removableReservations.length === 0) {
       setFeedback("No hay reservas canceladas o tardadas para borrar.", "info");
-      return;
-    }
-
-    const accepted = window.confirm(
-      "Se borraran " +
-        String(removableReservations.length) +
-        " reservas canceladas/tardadas. Las reservas activas no se eliminaran."
-    );
-    if (!accepted) {
       return;
     }
 
