@@ -358,13 +358,16 @@ td {
   font-size: 0.74rem;
   font-family: "Outfit", sans-serif;
   transition: background 0.2s;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 td.empty         { color: var(--stone-lt); }
-td.outside-hours { background: var(--sand-lt); color: var(--stone-lt); }
-td.off-day       { background: var(--sand); color: var(--wood-dk); font-weight: 700; }
 td.booked        { background: #F7EDEA; }
-td.blocked-hour  { background: var(--stone-dk); color: var(--ivory); font-weight: 600; }
+td.off-day,
+td.blocked-hour,
+td.outside-hours { background: var(--stone-dk); color: var(--ivory); font-weight: 600; }
 
 /* ── RESERVATION ITEMS ──────────────────────────── */
 .reservation-item {

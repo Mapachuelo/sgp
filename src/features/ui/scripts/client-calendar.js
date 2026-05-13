@@ -980,7 +980,7 @@
 
         if (schedule.offDay) {
           button.classList.add("reserved");
-          button.textContent = "No laboral";
+          button.textContent = "Horario no laboral";
           button.disabled = true;
         } else if (!isSlotInsideWorkingHours(slot, slotDurationMinutes, schedule)) {
           button.classList.add("reserved");
@@ -988,7 +988,7 @@
           button.disabled = true;
         } else if (isHourBlocked(dayKey, slot, schedule)) {
           button.classList.add("reserved");
-          button.textContent = "Hora no disponible";
+          button.textContent = "Horario no laboral";
           button.disabled = true;
         } else if (isOccupied) {
           button.classList.add("reserved");

@@ -860,21 +860,21 @@
 
         if (config.offDay) {
           cell.className = "off-day";
-          cell.textContent = "No laboral";
+          cell.textContent = "Horario no laboral";
           row.appendChild(cell);
           return;
         }
 
         if (!isSlotInsideWorkingHours(slot, config, slotStepMinutes)) {
-          cell.className = "outside-hours";
-          cell.textContent = "Fuera horario";
+          cell.className = "blocked-hour";
+          cell.textContent = "Horario no laboral";
           row.appendChild(cell);
           return;
         }
 
         if (isHourBlocked(dayKey, slot)) {
           cell.className = "blocked-hour";
-          cell.textContent = "Hora no laboral";
+          cell.textContent = "Horario no laboral";
           cell.style.cursor = "pointer";
           cell.title = "Clic para habilitar esta hora";
           cell.addEventListener("click", function () {
