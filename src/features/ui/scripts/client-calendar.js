@@ -1494,7 +1494,28 @@
     }
 
     if (!state.selectedSlot) {
-      showBookingError("Selecciona un horario para reservar.");
+      showBookingError("El horario seleccionado ya no esta disponible.");
+      return;
+    }
+
+    var slot = state.selectedSlot;
+    var schedule = state.workScheduleByDate[slot.date] || defaultSchedule();
+    if (schedule.offDay) {
+      showBookingError("El horario no esta disponible (dia no laboral).");
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
+      return;
+    }
+    if (isHourBlocked(slot.date, slot.time, schedule)) {
+      showBookingError("El horario no esta disponible (bloqueado).");
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
+      return;
+    }
+    if (!isSlotInsideWorkingHours(slot.time, getEffectiveSlotDurationMinutes(), schedule)) {
+      showBookingError("El horario no esta disponible (fuera de horario laboral).");
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
       return;
     }
 
