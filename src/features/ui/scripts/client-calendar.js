@@ -2364,6 +2364,10 @@
         return refreshCalendar();
       })
       .then(function () {
+        var slotIntervalSelect = byId("slotIntervalSelect");
+        if (slotIntervalSelect) {
+          slotIntervalSelect.value = String(state.selectedSlotInterval);
+        }
         return loadMyReservations();
       })
       .catch(function (error) {

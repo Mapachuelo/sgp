@@ -1083,7 +1083,12 @@
     );
 
     state.reservations = reservationsPayload.data || [];
-    state.slotStepMinutes = resolveSlotStepFromReservations();
+    var slotIntervalSelect = byId("slotIntervalSelect");
+    if (slotIntervalSelect && slotIntervalSelect.value) {
+      state.slotStepMinutes = Number(slotIntervalSelect.value);
+    } else {
+      state.slotStepMinutes = resolveSlotStepFromReservations();
+    }
     state.scheduleConfig = {};
 
     (schedulePayload.data || []).forEach(function (entry) {
@@ -1109,6 +1114,12 @@
 
       await loadData();
       await loadPatterns();
+
+      var slotIntervalSelect = byId("slotIntervalSelect");
+      if (slotIntervalSelect) {
+        slotIntervalSelect.value = String(state.slotStepMinutes);
+      }
+
       updateTodaySummary();
       updateSlotHelper();
       renderConfigPanel();
@@ -1164,11 +1175,6 @@
     renderCalendar();
   }
 
-  const reloadBtn = byId("reloadBtn");
-  if (reloadBtn) {
-    reloadBtn.addEventListener("click", refreshAll);
-  }
-
   const weekStartInput = byId("weekStart");
   if (weekStartInput) {
     weekStartInput.addEventListener("change", refreshAll);
@@ -1202,8 +1208,7 @@
   if (verifyEmployeeFilter) {
     verifyEmployeeFilter.addEventListener("change", function () {
       state.selectedStylistId = String(verifyEmployeeFilter.value || ALL_EMPLOYEES_VALUE);
-      applyStylistFilter();
-      setFeedback("Filtro de empleado aplicado en el calendario.", "info");
+      refreshAll();
     });
   }
 

@@ -312,12 +312,12 @@ function clientCalendarView() {
       </div>
       <label for="slotIntervalSelect">Intervalo</label>
       <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
         <option value="15">15 min</option>
         <option value="30" selected>30 min</option>
-        <option value="45">45 min</option>
-        <option value="60">1 hora</option>
-        <option value="90">1h 30min</option>
-        <option value="120">2 horas</option>
+        <option value="60">60 min</option>
+        <option value="120">120 min</option>
       </select>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
@@ -435,7 +435,6 @@ function employeeView() {
     <a class="emp-btn ghost" href="/ui/empleado">Inicio</a>
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
-    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
@@ -449,6 +448,7 @@ function employeeView() {
     <div class="hero-actions">
       <a class="emp-btn solid" href="/ui/empleado/verify-clients">Verificar clientes</a>
       <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validar QR</a>
+      <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     </div>
     <p id="sessionBadge" class="badge">Sesion activa</p>
   </section>
@@ -525,7 +525,6 @@ function employeeCalendarView() {
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -540,7 +539,6 @@ function employeeCalendarView() {
     <div class="calendar-toolbar">
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
-      <button id="refreshCalendarBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
@@ -637,7 +635,6 @@ function employeeVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -666,10 +663,12 @@ function employeeVerifyClientsView() {
       <input id="weekStart" type="date" />
       <label for="slotIntervalSelect">Intervalo</label>
       <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
         <option value="15">15 min</option>
         <option value="30" selected>30 min</option>
-        <option value="45">45 min</option>
         <option value="60">60 min</option>
+        <option value="120">120 min</option>
       </select>
     </div>
     <p id="verifySlotHelper" class="helper">Haz clic en un dia para marcarlo como no laboral. Haz clic en una hora vacia para bloquearla.</p>
@@ -777,7 +776,6 @@ function employeeValidateQrView() {
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -860,7 +858,6 @@ function employeeClientModerationView() {
     <a class="emp-btn ghost" href="/ui/empleado/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/empleado/validate-qr">Validacion QR</a>
     <a id="adminAccessLink" class="emp-btn ghost hidden" href="/ui/admin">Gestion empleados</a>
-    <button id="openEmployeeAccountBtn" class="emp-btn ghost hidden" type="button">Editar cuenta</button>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -1126,7 +1123,6 @@ function adminCalendarView() {
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="admin-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="navLogoutBtn" class="admin-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -1141,7 +1137,15 @@ function adminCalendarView() {
     <div class="calendar-toolbar">
       <label for="weekStart">Inicio del rango</label>
       <input id="weekStart" type="date" />
-      <button id="refreshCalendarBtn" class="btn ghost" type="button">Actualizar calendario</button>
+      <label for="slotIntervalSelect">Intervalo</label>
+      <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="60">60 min</option>
+        <option value="120">120 min</option>
+      </select>
       <p id="slotSelectionBadge" class="slot-selection-badge">Sin horario seleccionado</p>
     </div>
 
@@ -1203,7 +1207,6 @@ function adminVerifyClientsView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -1234,7 +1237,15 @@ function adminVerifyClientsView() {
       <select id="verifyEmployeeFilter">
         <option value="__all_employees__">Todos los empleados</option>
       </select>
-      <button id="reloadBtn" class="emp-btn ghost" type="button">Actualizar calendario</button>
+      <label for="slotIntervalSelect">Intervalo</label>
+      <select id="slotIntervalSelect">
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="30" selected>30 min</option>
+        <option value="60">60 min</option>
+        <option value="120">120 min</option>
+      </select>
     </div>
     <p id="verifySlotHelper" class="helper">Horario de 06:00 a 22:00 con intervalo dinamico.</p>
     <div class="calendar-shell">
@@ -1272,8 +1283,7 @@ function adminValidateQrView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
-    <button id="logoutBtn" class="emp-btn ghost hidden" type="button">Cerrar sesion</button>
+    <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>
 
@@ -1320,7 +1330,6 @@ function adminClientModerationView() {
     <a class="emp-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="emp-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="emp-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="emp-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="emp-btn ghost" type="button">Cerrar sesion</button>
   </nav>
 </header>

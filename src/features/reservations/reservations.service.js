@@ -1312,7 +1312,7 @@ function buildBlockedHoursFromPatterns(patterns, dateStr) {
     const startMin = toMinutes(pattern.startTime);
     const endMin = toMinutes(pattern.endTime);
 
-    for (let min = startMin; min < endMin; min += 15) {
+    for (let min = startMin; min < endMin; min += 5) {
       const hour = Math.floor(min / 60);
       const minute = min % 60;
       const slot = String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
