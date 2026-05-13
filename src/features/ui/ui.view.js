@@ -929,7 +929,6 @@ function adminView() {
     <a class="admin-btn ghost" href="/ui/admin">Gestion empleados</a>
     <a class="admin-btn ghost" href="/ui/admin/verify-clients">Verificar cliente</a>
     <a class="admin-btn ghost" href="/ui/admin/validate-qr">Validacion QR</a>
-    <a class="admin-btn ghost" href="/ui/admin/client-moderation">Sancionar clientes</a>
     <button id="logoutBtn" class="admin-btn ghost hidden" type="button">Cerrar sesion</button>
   </nav>
 </header>
@@ -942,7 +941,7 @@ function adminView() {
       <button id="openEmployeeModalBtn" class="admin-btn solid admin-session-only launcher-entry-btn" type="button">Ingreso empleado y administrador</button>
       <button id="openServicesModalBtn" class="admin-btn ghost admin-session-only" type="button">Servicios disponibles</button>
       <button id="openRegisteredModalBtn" class="admin-btn ghost admin-session-only" type="button">Lista registrados</button>
-      <a class="admin-btn ghost admin-session-only" href="/ui/admin/client-moderation">Sancionar clientes</a>
+      <button id="openModerationModalBtn" class="admin-btn ghost admin-session-only" type="button">Sancionar clientes</button>
     </div>
     <p id="adminFeedback" class="feedback info">Panel de administracion listo.</p>
   </section>
@@ -1021,6 +1020,38 @@ function adminView() {
         </table>
       </div>
       <p id="tempPasswordHint" class="temp-password hidden"></p>
+    </div>
+  </div>
+
+  <div id="adminModerationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminModerationTitle">
+    <div class="modal-card admin-modal-card wide list-panel">
+      <div class="modal-head">
+        <h2 id="adminModerationTitle">Control de mal uso de clientes</h2>
+        <button id="closeModerationModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <p class="helper">Bloquea o desbloquea clientes por spam o uso indebido de la aplicacion.</p>
+      <div class="list-head">
+        <input id="moderationSearchInput" type="text" placeholder="Buscar por nombre o correo..." />
+        <button id="refreshModerationBtn" class="admin-btn ghost" type="button">Actualizar tabla</button>
+      </div>
+      <p id="moderationFeedback" class="feedback info">Cargando clientes...</p>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Correo</th>
+              <th>Numero</th>
+              <th>Activas</th>
+              <th>No Show</th>
+              <th>Estado</th>
+              <th>Motivo</th>
+              <th>Accion</th>
+            </tr>
+          </thead>
+          <tbody id="moderationTableBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 

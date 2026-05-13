@@ -62,8 +62,9 @@
     return parsed;
   }
 
-  function setFeedback(message, tone) {
-    const element = byId("adminFeedback");
+  function setFeedback(message, tone, modalId) {
+    const element = modalId ? byId("moderationFeedback") : byId("adminFeedback");
+    if (!element) return;
     element.textContent = message;
     element.className = "feedback " + tone;
   }
@@ -170,6 +171,12 @@
         modalId: "adminRegisteredModal",
         openButtonId: "openRegisteredModalBtn",
         closeButtonId: "closeRegisteredModalBtn"
+      },
+      {
+        modalId: "adminModerationModal",
+        openButtonId: "openModerationModalBtn",
+        closeButtonId: "closeModerationModalBtn",
+        onOpen: loadModerationTable
       }
     ];
 
@@ -182,6 +189,9 @@
         openButton.addEventListener("click", function () {
           openModal(item.modalId);
           setDefaultModalFeedback(item.modalId);
+          if (item.onOpen) {
+            item.onOpen();
+          }
         });
       }
 
@@ -849,6 +859,7 @@
   });
 
   setupAdminModals();
+  bindModerationEvents();
 
   const employeeSearchInput = byId("employeeSearchInput");
   if (employeeSearchInput) {
@@ -902,5 +913,176 @@
     setTimeout(function () {
       toast.classList.add("hidden");
     }, 4000);
+  }
+
+  var moderationClients = [];
+
+  function loadModerationTable() {
+    callApi("/api/clients/moderation", "GET")
+      .then(function (result) {
+        moderationClients = result.data || [];
+        applyModerationSearch();
+        setFeedback("Tabla de moderacion actualizada.", "ok", "adminModerationModal");
+      })
+      .catch(function (error) {
+        setFeedback(error.message, "warn", "adminModerationModal");
+      });
+  }
+
+  function applyModerationSearch() {
+    var searchInput = byId("moderationSearchInput");
+    var query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    var filtered = moderationClients;
+
+    if (query) {
+      filtered = moderationClients.filter(function (client) {
+        var name = (client.name || "").toLowerCase();
+        var email = (client.email || "").toLowerCase();
+        return name.includes(query) || email.includes(query);
+      });
+    }
+
+    renderModerationTable(filtered);
+  }
+
+  function toReadableModerationDate(dateText) {
+    if (!dateText) return "-";
+    var date = new Date(dateText);
+    if (Number.isNaN(date.getTime())) return "-";
+    var day = String(date.getDate()).padStart(2, "0");
+    var month = String(date.getMonth() + 1).padStart(2, "0");
+    var year = String(date.getFullYear());
+    var hour = String(date.getHours()).padStart(2, "0");
+    var minutes = String(date.getMinutes()).padStart(2, "0");
+    return day + "/" + month + "/" + year + " " + hour + ":" + minutes;
+  }
+
+  function renderModerationTable(rows) {
+    var body = byId("moderationTableBody");
+    if (!body) return;
+
+    body.innerHTML = "";
+
+    if (!rows || rows.length === 0) {
+      var tr = document.createElement("tr");
+      var td = document.createElement("td");
+      td.colSpan = 8;
+      td.textContent = "Sin clientes para moderar.";
+      tr.appendChild(td);
+      body.appendChild(tr);
+      return;
+    }
+
+    rows.forEach(function (row) {
+      var tr = document.createElement("tr");
+
+      var nameTd = document.createElement("td");
+      nameTd.textContent = row.name || "-";
+      tr.appendChild(nameTd);
+
+      var emailTd = document.createElement("td");
+      emailTd.textContent = row.email || "-";
+      tr.appendChild(emailTd);
+
+      var phoneTd = document.createElement("td");
+      phoneTd.textContent = row.phone || "-";
+      tr.appendChild(phoneTd);
+
+      var activeTd = document.createElement("td");
+      activeTd.textContent = String(row.active_reservations || 0);
+      tr.appendChild(activeTd);
+
+      var noShowTd = document.createElement("td");
+      noShowTd.textContent = String(row.no_show_reservations || 0);
+      tr.appendChild(noShowTd);
+
+      var statusTd = document.createElement("td");
+      var statusBadge = document.createElement("span");
+      statusBadge.className = row.is_blocked ? "status-badge blocked" : "status-badge active";
+      statusBadge.textContent = row.is_blocked ? "Bloqueado" : "Habilitado";
+      statusTd.appendChild(statusBadge);
+
+      var lastReservation = document.createElement("div");
+      lastReservation.className = "status-subtext";
+      lastReservation.textContent = "Ultima: " + toReadableModerationDate(row.last_reservation_at);
+      statusTd.appendChild(lastReservation);
+      tr.appendChild(statusTd);
+
+      var reasonTd = document.createElement("td");
+      var blockedByLabel = row.blocked_by_name ? " por " + String(row.blocked_by_name) : "";
+      reasonTd.textContent = row.blocked_reason ? String(row.blocked_reason) + blockedByLabel : "-";
+      tr.appendChild(reasonTd);
+
+      var actionTd = document.createElement("td");
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "admin-btn ghost action-btn";
+      button.dataset.clientId = String(row.id || "");
+
+      if (row.is_blocked) {
+        button.dataset.action = "unblock";
+        button.textContent = "Desbloquear";
+      } else {
+        button.dataset.action = "block";
+        button.textContent = "Bloquear";
+      }
+
+      actionTd.appendChild(button);
+      tr.appendChild(actionTd);
+      body.appendChild(tr);
+    });
+  }
+
+  function bindModerationEvents() {
+    var searchInput = byId("moderationSearchInput");
+    if (searchInput) {
+      searchInput.addEventListener("input", function () {
+        applyModerationSearch();
+      });
+    }
+
+    var refreshButton = byId("refreshModerationBtn");
+    if (refreshButton) {
+      refreshButton.addEventListener("click", function () {
+        loadModerationTable();
+      });
+    }
+
+    var tableBody = byId("moderationTableBody");
+    if (tableBody) {
+      tableBody.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!(target instanceof HTMLButtonElement)) return;
+
+        var action = target.dataset.action;
+        var clientId = target.dataset.clientId;
+
+        if (!clientId) {
+          setFeedback("No se pudo identificar el cliente.", "warn", "adminModerationModal");
+          return;
+        }
+
+        if (action === "unblock") {
+          callApi("/api/clients/" + encodeURIComponent(clientId) + "/unblock", "PUT")
+            .then(function () {
+              setFeedback("Cliente desbloqueado correctamente.", "ok", "adminModerationModal");
+              loadModerationTable();
+            })
+            .catch(function (error) {
+              setFeedback(error.message, "warn", "adminModerationModal");
+            });
+        } else if (action === "block") {
+          var reason = "Spam o mal uso de la aplicacion";
+          callApi("/api/clients/" + encodeURIComponent(clientId) + "/block", "PUT", { reason: reason })
+            .then(function () {
+              setFeedback("Cliente bloqueado correctamente.", "ok", "adminModerationModal");
+              loadModerationTable();
+            })
+            .catch(function (error) {
+              setFeedback(error.message, "warn", "adminModerationModal");
+            });
+        }
+      });
+    }
   }
 })();
