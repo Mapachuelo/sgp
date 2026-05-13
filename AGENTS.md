@@ -123,6 +123,11 @@ async function login() {
 
 ## Comandos de Desarrollo
 
+### Instalar dependencias
+```bash
+pnpm install
+```
+
 ### Iniciar con Podman
 ```bash
 podman-compose up --build -d
@@ -142,6 +147,12 @@ podman-compose stop
 ```bash
 podman-compose down
 podman-compose up --build -d
+```
+
+### Agregar dependencia
+```bash
+pnpm add <paquete>
+pnpm add -D <paquete>  # devDependencies
 ```
 
 ## Endpoints Principales

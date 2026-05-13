@@ -1,4 +1,4 @@
-- Tecnologías a usar: Nodejs, postgresql, podman.
+- Tecnologías a usar: Nodejs pnpm, postgresql, podman.
 - No utilizar frameworks de css, solo css puro.
 - utilizar css separado de todos los archivos.
 - Requisitos:
