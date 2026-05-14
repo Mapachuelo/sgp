@@ -125,6 +125,7 @@
     }
 
     if (!response.ok || !payload.ok) {
+      console.error("API Error:", { path, method, status: response.status, payload });
       const message = payload.message || "Error en la solicitud";
       const error = new Error(message);
       error.status = response.status;

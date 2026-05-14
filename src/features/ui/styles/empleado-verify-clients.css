@@ -43,6 +43,8 @@ body {
   color: var(--stone-dk);
   background: linear-gradient(168deg, var(--sand-lt) 0%, var(--ivory-dk) 100%);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -986,4 +988,17 @@ pre {
 
 .pattern-remove-btn:hover {
   background: rgba(204,96,70,0.1);
+}
+
+.site-footer {
+  background: #323232;
+  color: var(--sand-lt);
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+
+.site-footer p {
+  margin: 0;
 }

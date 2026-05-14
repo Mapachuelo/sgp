@@ -177,6 +177,23 @@
         openButtonId: "openModerationModalBtn",
         closeButtonId: "closeModerationModalBtn",
         onOpen: loadModerationTable
+      },
+      {
+        modalId: "adminLocationsModal",
+        openButtonId: "openLocationsModalBtn",
+        closeButtonId: "closeLocationsModalBtn",
+        onOpen: loadLocations
+      },
+      {
+        modalId: "adminLocationFormModal",
+        openButtonId: null,
+        closeButtonId: "closeLocationFormModalBtn"
+      },
+      {
+        modalId: "adminAssignLocationsModal",
+        openButtonId: "openAssignLocationsModalBtn",
+        closeButtonId: "closeAssignLocationsModalBtn",
+        onOpen: loadAssignLocationsTable
       }
     ];
 
@@ -235,6 +252,7 @@
     }
 
     if (!response.ok || !payload.ok) {
+      console.error("API Error:", { path, method, status: response.status, payload });
       throw new Error(payload.message || "Error en la solicitud");
     }
 
@@ -280,6 +298,10 @@
       return "El numero debe tener formato +57XXXXXXXXXX.";
     }
 
+    if (data.role === "empleado" && !data.locationId) {
+      return "El lugar de servicio es obligatorio para empleados.";
+    }
+
     return "";
   }
 
@@ -291,7 +313,8 @@
       phone: normalizePhoneInput(byId("phone").value.trim()),
       identification: byId("identification").value.trim(),
       email: byId("email").value.trim(),
-      password: byId("password").value
+      password: byId("password").value,
+      locationId: byId("employeeLocation").value || null
     };
   }
 
@@ -314,7 +337,7 @@
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 7;
+      td.colSpan = 8;
       td.textContent = "Sin empleados registrados.";
       tr.appendChild(td);
       body.appendChild(tr);
@@ -347,6 +370,10 @@
       const role = document.createElement("td");
       role.textContent = roleLabel(row.role);
       tr.appendChild(role);
+
+      const location = document.createElement("td");
+      location.textContent = row.location_name || "Sin asignar";
+      tr.appendChild(location);
 
       const actions = document.createElement("td");
       const editBtn = document.createElement("button");
@@ -765,6 +792,16 @@
   }
 
   byId("employeeForm").addEventListener("submit", createEmployee);
+
+  byId("role").addEventListener("change", function () {
+    const locationSelect = byId("employeeLocation");
+    if (locationSelect) {
+      locationSelect.style.display = this.value === "empleado" ? "" : "none";
+      locationSelect.previousElementSibling.style.display = this.value === "empleado" ? "" : "none";
+    }
+  });
+  byId("role").dispatchEvent(new Event("change"));
+
   byId("refreshEmployeesBtn").addEventListener("click", function () {
     loadEmployees().catch(function (error) {
       setInlineFeedback("adminRegisteredFeedback", error.message, "warn");
@@ -875,7 +912,7 @@
     ensureAdminSession()
       .then(function () {
         setSessionUi(true);
-        return Promise.all([loadEmployees(), loadServices()]);
+        return Promise.all([loadEmployees(), loadServices(), loadLocations()]);
       })
       .then(function () {
         setFeedback("Sesion de administrador activa.", "ok");
@@ -1084,5 +1121,271 @@
         }
       });
     }
+  }
+
+  let allLocations = [];
+
+  async function loadLocations() {
+    try {
+      const payload = await callApi("/api/locations", "GET");
+      allLocations = payload.data || [];
+      renderLocationsTable();
+      populateLocationSelectors();
+    } catch (error) {
+      setInlineFeedback("adminLocationsFeedback", error.message, "warn");
+    }
+  }
+
+  function renderLocationsTable() {
+    const body = byId("locationsTableBody");
+    if (!body) return;
+    body.innerHTML = "";
+
+    if (!allLocations || allLocations.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 4;
+      td.textContent = "Sin locales registrados.";
+      tr.appendChild(td);
+      body.appendChild(tr);
+      return;
+    }
+
+    allLocations.forEach(function (loc) {
+      const tr = document.createElement("tr");
+
+      const name = document.createElement("td");
+      name.textContent = loc.name || "";
+      tr.appendChild(name);
+
+      const address = document.createElement("td");
+      address.textContent = loc.address || "";
+      tr.appendChild(address);
+
+      const region = document.createElement("td");
+      region.textContent = loc.region || "";
+      tr.appendChild(region);
+
+      const actions = document.createElement("td");
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "admin-btn ghost";
+      editBtn.textContent = "Editar";
+      editBtn.dataset.locationId = String(loc.id);
+      editBtn.addEventListener("click", function () {
+        openLocationForm(loc);
+      });
+      actions.appendChild(editBtn);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "admin-btn ghost";
+      deleteBtn.textContent = "Eliminar";
+      deleteBtn.dataset.locationId = String(loc.id);
+      deleteBtn.addEventListener("click", async function () {
+        try {
+          await callApi("/api/locations/" + encodeURIComponent(loc.id), "DELETE");
+          setFeedback("Local eliminado correctamente.", "ok");
+          await loadLocations();
+        } catch (error) {
+          setFeedback(error.message, "warn");
+        }
+      });
+      actions.appendChild(deleteBtn);
+
+      tr.appendChild(actions);
+      body.appendChild(tr);
+    });
+  }
+
+  function openLocationForm(loc) {
+    console.log("openLocationForm called with:", loc);
+    var formId = byId("locationFormId");
+    var nameInput = byId("locationName");
+    var addressInput = byId("locationAddress");
+    var regionInput = byId("locationRegion");
+    var title = byId("adminLocationFormTitle");
+    var feedback = byId("adminLocationFormFeedback");
+    var modal = byId("adminLocationFormModal");
+
+    if (!formId || !nameInput || !addressInput || !regionInput || !title || !feedback || !modal) {
+      console.error("Missing element:", { formId: !!formId, nameInput: !!nameInput, addressInput: !!addressInput, regionInput: !!regionInput, title: !!title, feedback: !!feedback, modal: !!modal });
+      setFeedback("Error al abrir el formulario de local.", "warn");
+      return;
+    }
+
+    formId.value = loc ? String(loc.id) : "";
+    nameInput.value = loc ? loc.name || "" : "";
+    addressInput.value = loc ? loc.address || "" : "";
+    regionInput.value = loc ? loc.region || "" : "";
+    title.textContent = loc ? "Editar local" : "Nuevo local";
+    feedback.textContent = loc ? "Edita los datos del local." : "Completa los datos del local.";
+    feedback.className = "feedback info";
+    modal.classList.remove("hidden");
+  }
+
+  function closeLocationForm() {
+    byId("adminLocationFormModal").classList.add("hidden");
+    byId("locationForm").reset();
+    byId("locationFormId").value = "";
+  }
+
+  async function saveLocation(event) {
+    event.preventDefault();
+    console.log("saveLocation called");
+    const id = byId("locationFormId").value;
+    const name = byId("locationName").value.trim();
+    const address = byId("locationAddress").value.trim();
+    const region = byId("locationRegion").value.trim();
+
+    console.log("saveLocation data:", { id, name, address, region });
+
+    if (!name || !address || !region) {
+      byId("adminLocationFormFeedback").textContent = "Todos los campos son obligatorios.";
+      byId("adminLocationFormFeedback").className = "feedback warn";
+      return;
+    }
+
+    try {
+      if (id) {
+        await callApi("/api/locations/" + encodeURIComponent(id), "PUT", { name, address, region });
+        setFeedback("Local actualizado correctamente.", "ok");
+      } else {
+        await callApi("/api/locations", "POST", { name, address, region });
+        setFeedback("Local creado correctamente.", "ok");
+      }
+      closeLocationForm();
+      await loadLocations();
+    } catch (error) {
+      console.error("saveLocation error:", error);
+      byId("adminLocationFormFeedback").textContent = error.message;
+      byId("adminLocationFormFeedback").className = "feedback warn";
+    }
+  }
+
+  function populateLocationSelectors() {
+    const selectors = ["employeeLocation"];
+    selectors.forEach(function (selectorId) {
+      const select = byId(selectorId);
+      if (!select) return;
+      const currentVal = select.value;
+      select.innerHTML = '<option value="">Seleccionar local...</option>';
+      allLocations.forEach(function (loc) {
+        const opt = document.createElement("option");
+        opt.value = String(loc.id);
+        opt.textContent = loc.name + " (" + loc.region + ")";
+        select.appendChild(opt);
+      });
+      if (currentVal) select.value = currentVal;
+    });
+  }
+
+  async function loadAssignLocationsTable() {
+    if (allLocations.length === 0) {
+      try {
+        const payload = await callApi("/api/locations", "GET");
+        allLocations = payload.data || [];
+      } catch (_error) {
+        allLocations = [];
+      }
+    }
+    try {
+      const payload = await callApi("/api/auth/employees", "GET");
+      const employees = (payload.data || []).filter(function (e) { return e.role === "empleado"; });
+      renderAssignLocationsTable(employees);
+    } catch (error) {
+      setInlineFeedback("adminAssignLocationsFeedback", error.message, "warn");
+    }
+  }
+
+  function renderAssignLocationsTable(employees) {
+    const body = byId("assignLocationsTableBody");
+    if (!body) return;
+    body.innerHTML = "";
+
+    if (!employees || employees.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 5;
+      td.textContent = "Sin empleados para asignar.";
+      tr.appendChild(td);
+      body.appendChild(tr);
+      return;
+    }
+
+    employees.forEach(function (emp) {
+      const tr = document.createElement("tr");
+
+      const name = document.createElement("td");
+      name.textContent = emp.name || "";
+      tr.appendChild(name);
+
+      const lastName = document.createElement("td");
+      lastName.textContent = emp.last_name || "";
+      tr.appendChild(lastName);
+
+      const email = document.createElement("td");
+      email.textContent = emp.email || "";
+      tr.appendChild(email);
+
+      const currentLocation = document.createElement("td");
+      currentLocation.textContent = emp.location_name || "Sin asignar";
+      tr.appendChild(currentLocation);
+
+      const newLocation = document.createElement("td");
+      const select = document.createElement("select");
+      select.className = "location-select";
+      select.dataset.employeeId = String(emp.id);
+      const defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = "Seleccionar...";
+      select.appendChild(defaultOpt);
+      allLocations.forEach(function (loc) {
+        const opt = document.createElement("option");
+        opt.value = String(loc.id);
+        opt.textContent = loc.name + " (" + loc.region + ")";
+        if (emp.location_id && String(emp.location_id) === String(loc.id)) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+      select.addEventListener("change", async function () {
+        const locationId = select.value;
+        if (!locationId) {
+          return;
+        }
+        try {
+          await callApi("/api/auth/employees/" + encodeURIComponent(emp.id) + "/location", "PUT", { locationId: Number(locationId) });
+          setFeedback("Local asignado correctamente.", "ok");
+          await loadAssignLocationsTable();
+        } catch (error) {
+          setFeedback(error.message, "warn");
+        }
+      });
+      newLocation.appendChild(select);
+      tr.appendChild(newLocation);
+
+      body.appendChild(tr);
+    });
+  }
+
+  var addLocationBtn = byId("addLocationBtn");
+  if (addLocationBtn) {
+    addLocationBtn.addEventListener("click", function () {
+      console.log("addLocationBtn clicked");
+      openLocationForm(null);
+    });
+  } else {
+    console.error("addLocationBtn not found");
+  }
+
+  var cancelLocationFormBtn = byId("cancelLocationFormBtn");
+  if (cancelLocationFormBtn) {
+    cancelLocationFormBtn.addEventListener("click", closeLocationForm);
+  }
+
+  var locationForm = byId("locationForm");
+  if (locationForm) {
+    locationForm.addEventListener("submit", saveLocation);
   }
 })();

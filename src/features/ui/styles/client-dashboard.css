@@ -41,6 +41,8 @@ body {
   font-family: "Outfit", sans-serif;
   background: linear-gradient(168deg, var(--sand-lt) 0%, var(--ivory-dk) 100%);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -678,4 +680,17 @@ pre {
   opacity: 0;
   transform: translateY(10px);
   pointer-events: none;
+}
+
+.site-footer {
+  background: #323232;
+  color: var(--sand-lt);
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+
+.site-footer p {
+  margin: 0;
 }

@@ -70,6 +70,7 @@
     }
 
     if (!response.ok || !payload.ok) {
+      console.error("API Error:", { path, method, status: response.status, payload });
       throw new Error(payload.message || "Error en la solicitud");
     }
 

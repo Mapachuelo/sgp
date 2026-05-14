@@ -5,6 +5,7 @@ const { reservationsRouter } = require("../features/reservations/reservations.ro
 const { checkinRouter } = require("../features/checkin/checkin.routes");
 const { paymentsRouter } = require("../features/payments/payments.routes");
 const { reportsRouter } = require("../features/reports/reports.routes");
+const locationRouter = require("../features/locations/location.routes");
 
 const router = express.Router();
 
@@ -14,5 +15,6 @@ router.use("/reservations", reservationsRouter);
 router.use("/checkin", checkinRouter);
 router.use("/payments", paymentsRouter);
 router.use("/reports", reportsRouter);
+router.use("/locations", locationRouter);
 
 module.exports = { apiRouter: router };
