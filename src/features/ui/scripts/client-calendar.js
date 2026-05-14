@@ -31,7 +31,10 @@
     workScheduleByDate: {},
     selectedSlot: null,
     currentUser: null,
+    locations: [],
+    selectedLocation: "",
     stylists: [],
+    filteredStylists: [],
     services: [],
     selectedStylist: ANY_STYLIST_VALUE,
     selectedServiceName: "",
@@ -42,6 +45,8 @@
     reservationQrById: {},
     myReservations: [],
     myReservationsLoadVersion: 0,
+    isEmployeeContext: false,
+    profile: {},
     viewportConfig: {
       dayCount: FULL_DAY_COUNT,
       startHour: FULL_START_HOUR,
@@ -826,6 +831,7 @@
     }
 
     if (!response.ok || !payload.ok) {
+      console.error("API Error:", { path, method, status: response.status, payload });
       const message = payload.message || "Error en la solicitud";
       const error = new Error(message);
       error.status = response.status;
@@ -968,7 +974,7 @@
           isOccupied = Boolean(selectedStylistName && bookedStylists.includes(selectedStylistName));
         } else {
           isOccupied =
-            state.stylists.length === 0 || bookedStylists.length >= Math.max(state.stylists.length, 1);
+            state.stylists.length > 0 && bookedStylists.length >= state.stylists.length;
         }
 
         const cell = document.createElement("td");
@@ -1069,6 +1075,53 @@
     return map;
   }
 
+  function applyLocationFilter(isEmployeeContext, profile) {
+    const locationId = state.selectedLocation;
+    let filteredStylists = state.stylists;
+
+    if (locationId) {
+      filteredStylists = state.stylists.filter(function (s) {
+        return String(s.location_id) === String(locationId);
+      });
+    }
+
+    if (isEmployeeContext && profile && profile.id) {
+      filteredStylists = filteredStylists.filter(function (s) {
+        return Number(s.id) === Number(profile.id);
+      });
+    }
+
+    state.filteredStylists = filteredStylists;
+    populateStylistSelectors(filteredStylists, isEmployeeContext, profile);
+  }
+
+  function populateStylistSelectors(stylists, isEmployeeContext, profile) {
+    const selectors = ["bookingStylistName", "stylistName"];
+    selectors.forEach(function (selectorId) {
+      const select = byId(selectorId);
+      if (!select) return;
+      select.innerHTML = "";
+
+      const anyOption = document.createElement("option");
+      anyOption.value = ANY_STYLIST_VALUE;
+      anyOption.textContent = "Selecciona al empleado";
+      select.appendChild(anyOption);
+
+      stylists.forEach(function (stylist) {
+        if (isEmployeeContext && Number(stylist.id) !== Number(profile.id)) {
+          return;
+        }
+
+        const option = document.createElement("option");
+        option.value = String(stylist.id);
+        option.textContent = stylist.name;
+        select.appendChild(option);
+      });
+
+      state.selectedStylist = select.value || ANY_STYLIST_VALUE;
+    });
+  }
+
   async function refreshCalendar() {
     const weekStartInput = byId("weekStart");
     const startValue = state.weekStart || (weekStartInput ? weekStartInput.value : "");
@@ -1133,63 +1186,32 @@
       }
     }
 
-    const [stylistsPayload, servicesPayload] = await Promise.all([
+    const [locationsPayload, stylistsPayload, servicesPayload] = await Promise.all([
+      callApi("/api/locations", "GET"),
       callApi("/api/auth/stylists", "GET"),
       callApi("/api/reservations/services", "GET")
     ]);
 
     const isEmployeeContext = profile.role === "empleado" || profile.role === "employee";
 
+    state.isEmployeeContext = isEmployeeContext;
+    state.profile = profile;
+    state.locations = locationsPayload.data || [];
     state.stylists = stylistsPayload.data || [];
     state.services = servicesPayload.data || [];
 
-    // Populate stylist selector in booking modal
-    const bookingStylistSelect = byId("bookingStylistName");
-    if (bookingStylistSelect) {
-      bookingStylistSelect.innerHTML = "";
-
-      const anyOption = document.createElement("option");
-      anyOption.value = ANY_STYLIST_VALUE;
-      anyOption.textContent = "Selecciona al empleado";
-      bookingStylistSelect.appendChild(anyOption);
-
-      state.stylists.forEach(function (stylist) {
-        if (isEmployeeContext && Number(stylist.id) !== Number(profile.id)) {
-          return;
-        }
-
-        const option = document.createElement("option");
-        option.value = String(stylist.id);
-        option.textContent = stylist.name;
-        bookingStylistSelect.appendChild(option);
+    const locationSelect = byId("locationSelect");
+    if (locationSelect) {
+      locationSelect.innerHTML = '<option value="">Todos los locales</option>';
+      state.locations.forEach(function (loc) {
+        const opt = document.createElement("option");
+        opt.value = String(loc.id);
+        opt.textContent = loc.name + " (" + loc.region + ")";
+        locationSelect.appendChild(opt);
       });
-
-      state.selectedStylist = bookingStylistSelect.value || ANY_STYLIST_VALUE;
     }
 
-    // Also populate legacy stylist selector (for employee/admin views)
-    const stylistSelect = byId("stylistName");
-    if (stylistSelect) {
-      stylistSelect.innerHTML = "";
-
-      const anyOption = document.createElement("option");
-      anyOption.value = ANY_STYLIST_VALUE;
-      anyOption.textContent = "Selecciona al empleado";
-      stylistSelect.appendChild(anyOption);
-
-      state.stylists.forEach(function (stylist) {
-        if (isEmployeeContext && Number(stylist.id) !== Number(profile.id)) {
-          return;
-        }
-
-        const option = document.createElement("option");
-        option.value = String(stylist.id);
-        option.textContent = stylist.name;
-        stylistSelect.appendChild(option);
-      });
-
-      state.selectedStylist = stylistSelect.value || ANY_STYLIST_VALUE;
-    }
+    applyLocationFilter(isEmployeeContext, profile);
 
     // Build service duration maps (used by modal and calendar regardless of view)
     (servicesPayload.data || []).forEach(function (service) {
@@ -1989,7 +2011,8 @@
   if (employeeDropdownBtn && employeeDropdownList) {
     function renderEmployeeDropdown(query) {
       employeeDropdownList.innerHTML = "";
-      const filtered = state.stylists.filter(function (s) {
+      const list = state.filteredStylists.length > 0 ? state.filteredStylists : state.stylists;
+      const filtered = list.filter(function (s) {
         return !query || s.name.toLowerCase().includes(query);
       });
 
@@ -2217,6 +2240,19 @@
   if (weekStartInput) {
     weekStartInput.addEventListener("change", function () {
       state.weekStart = weekStartInput.value || state.weekStart;
+      refreshCalendar();
+    });
+  }
+
+  const locationSelect = byId("locationSelect");
+  if (locationSelect) {
+    locationSelect.addEventListener("change", function () {
+      state.selectedLocation = locationSelect.value;
+      state.selectedStylist = ANY_STYLIST_VALUE;
+      state.selectedSlot = null;
+      updateSelectedSlotLabel();
+      applyLocationFilter(state.isEmployeeContext, state.profile);
+      refreshCalendar();
     });
   }
 

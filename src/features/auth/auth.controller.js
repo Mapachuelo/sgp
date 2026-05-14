@@ -9,7 +9,8 @@ const {
   deleteEmployeeByAdmin,
   updateRegisteredUserByAdmin,
   updateEmployeeOwnAccount,
-  getStylistsForCalendar
+  getStylistsForCalendar,
+  updateEmployeeLocation
 } = require("./auth.service");
 
 const registerController = asyncHandler(async (req, res) => {
@@ -57,8 +58,13 @@ const updateRegisteredUserByAdminController = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
-const stylistsController = asyncHandler(async (_req, res) => {
-  const data = await getStylistsForCalendar();
+const stylistsController = asyncHandler(async (req, res) => {
+  const data = await getStylistsForCalendar(req.query.locationId);
+  res.json({ ok: true, data });
+});
+
+const updateEmployeeLocationController = asyncHandler(async (req, res) => {
+  const data = await updateEmployeeLocation(req.params.employeeId, req.body);
   res.json({ ok: true, data });
 });
 
@@ -72,5 +78,6 @@ module.exports = {
   listEmployeesByAdminController,
   deleteEmployeeByAdminController,
   updateRegisteredUserByAdminController,
-  stylistsController
+  stylistsController,
+  updateEmployeeLocationController
 };

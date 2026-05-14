@@ -15,6 +15,7 @@ const {
   listStylists,
   updateUserById,
   updateAssignedPasswordByUserId,
+  updateUserLocation,
   countPaymentsByStylistId,
   deleteUserById
 } = require("./auth.model");
@@ -237,6 +238,7 @@ async function createEmployeeByAdmin(input) {
   const email = normalizeText(input.email).toLowerCase();
   const password = normalizeText(input.password);
   const role = normalizeRole(input.role || "empleado");
+  const locationId = input.locationId ? Number(input.locationId) : null;
 
   if (!firstName || !lastName || !phone || !identification || !email || !password) {
     throw new HttpError(
@@ -247,6 +249,10 @@ async function createEmployeeByAdmin(input) {
 
   if (password.length < 6) {
     throw new HttpError(400, "La password asignada debe tener al menos 6 caracteres");
+  }
+
+  if (role === "empleado" && !locationId) {
+    throw new HttpError(400, "El local es obligatorio para empleados.");
   }
 
   const emailTaken = await findUserByEmail(email);
@@ -274,7 +280,8 @@ async function createEmployeeByAdmin(input) {
     email,
     role,
     passwordHash,
-    assignedPassword: toSha256Hex(password)
+    assignedPassword: toSha256Hex(password),
+    locationId
   });
 
   return { user };
@@ -292,8 +299,8 @@ async function getEmployeesByAdmin() {
   });
 }
 
-async function getStylistsForCalendar() {
-  return listStylists();
+async function getStylistsForCalendar(locationId) {
+  return listStylists(locationId ? Number(locationId) : undefined);
 }
 
 function parseEmployeeId(employeeIdInput) {
@@ -453,6 +460,21 @@ async function updateEmployeeOwnAccount(userId, input) {
   return account;
 }
 
+async function updateEmployeeLocation(employeeIdInput, { locationId }) {
+  const employeeId = parseEmployeeId(employeeIdInput);
+
+  if (!locationId) {
+    throw new HttpError(400, "El local es obligatorio.");
+  }
+
+  const result = await updateUserLocation(employeeId, Number(locationId));
+  if (!result) {
+    throw new HttpError(404, "Empleado no encontrado.");
+  }
+
+  return result;
+}
+
 module.exports = {
   register,
   login,
@@ -463,5 +485,6 @@ module.exports = {
   deleteEmployeeByAdmin,
   updateRegisteredUserByAdmin,
   updateEmployeeOwnAccount,
-  getStylistsForCalendar
+  getStylistsForCalendar,
+  updateEmployeeLocation
 };

@@ -75,6 +75,7 @@ async function ensureEmployeeProfileTable(queryable = db) {
       last_name VARCHAR(120) NOT NULL,
       identification VARCHAR(80) NOT NULL UNIQUE,
       assigned_password VARCHAR(255),
+      location_id INT REFERENCES location(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
@@ -82,6 +83,11 @@ async function ensureEmployeeProfileTable(queryable = db) {
   await queryable.query(`
     ALTER TABLE employee_profile
     ADD COLUMN IF NOT EXISTS assigned_password VARCHAR(255)
+  `);
+
+  await queryable.query(`
+    ALTER TABLE employee_profile
+    ADD COLUMN IF NOT EXISTS location_id INT REFERENCES location(id) ON DELETE SET NULL
   `);
 }
 
@@ -179,9 +185,12 @@ async function listEmployees() {
         ep.assigned_password,
         u.email,
         u.role,
+        ep.location_id,
+        l.name AS location_name,
         u.created_at
       FROM app_user u
       LEFT JOIN employee_profile ep ON ep.user_id = u.id
+      LEFT JOIN location l ON l.id = ep.location_id
       WHERE u.role IN ('empleado', 'admin')
       ORDER BY u.created_at DESC
     `
@@ -198,7 +207,8 @@ async function createStaffWithProfile({
   email,
   role,
   passwordHash,
-  assignedPassword
+  assignedPassword,
+  locationId
 }) {
   await ensureRoleSchema();
 
@@ -218,10 +228,10 @@ async function createStaffWithProfile({
 
     await client.query(
       `
-        INSERT INTO employee_profile (user_id, last_name, identification, assigned_password)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO employee_profile (user_id, last_name, identification, assigned_password, location_id)
+        VALUES ($1, $2, $3, $4, $5)
       `,
-      [user.id, lastName, identification, assignedPassword]
+      [user.id, lastName, identification, assignedPassword, locationId || null]
     );
 
     return {
@@ -231,6 +241,7 @@ async function createStaffWithProfile({
       phone: user.phone,
       identification,
       assigned_password: assignedPassword,
+      location_id: locationId || null,
       email: user.email,
       role: user.role,
       created_at: user.created_at
@@ -238,17 +249,26 @@ async function createStaffWithProfile({
   });
 }
 
-async function listStylists() {
+async function listStylists(locationId) {
   await ensureRoleSchema();
 
-  const result = await db.query(
-    `
-      SELECT id, name
-      FROM app_user
-      WHERE role = 'empleado'
-      ORDER BY name ASC
-    `
-  );
+  let query = `
+    SELECT u.id, u.name, ep.location_id, l.name AS location_name
+    FROM app_user u
+    LEFT JOIN employee_profile ep ON ep.user_id = u.id
+    LEFT JOIN location l ON l.id = ep.location_id
+    WHERE u.role = 'empleado'
+  `;
+  const params = [];
+
+  if (locationId) {
+    query += ` AND ep.location_id = $1`;
+    params.push(locationId);
+  }
+
+  query += ` ORDER BY u.name ASC`;
+
+  const result = await db.query(query, params);
 
   return result.rows;
 }
@@ -310,6 +330,22 @@ async function updateAssignedPasswordByUserId(userId, assignedPassword) {
   );
 }
 
+async function updateUserLocation(userId, locationId) {
+  await ensureEmployeeProfileTable();
+
+  const result = await db.query(
+    `
+      UPDATE employee_profile
+      SET location_id = $2
+      WHERE user_id = $1
+      RETURNING user_id, location_id
+    `,
+    [userId, locationId]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function countPaymentsByStylistId(stylistId) {
   await ensureRoleSchema();
 
@@ -352,6 +388,7 @@ module.exports = {
   listStylists,
   updateUserById,
   updateAssignedPasswordByUserId,
+  updateUserLocation,
   countPaymentsByStylistId,
   deleteUserById
 };

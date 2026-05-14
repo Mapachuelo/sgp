@@ -9,6 +9,9 @@ function clientDocument(title, stylesheetPath, body, scriptPath, bodyClass = "")
   </head>
   <body${bodyClass ? ` class="${bodyClass}"` : ""}>
     ${body}
+    <footer class="site-footer">
+      <p>CLL 2C , Florencia, Colombia | Tel: +57 320 2343456</p>
+    </footer>
     <div id="wsToast" class="ws-toast hidden" role="status" aria-live="polite"></div>
     <script>
       (function () {
@@ -306,6 +309,10 @@ function clientCalendarView() {
     <div class="calendar-toolbar">
       <label for="weekStart">Semana</label>
       <input id="weekStart" type="date" />
+      <label for="locationSelect">Lugar de servicio</label>
+      <select id="locationSelect">
+        <option value="">Cargando...</option>
+      </select>
       <div class="employee-dropdown">
         <button id="employeeDropdownBtn" type="button" class="btn ghost">Seleccionar empleado</button>
         <div id="employeeDropdownList" class="dropdown-list hidden"></div>
@@ -939,6 +946,8 @@ function adminView() {
       <button id="openServicesModalBtn" class="admin-btn ghost admin-session-only" type="button">Servicios disponibles</button>
       <button id="openRegisteredModalBtn" class="admin-btn ghost admin-session-only" type="button">Lista registrados</button>
       <button id="openModerationModalBtn" class="admin-btn ghost admin-session-only" type="button">Sancionar clientes</button>
+      <button id="openLocationsModalBtn" class="admin-btn ghost admin-session-only" type="button">Locales</button>
+      <button id="openAssignLocationsModalBtn" class="admin-btn ghost admin-session-only" type="button">Asignar locales</button>
     </div>
     <p id="adminFeedback" class="feedback info">Panel de administracion listo.</p>
   </section>
@@ -957,6 +966,10 @@ function adminView() {
         <select id="role" class="role-select">
           <option value="empleado">Empleado</option>
           <option value="admin">Administrador</option>
+        </select>
+        <label>Lugar de servicio</label>
+        <select id="employeeLocation" class="location-select">
+          <option value="">Cargando locales...</option>
         </select>
         <label>Nombre</label>
         <input id="firstName" type="text" placeholder="Nombre" />
@@ -1010,6 +1023,7 @@ function adminView() {
               <th>Identificacion</th>
               <th>Correo</th>
               <th>Rol</th>
+              <th>Local</th>
               <th>Accion</th>
             </tr>
           </thead>
@@ -1101,6 +1115,79 @@ function adminView() {
       <div class="modal-actions">
         <button id="cancelEmployeeServiceTimesBtn" class="admin-btn ghost" type="button">Cancelar</button>
         <button id="saveEmployeeServiceTimesBtn" class="admin-btn solid" type="button">Guardar tiempos</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminLocationsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminLocationsTitle">
+    <div class="modal-card admin-modal-card wide list-panel">
+      <div class="modal-head">
+        <h2 id="adminLocationsTitle">Gestion de locales</h2>
+        <button id="closeLocationsModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <p id="adminLocationsFeedback" class="feedback info">Crea, edita o elimina locales de servicio.</p>
+      <div class="list-head">
+        <button id="addLocationBtn" class="admin-btn solid" type="button">Nuevo local</button>
+      </div>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Direccion</th>
+              <th>Region</th>
+              <th>Accion</th>
+            </tr>
+          </thead>
+          <tbody id="locationsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminLocationFormModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminLocationFormTitle">
+    <div class="modal-card admin-modal-card">
+      <div class="modal-head">
+        <h2 id="adminLocationFormTitle">Nuevo local</h2>
+        <button id="closeLocationFormModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <p id="adminLocationFormFeedback" class="feedback info">Completa los datos del local.</p>
+      <form id="locationForm">
+        <input id="locationFormId" type="hidden" />
+        <label>Nombre</label>
+        <input id="locationName" type="text" placeholder="Local 1" />
+        <label>Direccion</label>
+        <input id="locationAddress" type="text" placeholder="Calle 123" />
+        <label>Region</label>
+        <input id="locationRegion" type="text" placeholder="Sur" />
+        <div class="modal-actions">
+          <button id="cancelLocationFormBtn" class="admin-btn ghost" type="button">Cancelar</button>
+          <button id="saveLocationBtn" class="admin-btn solid" type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="adminAssignLocationsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminAssignLocationsTitle">
+    <div class="modal-card admin-modal-card wide list-panel">
+      <div class="modal-head">
+        <h2 id="adminAssignLocationsTitle">Asignar locales a empleados</h2>
+        <button id="closeAssignLocationsModalBtn" class="admin-btn ghost" type="button">Cerrar</button>
+      </div>
+      <p id="adminAssignLocationsFeedback" class="feedback info">Asigna o cambia el local de servicio de cada empleado.</p>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Apellido</th>
+              <th>Correo</th>
+              <th>Local actual</th>
+              <th>Nuevo local</th>
+            </tr>
+          </thead>
+          <tbody id="assignLocationsTableBody"></tbody>
+        </table>
       </div>
     </div>
   </div>

@@ -14,7 +14,8 @@ const {
   listEmployeesByAdminController,
   deleteEmployeeByAdminController,
   updateRegisteredUserByAdminController,
-  stylistsController
+  stylistsController,
+  updateEmployeeLocationController
 } = require("./auth.controller");
 
 const router = express.Router();
@@ -43,6 +44,12 @@ router.delete(
   requireAuth,
   requireRole("admin"),
   deleteEmployeeByAdminController
+);
+router.put(
+  "/employees/:employeeId/location",
+  requireAuth,
+  requireRole("admin"),
+  updateEmployeeLocationController
 );
 
 module.exports = { authRouter: router };
