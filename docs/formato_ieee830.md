@@ -10,7 +10,7 @@ El SGP permitirá:
 - Gestión de ubicaciones (sedes físicas).
 - Reserva de citas vía web con calendario interactivo y programación automática.
 - Generación de códigos QR únicos por cita para validación en la entrada.
-- **Registro de pagos en local (físico o digital).** *(Eliminado: pasarela de pagos online automatizada)*
+- Registro de pagos en local (fisico) o al reservar (online). Sin integracion con pasarela de pagos externa.
 - Emisión de reportes administrativos.
 - Gestión de logs del sistema (actividad y errores).
 
@@ -59,7 +59,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 | **F1** | Gestión de Clientes | Registro, actualización y borrado de datos personales. |
 | **F2** | Reservas Online | Selección de ubicación, empleado, servicio, fecha/hora mediante calendario interactivo y generación de QR. |
 | **F3** | Validación en Entrada | Escaneo del QR con control de horarios. |
-| **F4** | **Cobro en Local** | Pago físico (efectivo) o digital (transferencia/Nequi) con registro por empleado. El empleado elige el método al cobrar. |
+| **F4** | Cobro | El empleado registra el cobro en el mismo paso de validacion QR: elige metodo (`fisico` = efectivo, `online` = pagado por el cliente al reservar) e ingresa el monto. No se permite doble cobro. |
 | **F5** | Reportes Administrativos | Ventas, ocupación y métricas de uso (exclusivo administrador). |
 | **F6** | Login Unificado | Inicio de sesion unico en `/login` y redireccion por rol segun respuesta del backend. |
 | **F7** | Gestión de Ubicaciones | CRUD de sedes físicas con nombre, dirección y coordenadas (lat/lng) para alimentar el mapa interactivo. |
@@ -85,7 +85,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 ### 2.5 Suposiciones y Dependencias  
 - Se dispone de infraestructura web (servidor, dominio).
 - El cliente dispone de cámara de lectura de códigos QR en la entrada.
-- *(Pagos digitales registrados manualmente por el empleado, sin integración con pasarela externa.)*
+- *(Pago online registrado desde el formulario de reserva; pago fisico registrado por el empleado en check-in. Sin integracion con pasarela externa.)*
 
 ### 2.6 Evolución Previsible  
 1. Módulo móvil nativo para iOS/Android.
@@ -117,7 +117,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 #### 3.1.3 Interfaz de Software (API)  
 | ID | Requisito | Descripción |
 |----|-----------|-------------|
-| API1 | Endpoints REST | `/api/auth/*`, `/api/clients/*`, `/api/reservations/*`, `/api/checkin/validate`, `/api/payments/*`, `/api/reports/*`, `/api/ubicaciones/*`, `/api/empleados/disponibilidad/*`, `/api/logs/*`. |
+| API1 | Endpoints REST | `/api/auth/*`, `/api/clientes/*`, `/api/reservas/*`, `/api/checkin/validar`, `/api/reportes/*`, `/api/ubicaciones/*`, `/api/empleados/disponibilidad/*`, `/api/logs/*`, `/api/preferencias/*`. |
 | API2 | Autenticación JWT | Tokens con expiración 30 minutos. |
 
 #### 3.1.4 Interfaz de Comunicación  
@@ -132,8 +132,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 | **RF0** | Login Unificado | Alta | El sistema ofrece un unico formulario de inicio de sesion en `/login` (correo y password) y redirige segun rol (`cliente`, `empleado`, `admin`). |
 | **RF1** | Registro de Cliente | Alta | El cliente crea cuenta con nombre, apellido, numero celular colombiano (+57), correo y password. |
 | **RF2** | Reserva de Cita | Alta | Flujo completo: (1) el cliente elige ubicación (sede), (2) selecciona empleado disponible, (3) el calendario marca visualmente la disponibilidad del empleado, (4) al hacer clic en un horario disponible se abre ventana flotante con: tipo de servicio a elegir, duración estimada (hora entrada → hora salida), cantidad de personas (1-5). Al confirmar se crea la reserva y se genera QR único. Si el horario se ocupa mientras el cliente decide, el sistema muestra mensaje de error y sugiere elegir otro horario. Máximo 5 reservas activas por cliente. |
-| **RF3** | Validación en Entrada | Alta | El empleado/admin escanea el QR; el sistema valida estado activo (`booked`) y ventana horaria de validacion (±120 minutos respecto a la cita). |
-| **RF4** | Registro de Cobro | Alta | El empleado registra el cobro de una reserva en estado `checked_in`. Elige el método de pago: **físico** (efectivo) o **digital** (transferencia, Nequi, Daviplata). Ingresa el monto y confirma. No se permite doble cobro. |
+| **RF3** | Validacion en Entrada y Cobro | Alta | El empleado/admin escanea el QR; el sistema valida estado activo y ventana horaria (±120 min respecto a la cita). En un solo paso atómico se registra el check-in y el cobro: si el cliente pago online `metodo='online'` y `monto=0`, si paga en efectivo `metodo='fisico'` y `monto>0`. El endpoint recibe `{ qr_token, monto }`. |
 | **RF5** | Generación de Reportes | Media | El administrador visualiza ventas por día, ocupación y clientes recurrentes. Acceso restringido a rol admin. |
 | **RF6** | Gestión de Ubicaciones | Alta | El administrador puede crear, editar y eliminar sedes físicas con nombre, dirección y coordenadas geográficas (latitud/longitud). Las coordenadas alimentan el mapa interactivo visible para empleados y clientes. Las ubicaciones son requeridas al crear una reserva. |
 | **RF7** | Perfil de Empleado | Media | El empleado puede ver y editar sus datos de perfil (nombre, identificación). El administrador puede gestionar todos los empleados (CRUD). |
@@ -180,8 +179,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 | **RF0** | Login Unificado | F6 | Login Unificado | ✅ Vinculado |
 | **RF1** | Registro de Cliente | F1 | Gestión de Clientes | ✅ Vinculado |
 | **RF2** | Reserva de Cita | F2 | Reservas Online | ✅ Vinculado |
-| **RF3** | Validación en Entrada | F3 | Validación en Entrada | ✅ Vinculado |
-| **RF4** | Registro de Cobro | F4 | Cobro en Local | ✅ Vinculado |
+| **RF3** | Validación en Entrada y Cobro | F3, F4 | Validación + Cobro | ✅ Vinculado |
 | **RF5** | Generación de Reportes | F5 | Reportes Administrativos | ✅ Vinculado |
 | **RF6** | Gestión de Ubicaciones | F7 | Gestión de Ubicaciones | ✅ Vinculado |
 | **RF7** | Perfil de Empleado | F6, F1 | Auth + Clientes | ✅ Vinculado |

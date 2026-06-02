@@ -68,7 +68,7 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 - **Convencion de idioma en codigo:** Nombres de archivos, rutas API, tablas de BD y variables en español (`empleado`, `ubicacion`, `reserva`, `cobro`). Roles: `cliente`, `empleado`, `admin`.
 
 ### Testing y verificacion
-- Siempre ejecutar lint y typecheck despues de hacer cambios de codigo.
+- Siempre ejecutar lint despues de hacer cambios de codigo (`pnpm run lint` con ESLint). No hay typecheck por ser JavaScript sin TypeScript.
 - Si el proyecto tiene tests, ejecutarlos despues de cambios significativos.
 - No commitear cambios a menos que el usuario lo pida explicitamente.
 

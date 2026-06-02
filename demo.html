@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGP — Sistema de Gestion de Peluqueria</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        display: ['"Playfair Display"', 'serif'],
+        body: ['Inter', 'sans-serif'],
+      },
+      colors: {
+        fondo: '#FAF7F2', superficie: '#FFFFFF', borde: '#E5DDD3',
+        primario: '#8B5E3C', 'primario-hover': '#7A5233', secundario: '#C9A96E',
+        'texto-principal': '#2D2420', 'texto-secundario': '#8C7B70',
+        exito: '#4A7C59', advertencia: '#C4883C', error: '#B84C3D', info: '#5B7B9A',
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .font-display { font-family: 'Playfair Display', serif; }
+  .bg-pattern { background-color: #FAF7F2; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M28 8c-2 6-4 10-6 14l2 2c2-4 4-8 6-14l-2-2zm4 0c2 6 4 10 6 14l-2 2c-2-4-4-8-6-14l2-2zM18 22c6 2 10 4 14 6l-2 2c-4-2-8-4-14-6l2-2zm24 0c-6 2-10 4-14 6l2 2c4-2 8-4 14-6l-2-2zM8 28c6-2 10-4 14-6l2 2c-4 2-8 4-14 6l-2-2zm44 0c-6-2-10-4-14-6l-2 2c4 2 8 4 14 6l2-2z' fill='%23E5DDD3' fill-opacity='0.3'/%3E%3C/svg%3E"); }
+  .kanban-column { min-width: 200px; }
+  @media (max-width: 768px) { .kanban-column { min-width: 160px; } }
+  .overlay { background: rgba(45,36,32,0.4); backdrop-filter: blur(2px); }
+  .slot-libre { background: #DCE8E0; border: 1px solid #A3C9A8; color: #4A7C59; cursor: pointer; }
+  .slot-libre:hover { background: #C5DDC9; border-color: #4A7C59; transform: scale(1.03); }
+  .slot-ocupado { background: #F5E6E3; border: 1px solid #E8C5C0; color: #B84C3D; cursor: not-allowed; opacity: 0.6; }
+  .slot-antelacion { background: #FFF3E6; border: 1px solid #F0C78E; color: #C4883C; cursor: not-allowed; font-size: 0.65rem; }
+  .step-active { background: #8B5E3C; color: white; }
+  .step-done { background: #4A7C59; color: white; }
+  .step-pending { background: #E5DDD3; color: #8C7B70; }
+  .sheet { position: fixed; top: 0; right: 0; height: 100%; width: 640px; max-width: 100vw; z-index: 60; background: #FFFFFF; box-shadow: -8px 0 30px rgba(0,0,0,0.12); transform: translateX(100%); transition: transform 0.3s ease; overflow-y: auto; }
+  .sheet.open { transform: translateX(0); }
+  .modal-box { max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  @media (max-width: 768px) { .sheet { width: 100%; } .modal-box { max-width: 95vw; } }
+</style>
+</head>
+<body class="bg-fondo text-texto-principal font-body">
+
+<!-- ===== NAVEGACION TABS ===== -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-superficie/90 backdrop-blur border-b border-borde">
+  <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between overflow-x-auto">
+    <span class="font-display text-xl font-bold text-primario tracking-tight shrink-0">SGP</span>
+    <div class="flex gap-1 bg-fondo rounded-lg p-1 shrink-0">
+      <button onclick="showTab('login')" id="tab-login" class="px-3 py-1.5 rounded-md text-sm font-medium tab-btn bg-superficie shadow-sm text-primario">Login</button>
+      <button onclick="showTab('cliente')" id="tab-cliente" class="px-3 py-1.5 rounded-md text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal">Cliente</button>
+      <button onclick="showTab('reserva')" id="tab-reserva" class="px-3 py-1.5 rounded-md text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal">Reserva</button>
+      <button onclick="showTab('empleado')" id="tab-empleado" class="px-3 py-1.5 rounded-md text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal">Empleado</button>
+      <button onclick="showTab('admin')" id="tab-admin" class="px-3 py-1.5 rounded-md text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal">Admin</button>
+    </div>
+    <span class="w-12 shrink-0"></span>
+  </div>
+</nav>
+
+<!-- ===== LOGIN ===== -->
+<section id="seccion-login" class="min-h-screen bg-pattern flex">
+  <div class="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
+    <div class="max-w-md text-center">
+      <p class="font-display text-6xl font-bold text-primario mb-4">SGP</p>
+      <p class="font-display text-2xl text-texto-secundario">Sistema de Gestion<br>de Peluqueria</p>
+    </div>
+  </div>
+  <div class="w-full lg:w-1/2 flex items-center justify-center p-6">
+    <div id="login-form" class="bg-superficie rounded-2xl shadow-xl p-8 w-full max-w-md border border-borde/50">
+      <div class="text-center mb-6 lg:hidden"><p class="font-display text-4xl font-bold text-primario">SGP</p></div>
+      <h1 class="font-display text-2xl font-bold text-texto-principal mb-1">Iniciar sesion</h1>
+      <p class="text-texto-secundario text-sm mb-6">Ingresa con tu correo y contrasena</p>
+      <div class="space-y-4">
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Correo electronico</label><input type="email" placeholder="admin@sgp.local" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal placeholder-texto-secundario/50 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Contrasena</label><input type="password" placeholder="········" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal placeholder-texto-secundario/50 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"></div>
+        <button class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-lg font-medium transition cursor-pointer">Iniciar sesion</button>
+      </div>
+      <p class="text-center text-sm text-texto-secundario mt-5">No tienes cuenta? <a href="#" onclick="showRegistro()" class="text-primario font-medium hover:underline">Crear cuenta</a></p>
+    </div>
+    <div id="registro-form" class="bg-superficie rounded-2xl shadow-xl p-8 w-full max-w-md border border-borde/50 hidden">
+      <div class="text-center mb-6 lg:hidden"><p class="font-display text-4xl font-bold text-primario">SGP</p></div>
+      <h1 class="font-display text-2xl font-bold text-texto-principal mb-1">Crear cuenta</h1>
+      <p class="text-texto-secundario text-sm mb-6">Registrate como cliente para agendar citas</p>
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-sm font-medium text-texto-principal mb-1">Nombre</label><input type="text" placeholder="Juan" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30 transition"></div>
+          <div><label class="block text-sm font-medium text-texto-principal mb-1">Apellido</label><input type="text" placeholder="Perez" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30 transition"></div>
+        </div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Telefono</label><input type="text" placeholder="+573001234567" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30 transition"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Correo electronico</label><input type="email" placeholder="juan@mail.com" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30 transition"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Contrasena</label><input type="password" placeholder="········" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30 transition"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Confirmar contrasena</label><input type="password" placeholder="········" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30 transition"></div>
+        <button class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-lg font-medium transition cursor-pointer">Crear cuenta</button>
+      </div>
+      <p class="text-center text-sm text-texto-secundario mt-5">Ya tienes cuenta? <a href="#" onclick="showLogin()" class="text-primario font-medium hover:underline">Iniciar sesion</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CLIENTE ===== -->
+<section id="seccion-cliente" class="min-h-screen pt-14 hidden">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex gap-1 bg-fondo rounded-lg p-1 mb-6 w-fit">
+      <button onclick="clienteTab('dashboard')" id="cli-tab-dashboard" class="px-4 py-1.5 rounded-md text-sm font-medium cli-tab-btn bg-superficie shadow-sm text-primario">Dashboard</button>
+      <button onclick="clienteTab('perfil')" id="cli-tab-perfil" class="px-4 py-1.5 rounded-md text-sm font-medium cli-tab-btn text-texto-secundario hover:text-texto-principal">Mi Perfil</button>
+    </div>
+    <div id="cli-view-dashboard">
+      <div class="bg-superficie rounded-2xl border border-borde p-8 md:p-12 mb-6 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div><h1 class="font-display text-3xl font-bold text-texto-principal mb-2">Reserva tu proxima cita</h1><p class="text-texto-secundario">Elige sede, empleado y horario en segundos.</p></div>
+          <div class="flex items-center gap-3"><span class="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-advertencia border border-amber-200">2/5 reservas activas</span><button onclick="showTab('reserva')" class="px-6 py-3 bg-primario hover:bg-primario-hover text-white rounded-xl font-semibold transition shadow-md cursor-pointer">Reservar ahora</button></div>
+        </div>
+      </div>
+      <h2 class="font-display text-xl font-bold text-texto-principal mb-4">Proximas reservas</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+        <div class="bg-superficie rounded-xl border border-borde p-5 hover:shadow-md transition cursor-pointer"><div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-advertencia border border-amber-200">Pendiente</span><span class="text-xs text-texto-secundario">Lun 02 Jun</span></div><h3 class="font-semibold">Corte clasico</h3><p class="text-sm text-texto-secundario mt-1">09:00 - 09:30 · Carlos Gomez</p><p class="text-sm text-texto-secundario">Sede Centro</p></div>
+        <div class="bg-superficie rounded-xl border border-borde p-5 hover:shadow-md transition cursor-pointer"><div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-advertencia border border-amber-200">Pendiente</span><span class="text-xs text-texto-secundario">Mie 04 Jun</span></div><h3 class="font-semibold">Barba</h3><p class="text-sm text-texto-secundario mt-1">11:00 - 11:20 · Ana Ruiz</p><p class="text-sm text-texto-secundario">Sede Norte</p></div>
+        <div class="bg-superficie rounded-xl border border-borde p-5 hover:shadow-md transition cursor-pointer"><div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-exito border border-green-200">Completada</span><span class="text-xs text-texto-secundario">Vie 30 May</span></div><h3 class="font-semibold">Tinte</h3><p class="text-sm text-texto-secundario mt-1">14:00 - 15:30 · Luis Diaz</p><p class="text-sm text-texto-secundario">Sede Centro</p></div>
+      </div>
+      <h2 class="font-display text-xl font-bold text-texto-principal mb-4">Mis reservas · Vista kanban</h2>
+      <div class="flex gap-4 overflow-x-auto pb-4">
+        <div class="kanban-column flex-shrink-0 w-52"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-advertencia"></span><span class="text-sm font-semibold text-texto-secundario uppercase tracking-wide">Pendiente</span></div><div class="space-y-2.5"><div class="bg-superficie rounded-lg border border-amber-200 p-3 text-sm shadow-sm"><p class="font-medium">Corte clasico</p><p class="text-texto-secundario text-xs mt-1">Lun 02 Jun · 09:00</p><p class="text-texto-secundario text-xs">Carlos G. · Centro</p><button onclick="cancelarReserva(event,'Corte clasico')" class="mt-2 text-xs text-error hover:underline cursor-pointer">Cancelar</button></div><div class="bg-superficie rounded-lg border border-amber-200 p-3 text-sm shadow-sm"><p class="font-medium">Barba</p><p class="text-texto-secundario text-xs mt-1">Mie 04 Jun · 11:00</p><p class="text-texto-secundario text-xs">Ana R. · Norte</p><button onclick="cancelarReserva(event,'Barba')" class="mt-2 text-xs text-error hover:underline cursor-pointer">Cancelar</button></div></div></div>
+        <div class="kanban-column flex-shrink-0 w-52"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-secundario"></span><span class="text-sm font-semibold text-texto-secundario uppercase tracking-wide">Confirmada</span></div><div class="space-y-2.5"><div class="bg-superficie rounded-lg border border-secundario/40 p-3 text-sm shadow-sm"><p class="font-medium">Corte + Barba</p><p class="text-texto-secundario text-xs mt-1">Vie 06 Jun · 15:00</p><p class="text-texto-secundario text-xs">Luis D. · Centro</p><p class="text-exito text-xs mt-1">Pagado online</p></div></div></div>
+        <div class="kanban-column flex-shrink-0 w-52"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-info"></span><span class="text-sm font-semibold text-texto-secundario uppercase tracking-wide">En curso</span></div><div class="space-y-2.5"><div class="bg-superficie rounded-lg border border-blue-200 p-3 text-sm shadow-sm"><p class="font-medium">Corte + Barba</p><p class="text-texto-secundario text-xs mt-1">Hoy · 10:00</p><p class="text-texto-secundario text-xs">Luis D. · Centro</p></div></div></div>
+        <div class="kanban-column flex-shrink-0 w-52"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-exito"></span><span class="text-sm font-semibold text-texto-secundario uppercase tracking-wide">Completada</span></div><div class="space-y-2.5"><div class="bg-superficie rounded-lg border border-green-200 p-3 text-sm shadow-sm"><p class="font-medium">Tinte</p><p class="text-texto-secundario text-xs mt-1">Vie 30 May</p><p class="text-texto-secundario text-xs">Luis D. · Centro</p></div><div class="bg-superficie rounded-lg border border-green-200 p-3 text-sm shadow-sm"><p class="font-medium">Corte</p><p class="text-texto-secundario text-xs mt-1">Jue 22 May</p><p class="text-texto-secundario text-xs">Ana R. · Norte</p></div></div></div>
+        <div class="kanban-column flex-shrink-0 w-52"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-error"></span><span class="text-sm font-semibold text-texto-secundario uppercase tracking-wide">Cancelada</span></div><div class="space-y-2.5"><div class="bg-superficie rounded-lg border border-red-200 p-3 text-sm shadow-sm opacity-70"><p class="font-medium">Corte</p><p class="text-texto-secundario text-xs mt-1">Sab 24 May</p><p class="text-error text-xs">Empleado cambio de sede</p></div></div></div>
+        <div class="kanban-column flex-shrink-0 w-72"><div class="flex items-center gap-2 mb-3"><span class="w-2.5 h-2.5 rounded-full bg-primario"></span><span class="text-sm font-semibold text-texto-secundario uppercase tracking-wide">Mapa</span></div><div class="bg-superficie rounded-lg border border-borde p-3 h-64 flex items-center justify-center shadow-sm"><div class="text-center"><div class="w-16 h-16 mx-auto mb-2 rounded-full bg-error/10 flex items-center justify-center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#B84C3D" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><p class="font-medium text-sm">Sede Centro</p><p class="text-xs text-texto-secundario mt-1">Calle 123 #45-67</p></div></div></div>
+      </div>
+    </div>
+    <div id="cli-view-perfil" class="hidden max-w-lg">
+      <h2 class="font-display text-2xl font-bold text-texto-principal mb-6">Mi Perfil</h2>
+      <div class="bg-superficie rounded-2xl border border-borde p-6 shadow-sm space-y-4">
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Nombre</label><input type="text" value="Juan" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Apellido</label><input type="text" value="Perez" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Telefono</label><input type="text" value="+573001234567" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Correo</label><input type="email" value="juan@mail.com" disabled class="w-full px-3 py-2.5 border border-borde rounded-lg bg-fondo text-texto-secundario"></div>
+        <button class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-lg font-medium transition cursor-pointer">Guardar cambios</button>
+        <hr class="border-borde"><button class="w-full py-2.5 bg-error/10 text-error rounded-lg font-medium border border-error/20 hover:bg-error/20 transition cursor-pointer">Eliminar cuenta</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== RESERVA ===== -->
+<section id="seccion-reserva" class="min-h-screen pt-14 hidden">
+  <div class="max-w-5xl mx-auto px-4 py-6">
+    <h1 class="font-display text-3xl font-bold text-texto-principal mb-2">Nueva reserva</h1>
+    <p class="text-texto-secundario mb-8">Completa los pasos para agendar tu cita</p>
+    <div class="flex items-center gap-2 mb-10 overflow-x-auto">
+      <div class="flex items-center gap-2 shrink-0"><div id="step-1-badge" class="w-8 h-8 rounded-full step-active flex items-center justify-center text-sm font-bold">1</div><span class="text-sm font-medium text-texto-principal">Ubicacion</span></div><div class="w-8 h-px bg-borde shrink-0"></div>
+      <div class="flex items-center gap-2 shrink-0"><div id="step-2-badge" class="w-8 h-8 rounded-full step-pending flex items-center justify-center text-sm font-bold">2</div><span class="text-sm font-medium text-texto-secundario">Empleado</span></div><div class="w-8 h-px bg-borde shrink-0"></div>
+      <div class="flex items-center gap-2 shrink-0"><div id="step-3-badge" class="w-8 h-8 rounded-full step-pending flex items-center justify-center text-sm font-bold">3</div><span class="text-sm font-medium text-texto-secundario">Calendario</span></div><div class="w-8 h-px bg-borde shrink-0"></div>
+      <div class="flex items-center gap-2 shrink-0"><div id="step-4-badge" class="w-8 h-8 rounded-full step-pending flex items-center justify-center text-sm font-bold">4</div><span class="text-sm font-medium text-texto-secundario">Confirmar</span></div><div class="w-8 h-px bg-borde shrink-0"></div>
+      <div class="flex items-center gap-2 shrink-0"><div id="step-5-badge" class="w-8 h-8 rounded-full step-pending flex items-center justify-center text-sm font-bold">5</div><span class="text-sm font-medium text-texto-secundario">Pago</span></div>
+    </div>
+
+    <!-- Step 1 -->
+    <div id="step-1-content">
+      <h2 class="font-display text-xl font-bold text-texto-principal mb-4">Elige la sede</h2>
+      <div class="flex flex-col lg:flex-row gap-6">
+        <div class="lg:w-1/2 space-y-4">
+          <div onclick="selectUbicacion('Centro','Calle 123 #45-67, Bogota','4.7110','-74.0721')" class="ubicacion-card bg-superficie rounded-xl border-2 border-borde p-5 cursor-pointer hover:border-primario hover:shadow-md transition group"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primario/10 flex items-center justify-center shrink-0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="flex-1"><h3 class="font-semibold text-texto-principal">Sede Centro</h3><p class="text-xs text-texto-secundario mt-0.5">Calle 123 #45-67, Bogota</p></div><span class="text-xs text-texto-secundario">L-V 09-18 · S 09-14</span></div></div>
+          <div onclick="selectUbicacion('Norte','Carrera 10 #89-12, Bogota','4.7320','-74.0550')" class="ubicacion-card bg-superficie rounded-xl border-2 border-borde p-5 cursor-pointer hover:border-primario hover:shadow-md transition group"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-primario/10 flex items-center justify-center shrink-0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="flex-1"><h3 class="font-semibold text-texto-principal">Sede Norte</h3><p class="text-xs text-texto-secundario mt-0.5">Carrera 10 #89-12, Bogota</p></div><span class="text-xs text-texto-secundario">L-V 10-19 · S 10-15</span></div></div>
+        </div>
+        <div class="lg:w-1/2 bg-superficie rounded-2xl border border-borde shadow-sm overflow-hidden"><div class="p-3 border-b border-borde flex items-center justify-between"><p class="text-xs font-semibold text-texto-secundario uppercase tracking-wide">Ubicacion en el mapa</p><p class="text-xs text-texto-secundario" id="mapa-sede-nombre">Selecciona una sede</p></div><div id="mapa-container" class="h-72 bg-fondo flex items-center justify-center"><div class="text-center text-texto-secundario"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#E5DDD3" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><p class="text-sm mt-3">Haz clic en una sede</p></div></div><div id="mapa-embed" class="hidden h-72 w-full"><iframe id="mapa-iframe" width="100%" height="100%" frameborder="0" scrolling="no" src="" style="border:0"></iframe></div><div class="p-3 border-t border-borde"><button id="btn-siguiente-ubicacion" onclick="goToStep(2)" class="hidden w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-lg text-sm font-medium cursor-pointer">Siguiente: Elegir empleado</button></div></div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div id="step-2-content" class="hidden">
+      <div class="flex items-center gap-2 mb-4"><button onclick="goToStep(1)" class="text-texto-secundario hover:text-primario transition cursor-pointer flex items-center gap-1 text-sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Volver</button><span class="text-texto-secundario text-sm">Sede: <strong id="sede-label" class="text-texto-principal">Centro</strong></span></div>
+      <h2 class="font-display text-xl font-bold text-texto-principal mb-4">Elige el empleado</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div onclick="selectEmpleado('Carlos Gomez')" class="empleado-card bg-superficie rounded-xl border-2 border-borde p-5 cursor-pointer hover:border-primario hover:shadow-md transition group text-center"><div class="w-16 h-16 rounded-full bg-secundario/20 mx-auto mb-3 flex items-center justify-center"><span class="font-display text-2xl font-bold text-secundario">CG</span></div><h3 class="font-semibold">Carlos Gomez</h3><p class="text-xs text-texto-secundario mt-1">Cortes clasicos</p></div>
+        <div onclick="selectEmpleado('Ana Ruiz')" class="empleado-card bg-superficie rounded-xl border-2 border-borde p-5 cursor-pointer hover:border-primario hover:shadow-md transition group text-center"><div class="w-16 h-16 rounded-full bg-info/20 mx-auto mb-3 flex items-center justify-center"><span class="font-display text-2xl font-bold text-info">AR</span></div><h3 class="font-semibold">Ana Ruiz</h3><p class="text-xs text-texto-secundario mt-1">Colorimetria</p></div>
+        <div onclick="selectEmpleado('Luis Diaz')" class="empleado-card bg-superficie rounded-xl border-2 border-borde p-5 cursor-pointer hover:border-primario hover:shadow-md transition group text-center"><div class="w-16 h-16 rounded-full bg-advertencia/20 mx-auto mb-3 flex items-center justify-center"><span class="font-display text-2xl font-bold text-advertencia">LD</span></div><h3 class="font-semibold">Luis Diaz</h3><p class="text-xs text-texto-secundario mt-1">Barberia</p></div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div id="step-3-content" class="hidden">
+      <div class="flex items-center gap-2 mb-4"><button onclick="goToStep(2)" class="text-texto-secundario hover:text-primario transition cursor-pointer flex items-center gap-1 text-sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Volver</button><span class="text-texto-secundario text-sm"><strong id="empleado-label" class="text-texto-principal">Carlos Gomez</strong> · <strong id="sede-label-3" class="text-texto-principal">Centro</strong></span></div>
+      <div class="flex items-center justify-between mb-4"><div><h2 class="font-display text-xl font-bold text-texto-principal mb-1">Selecciona el horario</h2><p class="text-sm text-texto-secundario">Semana del 2 al 8 de Junio 2026</p></div><div class="flex items-center gap-3"><div class="flex items-center gap-1"><span class="text-xs text-texto-secundario">Ver de</span><input type="time" value="06:00" onchange="filtrarRangoCalendario()" id="rango-desde" class="px-2 py-1 border border-borde rounded text-xs bg-fondo w-20"><span class="text-xs text-texto-secundario">a</span><input type="time" value="22:00" onchange="filtrarRangoCalendario()" id="rango-hasta" class="px-2 py-1 border border-borde rounded text-xs bg-fondo w-20"></div><div class="flex items-center gap-2"><span class="text-xs text-texto-secundario">Granularidad:</span><select id="reserva-granularidad" onchange="cambiarGranularidadReserva(this.value)" class="px-3 py-1.5 border border-borde rounded-lg text-xs text-texto-principal bg-fondo"><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">60 min</option></select></div></div></div>
+      <div class="bg-superficie rounded-2xl border border-borde p-4 shadow-sm overflow-x-auto">
+        <div class="grid grid-cols-5 gap-3 min-w-[640px]">
+          <div><div class="text-center mb-3"><p class="text-xs text-texto-secundario font-medium uppercase">Lun</p><p class="font-display text-xl font-bold text-texto-principal">2</p></div><div class="space-y-1.5"><div onclick="openReservaModal('Lunes 2 Jun','09:00','09:30')" class="slot-antelacion rounded-lg px-2 py-2 text-xs text-center font-medium">Antic. 60 min</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">10:00 — 10:30</div><div onclick="openReservaModal('Lunes 2 Jun','11:00','11:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">11:00 — 11:30</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">14:00 — 14:30</div><div onclick="openReservaModal('Lunes 2 Jun','15:00','15:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">15:00 — 15:30</div><div onclick="openReservaModal('Lunes 2 Jun','16:00','16:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">16:00 — 16:30</div></div></div>
+          <div><div class="text-center mb-3"><p class="text-xs text-texto-secundario font-medium uppercase">Mar</p><p class="font-display text-xl font-bold text-texto-principal">3</p></div><div class="space-y-1.5"><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">09:00 — 09:30</div><div onclick="openReservaModal('Martes 3 Jun','10:00','10:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">10:00 — 10:30</div><div onclick="openReservaModal('Martes 3 Jun','11:00','11:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">11:00 — 11:30</div><div onclick="openReservaModal('Martes 3 Jun','14:00','14:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">14:00 — 14:30</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">15:00 — 15:30</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">16:00 — 16:30</div></div></div>
+          <div><div class="text-center mb-3"><p class="text-xs text-texto-secundario font-medium uppercase">Mie</p><p class="font-display text-xl font-bold text-texto-principal">4</p></div><div class="space-y-1.5"><div onclick="openReservaModal('Miercoles 4 Jun','09:00','09:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">09:00 — 09:30</div><div onclick="openReservaModal('Miercoles 4 Jun','10:00','10:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">10:00 — 10:30</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">11:00 — 11:30</div><div onclick="openReservaModal('Miercoles 4 Jun','14:00','14:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">14:00 — 14:30</div><div onclick="openReservaModal('Miercoles 4 Jun','15:00','15:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">15:00 — 15:30</div><div onclick="openReservaModal('Miercoles 4 Jun','16:00','16:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">16:00 — 16:30</div></div></div>
+          <div><div class="text-center mb-3"><p class="text-xs text-texto-secundario font-medium uppercase">Jue</p><p class="font-display text-xl font-bold text-texto-principal">5</p></div><div class="space-y-1.5"><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">09:00 — 09:30</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">10:00 — 10:30</div><div onclick="openReservaModal('Jueves 5 Jun','11:00','11:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">11:00 — 11:30</div><div onclick="openReservaModal('Jueves 5 Jun','14:00','14:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">14:00 — 14:30</div><div onclick="openReservaModal('Jueves 5 Jun','15:00','15:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">15:00 — 15:30</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">16:00 — 16:30</div></div></div>
+          <div><div class="text-center mb-3"><p class="text-xs text-texto-secundario font-medium uppercase">Vie</p><p class="font-display text-xl font-bold text-texto-principal">6</p></div><div class="space-y-1.5"><div onclick="openReservaModal('Viernes 6 Jun','09:00','09:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">09:00 — 09:30</div><div onclick="openReservaModal('Viernes 6 Jun','10:00','10:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">10:00 — 10:30</div><div onclick="openReservaModal('Viernes 6 Jun','11:00','11:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">11:00 — 11:30</div><div class="slot-ocupado rounded-lg px-2 py-2 text-xs text-center font-medium">14:00 — 14:30</div><div onclick="openReservaModal('Viernes 6 Jun','15:00','15:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">15:00 — 15:30</div><div onclick="openReservaModal('Viernes 6 Jun','16:00','16:30')" class="slot-libre rounded-lg px-2 py-2 text-xs text-center font-medium transition">16:00 — 16:30</div></div></div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-4 text-xs"><span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-exito/30 border border-exito/50"></span> Disponible</span><span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-error/20 border border-error/40"></span> Ocupado</span><span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-advertencia/20 border border-advertencia/40"></span> Anticipacion &lt;60 min</span></div>
+    </div>
+
+    <!-- Step 4 -->
+    <div id="step-4-content" class="hidden text-center">
+      <div class="bg-superficie rounded-2xl border border-borde p-8 max-w-xl mx-auto shadow-sm">
+        <div class="w-20 h-20 rounded-full bg-exito/10 mx-auto mb-4 flex items-center justify-center"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4A7C59" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <h2 class="font-display text-2xl font-bold text-texto-principal mb-2">Reserva confirmada</h2><p class="text-texto-secundario mb-6" id="confirm-detalle"></p>
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <div class="flex-1 bg-fondo rounded-xl p-4 border border-borde"><div class="bg-white border-2 border-borde rounded-xl p-3 inline-block mb-3"><svg width="100" height="100" viewBox="0 0 140 140"><rect width="140" height="140" rx="8" fill="white"/><path d="M30 30h30v30H30V30zm10 10v10h10V40H40zM80 30h30v30H80V30zm10 10v10h10V40H90zM30 80h30v30H30V80zm10 10v10h10V90H40z" fill="#2D2420"/><rect x="75" y="75" width="8" height="8" fill="#2D2420"/><rect x="87" y="75" width="8" height="8" fill="#2D2420"/><rect x="99" y="75" width="8" height="8" fill="#2D2420"/><rect x="75" y="87" width="8" height="8" fill="#2D2420"/><rect x="99" y="87" width="8" height="8" fill="#8B5E3C"/><rect x="75" y="99" width="8" height="8" fill="#2D2420"/><rect x="87" y="99" width="8" height="8" fill="#2D2420"/><rect x="99" y="99" width="8" height="8" fill="#2D2420"/></svg></div><p class="text-xs text-texto-secundario">Presenta este QR en la entrada</p><button class="mt-2 px-4 py-1.5 bg-primario text-white rounded-lg text-xs font-medium cursor-pointer">Descargar QR</button></div>
+          <div class="flex-1 flex flex-col gap-2 justify-center"><p class="text-sm font-semibold text-texto-principal mb-2">Como deseas pagar?</p><div class="grid grid-cols-2 gap-2"><div class="bg-exito/5 border-2 border-exito/20 rounded-xl p-4 text-center cursor-pointer hover:border-exito hover:bg-exito/10 transition" onclick="showPago('online')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4A7C59" stroke-width="1.5" class="mx-auto mb-2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><p class="text-sm font-semibold text-exito">Online</p><p class="text-xs text-texto-secundario">Tarjeta / Nequi</p></div><div class="bg-secundario/5 border-2 border-secundario/20 rounded-xl p-4 text-center cursor-pointer hover:border-secundario hover:bg-secundario/10 transition" onclick="pagarEfectivo()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" stroke-width="1.5" class="mx-auto mb-2"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><circle cx="12" cy="12" r="3"/></svg><p class="text-sm font-semibold text-secundario">Efectivo</p><p class="text-xs text-texto-secundario">Pagar en local</p></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div id="step-5-content" class="hidden"><div class="max-w-md mx-auto"><div class="flex items-center gap-2 mb-6"><button onclick="goToStep(4)" class="text-texto-secundario hover:text-primario transition cursor-pointer flex items-center gap-1 text-sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Volver</button></div><div class="bg-superficie rounded-2xl border border-borde p-8 shadow-sm"><h2 class="font-display text-xl font-bold text-texto-principal mb-1">Pago online</h2><p class="text-sm text-texto-secundario mb-6">Paga seguro con tarjeta o transferencia</p><div class="bg-fondo rounded-xl p-4 mb-6 space-y-2"><div class="flex justify-between text-sm"><span class="text-texto-secundario">Servicio</span><span class="font-semibold" id="pago-servicio">Corte clasico</span></div><div class="flex justify-between text-sm"><span class="text-texto-secundario">Total</span><span class="font-bold text-primario text-lg" id="pago-total">$25.000</span></div></div><div class="space-y-4"><div><label class="block text-sm font-medium text-texto-principal mb-1">Titular</label><input type="text" placeholder="Juan Perez" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div><div><label class="block text-sm font-medium text-texto-principal mb-1">Numero de tarjeta</label><input type="text" placeholder="4242 4242 4242 4242" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium text-texto-principal mb-1">Vencimiento</label><input type="text" placeholder="MM/AA" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div><div><label class="block text-sm font-medium text-texto-principal mb-1">CVV</label><input type="text" placeholder="123" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div></div><button onclick="confirmarPagoOnline()" class="w-full py-3 bg-primario hover:bg-primario-hover text-white rounded-xl font-semibold transition cursor-pointer">Pagar ahora</button></div></div></div></div>
+
+    <!-- Step 6 -->
+    <div id="step-6-content" class="hidden text-center"><div class="bg-superficie rounded-2xl border border-borde p-8 max-w-md mx-auto shadow-sm"><div class="w-20 h-20 rounded-full bg-exito/10 mx-auto mb-4 flex items-center justify-center"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4A7C59" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><h2 class="font-display text-2xl font-bold text-texto-principal mb-2" id="pago-exito-titulo">Pago exitoso</h2><p class="text-texto-secundario mb-2" id="pago-exito-detalle"></p><p class="text-xs text-texto-secundario mb-6">Recibiras tu QR en el dashboard</p><div class="flex gap-3 justify-center"><button onclick="irAlInicio()" class="px-5 py-2.5 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10h14V10"/></svg> Ir al inicio</button></div></div></div>
+
+    <!-- Modal -->
+    <div id="modal-overlay" class="fixed inset-0 z-50 overlay hidden flex items-center justify-center p-4" onclick="closeModal(event)"><div class="bg-superficie rounded-2xl shadow-2xl p-6 modal-box w-full border border-borde" onclick="event.stopPropagation()"><div class="flex items-center justify-between mb-4"><h3 class="font-display text-xl font-bold text-texto-principal">Confirmar reserva</h3><button onclick="closeModalDirect()" class="text-texto-secundario hover:text-texto-principal cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="space-y-4"><div class="bg-fondo rounded-xl p-4 space-y-2"><div class="flex justify-between text-sm"><span class="text-texto-secundario">Dia</span><span class="font-semibold" id="modal-dia">—</span></div><div class="flex justify-between text-sm"><span class="text-texto-secundario">Horario</span><span class="font-semibold" id="modal-hora">—</span></div><div class="flex justify-between text-sm"><span class="text-texto-secundario">Empleado</span><span class="font-semibold" id="modal-empleado">—</span></div><div class="flex justify-between text-sm"><span class="text-texto-secundario">Sede</span><span class="font-semibold" id="modal-sede">—</span></div></div><label class="block text-sm font-medium text-texto-principal mb-1">Tipo de servicio</label><div class="grid grid-cols-2 gap-2"><label class="flex items-center gap-2 bg-fondo rounded-lg p-3 border border-borde hover:border-primario cursor-pointer transition"><input type="radio" name="servicio" value="Corte clasico" data-precio="25000" data-duracion="30" class="accent-primario" checked><div><p class="text-sm font-medium">Corte clasico</p><p class="text-xs text-texto-secundario">30 min · $25.000</p></div></label><label class="flex items-center gap-2 bg-fondo rounded-lg p-3 border border-borde hover:border-primario cursor-pointer transition"><input type="radio" name="servicio" value="Barba" data-precio="15000" data-duracion="20" class="accent-primario"><div><p class="text-sm font-medium">Barba</p><p class="text-xs text-texto-secundario">20 min · $15.000</p></div></label><label class="flex items-center gap-2 bg-fondo rounded-lg p-3 border border-borde hover:border-primario cursor-pointer transition"><input type="radio" name="servicio" value="Tinte" data-precio="60000" data-duracion="90" class="accent-primario"><div><p class="text-sm font-medium">Tinte</p><p class="text-xs text-texto-secundario">90 min · $60.000</p></div></label><label class="flex items-center gap-2 bg-fondo rounded-lg p-3 border border-borde hover:border-primario cursor-pointer transition"><input type="radio" name="servicio" value="Corte + Barba" data-precio="35000" data-duracion="45" class="accent-primario"><div><p class="text-sm font-medium">Corte + Barba</p><p class="text-xs text-texto-secundario">45 min · $35.000</p></div></label></div><div class="bg-fondo rounded-xl p-4"><div class="flex justify-between text-sm mb-2"><span class="text-texto-secundario">Duracion</span><span class="font-semibold" id="modal-duracion">30 min</span></div><div class="flex justify-between text-sm mb-2"><span class="text-texto-secundario">Hora salida</span><span class="font-semibold" id="modal-salida">09:30</span></div><div class="flex justify-between text-sm mb-3"><span class="text-texto-secundario">Precio</span><span class="font-semibold text-primario" id="modal-precio">$25.000</span></div><div class="flex items-center justify-between"><span class="text-sm text-texto-secundario">Personas</span><div class="flex items-center gap-2"><button onclick="changePeople(-1)" class="w-7 h-7 rounded-md border border-borde flex items-center justify-center text-texto-principal hover:bg-fondo cursor-pointer">-</button><span id="people-count" class="w-6 text-center font-semibold">1</span><button onclick="changePeople(1)" class="w-7 h-7 rounded-md border border-borde flex items-center justify-center text-texto-principal hover:bg-fondo cursor-pointer">+</button></div></div></div><button onclick="confirmarReserva()" class="w-full py-3 bg-primario hover:bg-primario-hover text-white rounded-xl font-semibold transition cursor-pointer">Confirmar reserva</button></div></div></div>
+    <!-- Toast error -->
+    <div id="toast-error" class="hidden fixed top-20 left-1/2 -translate-x-1/2 bg-error text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium z-50">Horario ocupado. Elige otro horario.</div>
+  </div>
+</section>
+
+<!-- ===== EMPLEADO ===== -->
+<section id="seccion-empleado" class="min-h-screen pt-14 hidden">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex gap-1 bg-fondo rounded-lg p-1 mb-6 w-fit">
+      <button onclick="empleadoTab('citas')" id="emp-tab-citas" class="px-4 py-1.5 rounded-md text-sm font-medium emp-tab-btn bg-superficie shadow-sm text-primario">Citas de hoy</button>
+      <button onclick="empleadoTab('dispo')" id="emp-tab-dispo" class="px-4 py-1.5 rounded-md text-sm font-medium emp-tab-btn text-texto-secundario hover:text-texto-principal">Mi Disponibilidad</button>
+      <button onclick="empleadoTab('perfil')" id="emp-tab-perfil" class="px-4 py-1.5 rounded-md text-sm font-medium emp-tab-btn text-texto-secundario hover:text-texto-principal">Mi Perfil</button>
+    </div>
+
+    <div id="emp-view-citas">
+      <div class="flex flex-col lg:flex-row gap-6">
+        <div class="lg:w-3/4">
+          <div class="flex items-center justify-between mb-4"><div><h1 class="font-display text-2xl font-bold text-texto-principal">Citas de hoy</h1><p class="text-sm text-texto-secundario">Viernes 30 Mayo 2026 · Sede Centro</p></div><div class="flex gap-2"><button onclick="openModal('validar-qr-modal')" class="px-4 py-2 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer">Validar QR</button></div></div>
+          <div class="space-y-3">
+            <div class="bg-superficie rounded-xl border border-borde p-4 flex items-center gap-4 shadow-sm"><div class="text-center w-16 shrink-0"><p class="font-bold text-lg text-primario">09:00</p><p class="text-xs text-texto-secundario">30 min</p></div><div class="flex-1"><p class="font-semibold">Juan Perez</p><p class="text-sm text-texto-secundario">Corte clasico</p></div><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-advertencia border border-amber-200 shrink-0">Pendiente</span><span class="text-xs text-texto-secundario shrink-0">Centro</span><button onclick="openModal('validar-qr-modal')" class="px-3 py-1.5 bg-info text-white rounded-lg text-xs font-medium shrink-0 cursor-pointer">Validar</button></div>
+            <div class="bg-superficie rounded-xl border border-blue-200 p-4 flex items-center gap-4 shadow-sm"><div class="text-center w-16 shrink-0"><p class="font-bold text-lg text-primario">09:30</p><p class="text-xs text-texto-secundario">90 min</p></div><div class="flex-1"><p class="font-semibold">Maria Lopez</p><p class="text-sm text-texto-secundario">Tinte</p></div><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-info border border-blue-200 shrink-0">En curso</span><span class="text-xs text-texto-secundario shrink-0">Norte</span><span class="text-xs text-exito font-medium shrink-0">$60.000</span></div>
+            <div class="bg-superficie rounded-xl border border-green-200 p-4 flex items-center gap-4 shadow-sm opacity-75"><div class="text-center w-16 shrink-0"><p class="font-bold text-lg text-texto-secundario">10:00</p><p class="text-xs text-texto-secundario">20 min</p></div><div class="flex-1"><p class="font-semibold">Carlos Ruiz</p><p class="text-sm text-texto-secundario">Barba</p></div><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-exito border border-green-200 shrink-0">Cobrado</span><span class="text-xs text-texto-secundario shrink-0">Centro</span><span class="text-xs text-exito font-medium shrink-0">$15.000</span></div>
+            <div class="bg-fondo rounded-xl border border-dashed border-borde p-4 flex items-center gap-4"><div class="text-center w-16 shrink-0"><p class="font-bold text-lg text-texto-secundario/50">11:00</p><p class="text-xs text-texto-secundario/50">—</p></div><div class="flex-1"><p class="text-texto-secundario/50 italic">Disponible</p></div></div>
+          </div>
+        </div>
+        <div class="lg:w-1/4 space-y-4">
+          <div class="bg-superficie rounded-xl border border-borde p-4 shadow-sm"><p class="text-sm font-semibold text-texto-secundario mb-2">Sede de hoy</p><div class="h-40 bg-fondo rounded-lg flex items-center justify-center border border-borde"><div class="text-center"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#B84C3D" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><p class="font-semibold text-sm mt-1">Centro</p><p class="text-xs text-texto-secundario">Calle 123 #45-67</p></div></div></div>
+          <div class="bg-superficie rounded-xl border border-borde p-4 shadow-sm space-y-3"><div class="flex justify-between text-sm"><span class="text-texto-secundario">Pendientes</span><span class="font-semibold text-advertencia">2</span></div><div class="flex justify-between text-sm"><span class="text-texto-secundario">En curso</span><span class="font-semibold text-info">1</span></div><div class="flex justify-between text-sm"><span class="text-texto-secundario">Cobrados</span><span class="font-semibold text-exito">1</span></div><hr class="border-borde"><div class="flex justify-between text-sm font-semibold"><span>Total</span><span class="text-primario">$85.000</span></div></div>
+        </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="emp-view-dispo" class="hidden max-w-6xl mx-auto">
+      <div class="flex items-center justify-between mb-4"><div><h1 class="font-display text-2xl font-bold text-texto-principal mb-1">Mi Disponibilidad</h1><p class="text-sm text-texto-secundario">Define sede, horario y bloqueos</p></div><div class="flex items-center gap-3"><div class="flex items-center gap-2"><span class="text-xs text-texto-secundario">Granularidad:</span><select onchange="cambiarGranularidad(this.value)" class="px-3 py-1.5 border border-borde rounded-lg text-xs text-texto-principal bg-fondo"><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60" selected>60 min</option></select></div><button onclick="guardarDisponibilidad()" class="px-5 py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl font-medium transition cursor-pointer">Guardar cambios</button></div></div>
+      <div class="flex gap-4 mb-3 text-xs"><span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border" style="background:#DCE8E0;border-color:#A3C9A8"></span> Centro</span><span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border" style="background:#DCE8F2;border-color:#A3BDD4"></span> Norte</span><span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border" style="background:#F5F0EB;border-color:#E5DDD3"></span> Descanso</span><span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border" style="background:#F2D8D5;border-color:#E8B4AF"></span> No disponible</span></div>
+      <div class="flex flex-col lg:flex-row gap-4">
+        <div class="lg:w-3/4 bg-superficie rounded-2xl border border-borde shadow-sm overflow-x-auto"><table class="w-full min-w-[750px] border-collapse"><thead><tr><th class="sticky left-0 bg-superficie z-10 border-b border-borde py-2 px-2 text-left text-xs font-semibold text-texto-secundario uppercase w-16">Hora</th><th class="border-b border-borde py-2 px-1 text-center text-xs font-semibold">Lun</th><th class="border-b border-borde py-2 px-1 text-center text-xs font-semibold">Mar</th><th class="border-b border-borde py-2 px-1 text-center text-xs font-semibold">Mie</th><th class="border-b border-borde py-2 px-1 text-center text-xs font-semibold">Jue</th><th class="border-b border-borde py-2 px-1 text-center text-xs font-semibold">Vie</th><th class="border-b border-borde py-2 px-1 text-center text-xs font-semibold">Sab</th><th class="border-b border-borde py-2 px-1 text-center text-xs font-semibold">Dom</th></tr></thead><tbody id="dispo-grid-body"></tbody></table></div>
+        <div class="lg:w-1/4 space-y-4"><div class="bg-superficie rounded-2xl border border-borde p-4 shadow-sm"><h3 class="font-semibold text-sm mb-3">Bloqueos de horario</h3><p class="text-xs text-texto-secundario mb-3">Define franjas donde no estas disponible.</p><div class="space-y-2 mb-4"><div class="flex gap-1"><span class="text-xs text-texto-secundario w-10 pt-2">De</span><select id="bloqueo-dia-desde" class="flex-1 px-2 py-1.5 border border-borde rounded text-xs bg-fondo"><option value="0">Lun</option><option value="1">Mar</option><option value="2">Mie</option><option value="3">Jue</option><option value="4">Vie</option><option value="5">Sab</option><option value="6">Dom</option></select><span class="text-xs text-texto-secundario pt-2">a</span><select id="bloqueo-dia-hasta" class="flex-1 px-2 py-1.5 border border-borde rounded text-xs bg-fondo"><option value="0">Lun</option><option value="1">Mar</option><option value="2">Mie</option><option value="3">Jue</option><option value="4" selected>Vie</option><option value="5">Sab</option><option value="6">Dom</option></select></div><div class="flex gap-1"><span class="text-xs text-texto-secundario w-10 pt-2">Hora</span><select id="bloqueo-hora-desde" class="flex-1 px-2 py-1.5 border border-borde rounded text-xs bg-fondo"><option value="06:00">06:00</option><option value="06:30">06:30</option><option value="08:00">08:00</option><option value="12:00">12:00</option><option value="17:00">17:00</option><option value="18:00">18:00</option><option value="18:30" selected>18:30</option></select><span class="text-xs text-texto-secundario pt-2">a</span><select id="bloqueo-hora-hasta" class="flex-1 px-2 py-1.5 border border-borde rounded text-xs bg-fondo"><option value="07:00">07:00</option><option value="12:00">12:00</option><option value="18:00">18:00</option><option value="19:00" selected>19:00</option><option value="20:00">20:00</option><option value="22:00">22:00</option></select></div><button onclick="agregarBloqueo()" class="w-full py-2 bg-error/10 text-error rounded-lg text-xs font-semibold border border-error/20 hover:bg-error/20 transition cursor-pointer">+ Agregar bloqueo</button></div><div id="bloqueos-lista" class="space-y-1.5"><div class="text-xs text-texto-secundario/50 text-center py-2">Sin bloqueos</div></div></div></div>
+      </div>
+    </div>
+
+    <div id="emp-view-perfil" class="hidden max-w-lg mx-auto">
+      <h2 class="font-display text-2xl font-bold text-texto-principal mb-6">Mi Perfil</h2>
+      <div class="bg-superficie rounded-2xl border border-borde p-6 shadow-sm space-y-4">
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Nombre</label><input type="text" value="Carlos" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Apellido</label><input type="text" value="Gomez" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Identificacion</label><input type="text" value="12345678" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Correo</label><input type="email" value="carlos@sgp.local" disabled class="w-full px-3 py-2.5 border border-borde rounded-lg bg-fondo text-texto-secundario"></div>
+        <div><label class="block text-sm font-medium text-texto-principal mb-1">Telefono</label><input type="text" value="+573001234567" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div>
+        <button class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-lg font-medium transition cursor-pointer">Guardar cambios</button>
+      </div>
+    </div>
+
+    <!-- Modal Validar QR + Cobro -->
+    <div id="validar-qr-modal" class="fixed inset-0 z-50 overlay hidden flex items-center justify-center p-4"><div class="bg-superficie rounded-2xl shadow-2xl p-6 modal-box w-full border border-borde"><div class="flex items-center justify-between mb-4"><h3 class="font-display text-lg font-bold text-texto-principal">Validar ingreso y cobro</h3><button onclick="closeModalDirect()" class="text-texto-secundario hover:text-texto-principal cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="bg-fondo rounded-xl p-6 mb-4 text-center border border-dashed border-borde"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#E5DDD3" stroke-width="1.5" class="mx-auto mb-3"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="7" width="4" height="4"/><rect x="7" y="13" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/></svg><p class="text-sm text-texto-secundario">Escanea el QR del cliente</p></div><div><label class="block text-sm font-medium text-texto-principal mb-2">O ingresa el token manualmente</label><input type="text" placeholder="QR Token" class="w-full px-3 py-2.5 border border-borde rounded-lg text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30 mb-4"></div><div class="bg-exito/5 rounded-xl p-4 border border-exito/20 mb-4"><p class="text-sm font-semibold text-exito">Cliente: Juan Perez</p><p class="text-xs text-texto-secundario mt-1">Corte clasico · 09:00 - 09:30 · Sede Centro</p><p class="text-xs text-texto-secundario">Dentro de ventana (+-120 min)</p></div><div class="bg-fondo rounded-xl p-4 mb-4"><div class="flex justify-between text-sm mb-3"><span class="text-texto-secundario">Precio del servicio</span><span class="font-bold text-primario">$25.000</span></div><div class="flex items-center justify-between"><span class="text-sm text-texto-secundario">Cobro en efectivo</span><div class="flex items-center gap-2"><span class="text-xs text-texto-secundario">Monto</span><input type="number" value="25000" class="w-24 px-2 py-1.5 border border-borde rounded-lg text-sm text-texto-principal focus:outline-none focus:ring-2 focus:ring-primario/30"></div></div></div><button onclick="closeModalDirect();showToast('Check-in y cobro registrado: $25.000 a Juan Perez')" class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-lg font-medium transition cursor-pointer">Confirmar entrada y cobro</button></div></div>
+<div class="hidden"></div>
+  </div>
+</section>
+
+<!-- ===== ADMIN ===== -->
+<section id="seccion-admin" class="min-h-screen pt-14 hidden">
+  <div class="max-w-7xl mx-auto px-4 py-6 pb-24">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-superficie rounded-xl border border-borde p-4 shadow-sm"><p class="text-sm text-texto-secundario">Ventas hoy</p><p class="font-display text-3xl font-bold text-primario mt-1">$450.000</p><p class="text-xs text-exito mt-1">+12% vs ayer</p></div>
+      <div class="bg-superficie rounded-xl border border-borde p-4 shadow-sm"><p class="text-sm text-texto-secundario">Citas hoy</p><p class="font-display text-3xl font-bold text-texto-principal mt-1">12</p><p class="text-xs text-texto-secundario mt-1">de 15 slots</p></div>
+      <div class="bg-superficie rounded-xl border border-borde p-4 shadow-sm"><p class="text-sm text-texto-secundario">Ocupacion</p><p class="font-display text-3xl font-bold text-texto-principal mt-1">80%</p><div class="w-full h-2 bg-fondo rounded-full mt-2"><div class="h-full w-4/5 bg-primario rounded-full"></div></div></div>
+      <div class="bg-superficie rounded-xl border border-borde p-4 shadow-sm"><p class="text-sm text-texto-secundario">Clientes activos</p><p class="font-display text-3xl font-bold text-texto-principal mt-1">347</p><p class="text-xs text-texto-secundario mt-1">este mes</p></div>
+    </div>
+    <div class="bg-superficie rounded-2xl border border-borde p-4 shadow-sm"><div class="flex items-center justify-between mb-3"><h2 class="font-display text-lg font-bold text-texto-principal">Citas de hoy — Todas las sedes</h2><select class="px-3 py-1.5 border border-borde rounded-lg text-sm bg-fondo"><option>Todas</option><option>Centro</option><option>Norte</option></select></div>
+      <div class="space-y-2">
+        <div class="flex items-center gap-3 text-sm border-b border-borde/50 pb-2"><span class="font-semibold w-16">09:00</span><span class="flex-1">Juan Perez · Corte</span><span class="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-advertencia border border-amber-200">Pend.</span><span class="text-xs text-texto-secundario w-20">Centro</span><span class="text-xs text-info font-medium cursor-pointer hover:underline" onclick="openModal('validar-qr-modal')">Validar</span></div>
+        <div class="flex items-center gap-3 text-sm border-b border-borde/50 pb-2"><span class="font-semibold w-16">09:30</span><span class="flex-1">Maria Lopez · Tinte</span><span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-info border border-blue-200">Curso</span><span class="text-xs text-texto-secundario w-20">Norte</span><span class="text-xs text-exito font-medium ml-2">$60.000</span></div>
+        <div class="flex items-center gap-3 text-sm border-b border-borde/50 pb-2"><span class="font-semibold w-16">10:00</span><span class="flex-1">Carlos Ruiz · Barba</span><span class="text-xs px-2 py-0.5 rounded-full bg-green-50 text-exito border border-green-200">Cobrado</span><span class="text-xs text-texto-secundario w-20">Centro</span><span class="text-xs text-exito font-medium">$15.000</span></div>
+        <div class="flex items-center gap-3 text-sm"><span class="font-semibold w-16">11:00</span><span class="flex-1">Ana Gomez · Corte</span><span class="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-advertencia border border-amber-200">Pend.</span><span class="text-xs text-texto-secundario w-20">Centro</span></div>
+      </div>
+    </div>
+    <div class="fixed bottom-0 left-0 right-0 bg-superficie/95 backdrop-blur border-t border-borde p-3 z-40"><div class="max-w-7xl mx-auto flex flex-wrap gap-2 justify-center">
+      <button onclick="openModal('validar-qr-modal')" class="px-4 py-2 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer shadow-sm">Validar QR</button>
+      <button onclick="openSheet('empleados')" class="px-4 py-2 bg-fondo text-texto-principal border border-borde rounded-lg text-sm font-medium hover:bg-superficie transition cursor-pointer">Empleados</button>
+      <button onclick="openSheet('servicios')" class="px-4 py-2 bg-fondo text-texto-principal border border-borde rounded-lg text-sm font-medium hover:bg-superficie transition cursor-pointer">Servicios</button>
+      <button onclick="openSheet('sedes')" class="px-4 py-2 bg-fondo text-texto-principal border border-borde rounded-lg text-sm font-medium hover:bg-superficie transition cursor-pointer">Sedes</button>
+      <button onclick="openSheet('horarios')" class="px-4 py-2 bg-fondo text-texto-principal border border-borde rounded-lg text-sm font-medium hover:bg-superficie transition cursor-pointer">Horarios</button>
+      <button onclick="openSheet('reportes')" class="px-4 py-2 bg-fondo text-texto-principal border border-borde rounded-lg text-sm font-medium hover:bg-superficie transition cursor-pointer">Reportes</button>
+      <button onclick="openSheet('moderar')" class="px-4 py-2 bg-fondo text-texto-principal border border-borde rounded-lg text-sm font-medium hover:bg-superficie transition cursor-pointer">Moderar</button>
+      <button onclick="openSheet('logs')" class="px-4 py-2 bg-fondo text-texto-principal border border-borde rounded-lg text-sm font-medium hover:bg-superficie transition cursor-pointer">Logs</button>
+    </div></div>
+  </div>
+</section>
+
+<!-- ===== ADMIN SHEETS ===== -->
+<div id="sheet-overlay" class="fixed inset-0 z-50 overlay hidden" onclick="closeSheet()"></div>
+<div id="sheet-panel" class="sheet">
+  <div class="p-6">
+    <div class="flex items-center justify-between mb-6"><h2 class="font-display text-xl font-bold text-texto-principal" id="sheet-title">Titulo</h2><button onclick="closeSheet()" class="text-texto-secundario hover:text-texto-principal cursor-pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div id="sheet-content"></div>
+  </div>
+</div>
+
+<div id="toast-guardado" class="hidden fixed top-20 left-1/2 -translate-x-1/2 bg-exito text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium z-50"><span>Guardado correctamente</span></div>
+
+<script>
+/* ===== TEMPLATES PARA SHEETS ===== */
+var sheetTemplates = {
+  empleados: '<div class="mb-4"><button class="px-4 py-2 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer">+ Nuevo empleado</button></div><div class="space-y-3"><div class="bg-fondo rounded-xl p-4 border border-borde flex items-center justify-between"><div><p class="font-semibold">Carlos Gomez</p><p class="text-xs text-texto-secundario">carlos@sgp.local · Sede Centro</p></div><div class="flex gap-2"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span><button class="text-xs text-texto-secundario hover:text-primario cursor-pointer">Editar</button><button class="text-xs text-error hover:underline cursor-pointer">Eliminar</button></div></div><div class="bg-fondo rounded-xl p-4 border border-borde flex items-center justify-between"><div><p class="font-semibold">Ana Ruiz</p><p class="text-xs text-texto-secundario">ana@sgp.local · Sede Norte</p></div><div class="flex gap-2"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span><button class="text-xs text-texto-secundario hover:text-primario cursor-pointer">Editar</button><button class="text-xs text-error hover:underline cursor-pointer">Eliminar</button></div></div><div class="bg-fondo rounded-xl p-4 border border-borde flex items-center justify-between"><div><p class="font-semibold">Luis Diaz</p><p class="text-xs text-texto-secundario">luis@sgp.local · Sede Centro</p></div><div class="flex gap-2"><span class="text-xs px-2 py-1 rounded-full bg-red-50 text-error border border-red-200">Bloqueado</span><button class="text-xs text-texto-secundario hover:text-primario cursor-pointer">Editar</button></div></div></div>',
+  servicios: '<div class="mb-4"><button class="px-4 py-2 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer">+ Nuevo servicio</button></div><div class="space-y-3"><div class="bg-fondo rounded-xl p-4 border border-borde"><div class="flex justify-between mb-2"><p class="font-semibold">Corte clasico</p><p class="font-bold text-primario">$25.000</p></div><p class="text-xs text-texto-secundario">30 min · 3 empleados asignados</p></div><div class="bg-fondo rounded-xl p-4 border border-borde"><div class="flex justify-between mb-2"><p class="font-semibold">Barba</p><p class="font-bold text-primario">$15.000</p></div><p class="text-xs text-texto-secundario">20 min · 2 empleados asignados</p></div><div class="bg-fondo rounded-xl p-4 border border-borde"><div class="flex justify-between mb-2"><p class="font-semibold">Tinte</p><p class="font-bold text-primario">$60.000</p></div><p class="text-xs text-texto-secundario">90 min · 2 empleados asignados</p></div><div class="bg-fondo rounded-xl p-4 border border-borde"><div class="flex justify-between mb-2"><p class="font-semibold">Corte + Barba</p><p class="font-bold text-primario">$35.000</p></div><p class="text-xs text-texto-secundario">45 min · 3 empleados asignados</p></div></div>',
+  sedes: '<div class="mb-4"><button class="px-4 py-2 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer">+ Nueva sede</button></div><div class="space-y-3"><div class="bg-fondo rounded-xl p-4 border border-borde"><div class="flex justify-between items-start"><div><p class="font-semibold">Sede Centro</p><p class="text-xs text-texto-secundario">Calle 123 #45-67, Bogota</p><p class="text-xs text-texto-secundario mt-1">Coordenadas: 4.7110, -74.0721</p></div><div class="flex gap-1"><button class="text-xs px-2 py-1 border border-borde rounded hover:bg-superficie cursor-pointer">Editar</button><button class="text-xs px-2 py-1 border border-error/20 rounded text-error hover:bg-error/5 cursor-pointer">Eliminar</button></div></div><div class="h-32 bg-borde/10 rounded-lg mt-3 flex items-center justify-center"><span class="text-xs text-texto-secundario">📍 Mapa: Calle 123 #45-67</span></div></div><div class="bg-fondo rounded-xl p-4 border border-borde"><div class="flex justify-between items-start"><div><p class="font-semibold">Sede Norte</p><p class="text-xs text-texto-secundario">Carrera 10 #89-12, Bogota</p><p class="text-xs text-texto-secundario mt-1">Coordenadas: 4.7320, -74.0550</p></div><div class="flex gap-1"><button class="text-xs px-2 py-1 border border-borde rounded hover:bg-superficie cursor-pointer">Editar</button><button class="text-xs px-2 py-1 border border-error/20 rounded text-error hover:bg-error/5 cursor-pointer">Eliminar</button></div></div><div class="h-32 bg-borde/10 rounded-lg mt-3 flex items-center justify-center"><span class="text-xs text-texto-secundario">📍 Mapa: Carrera 10 #89-12</span></div></div></div><div class="mt-4 bg-fondo rounded-xl p-4 border border-borde"><h4 class="text-sm font-semibold mb-3">Agregar o editar coordenadas</h4><div class="space-y-3"><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-medium mb-1">Latitud</label><input type="text" placeholder="4.7110" class="w-full px-3 py-2 border border-borde rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primario/30"></div><div><label class="block text-xs font-medium mb-1">Longitud</label><input type="text" placeholder="-74.0721" class="w-full px-3 py-2 border border-borde rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primario/30"></div></div><div class="h-40 bg-borde/10 rounded-lg flex items-center justify-center"><span class="text-xs text-texto-secundario">Haz clic en el mapa o ingresa coordenadas manualmente</span></div><button class="w-full py-2 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer">Guardar coordenadas</button></div></div>',
+  horarios: '<div class="mb-4"><label class="block text-sm font-medium text-texto-principal mb-2">Sede</label><select class="w-full px-3 py-2 border border-borde rounded-lg bg-fondo mb-4"><option>Centro</option><option>Norte</option></select></div><div class="space-y-2"><div class="flex items-center gap-3 bg-fondo rounded-xl p-3 border border-borde"><span class="w-16 text-sm font-semibold">Lunes</span><input type="time" value="09:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs">a</span><input type="time" value="18:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span></div><div class="flex items-center gap-3 bg-fondo rounded-xl p-3 border border-borde"><span class="w-16 text-sm font-semibold">Martes</span><input type="time" value="09:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs">a</span><input type="time" value="18:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span></div><div class="flex items-center gap-3 bg-fondo rounded-xl p-3 border border-borde"><span class="w-16 text-sm font-semibold">Miercoles</span><input type="time" value="09:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs">a</span><input type="time" value="18:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span></div><div class="flex items-center gap-3 bg-fondo rounded-xl p-3 border border-borde"><span class="w-16 text-sm font-semibold">Jueves</span><input type="time" value="09:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs">a</span><input type="time" value="18:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span></div><div class="flex items-center gap-3 bg-fondo rounded-xl p-3 border border-borde"><span class="w-16 text-sm font-semibold">Viernes</span><input type="time" value="09:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs">a</span><input type="time" value="18:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span></div><div class="flex items-center gap-3 bg-fondo rounded-xl p-3 border border-borde"><span class="w-16 text-sm font-semibold">Sabado</span><input type="time" value="09:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs">a</span><input type="time" value="14:00" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span></div><div class="flex items-center gap-3 bg-fondo rounded-xl p-3 border border-borde opacity-50"><span class="w-16 text-sm font-semibold">Domingo</span><input type="time" value="" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie" disabled><span class="text-xs">a</span><input type="time" value="" class="px-2 py-1.5 border border-borde rounded text-sm bg-superficie" disabled><span class="text-xs px-2 py-1 rounded-full bg-fondo text-texto-secundario border border-borde">Descanso</span></div></div><button class="w-full mt-4 py-2.5 bg-primario text-white rounded-lg text-sm font-medium cursor-pointer">Guardar horarios</button>',
+  reportes: '<div class="flex gap-1 bg-fondo rounded-lg p-1 mb-6 w-fit"><button onclick="switchReporte(\'ventas\')" id="rep-tab-ventas" class="px-4 py-1.5 rounded-md text-xs font-medium bg-superficie shadow-sm text-primario">Ventas</button><button onclick="switchReporte(\'ocupacion\')" id="rep-tab-ocupacion" class="px-4 py-1.5 rounded-md text-xs font-medium text-texto-secundario">Ocupacion</button><button onclick="switchReporte(\'recurrentes\')" id="rep-tab-recurrentes" class="px-4 py-1.5 rounded-md text-xs font-medium text-texto-secundario">Recurrentes</button></div><div id="rep-view-ventas"><div class="bg-fondo rounded-xl p-4 mb-4"><h3 class="font-semibold mb-2">Ventas: 30 Mayo 2026</h3><div class="flex justify-between text-sm mb-1"><span>Total</span><span class="font-bold text-primario">$450.000</span></div><div class="space-y-1 mt-3"><div class="flex justify-between text-sm"><span>Corte (8)</span><span>$200.000</span></div><div class="flex justify-between text-sm"><span>Barba (5)</span><span>$75.000</span></div><div class="flex justify-between text-sm"><span>Tinte (3)</span><span>$180.000</span></div></div><div class="mt-3 text-xs text-texto-secundario">Fisico: 70% | Digital: 30%</div></div></div><div id="rep-view-ocupacion" class="hidden"><div class="bg-fondo rounded-xl p-4"><h3 class="font-semibold mb-2">Ocupacion: 30 Mayo 2026</h3><p class="text-sm">Citas: 18 | Completadas: 14 | Canceladas: 2 | No-show: 2</p><div class="mt-3 space-y-1"><div class="flex justify-between text-sm"><span>Centro</span><span>80% (8/10)</span></div><div class="w-full h-2 bg-borde rounded-full"><div class="h-full w-4/5 bg-primario rounded-full"></div></div><div class="flex justify-between text-sm mt-2"><span>Norte</span><span>67% (4/6)</span></div><div class="w-full h-2 bg-borde rounded-full"><div class="h-full w-2/3 bg-primario rounded-full"></div></div></div></div></div><div id="rep-view-recurrentes" class="hidden"><div class="bg-fondo rounded-xl p-4"><h3 class="font-semibold mb-2">Clientes recurrentes (ultimos 30 dias)</h3><div class="space-y-2 mt-3"><div class="flex justify-between text-sm"><span>Juan Perez</span><span class="font-semibold">5 visitas</span></div><div class="flex justify-between text-sm"><span>Maria Lopez</span><span class="font-semibold">4 visitas</span></div><div class="flex justify-between text-sm"><span>Carlos Ruiz</span><span class="font-semibold">3 visitas</span></div></div></div></div>',
+  moderar: '<div class="space-y-3"><div class="bg-fondo rounded-xl p-4 border border-borde flex items-center justify-between"><div><p class="font-semibold">Juan Perez</p><p class="text-xs text-texto-secundario">juan@mail.com · 5 reservas activas</p></div><div class="flex items-center gap-2"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span><button class="text-xs px-2 py-1 bg-error/10 text-error rounded border border-error/20 hover:bg-error/20 cursor-pointer">Bloquear</button></div></div><div class="bg-fondo rounded-xl p-4 border border-borde flex items-center justify-between"><div><p class="font-semibold">Maria Lopez</p><p class="text-xs text-texto-secundario">maria@mail.com · 2 reservas activas</p></div><div class="flex items-center gap-2"><span class="text-xs px-2 py-1 rounded-full bg-green-50 text-exito border border-green-200">Activo</span><button class="text-xs px-2 py-1 bg-error/10 text-error rounded border border-error/20 hover:bg-error/20 cursor-pointer">Bloquear</button></div></div><div class="bg-fondo rounded-xl p-4 border border-borde flex items-center justify-between opacity-70"><div><p class="font-semibold">Pedro Ruiz</p><p class="text-xs text-texto-secundario">pedro@mail.com · 0 reservas</p></div><div class="flex items-center gap-2"><span class="text-xs px-2 py-1 rounded-full bg-red-50 text-error border border-red-200">Bloqueado</span><button class="text-xs px-2 py-1 bg-exito/10 text-exito rounded border border-exito/20 hover:bg-exito/20 cursor-pointer">Desbloquear</button></div></div></div>',
+  logs: '<div class="flex gap-1 bg-fondo rounded-lg p-1 mb-4 w-fit"><button onclick="switchLog(\'actividad\')" id="log-tab-actividad" class="px-4 py-1.5 rounded-md text-xs font-medium bg-superficie shadow-sm text-primario">logs.txt</button><button onclick="switchLog(\'errores\')" id="log-tab-errores" class="px-4 py-1.5 rounded-md text-xs font-medium text-texto-secundario">errores.txt</button></div><div class="mb-3 flex gap-2"><input type="text" placeholder="Buscar..." class="flex-1 px-3 py-1.5 border border-borde rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primario/30"><select class="px-3 py-1.5 border border-borde rounded-lg text-xs bg-fondo"><option>Todos</option><option>INFO</option><option>WARN</option><option>ERROR</option></select></div><div id="log-view-actividad" class="bg-gray-900 text-green-400 rounded-xl p-4 font-mono text-xs h-96 overflow-y-auto whitespace-pre-wrap">[2026-06-01 09:00:15] INFO  POST /api/auth/login 200 admin@sgp.local\n[2026-06-01 09:00:30] INFO  POST /api/reservas 201 cliente Juan Perez\n[2026-06-01 09:05:12] INFO  POST /api/checkin/validar 200 reserva #42 check-in\n[2026-06-01 09:15:00] INFO  POST /api/cobros 201 $25.000 metodo=fisico\n[2026-06-01 09:30:22] INFO  POST /api/auth/login 200 empleado@sgp.local\n[2026-06-01 10:00:05] INFO  GET /api/reservas 200 filtro=sede:Centro\n[2026-06-01 10:15:33] INFO  POST /api/cobros 201 $60.000 metodo=digital\n[2026-06-01 11:00:00] WARN  Rate limit alcanzado IP 192.168.1.50</div><div id="log-view-errores" class="hidden bg-gray-900 text-red-400 rounded-xl p-4 font-mono text-xs h-96 overflow-y-auto whitespace-pre-wrap">[2026-06-01 08:45:00] ERROR DB connection timeout postgresql://db:5432\n[2026-06-01 10:12:00] ERROR POST /api/reservas 409 Conflicto de horario\n[2026-06-01 11:30:00] ERROR POST /api/checkin/validar 404 QR no encontrado\n[2026-06-01 14:22:00] ERROR PUT /api/clientes/me 422 Telefono invalido</div><button class="mt-4 text-xs text-primario hover:underline cursor-pointer">Exportar a .txt</button><button onclick="exportarLogs()" class="ml-2 mt-4 text-xs text-primario hover:underline cursor-pointer">Exportar a .csv</button>'
+};
+
+/* ===== FUNCIONES GLOBALES ===== */
+function showTab(name) {
+  closeAllModals();
+  document.querySelectorAll('section[id^="seccion-"]').forEach(function(s){ s.classList.add('hidden'); });
+  var sec = document.getElementById('seccion-' + name);
+  if (sec) sec.classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('bg-superficie','shadow-sm','text-primario'); b.classList.add('text-texto-secundario'); });
+  var active = document.getElementById('tab-' + name);
+  if (active) { active.classList.add('bg-superficie','shadow-sm','text-primario'); active.classList.remove('text-texto-secundario'); }
+  if (name === 'empleado') empleadoTab('citas');
+  if (name === 'cliente') clienteTab('dashboard');
+  window.scrollTo(0,0);
+}
+
+function closeAllModals() {
+  closeSheet();
+  document.querySelectorAll('.overlay, [id$="-modal"]').forEach(function(m){ m.classList.add('hidden'); });
+}
+
+function showToast(msg) {
+  var toast = document.getElementById('toast-guardado');
+  toast.querySelector('span').textContent = msg;
+  toast.classList.remove('hidden');
+  setTimeout(function(){ toast.classList.add('hidden'); }, 3500);
+}
+
+/* ===== CLIENTE ===== */
+function clienteTab(name) {
+  document.getElementById('cli-view-dashboard').classList.add('hidden');
+  document.getElementById('cli-view-perfil').classList.add('hidden');
+  document.getElementById('cli-view-' + name).classList.remove('hidden');
+  document.querySelectorAll('.cli-tab-btn').forEach(function(b){ b.classList.remove('bg-superficie','shadow-sm','text-primario'); b.classList.add('text-texto-secundario'); });
+  document.getElementById('cli-tab-' + name).classList.add('bg-superficie','shadow-sm','text-primario');
+}
+
+/* ===== RESERVA ===== */
+var currentStep=1,selectedUbicacion='',selectedUbicacionDir='',selectedEmpleado='',currentSlotDay='',currentSlotTime='',currentSlotEnd='',peopleCount=1,currentServicio='Corte clasico',currentPrecio=25000;
+
+function selectUbicacion(n,d,lat,lng) {
+  selectedUbicacion=n;selectedUbicacionDir=d;
+  document.querySelectorAll('.ubicacion-card').forEach(function(c){c.classList.remove('border-primario','bg-primario/5')});
+  event.target.closest('.ubicacion-card').classList.add('border-primario','bg-primario/5');
+  document.getElementById('mapa-sede-nombre').textContent=n;
+  document.getElementById('mapa-container').classList.add('hidden');
+  document.getElementById('mapa-embed').classList.remove('hidden');
+  document.getElementById('mapa-iframe').src='https://www.openstreetmap.org/export/embed.html?bbox='+(parseFloat(lng)-0.005)+'%2C'+(parseFloat(lat)-0.003)+'%2C'+(parseFloat(lng)+0.005)+'%2C'+(parseFloat(lat)+0.003)+'&layer=mapnik&marker='+lat+'%2C'+lng;
+  document.getElementById('btn-siguiente-ubicacion').classList.remove('hidden');
+}
+
+function selectEmpleado(n) {
+  selectedEmpleado=n;
+  document.querySelectorAll('.empleado-card').forEach(function(c){c.classList.remove('border-primario','bg-primario/5')});
+  event.target.closest('.empleado-card').classList.add('border-primario','bg-primario/5');
+  setTimeout(function(){goToStep(3)},300);
+}
+
+function goToStep(s) {
+  currentStep=s;
+  document.querySelectorAll('[id^="step-"][id$="-content"]').forEach(function(e){e.classList.add('hidden')});
+  var el=document.getElementById('step-'+s+'-content');if(el)el.classList.remove('hidden');
+  for(var i=1;i<=6;i++){var b=document.getElementById('step-'+i+'-badge');if(!b)continue;b.classList.remove('step-active','step-done','step-pending');b.classList.add(i===s?'step-active':i<s?'step-done':'step-pending')}
+  var sl=document.getElementById('sede-label');if(sl)sl.textContent=selectedUbicacion;
+  var sl3=document.getElementById('sede-label-3');if(sl3)sl3.textContent=selectedUbicacion;
+  var el2=document.getElementById('empleado-label');if(el2)el2.textContent=selectedEmpleado;
+}
+
+function openReservaModal(day,time,end) {
+  if(!selectedUbicacion||!selectedEmpleado)return;
+  currentSlotDay=day;currentSlotTime=time;currentSlotEnd=end;peopleCount=1;
+  document.getElementById('modal-dia').textContent=day;document.getElementById('modal-hora').textContent=time+' - '+end;
+  document.getElementById('modal-empleado').textContent=selectedEmpleado;document.getElementById('modal-sede').textContent=selectedUbicacion;
+  document.getElementById('people-count').textContent='1';updateServiceInfo();
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function updateServiceInfo(){var s=document.querySelector('input[name="servicio"]:checked');if(!s)return;var d=parseInt(s.dataset.duracion),p=parseInt(s.dataset.precio),t=currentSlotTime.split(':'),h=parseInt(t[0]),m=parseInt(t[1])+d;h+=Math.floor(m/60);m=m%60;var sal=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');document.getElementById('modal-duracion').textContent=d+' min';document.getElementById('modal-salida').textContent=sal;document.getElementById('modal-precio').textContent='$'+p.toLocaleString('es-CO')}
+document.addEventListener('change',function(e){if(e.target.name==='servicio')updateServiceInfo()});
+function changePeople(d){peopleCount=Math.max(1,Math.min(5,peopleCount+d));document.getElementById('people-count').textContent=peopleCount}
+function confirmarReserva(){var s=document.querySelector('input[name="servicio"]:checked');currentServicio=s.value;currentPrecio=parseInt(s.dataset.precio);document.getElementById('confirm-detalle').innerHTML=currentSlotDay+' · '+currentSlotTime+' - '+currentSlotEnd+'<br>'+currentServicio+' · '+selectedEmpleado+' · Sede '+selectedUbicacion;document.getElementById('pago-servicio').textContent=currentServicio;document.getElementById('pago-total').textContent='$'+currentPrecio.toLocaleString('es-CO');document.getElementById('modal-overlay').classList.add('hidden');goToStep(4)}
+function showPago(t){if(t==='online')goToStep(5)}
+function pagarEfectivo(){resetReserva();showTab('cliente')}
+function confirmarPagoOnline(){document.getElementById('pago-exito-titulo').textContent='Pago exitoso';document.getElementById('pago-exito-detalle').textContent='Reserva y pago de $'+currentPrecio.toLocaleString('es-CO')+' registrados';goToStep(6)}
+function irAlInicio(){resetReserva();showTab('cliente')}
+function closeModal(e){if(e.target===document.getElementById('modal-overlay'))document.getElementById('modal-overlay').classList.add('hidden')}
+function resetReserva(){selectedUbicacion='';selectedUbicacionDir='';selectedEmpleado='';currentSlotDay='';currentSlotTime='';peopleCount=1;document.querySelectorAll('.ubicacion-card,.empleado-card').forEach(function(c){c.classList.remove('border-primario','bg-primario/5')});document.querySelector('input[name="servicio"][value="Corte clasico"]').checked=true;goToStep(1)}
+function cambiarGranularidadReserva(v){showToast('Granularidad: '+v+' min. Los slots se ajustaran a esta duracion.')}
+function filtrarRangoCalendario(){var d=document.getElementById('rango-desde').value,h=document.getElementById('rango-hasta').value;showToast('Rango ajustado: '+d+' a '+h+'. El calendario se filtrara a este rango.')}
+function cancelarReserva(e,servicio){e.stopPropagation();showToast('Reserva de '+servicio+' cancelada. Se actualizara el kanban.')}
+
+/* ===== EMPLEADO ===== */
+function empleadoTab(name) {
+  document.getElementById('emp-view-citas').classList.add('hidden');
+  document.getElementById('emp-view-dispo').classList.add('hidden');
+  document.getElementById('emp-view-perfil').classList.add('hidden');
+  var v=document.getElementById('emp-view-'+name);if(v)v.classList.remove('hidden');
+  document.querySelectorAll('.emp-tab-btn').forEach(function(b){b.classList.remove('bg-superficie','shadow-sm','text-primario');b.classList.add('text-texto-secundario')});
+  var t=document.getElementById('emp-tab-'+name);if(t){t.classList.add('bg-superficie','shadow-sm','text-primario')}
+  if(name==='dispo'){initDispoGrid();buildDispoTable()}
+}
+
+/* ===== DISPONIBILIDAD ===== */
+var dispoGrid=[],dispoBloqueos=[],dispoGranularidad=60,SLOTS_MIN=360,SLOTS_MAX=1320,sedeAdvShown=false;
+function advertirCambioSede(){if(sedeAdvShown)return;sedeAdvShown=true;showToast('Al cambiar de sede se cancelaran tus reservas futuras en la sede anterior. Confirma los cambios al guardar.')}
+function getSlotCount(){return(SLOTS_MAX-SLOTS_MIN)/dispoGranularidad}
+function initDispoGrid(){var s=getSlotCount();dispoGrid=[];for(var i=0;i<s;i++){var r=[],m=SLOTS_MIN+i*dispoGranularidad,h=Math.floor(m/60);for(var d=0;d<7;d++){var v=0;if(d===6)v=0;else if(d===2||d===3)v=(h>=11&&h<19)?2:0;else if(d===5)v=(h>=9&&h<14)?1:0;else v=(h>=9&&h<18)?1:0;r.push(v)}dispoGrid.push(r)}aplicarBloqueos()}
+function aplicarBloqueos(){var s=getSlotCount();for(var b=0;b<dispoBloqueos.length;b++){var bl=dispoBloqueos[b];for(var i=0;i<s;i++){var ma=SLOTS_MIN+i*dispoGranularidad;for(var d=bl.diaDesde;d<=bl.diaHasta;d++){if(ma>=bl.minDesde&&ma<bl.minHasta)dispoGrid[i][d]=3}}}}
+function buildDispoTable(){var t=document.getElementById('dispo-grid-body');if(!t)return;var s=getSlotCount(),h='';for(var i=0;i<s;i++){var m=SLOTS_MIN+i*dispoGranularidad,hh=Math.floor(m/60),mm=m%60,hr=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');h+='<tr>';h+='<td class="sticky left-0 bg-superficie z-10 border-b border-borde/50 py-1 px-2 text-xs font-medium text-texto-secundario whitespace-nowrap">'+hr+'</td>';for(var d=0;d<7;d++){var v=dispoGrid[i][d],bg='#FAF7F2';if(v===1)bg='#DCE8E0';else if(v===2)bg='#DCE8F2';else if(v===3)bg='#F2D8D5';h+='<td class="border-b border-r border-borde/30 py-1 px-1 cursor-pointer transition hover:ring-2 hover:ring-primario/40 hover:z-10" style="background:'+bg+'" onclick="toggleCelda('+i+','+d+')" onmousedown="startDrag(event,'+i+','+d+')" onmouseover="dragOver(event,'+i+','+d+')" title="'+(v===1?'Centro':v===2?'Norte':v===3?'No disponible':'Descanso')+'"></td>'}h+='</tr>'}t.innerHTML=h}
+var dragActive=false,dragValue=0;
+function startDrag(e,r,c){dragActive=true;if(dispoGrid[r][c]===3)return;dragValue=(dispoGrid[r][c]+1)%3;setCelda(r,c,dragValue);e.preventDefault()}
+function dragOver(e,r,c){if(!dragActive||dispoGrid[r][c]===3)return;setCelda(r,c,dragValue)}
+document.addEventListener('mouseup',function(){dragActive=false});
+function toggleCelda(r,c){if(dispoGrid[r][c]===3)return;setCelda(r,c,(dispoGrid[r][c]+1)%3)}
+function setCelda(r,c,v){if(!dispoGrid[r])return;var prev=dispoGrid[r][c];dispoGrid[r][c]=v;var t=document.getElementById('dispo-grid-body');if(!t||!t.rows[r])return;var bg='#FAF7F2';if(v===1)bg='#DCE8E0';else if(v===2)bg='#DCE8F2';var cell=t.rows[r].cells[c+1];cell.style.background=bg;cell.title=v===1?'Centro':v===2?'Norte':'Descanso';if((prev===1&&v===2)||(prev===2&&v===1))advertirCambioSede()}
+function cambiarGranularidad(v){dispoGranularidad=parseInt(v);initDispoGrid();buildDispoTable();renderBloqueosLista()}
+function agregarBloqueo(){var dd=parseInt(document.getElementById('bloqueo-dia-desde').value),dh=parseInt(document.getElementById('bloqueo-dia-hasta').value),hd=document.getElementById('bloqueo-hora-desde').value.split(':'),hh=document.getElementById('bloqueo-hora-hasta').value.split(':'),md=parseInt(hd[0])*60+parseInt(hd[1]),mh=parseInt(hh[0])*60+parseInt(hh[1]);if(md>=mh||dd>dh)return;dispoBloqueos.push({diaDesde:dd,diaHasta:dh,minDesde:md,minHasta:mh});initDispoGrid();buildDispoTable();renderBloqueosLista()}
+function eliminarBloqueo(i){dispoBloqueos.splice(i,1);initDispoGrid();buildDispoTable();renderBloqueosLista()}
+var diasN=['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+function renderBloqueosLista(){var l=document.getElementById('bloqueos-lista');if(!l)return;if(!dispoBloqueos.length){l.innerHTML='<div class="text-xs text-texto-secundario/50 text-center py-2">Sin bloqueos</div>';return}var h='';for(var i=0;i<dispoBloqueos.length;i++){var b=dispoBloqueos[i],hd=String(Math.floor(b.minDesde/60)).padStart(2,'0')+':'+String(b.minDesde%60).padStart(2,'0'),hh=String(Math.floor(b.minHasta/60)).padStart(2,'0')+':'+String(b.minHasta%60).padStart(2,'0');h+='<div class="flex items-center justify-between bg-error/5 rounded-lg px-3 py-2 text-xs border border-error/10"><span>'+diasN[b.diaDesde]+'-'+diasN[b.diaHasta]+' '+hd+'-'+hh+'</span><button onclick="eliminarBloqueo('+i+')" class="text-error hover:text-error/70 font-bold cursor-pointer">X</button></div>'}l.innerHTML=h}
+function guardarDisponibilidad(){var c=0,n=0,b=0,d=0;for(var i=0;i<dispoGrid.length;i++)for(var j=0;j<7;j++){if(dispoGrid[i][j]===1)c++;else if(dispoGrid[i][j]===2)n++;else if(dispoGrid[i][j]===3)b++;else d++}showToast('Guardado. Centro: '+(c*dispoGranularidad/60).toFixed(1)+'h | Norte: '+(n*dispoGranularidad/60).toFixed(1)+'h | Bloq: '+b+' slots')}
+
+/* ===== MODALES ===== */
+function openModal(id){var m=document.getElementById(id);if(m)m.classList.remove('hidden')}
+function closeModalDirect(){var modals=['validar-qr-modal','modal-overlay'];for(var i=0;i<modals.length;i++){var m=document.getElementById(modals[i]);if(m)m.classList.add('hidden')}}
+
+/* ===== LOGIN / REGISTRO ===== */
+function showLogin(){document.getElementById('login-form').classList.remove('hidden');document.getElementById('registro-form').classList.add('hidden')}
+function showRegistro(){document.getElementById('login-form').classList.add('hidden');document.getElementById('registro-form').classList.remove('hidden')}
+
+/* ===== SHEETS ADMIN ===== */
+function openSheet(name) {
+  document.getElementById('sheet-title').textContent={
+    empleados:'Gestion de empleados',servicios:'Catalogo de servicios',sedes:'Sedes',horarios:'Horarios globales',reportes:'Reportes',moderar:'Moderar clientes',logs:'Gestor de logs'
+  }[name]||name;
+  document.getElementById('sheet-content').innerHTML=sheetTemplates[name]||'';
+  document.getElementById('sheet-overlay').classList.remove('hidden');
+  document.getElementById('sheet-panel').classList.add('open');
+}
+function closeSheet(){document.getElementById('sheet-overlay').classList.add('hidden');document.getElementById('sheet-panel').classList.remove('open')}
+
+/* ===== REPORTES TABS ===== */
+function switchReporte(name) {
+  document.getElementById('rep-view-ventas').classList.add('hidden');
+  document.getElementById('rep-view-ocupacion').classList.add('hidden');
+  document.getElementById('rep-view-recurrentes').classList.add('hidden');
+  document.getElementById('rep-view-'+name).classList.remove('hidden');
+  ['ventas','ocupacion','recurrentes'].forEach(function(t){var b=document.getElementById('rep-tab-'+t);b.classList.remove('bg-superficie','shadow-sm','text-primario');b.classList.add('text-texto-secundario')});
+  document.getElementById('rep-tab-'+name).classList.add('bg-superficie','shadow-sm','text-primario');
+}
+function switchLog(name) {
+  document.getElementById('log-view-actividad').classList.add('hidden');
+  document.getElementById('log-view-errores').classList.add('hidden');
+  document.getElementById('log-view-'+name).classList.remove('hidden');
+  ['actividad','errores'].forEach(function(t){var b=document.getElementById('log-tab-'+t);b.classList.remove('bg-superficie','shadow-sm','text-primario');b.classList.add('text-texto-secundario')});
+  document.getElementById('log-tab-'+name).classList.add('bg-superficie','shadow-sm','text-primario');
+}
+function exportarLogs(){showToast('Logs exportados correctamente. Se descargara el archivo.')}
+</script>
+</body>
+</html>

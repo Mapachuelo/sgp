@@ -1,4 +1,6 @@
-.env
 node_modules/
+.env
+logs.txt
+errores.txt
 dist/
-importar/
+*.log

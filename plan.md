@@ -10,13 +10,15 @@
 | Backend | Node.js + Express (CommonJS) | 22 / 4 |
 | BD | PostgreSQL Alpine | 17 |
 | BD driver | pg (raw SQL, sin ORM) | latest |
-| Auth | JWT (jsonwebtoken) + bcryptjs | latest |
+| Auth | JWT (jsonwebtoken) + bcryptjs + AES-256 (crypto) + helmet | latest |
 | QR | qrcode | latest |
 | Realtime | WebSocket (ws) | latest |
 | Logs | Pino (logs.txt + errores.txt) | latest |
+| Lint | ESLint + Prettier | latest |
 | Mapas | Leaflet + react-leaflet | latest |
 | Monorepo | pnpm workspaces | 10 |
 | Contenedores | Podman + podman-compose | latest |
+| Seguridad | HTTPS (Nginx reverse proxy + Let's Encrypt) | latest |
 
 ## Convencion de idioma en codigo
 
@@ -46,11 +48,11 @@
 |-------|----------|
 | Login | Registrarse |
 | Ver dashboard con citas del dia | Ver reportes |
-| Validar QR (camara + manual) | CRUD empleados |
-| Registrar cobro (fisico/digital) | CRUD servicios |
-| Ver mapa de sede donde trabaja hoy | CRUD ubicaciones |
-| Autogestionar disponibilidad semanal por sede | Configurar horarios globales |
-| Editar perfil | Bloquear clientes |
+| Validar QR y cobrar en efectivo (en un solo paso) | CRUD empleados |
+| Ver mapa de sede donde trabaja hoy | CRUD servicios |
+| Autogestionar disponibilidad semanal por sede | CRUD ubicaciones |
+| Editar perfil | Configurar horarios globales |
+| | Bloquear clientes |
 | | Acceder a portal admin |
 
 ### Administrador
@@ -90,12 +92,16 @@ sgp/
 │       ├── contexto.md
 │       └── architecture.md
 ├── docs/
-│   ├── formato_ieee830.md
-│   ├── historias_usuario.md
-│   ├── ficha_tecnica.md
-│   ├── manual_tecnico.md
-│   ├── manual_usuario.md
-│   └── ...
+│   ├── ieee830/
+│   │   └── formato_ieee830.md
+│   ├── requisitos/
+│   │   └── historias_usuario.md
+│   ├── tecnicos/
+│   │   ├── ficha_tecnica.md
+│   │   ├── manual_tecnico.md
+│   │   └── despliegue.md
+│   └── usuario/
+│       └── manual_usuario.md
 ├── db/
 │   └── init.sql
 ├── frontend/
@@ -106,42 +112,41 @@ sgp/
 │   ├── index.html
 │   └── src/
 │       ├── main.jsx
-│       ├── App.jsx
+│       ├── app.jsx
 │       ├── index.css
 │       ├── api/
 │       │   └── cliente.js
 │       ├── contexto/
-│       │   └── AuthContext.jsx
+│       │   └── auth-context.jsx
 │       ├── hooks/
-│       │   └── useAuth.js
+│       │   └── use-auth.js
 │       ├── componentes/
 │       │   ├── ui/             # shadcn/ui (Button, Card, Input, Dialog, Sheet, Select, Table...)
-│       │   ├── RutaProtegida.jsx
-│       │   └── Layout.jsx
+│       │   ├── ruta-protegida.jsx
+│       │   └── layout.jsx
 │       ├── funcionalidades/
 │       │   ├── auth/
-│       │   │   ├── LoginPage.jsx
-│       │   │   └── RegistroPage.jsx
+│       │   │   ├── login-page.jsx
+│       │   │   └── registro-page.jsx
 │       │   ├── cliente/
-│       │   │   ├── ClienteDashboard.jsx
-│       │   │   ├── NuevaReserva.jsx
-│       │   │   ├── MisReservas.jsx (kanban + mapa)
-│       │   │   └── MiPerfil.jsx
+│       │   │   ├── cliente-dashboard.jsx
+│       │   │   ├── nueva-reserva.jsx
+│       │   │   ├── mis-reservas.jsx (kanban + mapa)
+│       │   │   └── mi-perfil.jsx
 │       │   ├── empleado/
-│       │   │   ├── EmpleadoDashboard.jsx
-│       │   │   ├── ValidarQR.jsx
-│       │   │   ├── RegistrarCobro.jsx
-│       │   │   ├── MiDisponibilidad.jsx (calendario semanal por sede)
-│       │   │   └── MiPerfil.jsx
+│       │   │   ├── empleado-dashboard.jsx
+│       │   │   ├── validar-qr.jsx (incluye cobro en efectivo)
+│       │   │   ├── mi-disponibilidad.jsx (calendario semanal por sede)
+│       │   │   └── mi-perfil.jsx
 │       │   └── admin/
-│       │       ├── AdminDashboard.jsx
-│       │       ├── GestionEmpleados.jsx
-│       │       ├── GestionServicios.jsx
-│       │       ├── GestionUbicaciones.jsx
-│       │       ├── ConfigurarHorarios.jsx
-│       │       ├── ReportesPage.jsx
-│       │       ├── ModerarClientes.jsx
-│       │       └── GestorLogs.jsx
+│       │       ├── admin-dashboard.jsx
+│       │       ├── gestion-empleados.jsx
+│       │       ├── gestion-servicios.jsx
+│       │       ├── gestion-ubicaciones.jsx
+│       │       ├── configurar-horarios.jsx
+│       │       ├── reportes-page.jsx
+│       │       ├── moderar-clientes.jsx
+│       │       └── gestor-logs.jsx
 │       └── lib/
 │           └── utils.js
 ├── backend/
@@ -152,7 +157,7 @@ sgp/
 │       ├── config/
 │       │   ├── env.js
 │       │   ├── db.js
-│       │   └── databaseInit.js
+│       │   └── database-init.js
 │       ├── features/
 │       │   ├── auth/
 │       │   │   ├── auth.routes.js
@@ -174,11 +179,6 @@ sgp/
 │       │   │   ├── checkin.controller.js
 │       │   │   ├── checkin.service.js
 │       │   │   └── checkin.model.js
-│       │   ├── cobros/
-│       │   │   ├── cobros.routes.js
-│       │   │   ├── cobros.controller.js
-│       │   │   ├── cobros.service.js
-│       │   │   └── cobros.model.js
 │       │   ├── reportes/
 │       │   │   ├── reportes.routes.js
 │       │   │   ├── reportes.controller.js
@@ -198,14 +198,19 @@ sgp/
 │       │       ├── logs.routes.js
 │       │       ├── logs.controller.js
 │       │       └── logs.service.js
+│       │   └── preferencias/
+│       │       ├── preferencias.routes.js
+│       │       ├── preferencias.controller.js
+│       │       ├── preferencias.service.js
+│       │       └── preferencias.model.js
 │       ├── integrations/
 │       │   └── realtime/
-│       │       └── wsHub.js
+│       │       └── ws-hub.js
 │       ├── routes/
 │       │   └── api.routes.js
 │       └── shared/
-│           ├── asyncHandler.js
-│           ├── httpError.js
+│           ├── async-handler.js
+│           ├── http-error.js
 │           ├── logger.js
 │           └── middlewares/
 │               ├── auth.middleware.js
@@ -229,8 +234,9 @@ sgp/
 | `empleado_tiempo_servicio` | Duracion por empleado/servicio | `empleado_id`, `servicio_id`, `duracion_minutos` |
 | `jornada` | Horario global por sede y fecha | `id`, `ubicacion_id`, `fecha`, `hora_inicio`, `hora_fin` |
 | `empleado_disponibilidad` | Disponibilidad semanal por empleado/sede | `id`, `empleado_id` (FK), `ubicacion_id` (FK), `dia_semana` (1-7), `hora_inicio`, `hora_fin`, UNIQUE(empleado_id, ubicacion_id, dia_semana) |
-| `reserva` | Citas | `id`, `cliente_id` (FK), `empleado_id` (FK), `servicio_id` (FK), `ubicacion_id` (FK), `inicia_en`, `termina_en`, `cantidad_personas` (1-5), `estado` (`pendiente`/`en_curso`/`cobrado`/`cancelada`), `qr_token` (UUID), `qr_data_url`, `motivo_cancelacion` |
-| `cobro` | Pagos | `id`, `reserva_id` (FK UNIQUE), `monto`, `metodo` (`fisico`/`digital`), `cobrado_en`, `registrado_por` (FK) |
+| `reserva` | Citas | `id`, `cliente_id` (FK), `empleado_id` (FK), `servicio_id` (FK), `ubicacion_id` (FK), `inicia_en`, `termina_en`, `cantidad_personas` (1-5), `estado` (`pendiente`/`confirmada`/`en_curso`/`cobrado`/`cancelada`), `qr_token` (UUID), `qr_data_url`, `motivo_cancelacion` |
+| `cobro` | Pagos (registrado en check-in o en reserva online) | `id`, `reserva_id` (FK UNIQUE), `monto`, `metodo` (`fisico`/`online`), `cobrado_en`, `registrado_por` (FK) |
+| `preferencia_usuario` | Configuracion por usuario | `id`, `usuario_id` (FK UNIQUE), `rango_hora_desde` TIME DEFAULT '06:00', `rango_hora_hasta` TIME DEFAULT '22:00', `granularidad_calendario` INT DEFAULT 30, `tema` VARCHAR(10) DEFAULT 'claro' |
 
 ### Indices
 - `reserva`: `inicia_en`, `cliente_id`, `empleado_id`, `estado`, `ubicacion_id`
@@ -257,6 +263,7 @@ sgp/
 - [ ] `podman-compose.yml` (db, backend, frontend)
 - [ ] `Makefile` (up, down, build, logs)
 - [ ] `.env.example`, `.gitignore`, `.containerignore`
+- [ ] `.eslintrc.cjs` y `.prettierrc` (frontend + backend)
 - [ ] `.agents/skills/architecture.md`
 
 ### Fase 1 — Base de datos
@@ -265,7 +272,7 @@ sgp/
 ### Fase 2 — Backend: nucleo compartido
 - [ ] `server.js` (entry point, HTTP + WebSocket)
 - [ ] `app.js` (Express, CORS, middlewares globales)
-- [ ] `config/env.js` + `config/db.js` + `config/databaseInit.js`
+- [ ] `config/env.js` + `config/db.js` + `config/database-init.js`
 - [ ] `shared/` (asyncHandler, httpError, logger Pino con logs.txt + errores.txt)
 - [ ] Middlewares (auth, error, notFound, rateLimit)
 - [ ] `routes/api.routes.js` + healthcheck
@@ -275,6 +282,7 @@ sgp/
 - [ ] `POST /api/auth/login` (login unificado, redirige por rol)
 - [ ] `GET /api/auth/me`
 - [ ] JWT middleware (authenticate + authorize)
+- [ ] `shared/utils/encriptacion.js` (AES-256 para datos sensibles)
 
 ### Fase 4 — Backend: Features del negocio (RF2-RF12)
 
@@ -291,7 +299,7 @@ sgp/
 **4.3 Reservas (`/api/reservas`)**
 - `GET /api/reservas/servicios` (publico)
 - `POST|PUT|DELETE /api/reservas/servicios/:id` (admin)
-- `GET /api/reservas/disponibilidad?fecha=&empleado_id=&ubicacion_id=`
+- `GET /api/reservas/disponibilidad?fecha=&empleado_id=&ubicacion_id=&desde=&hasta=&granularidad=`
 - `GET|PUT /api/reservas/jornada` (horario global, admin)
 - `GET|PUT /api/reservas/empleado-tiempos-servicio` (admin)
 - `POST /api/reservas` (cliente, max 5 activas)
@@ -299,70 +307,75 @@ sgp/
 - `DELETE /api/reservas/me/:id` (cliente)
 - `GET /api/reservas` (empleado/admin, filtrable)
 
-**4.4 Checkin (`/api/checkin`)**
-- `POST /api/checkin/validar` (empleado/admin, ventana +-120 min)
+**4.4 Checkin y Cobro (`/api/checkin`)**
+- `POST /api/checkin/validar` (empleado/admin, ventana +-120 min, incluye cobro en efectivo)
+- El endpoint recibe: `{ qr_token, monto }`. Valida QR, registra check-in y cobro en una sola operacion atomica.
+- Si el cliente ya pago online, el campo `monto` es 0 y `metodo` queda como `online` (ya registrado en la reserva).
+- Si el cliente paga en efectivo, `metodo` = `fisico` y `monto` > 0.
 
-**4.5 Cobros (`/api/cobros`)**
-- `POST /api/cobros` (empleado/admin, metodo fisico/digital)
-
-**4.6 Reportes (`/api/reportes`)**
+**4.5 Reportes (`/api/reportes`)**
 - `GET /api/reportes/ventas-diarias?fecha=` (admin)
 - `GET /api/reportes/ocupacion?fecha=` (admin)
 - `GET /api/reportes/clientes-recurrentes` (admin)
 
-**4.7 Auth admin — Gestion de empleados (RF7)**
+**4.6 Auth admin — Gestion de empleados (RF7)**
 - `GET /api/auth/empleados` (admin)
 - `POST /api/auth/empleados` (admin)
 - `PUT /api/auth/empleados/:id` (admin)
 - `DELETE /api/auth/empleados/:id` (admin)
 
-**4.8 Disponibilidad del empleado (RF9)**
+**4.7 Disponibilidad del empleado (RF9)**
 - `GET|PUT /api/empleados/disponibilidad` (empleado gestiona su semana)
 - Al cambiar sede, cancelar reservas futuras en sede anterior
 
-**4.9 Logs (RF12)**
+**4.8 Logs (RF12)**
 - `GET /api/logs/actividad?filtro=&fecha=&severidad=` (admin)
 - `GET /api/logs/errores?filtro=&fecha=&severidad=` (admin)
 - `GET /api/logs/exportar?tipo=&desde=&hasta=` (admin)
 
+**4.9 Preferencias de usuario**
+- `GET /api/preferencias` (autenticado, obtiene preferencias del usuario)
+- `PUT /api/preferencias` (autenticado, actualiza rango horario, granularidad, tema)
+- Rango horario por defecto: 06:00-22:00. El usuario puede ajustarlo (ej. 12:00-18:00) y se persiste en `preferencia_usuario`.
+- La granularidad por defecto es 30 min. Se guarda por usuario.
+
 ### Fase 5 — Frontend: Setup y navegacion
 - [ ] Vite + React + Tailwind + shadcn/ui inicializado
-- [ ] Router (`App.jsx`): `/login`, `/register`, `/cliente/*`, `/empleado/*`, `/admin/*`
+- [ ] Router (`app.jsx`): `/login`, `/register`, `/cliente/*`, `/empleado/*`, `/admin/*`
 - [ ] `api/cliente.js` (fetch wrapper con JWT)
-- [ ] `AuthContext.jsx` + `useAuth.js`
-- [ ] `RutaProtegida.jsx` + `Layout.jsx`
+- [ ] `auth-context.jsx` + `use-auth.js`
+- [ ] `ruta-protegida.jsx` + `layout.jsx`
 - [ ] Componentes shadcn/ui base (Button, Card, Input, Dialog, Sheet, Select, Table, Calendar, Badge, toast/useToast)
 
 ### Fase 6 — Frontend: Cliente
-- [ ] `LoginPage.jsx` (formulario unificado, redireccion por rol)
-- [ ] `RegistroPage.jsx` (nombre, apellido, +57, correo, password)
-- [ ] `ClienteDashboard.jsx`
-- [ ] `NuevaReserva.jsx` (stepper: ubicacion → empleado → calendario → ventana flotante con servicio/duracion/personas)
-- [ ] `MisReservas.jsx` (kanban por columnas de estado + mapa lateral Leaflet)
-- [ ] `MiPerfil.jsx`
+- [ ] `login-page.jsx` (formulario unificado, redireccion por rol)
+- [ ] `registro-page.jsx` (nombre, apellido, +57, correo, password)
+- [ ] `cliente-dashboard.jsx`
+- [ ] `nueva-reserva.jsx` (stepper 5 pasos: ubicacion → empleado → calendario con modal de servicio → confirmar con QR → pago online o efectivo)
+- [ ] `mis-reservas.jsx` (kanban por columnas de estado + mapa lateral Leaflet)
+- [ ] `mi-perfil.jsx`
 
 ### Fase 7 — Frontend: Empleado
-- [ ] `EmpleadoDashboard.jsx` (timeline de citas del dia + mapa sede + KPIs)
-- [ ] `ValidarQR.jsx` (modal: camara + input manual)
-- [ ] `RegistrarCobro.jsx` (modal: monto + selector fisico/digital)
-- [ ] `MiDisponibilidad.jsx` (calendario semanal con columnas por sede)
-- [ ] `MiPerfil.jsx`
+- [ ] `empleado-dashboard.jsx` (timeline de citas del dia + mapa sede + KPIs)
+- [ ] `validar-qr.jsx` (modal: camara + input manual + cobro en efectivo en un solo paso)
+- [ ] `mi-disponibilidad.jsx` (calendario semanal por sede con granularidad 5/10/15/30/60min y bloqueos de horario)
+- [ ] `mi-perfil.jsx`
 
 ### Fase 8 — Frontend: Administrador
-- [ ] `AdminDashboard.jsx` (4 KPIs + timeline todas las sedes + 9 botones)
+- [ ] `admin-dashboard.jsx` (4 KPIs + timeline todas las sedes + 8 botones)
 - [ ] Ventanas flotantes (sheets laterales):
-  - `GestionEmpleados.jsx` (tabla CRUD)
-  - `GestionServicios.jsx` (tabla CRUD + tiempos por empleado)
-  - `GestionUbicaciones.jsx` (tabla CRUD con mapa Leaflet para coordenadas)
-  - `ConfigurarHorarios.jsx` (sede + dias + horas)
-  - `ReportesPage.jsx` (tabs: ventas, ocupacion, recurrentes)
-  - `ModerarClientes.jsx` (tabla con toggle bloquear/desbloquear)
-  - `GestorLogs.jsx` (dos tabs: logs.txt / errores.txt, con busqueda, filtro, exportar)
-- [ ] Modales chicos: ValidarQR, RegistrarCobro
+  - `gestion-empleados.jsx` (tabla CRUD)
+  - `gestion-servicios.jsx` (tabla CRUD + tiempos por empleado)
+  - `gestion-ubicaciones.jsx` (tabla CRUD con mapa Leaflet para coordenadas)
+  - `configurar-horarios.jsx` (sede + dias + horas)
+  - `reportes-page.jsx` (tabs: ventas, ocupacion, recurrentes)
+  - `moderar-clientes.jsx` (tabla con toggle bloquear/desbloquear)
+  - `gestor-logs.jsx` (dos tabs: logs.txt / errores.txt, con busqueda, filtro, exportar)
+- [ ] Modales chicos: validar-qr (incluye cobro en efectivo)
 
 ### Fase 9 — Tiempo real
-- [ ] `wsHub.js` emite `disponibilidad.actualizada` al cambiar reservas
-- [ ] Frontend: `useWebSocket` hook, integrado en `NuevaReserva` y dashboards
+- [ ] `ws-hub.js` emite `disponibilidad.actualizada` al cambiar reservas
+- [ ] Frontend: `use-websocket.js` hook, integrado en `nueva-reserva.jsx` y dashboards
 
 ### Fase 10 — Pruebas y pulido
 - [ ] Script `tests/api.sh` (pruebas de integracion bash + curl)
@@ -399,6 +412,7 @@ sgp/
 | `PUT` | `/api/reservas/servicios/:id` | Admin | RF2 |
 | `DELETE` | `/api/reservas/servicios/:id` | Admin | RF2 |
 | `GET` | `/api/reservas/disponibilidad` | Publico | RF2 |
+| `GET` | `/api/reservas/disponibilidad?desde=&hasta=&granularidad=` | Publico | RF2 |
 | `GET` | `/api/reservas/jornada` | Publico | RF6 |
 | `PUT` | `/api/reservas/jornada` | Admin | RF6 |
 | `GET` | `/api/reservas/empleado-tiempos-servicio` | Admin | RF2 |
@@ -408,7 +422,6 @@ sgp/
 | `DELETE` | `/api/reservas/me/:id` | Cliente | RF8 |
 | `GET` | `/api/reservas` | Empleado/Admin | RF10/11 |
 | `POST` | `/api/checkin/validar` | Empleado/Admin | RF3 |
-| `POST` | `/api/cobros` | Empleado/Admin | RF4 |
 | `GET` | `/api/reportes/ventas-diarias` | Admin | RF5 |
 | `GET` | `/api/reportes/ocupacion` | Admin | RF5 |
 | `GET` | `/api/reportes/clientes-recurrentes` | Admin | RF5 |
@@ -417,6 +430,8 @@ sgp/
 | `GET` | `/api/logs/actividad` | Admin | RF12 |
 | `GET` | `/api/logs/errores` | Admin | RF12 |
 | `GET` | `/api/logs/exportar` | Admin | RF12 |
+| `GET` | `/api/preferencias` | Autenticado | RF2 |
+| `PUT` | `/api/preferencias` | Autenticado | RF2 |
 | `WS` | `/ws` | Publico | COM1 |
 
 ---
@@ -443,8 +458,9 @@ podman-compose.yml
   frontend:
     build: Containerfile.nginx
     depends_on: backend
-    ports: 8080:80
+    ports: 80:80, 443:443
     network: host (o puente interna)
+    env: incluye HTTPS con Let's Encrypt
 ```
 
 ---
@@ -463,6 +479,17 @@ VITE_API_URL=http://localhost:3000
 
 ---
 
+## Reglas de seguridad
+
+- Contrasenas hasheadas con **bcryptjs** (12 rounds)
+- Datos sensibles encriptados con **AES-256-CBC** via `crypto` nativo de Node.js
+- **HTTPS** obligatorio en produccion (Nginx reverse proxy + Let's Encrypt)
+- Tokens JWT con expiracion (`JWT_EXPIRES_IN=30m`)
+- **RBAC** con tres roles: `admin`, `empleado`, `cliente`
+- Rate limiting por IP en endpoints de auth (`express-rate-limit`)
+- Headers de seguridad: Helmet (`helmet`)
+- CORS configurado solo para el origen del frontend
+
 ## Reglas de negocio
 
 - Maximo **5 reservas activas** por cliente (antes era 1 por servicio)
@@ -474,6 +501,9 @@ VITE_API_URL=http://localhost:3000
 - Cambio de sede por empleado cancela reservas futuras en sede anterior
 - Eliminar cliente solo si tiene **3+ no-shows**
 - Eliminar empleado solo si **no tiene cobros asociados**
-- Metodos de cobro: `fisico` (efectivo) o `digital` (transferencia/Nequi/Daviplata)
-- Estados de reserva: `pendiente` -> `en_curso` (checkin) -> `cobrado`
-- Estados de reserva kanban: `pendiente`, `confirmada`, `en_curso`, `completada`, `cancelada`
+- Metodos de cobro: `fisico` (efectivo en el local al hacer check-in) o `online` (pagado por el cliente al reservar). El cobro fisico lo registra el empleado en el mismo paso de validacion QR.
+- Estados de reserva BD: `pendiente` -> `confirmada` (pago online) -> `en_curso` (check-in) -> `cobrado`
+- Estados kanban (vista cliente): `pendiente` (sin pagar), `confirmada` (pagada, sin iniciar), `en_curso`, `completada` (= cobrado), `cancelada`
+- Rango horario del calendario por defecto: **06:00 a 22:00**. El usuario puede personalizarlo (ej. 12:00-18:00) y se guarda en `preferencia_usuario`.
+- Granularidad de slots del calendario: **5, 10, 15, 30 o 60 minutos**. Por defecto 30 min. Configurable por usuario.
+- Las preferencias de calendario (rango y granularidad) se persisten por usuario en BD.

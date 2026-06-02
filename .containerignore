@@ -1,0 +1,7 @@
+node_modules
+.git
+.env
+logs.txt
+errores.txt
+*.md
+demo.html

@@ -1,0 +1,12 @@
+{
+  "name": "sgp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter backend dev",
+    "start": "pnpm --filter backend start",
+    "lint": "pnpm --filter backend lint",
+    "test": "bash tests/api.sh",
+    "install:all": "pnpm install"
+  }
+}
