@@ -4,6 +4,8 @@ const { authenticate, authorize } = require('../../shared/middlewares/auth.middl
 
 const router = Router();
 
+router.get('/empleados-disponibles', reservasController.empleadosDisponibles);
+
 router.get('/servicios', reservasController.listarServicios);
 router.post('/servicios', authenticate, authorize('admin'), reservasController.crearServicio);
 router.put('/servicios/:id', authenticate, authorize('admin'), reservasController.actualizarServicio);
@@ -14,8 +16,8 @@ router.get('/disponibilidad', reservasController.disponibilidad);
 router.get('/jornada', reservasController.getJornada);
 router.put('/jornada', authenticate, authorize('admin'), reservasController.updateJornada);
 
-router.get('/empleado-tiempos-servicio', authenticate, authorize('admin'), reservasController.getEmpleadoTiemposServicio);
-router.put('/empleado-tiempos-servicio', authenticate, authorize('admin'), reservasController.updateEmpleadoTiemposServicio);
+router.get('/empleado-tiempos-servicio', authenticate, authorize('admin', 'empleado'), reservasController.getEmpleadoTiemposServicio);
+router.put('/empleado-tiempos-servicio', authenticate, authorize('admin', 'empleado'), reservasController.updateEmpleadoTiemposServicio);
 
 router.post('/', authenticate, authorize('cliente'), reservasController.crearReserva);
 router.get('/me', authenticate, authorize('cliente'), reservasController.misReservas);

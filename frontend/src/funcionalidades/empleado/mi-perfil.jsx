@@ -11,31 +11,34 @@ export default function EmpleadoPerfil() {
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
 
   useEffect(() => {
-    if (usuario) {
-      setForm({
-        nombre: usuario.nombre || '',
-        apellido: usuario.apellido || '',
-        telefono: usuario.telefono || '',
-        email: usuario.email || '',
-      });
-      setCargando(false);
-    }
-  }, [usuario]);
-
-  const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
+    api.clientes.me().then((data) => {
+      setUsuario(data);
+      setForm({ nombre: data.nombre || '', apellido: data.apellido || '', telefono: data.telefono || '', email: data.email || '' });
+    }).catch(() => {
+      if (usuario) setForm({ nombre: usuario.nombre || '', apellido: usuario.apellido || '', telefono: usuario.telefono || '', email: usuario.email || '' });
+    }).finally(() => setCargando(false));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.nombre.trim() && !form.apellido.trim() && !form.telefono.trim()) {
+      mostrarToast('Modifica al menos un campo', 'warning');
+      return;
+    }
     setGuardando(true);
     try {
       const data = await api.clientes.updateMe({
-        nombre: form.nombre,
-        apellido: form.apellido,
-        telefono: form.telefono,
+        nombre: form.nombre.trim() || undefined,
+        apellido: form.apellido.trim() || undefined,
+        telefono: form.telefono.trim() || undefined,
       });
       setUsuario((prev) => ({ ...prev, ...data }));
+      setForm({
+        nombre: data.nombre || '',
+        apellido: data.apellido || '',
+        telefono: data.telefono || '',
+        email: data.email || '',
+      });
       mostrarToast('Perfil actualizado correctamente');
     } catch (err) {
       mostrarToast(err.message || 'Error al guardar', 'error');
@@ -52,9 +55,7 @@ export default function EmpleadoPerfil() {
   if (cargando) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <div className="flex justify-center py-20">
-          <Spinner />
-        </div>
+        <div className="flex justify-center py-20"><Spinner /></div>
       </div>
     );
   }
@@ -65,48 +66,19 @@ export default function EmpleadoPerfil() {
 
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-texto-principal">Mi Perfil</h1>
-        <p className="text-texto-secundario mt-1">Administrá tu información personal</p>
+        <p className="text-texto-secundario mt-1">Administra tu informacion personal</p>
       </div>
 
       <Card>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Nombre"
-              name="nombre"
-              value={form.nombre}
-              onChange={handleChange}
-              required
-            />
-            <Input
-              label="Apellido"
-              name="apellido"
-              value={form.apellido}
-              onChange={handleChange}
-              required
-            />
+            <Input label="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
+            <Input label="Apellido" value={form.apellido} onChange={(e) => setForm({ ...form, apellido: e.target.value })} />
           </div>
-
-          <Input
-            label="Teléfono"
-            name="telefono"
-            type="tel"
-            value={form.telefono}
-            onChange={handleChange}
-          />
-
-          <Input
-            label="Email"
-            name="email"
-            type="email"
-            value={form.email}
-            disabled
-          />
-
+          <Input label="Telefono" type="tel" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
+          <Input label="Email" type="email" value={form.email} disabled />
           <div className="pt-2">
-            <Button type="submit" disabled={guardando}>
-              {guardando ? <Spinner /> : 'Guardar cambios'}
-            </Button>
+            <Button type="submit" disabled={guardando}>{guardando ? <Spinner /> : 'Guardar cambios'}</Button>
           </div>
         </form>
       </Card>

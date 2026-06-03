@@ -64,6 +64,8 @@ const api = {
       get: (empleado_id) => request(`/reservas/empleado-tiempos-servicio?empleado_id=${empleado_id}`),
       update: (body) => request('/reservas/empleado-tiempos-servicio', { method: 'PUT', body: JSON.stringify(body) }),
     },
+    empleadosDisponibles: (params) => request(`/reservas/empleados-disponibles?${new URLSearchParams(params)}`),
+    empleadoServiciosUpdate: (items) => request('/reservas/empleado-tiempos-servicio', { method: 'PUT', body: JSON.stringify({ items }) }),
     create: (body) => request('/reservas', { method: 'POST', body: JSON.stringify(body) }),
     misReservas: () => request('/reservas/me'),
     cancelar: (id) => request(`/reservas/me/${id}`, { method: 'DELETE' }),

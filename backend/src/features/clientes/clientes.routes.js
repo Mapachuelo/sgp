@@ -4,8 +4,8 @@ const { authenticate, authorize } = require('../../shared/middlewares/auth.middl
 
 const router = Router();
 
-router.get('/me', authenticate, authorize('cliente'), clientesController.getMe);
-router.put('/me', authenticate, authorize('cliente'), clientesController.updateMe);
+router.get('/me', authenticate, authorize('cliente', 'empleado'), clientesController.getMe);
+router.put('/me', authenticate, authorize('cliente', 'empleado'), clientesController.updateMe);
 router.delete('/me', authenticate, authorize('cliente'), clientesController.deleteMe);
 
 router.get('/', authenticate, authorize('admin'), clientesController.listar);

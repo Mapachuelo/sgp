@@ -9,6 +9,14 @@ const clientesModel = {
     return rows[0] || null;
   },
 
+  async findUserById(id) {
+    const { rows } = await pool.query(
+      'SELECT id, email, rol, nombre, apellido, telefono, esta_bloqueado, motivo_bloqueo, creado_en, actualizado_en FROM app_user WHERE id = $1',
+      [id]
+    );
+    return rows[0] || null;
+  },
+
   async update(id, data) {
     const fields = [];
     const values = [];
@@ -30,6 +38,29 @@ const clientesModel = {
     );
 
     return clientesModel.findById(id);
+  },
+
+  async updateUser(id, data) {
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (data.nombre !== undefined) { fields.push(`nombre = $${idx++}`); values.push(data.nombre); }
+    if (data.apellido !== undefined) { fields.push(`apellido = $${idx++}`); values.push(data.apellido); }
+    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(data.telefono); }
+    if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email); }
+
+    if (fields.length === 0) return clientesModel.findUserById(id);
+
+    fields.push(`actualizado_en = NOW()`);
+    values.push(id);
+
+    await pool.query(
+      `UPDATE app_user SET ${fields.join(', ')} WHERE id = $${idx}`,
+      values
+    );
+
+    return clientesModel.findUserById(id);
   },
 
   async delete(id) {

@@ -44,12 +44,14 @@ const reservasController = {
   }),
 
   getEmpleadoTiemposServicio: asyncHandler(async (req, res) => {
-    const result = await reservasService.getEmpleadoTiemposServicio(req.query.empleado_id);
+    const empleado_id = req.usuario.rol === 'empleado' ? req.usuario.id : req.query.empleado_id;
+    const result = await reservasService.getEmpleadoTiemposServicio(empleado_id);
     res.json({ ok: true, data: result });
   }),
 
   updateEmpleadoTiemposServicio: asyncHandler(async (req, res) => {
-    const { empleado_id, items } = req.body;
+    const empleado_id = req.usuario.rol === 'empleado' ? req.usuario.id : req.body.empleado_id;
+    const { items } = req.body;
     if (!empleado_id || !items) {
       throw new HttpError(400, 'empleado_id e items son requeridos');
     }
@@ -75,6 +77,16 @@ const reservasController = {
     );
     logger.info({ reserva_id: req.params.id }, 'Reserva cancelada por cliente');
     res.json({ ok: true, data: result });
+  }),
+
+  empleadosDisponibles: asyncHandler(async (req, res) => {
+    const { ubicacion_id, fecha } = req.query;
+    if (!ubicacion_id || !fecha) {
+      throw new HttpError(400, 'ubicacion_id y fecha son requeridos');
+    }
+    const reservasModel = require('./reservas.model');
+    const empleados = await reservasModel.findEmpleadosDisponibles(fecha, ubicacion_id);
+    res.json({ ok: true, data: empleados });
   }),
 
   listarReservas: asyncHandler(async (req, res) => {

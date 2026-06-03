@@ -3,19 +3,19 @@ const HttpError = require('../../shared/http-error');
 
 const clientesService = {
   async getMe(usuarioId) {
-    const cliente = await clientesModel.findById(usuarioId);
-    if (!cliente) {
-      throw new HttpError(404, 'Cliente no encontrado');
+    const user = await clientesModel.findUserById(usuarioId);
+    if (!user) {
+      throw new HttpError(404, 'Usuario no encontrado');
     }
-    return cliente;
+    return user;
   },
 
   async updateMe(usuarioId, data) {
-    const cliente = await clientesModel.update(usuarioId, data);
-    if (!cliente) {
-      throw new HttpError(404, 'Cliente no encontrado');
+    const user = await clientesModel.updateUser(usuarioId, data);
+    if (!user) {
+      throw new HttpError(404, 'Usuario no encontrado');
     }
-    return cliente;
+    return user;
   },
 
   async deleteMe(usuarioId) {

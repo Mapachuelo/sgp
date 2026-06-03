@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button, Input, Card, Badge, Sheet, Modal, Toast, Select, Spinner } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
@@ -12,9 +12,86 @@ function mostrarToast(setToast, message, type = 'success') {
 export default function AdminDashboard() {
   const { usuario } = useAuth();
 
+  // ==================== ALL STATE ====================
+
   const [activeSheet, setActiveSheet] = useState(null);
 
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+
+  // KPI
+  const [kpi, setKpi] = useState({ ventas: null, citas: 0, ocupacion: null, recurrentes: 0, loading: true });
+
+  // Ubicaciones
+  const [ubicaciones, setUbicaciones] = useState([]);
+
+  // Timeline reservas
+  const [reservas, setReservas] = useState([]);
+  const [reservasLoading, setReservasLoading] = useState(true);
+  const [sedeFilter, setSedeFilter] = useState('');
+
+  // Validar QR
+  const [qrToken, setQrToken] = useState('');
+  const [qrResult, setQrResult] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [camaraActiva, setCamaraActiva] = useState(false);
+  const [errorCamara, setErrorCamara] = useState('');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Empleados
+  const [empleados, setEmpleados] = useState([]);
+  const [empleadosLoading, setEmpleadosLoading] = useState(false);
+  const [empForm, setEmpForm] = useState({ nombre: '', apellido: '', email: '', password: '', telefono: '', identificacion: '', ubicacion_base_id: '' });
+  const [empEditId, setEmpEditId] = useState(null);
+  const [empShowAdd, setEmpShowAdd] = useState(false);
+
+  // Servicios
+  const [servicios, setServicios] = useState([]);
+  const [serviciosLoading, setServiciosLoading] = useState(false);
+  const [srvForm, setSrvForm] = useState({ nombre: '', descripcion: '', precio: '', duracion: '' });
+  const [srvEditId, setSrvEditId] = useState(null);
+  const [srvShowAdd, setSrvShowAdd] = useState(false);
+
+  // Empleado tiempos (dentro de servicios)
+  const [etEmpleadoId, setEtEmpleadoId] = useState('');
+  const [etTiempos, setEtTiempos] = useState([]);
+  const [etLoading, setEtLoading] = useState(false);
+
+  // Sedes
+  const [sedes, setSedes] = useState([]);
+  const [sedesLoading, setSedesLoading] = useState(false);
+  const [sedForm, setSedForm] = useState({ nombre: '', direccion: '', latitud: '', longitud: '' });
+  const [sedEditId, setSedEditId] = useState(null);
+  const [sedShowAdd, setSedShowAdd] = useState(false);
+
+  // Horarios
+  const [horarios, setHorarios] = useState([]);
+  const [horariosLoading, setHorariosLoading] = useState(false);
+  const [horSedeId, setHorSedeId] = useState('');
+
+  // Reportes
+  const [repLoading, setRepLoading] = useState(false);
+  const [repData, setRepData] = useState(null);
+  const [repTab, setRepTab] = useState('ventas');
+  const [repFecha, setRepFecha] = useState(hoy());
+
+  // Moderar clientes
+  const [clientesMod, setClientesMod] = useState([]);
+  const [clientesModLoading, setClientesModLoading] = useState(false);
+  const [bloqueoId, setBloqueoId] = useState(null);
+  const [bloqueoMotivo, setBloqueoMotivo] = useState('');
+
+  // Logs
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsData, setLogsData] = useState([]);
+  const [logsTab, setLogsTab] = useState('actividad');
+  const [logsFiltro, setLogsFiltro] = useState('');
+  const [logsFecha, setLogsFecha] = useState('');
+  const [logsSeveridad, setLogsSeveridad] = useState('');
+  const [logsExpDesde, setLogsExpDesde] = useState('');
+  const [logsExpHasta, setLogsExpHasta] = useState('');
+
+  // ==================== TOAST AUTO-CLOSE ====================
 
   useEffect(() => {
     if (!toast.open) return;
@@ -22,51 +99,102 @@ export default function AdminDashboard() {
     return () => clearTimeout(t);
   }, [toast.open]);
 
-  // --- KPI ---
-  const [kpi, setKpi] = useState({ ventas: null, citas: 0, ocupacion: null, recurrentes: 0, loading: true });
+  // ==================== DATA LOADING EFFECTS ====================
 
-  // --- Ubicaciones (para filtros) ---
-  const [ubicaciones, setUbicaciones] = useState([]);
+  useEffect(() => {
+    const cargarKpi = async () => {
+      try {
+        const [ventas, ocupacion, recurrentes] = await Promise.all([
+          api.reportes.ventasDiarias(hoy()).catch(() => null),
+          api.reportes.ocupacion(hoy()).catch(() => null),
+          api.reportes.clientesRecurrentes().catch(() => null),
+        ]);
+        setKpi({
+          ventas: ventas?.total ?? null,
+          citas: Array.isArray(ocupacion) ? ocupacion.reduce((sum, d) => sum + (d.total || 0), 0) : 0,
+          ocupacion: Array.isArray(ocupacion) && ocupacion.length > 0
+            ? { porcentaje: ocupacion[0].porcentaje || 0 }
+            : null,
+          recurrentes: Array.isArray(recurrentes) ? recurrentes.length : 0,
+          loading: false,
+        });
+      } catch {
+        setKpi((p) => ({ ...p, loading: false }));
+      }
+    };
+    cargarKpi();
+  }, []);
 
-  // --- Timeline de reservas del día ---
-  const [reservas, setReservas] = useState([]);
-  const [reservasLoading, setReservasLoading] = useState(true);
-  const [sedeFilter, setSedeFilter] = useState('');
+  useEffect(() => {
+    api.ubicaciones.list().then(setUbicaciones).catch(() => {});
+  }, []);
 
-  // --- QR ---
-  const [qrToken, setQrToken] = useState('');
-  const [qrMonto, setQrMonto] = useState('');
-  const [qrResult, setQrResult] = useState(null);
-  const [qrLoading, setQrLoading] = useState(false);
+  useEffect(() => {
+    const cargarReservas = async () => {
+      setReservasLoading(true);
+      try {
+        const params = { fecha: hoy() };
+        if (sedeFilter) params.ubicacion_id = sedeFilter;
+        const data = await api.reservas.list(params);
+        setReservas(data || []);
+      } catch (e) {
+        mostrarToast(setToast, e.message, 'error');
+      } finally {
+        setReservasLoading(false);
+      }
+    };
+    cargarReservas();
+  }, [sedeFilter]);
 
-  // --- Cobro ---
-  const [cobroToken, setCobroToken] = useState('');
-  const [cobroMonto, setCobroMonto] = useState('');
+  // ==================== VALIDAR QR ====================
 
-  const handleCobro = async () => {
-    if (!cobroToken) return mostrarToast(setToast, 'Ingresa el token QR del cobro', 'warning');
-    setCobroLoading(true);
-    setCobroResult(null);
+  const handleValidarQR = async () => {
+    if (!qrToken) return mostrarToast(setToast, 'Ingresa el token QR', 'warning');
+    setQrLoading(true);
+    setQrResult(null);
     try {
-      const data = await api.checkin.validar({ qr_token: cobroToken, monto: cobroMonto || undefined });
-      setCobroResult(data);
-      mostrarToast(setToast, 'Cobro procesado correctamente');
+      const data = await api.checkin.validar({ qr_token: qrToken, monto: 0 });
+      setQrResult(data);
+      mostrarToast(setToast, 'Entrada validada correctamente');
     } catch (e) {
       mostrarToast(setToast, e.message, 'error');
     } finally {
-      setCobroLoading(false);
+      setQrLoading(false);
     }
   };
 
-  const abrirCobro = () => {
-    setActiveSheet('cobro');
+  const cerrarQR = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setActiveSheet(null);
+    setQrToken('');
+    setQrResult(null);
+    setCamaraActiva(false);
+    setErrorCamara('');
   };
 
-  const cerrarCobro = () => {
-    setActiveSheet(null);
-    setCobroToken('');
-    setCobroMonto('');
-    setCobroResult(null);
+  const activarCamara = async () => {
+    setErrorCamara('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCamaraActiva(true);
+    } catch {
+      setErrorCamara('No se pudo acceder a la camara. Verifica los permisos.');
+    }
+  };
+
+  const apagarCamara = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setCamaraActiva(false);
   };
 
   // ==================== EMPLEADOS ====================
@@ -468,35 +596,36 @@ export default function AdminDashboard() {
       {/* ---- TOAST ---- */}
       <Toast message={toast.message} type={toast.type} open={toast.open} />
 
-      {/* ---- MODAL: Validar QR ---- */}
-      <Modal open={activeSheet === 'qr'} onClose={cerrarQR} title="Validar QR">
+      {/* ---- MODAL: Validar entrada ---- */}
+      <Modal open={activeSheet === 'qr'} onClose={cerrarQR} title="Validar entrada">
         <div className="space-y-4">
-          <Input label="Token QR" value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="Ingresa el token QR" />
-          <Input label="Monto (opcional)" type="number" value={qrMonto} onChange={(e) => setQrMonto(e.target.value)} placeholder="Monto a cobrar" />
+          <p className="text-sm text-texto-secundario">Escanea o ingresa el codigo QR para validar el ingreso del cliente.</p>
+
+          {!camaraActiva ? (
+            <Button variant="secundario" className="w-full" onClick={activarCamara}>
+              Activar camara para escanear QR
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <div className="bg-black rounded-lg overflow-hidden" style={{ maxHeight: '240px' }}>
+                <video ref={videoRef} autoPlay playsInline className="w-full" style={{ maxHeight: '240px', objectFit: 'cover' }} />
+              </div>
+              <Button variant="secundario" className="w-full" onClick={apagarCamara}>
+                Apagar camara
+              </Button>
+            </div>
+          )}
+
+          {errorCamara && <p className="text-error text-sm">{errorCamara}</p>}
+
+          <Input label="Token QR (manual)" value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="O ingresa el token QR manualmente" />
           <Button variant="primario" className="w-full" onClick={handleValidarQR} disabled={qrLoading}>
-            {qrLoading ? <Spinner /> : 'Validar'}
+            {qrLoading ? <Spinner /> : 'Validar entrada'}
           </Button>
           {qrResult && (
             <Card className="mt-4">
               <p className="text-sm text-texto-secundario">Resultado:</p>
               <pre className="text-xs mt-1 overflow-auto">{JSON.stringify(qrResult, null, 2)}</pre>
-            </Card>
-          )}
-        </div>
-      </Modal>
-
-      {/* ---- MODAL: Cobro ---- */}
-      <Modal open={activeSheet === 'cobro'} onClose={cerrarCobro} title="Cobro">
-        <div className="space-y-4">
-          <Input label="Token QR" value={cobroToken} onChange={(e) => setCobroToken(e.target.value)} placeholder="Ingresa el token QR" />
-          <Input label="Monto" type="number" autoFocus value={cobroMonto} onChange={(e) => setCobroMonto(e.target.value)} placeholder="Monto a cobrar" />
-          <Button variant="primario" className="w-full" onClick={handleCobro} disabled={cobroLoading}>
-            {cobroLoading ? <Spinner /> : 'Procesar Cobro'}
-          </Button>
-          {cobroResult && (
-            <Card className="mt-4">
-              <p className="text-sm text-texto-secundario">Resultado:</p>
-              <pre className="text-xs mt-1 overflow-auto">{JSON.stringify(cobroResult, null, 2)}</pre>
             </Card>
           )}
         </div>
@@ -1128,8 +1257,7 @@ export default function AdminDashboard() {
       <Card>
         <h2 className="font-display text-lg font-bold text-texto-principal mb-4">Acciones administrativas</h2>
         <div className="grid grid-cols-3 lg:grid-cols-5 gap-3">
-          <Button variant="primario" onClick={() => setActiveSheet('qr')}>Validar QR</Button>
-          <Button variant="primario" onClick={abrirCobro}>Cobro</Button>
+          <Button variant="primario" onClick={() => setActiveSheet('qr')}>Validar entrada</Button>
           <Button variant="exito" onClick={() => setActiveSheet('empleados')}>Empleados</Button>
           <Button variant="outline" onClick={() => setActiveSheet('servicios')}>Servicios</Button>
           <Button variant="outline" onClick={() => setActiveSheet('sedes')}>Sedes</Button>

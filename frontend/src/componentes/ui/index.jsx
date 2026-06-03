@@ -27,9 +27,13 @@ export function Input({ label, className = '', ...props }) {
   );
 }
 
-export function Card({ children, className = '', padding = true }) {
+export function Card({ children, className = '', padding = true, onClick, ...props }) {
   return (
-    <div className={`bg-superficie rounded-2xl border border-borde shadow-sm ${padding ? 'p-6' : ''} ${className}`}>
+    <div
+      className={`bg-superficie rounded-2xl border border-borde shadow-sm ${padding ? 'p-6' : ''} ${className}`}
+      onClick={onClick}
+      {...props}
+    >
       {children}
     </div>
   );

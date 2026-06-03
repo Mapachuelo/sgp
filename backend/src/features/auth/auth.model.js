@@ -18,11 +18,12 @@ const authModel = {
   },
 
   async create({ email, password_hash, rol, nombre, apellido, telefono }) {
+    const tel = telefono && telefono.trim() ? telefono.trim() : null;
     const { rows } = await pool.query(
       `INSERT INTO app_user (email, password_hash, rol, nombre, apellido, telefono)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, email, rol, nombre, apellido, telefono, esta_bloqueado, creado_en, actualizado_en`,
-      [email, password_hash, rol, nombre, apellido, telefono]
+      [email, password_hash, rol, nombre, apellido, tel]
     );
     return rows[0];
   },

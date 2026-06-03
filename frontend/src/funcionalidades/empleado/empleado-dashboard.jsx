@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../api/cliente';
 import { useAuth } from '../../hooks/use-auth';
 import { Button, Card, Badge, Modal, Toast, Spinner } from '../../componentes/ui/index.jsx';
@@ -27,6 +27,43 @@ function ValidarQRModal({ open, onClose, onSuccess }) {
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [error, setError] = useState('');
+  const [camaraActiva, setCamaraActiva] = useState(false);
+  const [errorCamara, setErrorCamara] = useState('');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const apagarCamara = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCamaraActiva(false);
+    setErrorCamara('');
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  const activarCamara = async () => {
+    setErrorCamara('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCamaraActiva(true);
+    } catch (err) {
+      setErrorCamara('No se pudo acceder a la cámara. Verifica los permisos.');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,6 +82,7 @@ function ValidarQRModal({ open, onClose, onSuccess }) {
   };
 
   const handleClose = () => {
+    apagarCamara();
     setQrToken('');
     setMonto('');
     setResultado(null);
@@ -72,6 +110,30 @@ function ValidarQRModal({ open, onClose, onSuccess }) {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {errorCamara && (
+            <p className="text-error text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {errorCamara}
+            </p>
+          )}
+          {camaraActiva ? (
+            <div className="space-y-2">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full rounded-lg border border-borde bg-black"
+                style={{ maxHeight: '320px', objectFit: 'cover' }}
+              />
+              <Button type="button" variant="outline" className="w-full" onClick={apagarCamara}>
+                Apagar cámara
+              </Button>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" className="w-full" onClick={activarCamara}>
+              Activar cámara
+            </Button>
+          )}
           <div>
             <label className="block text-sm font-medium text-texto-principal mb-1">Código QR</label>
             <input

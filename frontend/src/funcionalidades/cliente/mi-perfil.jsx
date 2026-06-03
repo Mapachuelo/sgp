@@ -1,47 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Card, Input, Toast } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
 
 export default function MiPerfil() {
   const { usuario, logout, setUsuario } = useAuth();
-  const [form, setForm] = useState({
-    nombre: usuario?.nombre || '',
-    apellido: usuario?.apellido || '',
-    telefono: usuario?.telefono || '',
-    email: usuario?.email || '',
-  });
+  const [form, setForm] = useState({ nombre: '', apellido: '', telefono: '', email: '' });
   const [cargando, setCargando] = useState(false);
+  const [cargaInicial, setCargaInicial] = useState(true);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
-  const [errores, setErrores] = useState({});
+
+  useEffect(() => {
+    api.clientes.me().then((data) => {
+      setUsuario(data);
+      setForm({ nombre: data.nombre || '', apellido: data.apellido || '', telefono: data.telefono || '', email: data.email || '' });
+    }).catch(() => {
+      if (usuario) setForm({ nombre: usuario.nombre || '', apellido: usuario.apellido || '', telefono: usuario.telefono || '', email: usuario.email || '' });
+    }).finally(() => setCargaInicial(false));
+  }, []);
 
   const mostrarToast = (message, type = 'success') => {
     setToast({ open: true, message, type });
     setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 3000);
   };
 
-  const validar = () => {
-    const errs = {};
-    if (!form.nombre.trim()) errs.nombre = 'El nombre es obligatorio';
-    if (!form.apellido.trim()) errs.apellido = 'El apellido es obligatorio';
-    if (!form.telefono.trim()) errs.telefono = 'El telefono es obligatorio';
-    setErrores(errs);
-    return Object.keys(errs).length === 0;
-  };
-
   const handleGuardar = async (e) => {
     e.preventDefault();
-    if (!validar()) return;
+    if (!form.nombre.trim() && !form.apellido.trim() && !form.telefono.trim()) {
+      mostrarToast('Modifica al menos un campo', 'warning');
+      return;
+    }
     try {
       setCargando(true);
       const data = await api.clientes.updateMe({
-        nombre: form.nombre,
-        apellido: form.apellido,
-        telefono: form.telefono,
+        nombre: form.nombre.trim() || undefined,
+        apellido: form.apellido.trim() || undefined,
+        telefono: form.telefono.trim() || undefined,
       });
       setUsuario({ ...usuario, ...data });
-      mostrarToast('Perfil actualizado con exito');
+      setForm({
+        nombre: data.nombre || '',
+        apellido: data.apellido || '',
+        telefono: data.telefono || '',
+        email: data.email || '',
+      });
+      mostrarToast('Perfil actualizado');
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
@@ -71,39 +75,18 @@ export default function MiPerfil() {
           <Input
             label="Nombre"
             value={form.nombre}
-            onChange={(e) => {
-              setForm({ ...form, nombre: e.target.value });
-              if (errores.nombre) setErrores({ ...errores, nombre: null });
-            }}
+            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
           />
-          {errores.nombre && (
-            <p className="text-error text-xs -mt-4">{errores.nombre}</p>
-          )}
-
           <Input
             label="Apellido"
             value={form.apellido}
-            onChange={(e) => {
-              setForm({ ...form, apellido: e.target.value });
-              if (errores.apellido) setErrores({ ...errores, apellido: null });
-            }}
+            onChange={(e) => setForm({ ...form, apellido: e.target.value })}
           />
-          {errores.apellido && (
-            <p className="text-error text-xs -mt-4">{errores.apellido}</p>
-          )}
-
           <Input
             label="Telefono"
             value={form.telefono}
-            onChange={(e) => {
-              setForm({ ...form, telefono: e.target.value });
-              if (errores.telefono) setErrores({ ...errores, telefono: null });
-            }}
+            onChange={(e) => setForm({ ...form, telefono: e.target.value })}
           />
-          {errores.telefono && (
-            <p className="text-error text-xs -mt-4">{errores.telefono}</p>
-          )}
-
           <Input label="Email" value={form.email} disabled />
 
           <div className="pt-4 border-t border-borde">
@@ -115,13 +98,10 @@ export default function MiPerfil() {
       </Card>
 
       <div className="mt-10">
-        <h2 className="font-display text-lg font-semibold text-error mb-3">
-          Zona de peligro
-        </h2>
+        <h2 className="font-display text-lg font-semibold text-error mb-3">Zona de peligro</h2>
         <Card className="border-error/20">
           <p className="text-texto-secundario text-sm mb-4">
-            Una vez que elimines tu cuenta, no hay vuelta atras. Por favor, asegurate de que deseas
-            continuar.
+            Una vez que elimines tu cuenta, no hay vuelta atras.
           </p>
           {!mostrarConfirmacion ? (
             <Button variant="danger" onClick={() => setMostrarConfirmacion(true)}>
@@ -129,17 +109,10 @@ export default function MiPerfil() {
             </Button>
           ) : (
             <div className="flex gap-3">
-              <Button
-                variant="danger"
-                onClick={handleEliminarCuenta}
-                disabled={cargando}
-              >
+              <Button variant="danger" onClick={handleEliminarCuenta} disabled={cargando}>
                 {cargando ? 'Eliminando...' : 'Confirmar eliminacion'}
               </Button>
-              <Button
-                variant="secundario"
-                onClick={() => setMostrarConfirmacion(false)}
-              >
+              <Button variant="secundario" onClick={() => setMostrarConfirmacion(false)}>
                 Cancelar
               </Button>
             </div>

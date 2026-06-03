@@ -61,6 +61,7 @@ const authService = {
         email: usuario.email,
         nombre: usuario.nombre,
         apellido: usuario.apellido,
+        telefono: usuario.telefono,
         rol: usuario.rol,
       },
     };
