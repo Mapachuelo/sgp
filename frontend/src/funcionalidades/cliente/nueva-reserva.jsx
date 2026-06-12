@@ -474,48 +474,68 @@ export default function NuevaReserva() {
           {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-              {semana.map((dia) => (
-                <div key={dia.fecha} className="space-y-3 bg-superficie border border-borde/50 rounded-xl p-3 shadow-sm">
-                  <div className="text-center border-b border-borde/40 pb-2">
-                    <span className="text-[10px] font-bold text-texto-secundario uppercase block">{diasSem[dia.objetoFecha.getDay()]}</span>
-                    <span className="font-display text-lg font-bold text-texto-principal">{dia.objetoFecha.getDate()}</span>
-                  </div>
-                  <div className="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
-                    {generarSlotsDelDia().map((hora) => {
-                      const ocupado = esSlotOcupado(dia.fecha, hora);
-                      const pasado = esSlotPasado(dia.fecha, hora);
-                      const antelacion = !pasado && !ocupado && esSlotAntelacion(dia.fecha, hora);
-                      const libre = !pasado && !ocupado && !antelacion;
+            <Card padding={false} className="max-w-4xl mx-auto overflow-hidden border border-borde/70 shadow-premium">
+              <div className="overflow-y-auto overflow-x-auto max-h-[42vh]">
+                <table className="w-full min-w-[700px] border-collapse text-xs">
+                  <thead className="sticky top-0 z-20">
+                    <tr className="border-b border-borde bg-superficie/95 backdrop-blur">
+                      <th className="sticky left-0 bg-superficie z-30 border-b border-borde py-4 px-4 text-left font-bold text-texto-secundario uppercase tracking-wider w-24">Hora</th>
+                      {semana.map((dia) => (
+                        <th key={dia.fecha} className="border-b border-borde py-3 px-2 text-center font-bold text-texto-principal">
+                          <span className="text-[10px] font-bold text-texto-secundario uppercase block">{diasSem[dia.objetoFecha.getDay()]}</span>
+                          <span className="font-display text-base font-bold text-texto-principal">{dia.objetoFecha.getDate()}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {generarSlotsDelDia().map((hora) => (
+                      <tr key={hora} className="hover:bg-fondo/20 transition-colors">
+                        <td className="sticky left-0 bg-superficie z-10 border-b border-borde/40 py-2.5 px-4 text-xs font-semibold text-texto-secundario whitespace-nowrap">{hora}</td>
+                        {semana.map((dia) => {
+                          const ocupado = esSlotOcupado(dia.fecha, hora);
+                          const pasado = esSlotPasado(dia.fecha, hora);
+                          const antelacion = !pasado && !ocupado && esSlotAntelacion(dia.fecha, hora);
+                          const libre = !pasado && !ocupado && !antelacion;
 
-                      let clase = 'slot-libre';
-                      if (ocupado || pasado) clase = 'slot-ocupado';
-                      else if (antelacion) clase = 'slot-antelacion';
+                          let clase = 'slot-libre';
+                          let label = 'Disponible';
+                          if (ocupado || pasado) {
+                            clase = 'slot-ocupado';
+                            label = 'Ocupado';
+                          } else if (antelacion) {
+                            clase = 'slot-antelacion';
+                            label = '< 60 min';
+                          }
 
-                      return (
-                        <button
-                          key={hora}
-                          onClick={() => libre && handleSlotClick(dia, hora)}
-                          disabled={!libre}
-                          className={`w-full text-center py-2 rounded-lg text-xs font-semibold ${clase}`}
-                        >
-                          {hora}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+                          return (
+                            <td key={dia.fecha} className="border-b border-r border-borde/20 p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => libre && handleSlotClick(dia, hora)}
+                                disabled={!libre}
+                                className={`w-full text-center py-2 text-[10px] font-bold rounded-lg border transition hover:ring-2 hover:ring-primario/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-sm relative ${clase}`}
+                              >
+                                {label}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           )}
 
-          <div className="flex gap-4 text-xs font-medium border-t border-borde/50 pt-4">
-            <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#DCE8E0] border border-[#A3C9A8]" /> Disponible</span>
-            <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#F5E6E3] border border-[#E8C5C0]" /> Ocupado / Pasado</span>
-            <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#FFF3E6] border border-[#F0C78E]" /> Anticipación &lt;60m</span>
+          <div className="flex flex-wrap justify-center gap-6 text-xs font-medium border-t border-borde/50 pt-4 max-w-4xl mx-auto">
+            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#DCE8E0] border-[#A3C9A8]" /> Disponible</span>
+            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#F5E6E3] border-[#E8C5C0]" /> Ocupado / Pasado</span>
+            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#FFF3E6] border-[#F0C78E]" /> Anticipación &lt;60m</span>
           </div>
 
-          <div className="mt-8">
+          <div className="flex justify-center mt-6">
             <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
           </div>
         </div>

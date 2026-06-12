@@ -450,7 +450,7 @@ export default function EmpleadoDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1 space-y-4">
+        <div className="lg:col-span-1 order-2 lg:order-1 space-y-4">
           {cargandoSede ? (
             <Card className="flex items-center justify-center py-10">
               <Spinner />
@@ -518,7 +518,7 @@ export default function EmpleadoDashboard() {
           </Card>
         </div>
 
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 order-1 lg:order-2">
           {cargando ? (
             <div className="flex justify-center py-20">
               <Spinner />
@@ -545,7 +545,7 @@ export default function EmpleadoDashboard() {
               </div>
             </Card>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               {timelineCitas.map((cita) => {
                 if (cita.esFree) {
                   return (

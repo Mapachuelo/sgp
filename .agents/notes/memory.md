@@ -107,3 +107,33 @@
 - Pendiente: Containerfile.nginx para frontend
 - Pendiente: Pruebas unitarias >80% cobertura
 - Pendiente: HTTPS con Nginx + Let's Encrypt
+
+---
+
+## Sesion — 11 Junio 2026
+
+### Optimizaciones de Frontend y Diseño de Grillas
+
+#### Disponibilidad del Empleado (mi-disponibilidad.jsx)
+- Se restauró el bloque JSX principal de la pantalla de planificación semanal.
+- Se reestructuró el layout del planeador para presentar un diseño de doble columna: a la izquierda la grilla de turnos (`lg:w-3/4`) y a la derecha los componentes de "Mis Servicios Asignados" y "Leyenda de Disponibilidad" (`lg:w-1/4`), para coincidir exactamente con el diseño estructural e interactivo del prototipo demo2.html.
+
+#### Flujo de Reserva del Cliente (nueva-reserva.jsx)
+- Se rediseñó el Paso 3 (Calendario) del cliente, reemplazando las 6 columnas de días independientes por una grilla/tabla unificada similar al planeador del empleado (horas sticky a la izquierda y días de la semana como columnas en la cabecera).
+- Los slots se presentan de forma compacta y cohesionada con las clases de estado (.slot-libre, .slot-ocupado, .slot-antelacion) definidas en el tema HSL premium.
+- Se centró la tabla de disponibilidad (`max-w-4xl mx-auto`) y se limitó su altura a un scroll interno fijo (`max-h-[42vh]`) para mejorar la ergonomía visual y permitir al usuario ver la leyenda y el botón de navegación sin necesidad de hacer scroll en toda la página.
+
+#### Navegación Responsiva (layout.jsx)
+- Se implementó un menú hamburguesa interactivo en el navbar principal de la aplicación (`layout.jsx`).
+- En dispositivos móviles (`md:hidden`), todos los enlaces del menú del rol correspondiente, el nombre del usuario y la opción de cerrar sesión se colapsan dentro del botón hamburguesa que se expande hacia abajo suavemente. En pantallas de portátiles y superiores, se conserva el navbar horizontal limpio.
+
+#### Ergonomía y Resistencia a la Saturación
+- En `empleado-dashboard.jsx` (citas de hoy) se reordenaron las columnas para dispositivos móviles usando flexbox grid orders (`order-1` y `order-2` / `lg:order-*`). De esta manera, el listado de citas (Timeline) se renderiza arriba (primero) y el mapa con el resumen de sede hoy se sitúa abajo, mejorando significativamente la usabilidad en pantallas pequeñas.
+- Se limitó la altura de los listados de citas/reservas en `empleado-dashboard.jsx` (`max-h-[70vh]`) y `admin-dashboard.jsx` (`max-h-[55vh]`), añadiendo scrollbars verticales internos. Esto evita el estiramiento kilométrico de la página vertical en escenarios de alta saturación.
+- Se implementó un script de pruebas de estrés/saturación de datos en `backend/src/utils/semillar-saturacion.js` que inserta directamente en base de datos 60 citas de prueba en intervalos de 15 minutos para el día de hoy, y se vinculó al comando global `pnpm run seed:saturacion` en `package.json` para facilitar las pruebas del frontend frente a grandes volúmenes de usuarios.
+
+#### Verificación y Pruebas
+- Se ejecutó `pnpm --filter frontend build` para asegurar la compilación en limpio del proyecto.
+- Se ejecutó `pnpm run lint` sobre el backend para validar el estándar de codificación.
+- Se recrearon los contenedores con `podman compose up --build -d` para verificar el correcto despliegue local de la aplicación.
+

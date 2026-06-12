@@ -1260,7 +1260,7 @@ export default function AdminDashboard() {
         {reservasLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : reservas.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[55vh] overflow-y-auto pr-1">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-borde/70 text-left font-bold text-texto-secundario uppercase">
