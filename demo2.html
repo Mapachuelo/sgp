@@ -1,0 +1,2936 @@
+<!doctype html>
+<html lang="es"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGP — Sistema de Gestión de Peluquería (Demo Interactiva)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS y JS para mapas interactivos -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Playfair Display"', 'serif'],
+            body: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            fondo: '#FAF7F2', 
+            superficie: '#FFFFFF', 
+            borde: '#E5DDD3',
+            primario: '#8B5E3C', 
+            'primario-hover': '#7A5233', 
+            secundario: '#C9A96E',
+            'texto-principal': '#2D2420', 
+            'texto-secundario': '#8C7B70',
+            exito: '#4A7C59', 
+            advertencia: '#C4883C', 
+            error: '#B84C3D', 
+            info: '#5B7B9A',
+          },
+          boxShadow: {
+            premium: '0 10px 30px -5px rgba(139, 94, 60, 0.05), 0 4px 12px -2px rgba(45, 36, 32, 0.03)',
+            elevated: '0 20px 40px -10px rgba(45, 36, 32, 0.08), 0 8px 16px -4px rgba(45, 36, 32, 0.02)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-display { font-family: 'Playfair Display', serif; }
+    
+    /* Fondo con patrón premium sutil */
+    .bg-pattern { 
+      background-color: #FAF7F2; 
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M28 8c-2 6-4 10-6 14l2 2c2-4 4-8 6-14l-2-2zm4 0c2 6 4 10 6 14l-2 2c-2-4-4-8-6-14l2-2zM18 22c6 2 10 4 14 6l-2 2c-4-2-8-4-14-6l2-2zm24 0c-6 2-10 4-14 6l2 2c4-2 8-4 14-6l-2-2zM8 28c6-2 10-4 14-6l2 2c-4 2-8 4-14 6l-2-2zm44 0c-6-2-10-4-14-6l-2 2c4 2 8 4 14 6l2-2z' fill='%23e5ddd3' fill-opacity='0.25'/%3E%3C/svg%3E"); 
+    }
+    
+    .overlay { 
+      background: rgba(45, 36, 32, 0.35); 
+      backdrop-filter: blur(4px); 
+      transition: all 0.3s ease;
+    }
+    
+    .sheet { 
+      position: fixed; 
+      top: 0; 
+      right: 0; 
+      height: 100%; 
+      width: 600px; 
+      max-width: 100vw; 
+      z-index: 60; 
+      background: #FFFFFF; 
+      box-shadow: -10px 0 40px rgba(45, 36, 32, 0.1); 
+      transform: translateX(100%); 
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+      overflow-y: auto; 
+    }
+    .sheet.open { transform: translateX(0); }
+    
+    /* Estilos slots de disponibilidad y timeline */
+    .slot-libre { background: #DCE8E0; border: 1px solid #A3C9A8; color: #4A7C59; cursor: pointer; transition: all 0.2s ease; }
+    .slot-libre:hover { background: #C5DDC9; border-color: #4A7C59; transform: translateY(-1px); }
+    .slot-ocupado { background: #F5E6E3; border: 1px solid #E8C5C0; color: #B84C3D; cursor: not-allowed; opacity: 0.65; }
+    .slot-antelacion { background: #FFF3E6; border: 1px solid #F0C78E; color: #C4883C; cursor: not-allowed; }
+    
+    .custom-leaflet-icon { background: none !important; border: none !important; }
+    
+    /* Animaciones */
+    @keyframes slideIn {
+      from { transform: translate(-50%, -100%); opacity: 0; }
+      to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    .animate-toast { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    
+    /* Scrollbars elegantes */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #FAF7F2; }
+    ::-webkit-scrollbar-thumb { background: #C9A96E; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #8B5E3C; }
+  </style>
+</head>
+<body class="bg-fondo text-texto-principal font-body min-h-screen relative flex flex-col">
+
+  <!-- ===== NAVEGACIÓN SUPERIOR (TABS DE SIMULACIÓN) ===== -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-superficie/90 backdrop-blur border-b border-borde/70 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="font-display text-2xl font-bold text-primario tracking-tight">SGP</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-primario/10 text-primario font-semibold uppercase tracking-wider"></span>
+      </div>
+      <div class="flex gap-1 bg-fondo rounded-xl p-1 border border-borde/50 overflow-x-auto max-w-[70vw] md:max-w-none">
+        <button onclick="showTab('login')" id="tab-login" class="px-4 py-1.5 rounded-lg text-sm font-medium tab-btn bg-superficie shadow-sm text-primario transition-all duration-200">Login</button>
+        <button onclick="showTab('cliente')" id="tab-cliente" class="px-4 py-1.5 rounded-lg text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal transition-all duration-200">Cliente</button>
+        <button onclick="showTab('reserva')" id="tab-reserva" class="px-4 py-1.5 rounded-lg text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal transition-all duration-200">Nueva Reserva</button>
+        <button onclick="showTab('empleado')" id="tab-empleado" class="px-4 py-1.5 rounded-lg text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal transition-all duration-200">Empleado</button>
+        <button onclick="showTab('admin')" id="tab-admin" class="px-4 py-1.5 rounded-lg text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal transition-all duration-200">Admin</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== PANTALLAS DE LA SIMULACIÓN ===== -->
+  <main class="flex-grow pt-16">
+
+    <!-- ==================== PANTALLA: LOGIN ==================== -->
+    <section id="seccion-login" class="min-h-[calc(100vh-4rem)] bg-pattern flex items-center justify-center p-4">
+      <div class="w-full max-w-4xl bg-superficie rounded-3xl border border-borde/70 shadow-elevated overflow-hidden flex flex-col md:flex-row">
+        <!-- Lado izquierdo (Decorativo) -->
+        <div class="hidden md:flex md:w-1/2 bg-primario/5 p-12 flex-col justify-between border-r border-borde/40">
+          <div class="space-y-2">
+            <h2 class="font-display text-4xl font-bold text-primario">SGP</h2>
+            <p class="text-texto-secundario text-sm">Sistema de Gestión y Reservas de Peluquería.</p>
+          </div>
+          <div class="bg-superficie/80 border border-borde p-6 rounded-2xl">
+            <p class="text-xs font-semibold uppercase tracking-wider text-texto-secundario mb-3">Acceso Rápido de Prueba</p>
+            <div class="flex flex-col gap-2">
+              <button onclick="completarCredenciales('cliente')" class="w-full text-left py-2 px-3 hover:bg-primario/10 rounded-lg text-xs font-medium text-texto-principal flex justify-between items-center transition border border-borde/50">
+                <span>Cliente</span>
+                <span class="text-texto-secundario font-mono text-[10px]">cliente@sgp.local</span>
+              </button>
+              <button onclick="completarCredenciales('empleado')" class="w-full text-left py-2 px-3 hover:bg-primario/10 rounded-lg text-xs font-medium text-texto-principal flex justify-between items-center transition border border-borde/50">
+                <span>Empleado (Estilista)</span>
+                <span class="text-texto-secundario font-mono text-[10px]">carlos@sgp.local</span>
+              </button>
+              <button onclick="completarCredenciales('admin')" class="w-full text-left py-2 px-3 hover:bg-primario/10 rounded-lg text-xs font-medium text-texto-principal flex justify-between items-center transition border border-borde/50">
+                <span>Administrador</span>
+                <span class="text-texto-secundario font-mono text-[10px]">admin@sgp.local</span>
+              </button>
+            </div>
+          </div>
+          <p class="text-xs text-texto-secundario/80">© 2026 SGP. Todos los derechos reservados.</p>
+        </div>
+        
+        <!-- Lado derecho (Formulario) -->
+        <div class="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
+          <div id="login-form-box" class="space-y-6">
+            <div class="space-y-1">
+              <h1 class="font-display text-3xl font-bold text-texto-principal">Ingreso</h1>
+              <p class="text-sm text-texto-secundario">Bienvenido. Inicia sesión en el sistema.</p>
+            </div>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-texto-principal uppercase tracking-wider mb-1.5">Correo Electrónico</label>
+                <input type="email" id="login-email" placeholder="correo@ejemplo.com" class="w-full px-4 py-3 rounded-xl border border-borde bg-fondo/35 text-sm focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-texto-principal uppercase tracking-wider mb-1.5">Contraseña</label>
+                <input type="password" id="login-password" value="123456" class="w-full px-4 py-3 rounded-xl border border-borde bg-fondo/35 text-sm focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition">
+              </div>
+              <button onclick="simularLogin()" class="w-full py-3 bg-primario hover:bg-primario-hover text-white rounded-xl font-medium transition shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                Ingresar al Sistema
+              </button>
+            </div>
+            <p class="text-center text-xs text-texto-secundario">¿No eres usuario? <a href="#" onclick="toggleAuthForms(true)" class="text-primario font-semibold hover:underline">Regístrate como Cliente</a></p>
+          </div>
+
+          <div id="registro-form-box" class="space-y-4 hidden">
+            <div class="space-y-1">
+              <h1 class="font-display text-3xl font-bold text-texto-principal">Registro de Cliente</h1>
+              <p class="text-sm text-texto-secundario">Crea una cuenta para agendar tus citas.</p>
+            </div>
+            <div class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Nombre</label>
+                  <input type="text" id="reg-nombre" placeholder="Nombre" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/25 transition">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Apellido</label>
+                  <input type="text" id="reg-apellido" placeholder="Apellido" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/25 transition">
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Cédula / Identificación</label>
+                <input type="text" id="reg-cedula" placeholder="12345678" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/25 transition">
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Teléfono</label>
+                <input type="text" id="reg-telefono" placeholder="+57 300 123 4567" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/25 transition">
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Email</label>
+                <input type="email" id="reg-email" placeholder="cliente@correo.com" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/25 transition">
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Contraseña</label>
+                <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/25 transition">
+              </div>
+              <button onclick="simularRegistro()" class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl text-sm font-semibold transition mt-2">Crear Cuenta</button>
+            </div>
+            <p class="text-center text-xs text-texto-secundario">¿Ya tienes cuenta? <a href="#" onclick="toggleAuthForms(false)" class="text-primario font-semibold hover:underline">Inicia Sesión</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PANTALLA: CLIENTE ==================== -->
+    <section id="seccion-cliente" class="hidden max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-borde/60 pb-6">
+        <div>
+          <h1 id="cli-welcome-title" class="font-display text-3xl font-bold text-texto-principal">Hola, Juan Pérez</h1>
+          <p class="text-sm text-texto-secundario">Administra tus reservas clásicas y consulta tus códigos de acceso.</p>
+        </div>
+        <button onclick="showTab('reserva')" class="px-6 py-3 bg-primario hover:bg-primario-hover text-white rounded-xl font-medium transition shadow-md flex items-center gap-2">
+          <span>Agendar Nueva Cita</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+      </div>
+
+      <!-- Mi Kanban de Reservas -->
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="font-display text-xl font-bold text-texto-principal">Estado de mis Citas</h2>
+          <span id="cli-res-count" class="text-xs px-2.5 py-1 rounded-full bg-primario/10 text-primario font-semibold">0 citas en total</span>
+        </div>
+        
+        <!-- Tablero Kanban -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
+          <!-- Pendiente -->
+          <div class="bg-superficie border border-borde/70 rounded-2xl p-4 space-y-4 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-borde/40 pb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-advertencia">Pendientes</span>
+              <span id="badge-count-pendiente" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-advertencia font-semibold">0</span>
+            </div>
+            <div id="col-pendiente" class="space-y-3 min-h-[150px]"></div>
+          </div>
+          <!-- Confirmada -->
+          <div class="bg-superficie border border-borde/70 rounded-2xl p-4 space-y-4 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-borde/40 pb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-secundario">Confirmadas</span>
+              <span id="badge-count-confirmada" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-secundario font-semibold">0</span>
+            </div>
+            <div id="col-confirmada" class="space-y-3 min-h-[150px]"></div>
+          </div>
+          <!-- En Curso -->
+          <div class="bg-superficie border border-borde/70 rounded-2xl p-4 space-y-4 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-borde/40 pb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-info">En Curso</span>
+              <span id="badge-count-curso" class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-info font-semibold">0</span>
+            </div>
+            <div id="col-curso" class="space-y-3 min-h-[150px]"></div>
+          </div>
+          <!-- Completada -->
+          <div class="bg-superficie border border-borde/70 rounded-2xl p-4 space-y-4 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-borde/40 pb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-exito">Cobrados</span>
+              <span id="badge-count-completada" class="text-[10px] px-1.5 py-0.5 rounded bg-green-50 border border-green-200 text-exito font-semibold">0</span>
+            </div>
+            <div id="col-completada" class="space-y-3 min-h-[150px]"></div>
+          </div>
+          <!-- Cancelada -->
+          <div class="bg-superficie border border-borde/70 rounded-2xl p-4 space-y-4 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-borde/40 pb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-error">Canceladas</span>
+              <span id="badge-count-cancelada" class="text-[10px] px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-error font-semibold">0</span>
+            </div>
+            <div id="col-cancelada" class="space-y-3 min-h-[150px] opacity-75"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PANTALLA: NUEVA RESERVA ==================== -->
+    <section id="seccion-reserva" class="hidden max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <div class="text-center space-y-2 max-w-xl mx-auto mb-6">
+        <h1 class="font-display text-3xl font-bold text-texto-principal">Agendar Cita</h1>
+        <p class="text-sm text-texto-secundario">Sigue los pasos interactivos para completar la reserva en la sede de tu elección.</p>
+      </div>
+
+      <!-- Barra de Pasos -->
+      <div class="flex justify-between items-center max-w-2xl mx-auto relative mb-10 overflow-x-auto pb-2">
+        <div class="flex items-center gap-2 select-none">
+          <div id="res-badge-1" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-primario text-white">1</div>
+          <span class="text-xs font-semibold text-texto-principal">Sede</span>
+        </div>
+        <div class="w-12 h-px bg-borde"></div>
+        <div class="flex items-center gap-2 select-none">
+          <div id="res-badge-2" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-borde text-texto-secundario">2</div>
+          <span class="text-xs font-semibold text-texto-secundario">Estilista</span>
+        </div>
+        <div class="w-12 h-px bg-borde"></div>
+        <div class="flex items-center gap-2 select-none">
+          <div id="res-badge-3" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-borde text-texto-secundario">3</div>
+          <span class="text-xs font-semibold text-texto-secundario">Horario</span>
+        </div>
+        <div class="w-12 h-px bg-borde"></div>
+        <div class="flex items-center gap-2 select-none">
+          <div id="res-badge-4" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-borde text-texto-secundario">4</div>
+          <span class="text-xs font-semibold text-texto-secundario">Confirmar</span>
+        </div>
+        <div class="w-12 h-px bg-borde"></div>
+        <div class="flex items-center gap-2 select-none">
+          <div id="res-badge-5" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-borde text-texto-secundario">5</div>
+          <span class="text-xs font-semibold text-texto-secundario">Pago</span>
+        </div>
+      </div>
+
+      <!-- CONTENIDOS DE LOS PASOS -->
+      <!-- Paso 1: Sedes -->
+      <div id="res-step-1" class="space-y-6">
+        <h2 class="font-display text-lg font-bold text-texto-principal text-center">Paso 1: Selecciona la sede del servicio</h2>
+        <div class="flex flex-col lg:flex-row gap-6">
+          <div class="lg:w-1/2 flex flex-col gap-3" id="res-sedes-list">
+            <!-- Renderizado dinámico -->
+          </div>
+          <!-- Leaflet para Reservas -->
+          <div class="lg:w-1/2 bg-superficie rounded-2xl border border-borde p-4 shadow-premium space-y-4">
+            <p class="text-xs font-bold uppercase tracking-wider text-texto-secundario">Mapa de Sedes</p>
+            <div id="reserva-mapa-leaflet" class="h-64 rounded-xl border border-borde overflow-hidden z-10 bg-fondo"></div>
+            <button onclick="reservaPasarPaso2()" id="btn-next-step-1" disabled="" class="w-full py-3 bg-primario hover:bg-primario-hover text-white rounded-xl font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+              Siguiente: Elegir Estilista
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 2: Empleados -->
+      <div id="res-step-2" class="space-y-6 hidden">
+        <div class="flex items-center gap-2">
+          <button onclick="reservaVolverPaso(1)" class="text-xs text-primario hover:underline flex items-center gap-1">← Volver</button>
+          <span class="text-xs text-texto-secundario">Sede: <strong id="res-label-sede" class="text-texto-principal">Centro</strong></span>
+        </div>
+        <h2 class="font-display text-lg font-bold text-texto-principal text-center">Paso 2: Selecciona un Estilista</h2>
+        <div id="res-empleados-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- Renderizado dinámico -->
+        </div>
+      </div>
+
+      <!-- Paso 3: Calendario -->
+      <div id="res-step-3" class="space-y-6 hidden">
+        <div class="flex items-center gap-2">
+          <button onclick="reservaVolverPaso(2)" class="text-xs text-primario hover:underline">← Volver</button>
+          <span class="text-xs text-texto-secundario">Estilista: <strong id="res-label-estilista" class="text-texto-principal"></strong></span>
+        </div>
+        <div class="flex justify-between items-center flex-wrap gap-2 border-b border-borde pb-4">
+          <div>
+            <h2 class="font-display text-lg font-bold text-texto-principal">Paso 3: Escoge el día y la hora</h2>
+            <p class="text-xs text-texto-secundario">Haga clic en una ranura libre para agendar. Debe tener al menos 60m de antelación.</p>
+          </div>
+          <div class="flex gap-2">
+            <select id="res-filtro-granularidad" onchange="reservaFiltroGranularidad(this.value)" class="text-xs px-2 py-1.5 border border-borde rounded bg-superficie text-texto-principal">
+              <option value="15">Intervalo 15m</option>
+              <option value="30" selected="">Intervalo 30m</option>
+              <option value="60">Intervalo 60m</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-6 gap-3">
+          <!-- Columnas de días -->
+          <div id="res-calendar-days" class="lg:col-span-6 grid grid-cols-6 gap-2">
+            <!-- Renderizado dinámico -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 4: Confirmar -->
+      <div id="res-step-4" class="space-y-6 hidden">
+        <h2 class="font-display text-lg font-bold text-texto-principal text-center">Paso 4: Confirma los detalles de tu cita</h2>
+        <div class="bg-superficie border border-borde rounded-2xl shadow-premium max-w-xl mx-auto p-6 space-y-6">
+          <div class="space-y-3">
+            <h3 class="font-display text-xl font-bold text-texto-principal border-b border-borde/50 pb-2">Resumen</h3>
+            <div class="grid grid-cols-2 gap-y-2 text-sm">
+              <span class="text-texto-secundario">Sede</span>
+              <span id="res-resumen-sede" class="font-semibold text-right">Sede Centro</span>
+              <span class="text-texto-secundario">Estilista</span>
+              <span id="res-resumen-empleado" class="font-semibold text-right">Carlos Gómez</span>
+              <span class="text-texto-secundario">Fecha y Hora</span>
+              <span id="res-resumen-fecha" class="font-semibold text-right text-primario">Lunes 15 Jun · 09:00</span>
+            </div>
+          </div>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Selecciona el Servicio</label>
+              <select id="res-select-servicio" onchange="reservaCambiarServicio(this.value)" class="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20">
+                <!-- Renderizado dinámico -->
+              </select>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Personas</label>
+                <div class="flex items-center gap-2">
+                  <button onclick="reservaCambiarPersonas(-1)" class="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition">-</button>
+                  <span id="res-label-personas" class="font-semibold w-8 text-center text-sm">1</span>
+                  <button onclick="reservaCambiarPersonas(1)" class="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition">+</button>
+                </div>
+              </div>
+              <div class="text-right flex flex-col justify-end">
+                <span class="text-xs text-texto-secundario">Total a pagar:</span>
+                <span id="res-label-precio-total" class="text-2xl font-bold text-primario">$25.000</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-3 pt-4 border-t border-borde/50">
+            <button onclick="reservaVolverPaso(3)" class="flex-1 py-2.5 bg-fondo hover:bg-borde text-texto-principal rounded-xl font-medium transition">Atrás</button>
+            <button onclick="reservaCrearPreCita()" class="flex-1 py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl font-medium transition shadow-md">Confirmar Reserva</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 5: Pago -->
+      <div id="res-step-5" class="space-y-6 hidden">
+        <h2 class="font-display text-lg font-bold text-texto-principal text-center">Paso 5: Proceso de Pago y Código QR</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <!-- QR e Instrucciones -->
+          <div class="bg-superficie border border-borde rounded-2xl p-6 shadow-premium flex flex-col items-center text-center space-y-4">
+            <div class="w-16 h-16 rounded-full bg-exito/10 flex items-center justify-center text-exito">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div>
+              <h3 class="font-display text-lg font-bold text-texto-principal">¡Tu Reserva ha sido Registrada!</h3>
+              <p class="text-xs text-texto-secundario mt-1">Hemos generado un token de acceso QR. Elige el método de pago para activarla.</p>
+            </div>
+            
+            <div class="border border-borde p-3 rounded-2xl bg-white shadow-sm inline-block">
+              <!-- Renderizado de código QR simulado -->
+              <div id="res-qr-render" class="flex flex-col items-center">
+                <svg width="120" height="120" viewBox="0 0 140 140">
+                  <rect width="140" height="140" rx="8" fill="white"></rect>
+                  <path d="M25 25h35v35H25V25zm10 10v15h15V35H35zM80 25h35v35H80V25zm10 10v15h15V35H90zM25 80h35v35H25V80zm10 10v15h15V90H35z" fill="#2D2420"></path>
+                  <rect x="75" y="75" width="10" height="10" fill="#2D2420"></rect>
+                  <rect x="95" y="75" width="10" height="10" fill="#2D2420"></rect>
+                  <rect x="75" y="95" width="10" height="10" fill="#8B5E3C"></rect>
+                  <rect x="95" y="95" width="10" height="10" fill="#2D2420"></rect>
+                </svg>
+                <span id="res-label-token" class="font-mono text-xs text-texto-principal font-bold mt-2">QR-TOKEN-123</span>
+              </div>
+            </div>
+            <button onclick="simularDescargarQR()" class="px-4 py-1.5 bg-fondo border border-borde hover:bg-superficie rounded-lg text-xs font-semibold transition">Descargar QR</button>
+          </div>
+
+          <!-- Formularios de Pago -->
+          <div class="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
+            <h3 class="font-semibold text-sm text-texto-principal uppercase tracking-wider">Selecciona la forma de pago</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <button onclick="reservaAlternarMetodoPago('efectivo')" id="btn-pago-efec" class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-primario bg-primario/5 text-center transition">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>
+                <span class="text-xs font-bold text-primario">Efectivo en Local</span>
+              </button>
+              <button onclick="reservaAlternarMetodoPago('online')" id="btn-pago-tarj" class="flex flex-col items-center gap-2 p-4 rounded-xl border border-borde hover:border-primario text-center transition">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8C7B70" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                <span class="text-xs font-bold text-texto-secundario">Pago con Tarjeta</span>
+              </button>
+            </div>
+
+            <!-- Formulario tarjeta -->
+            <div id="res-form-tarjeta" class="space-y-3 hidden">
+              <div>
+                <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Nombre del Tarjetahabiente</label>
+                <input type="text" id="tarjeta-nombre" placeholder="Juan Pérez" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20">
+              </div>
+              <div>
+                <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Número de Tarjeta</label>
+                <input type="text" id="tarjeta-numero" placeholder="4242 4242 4242 4242" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Expiración</label>
+                  <input type="text" placeholder="MM/AA" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-texto-principal uppercase mb-1">CVV</label>
+                  <input type="password" placeholder="***" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20">
+                </div>
+              </div>
+            </div>
+
+            <button onclick="reservaFinalizarPago()" class="w-full py-3 bg-exito hover:bg-green-700 text-white rounded-xl font-semibold transition shadow-md">
+              Confirmar y Activar Reserva
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PANTALLA: EMPLEADO ==================== -->
+    <section id="seccion-empleado" class="hidden max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <!-- Tabs internas Empleado -->
+      <div class="flex justify-between items-center border-b border-borde/60 pb-4 flex-wrap gap-2">
+        <div class="flex gap-1 bg-fondo border border-borde/50 rounded-xl p-1">
+          <button onclick="empleadoSwitchTab('citas')" id="emp-tab-citas" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-superficie shadow-sm text-primario transition">Citas del Día</button>
+          <button onclick="empleadoSwitchTab('dispo')" id="emp-tab-dispo" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-texto-secundario hover:text-texto-principal transition">Mi Planificación semanal</button>
+          <button onclick="empleadoSwitchTab('perfil')" id="emp-tab-perfil" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-texto-secundario hover:text-texto-principal transition">Mi Perfil</button>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="openModal('validar-qr-modal')" class="px-4 py-2 bg-primario hover:bg-primario-hover text-white rounded-xl text-xs font-semibold shadow-sm transition">Escanear / Validar Cita</button>
+        </div>
+      </div>
+
+      <!-- VISTA INTERNA 1: CITAS DE HOY -->
+      <div id="emp-view-citas" class="space-y-6">
+        <div class="flex flex-col lg:flex-row gap-6">
+          <!-- Timeline / Lista -->
+          <div class="lg:w-3/4 space-y-4">
+            <div>
+              <h2 class="font-display text-2xl font-bold text-texto-principal">Agenda de hoy</h2>
+              <p id="emp-label-sede-hoy" class="text-xs text-texto-secundario">Cargando...</p>
+            </div>
+            
+            <!-- Timeline de slots y reservas -->
+            <div id="emp-timeline-list" class="space-y-3">
+              <!-- Renderizado dinámico -->
+            </div>
+          </div>
+          
+          <!-- Lado Derecho: Mapa y Resumen -->
+          <div class="lg:w-1/4 space-y-4">
+            <div class="bg-superficie border border-borde rounded-2xl p-4 shadow-premium space-y-3">
+              <p class="text-xs font-bold uppercase tracking-wider text-texto-secundario">Mi Sede Actual Hoy</p>
+              <div id="empleado-mapa-leaflet" class="h-44 rounded-xl border border-borde overflow-hidden z-10 bg-fondo"></div>
+              <div>
+                <p id="emp-card-sede-nombre" class="font-bold text-sm text-texto-principal">Cargando...</p>
+                <p id="emp-card-sede-dir" class="text-xs text-texto-secundario">Cargando...</p>
+              </div>
+            </div>
+
+            <!-- Resumen del día -->
+            <div class="bg-superficie border border-borde rounded-2xl p-4 shadow-premium space-y-3">
+              <h3 class="font-display text-base font-bold text-texto-principal border-b border-borde/40 pb-2">Resumen</h3>
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between">
+                  <span class="text-texto-secundario">Pendientes de check-in</span>
+                  <span id="emp-res-pend" class="font-semibold text-advertencia">0</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-texto-secundario">En Curso</span>
+                  <span id="emp-res-curs" class="font-semibold text-info">0</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-texto-secundario">Completadas y cobradas</span>
+                  <span id="emp-res-comp" class="font-semibold text-exito">0</span>
+                </div>
+                <hr class="border-borde/50">
+                <div class="flex justify-between text-sm font-bold">
+                  <span>Recaudado estimado</span>
+                  <span id="emp-res-monto" class="text-primario">$0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA INTERNA 2: MI DISPONIBILIDAD -->
+      <div id="emp-view-dispo" class="hidden space-y-6">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-borde/50 pb-4">
+          <div>
+            <h2 class="font-display text-xl font-bold text-texto-principal">Planificación de Turnos y Disponibilidad</h2>
+            <p class="text-xs text-texto-secundario">Configura tu presencia por horas en cada sede. Arrastra o haz clic en las celdas para alternar.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="guardarDisponibilidad()" class="px-5 py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl text-xs font-semibold transition">Guardar Cambios de Disponibilidad</button>
+          </div>
+        </div>
+
+        <!-- Colores descriptivos -->
+        <div class="flex flex-wrap gap-4 text-xs font-medium">
+          <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border border-[#A3C9A8] bg-[#DCE8E0]"></span> Sede Centro</span>
+          <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border border-[#A3BDD4] bg-[#DCE8F2]"></span> Sede Norte</span>
+          <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border border-[#E5DDD3] bg-[#FAF7F2]"></span> Fuera de Turno (Descanso)</span>
+          <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded border border-[#E8B4AF] bg-[#F2D8D5]"></span> No Disponible (Bloqueado)</span>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+          <!-- Grilla de disponibilidad -->
+          <div class="lg:w-3/4 bg-superficie rounded-2xl border border-borde shadow-premium overflow-x-auto">
+            <table class="w-full min-w-[650px] border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-borde/70 bg-fondo/20">
+                  <th class="py-3 px-3 text-left font-bold text-texto-secundario uppercase tracking-wider w-20 sticky left-0 bg-white">Hora</th>
+                  <th class="py-3 px-1 text-center font-bold text-texto-principal">Lunes</th>
+                  <th class="py-3 px-1 text-center font-bold text-texto-principal">Martes</th>
+                  <th class="py-3 px-1 text-center font-bold text-texto-principal">Miércoles</th>
+                  <th class="py-3 px-1 text-center font-bold text-texto-principal">Jueves</th>
+                  <th class="py-3 px-1 text-center font-bold text-texto-principal">Viernes</th>
+                  <th class="py-3 px-1 text-center font-bold text-texto-principal">Sábado</th>
+                  <th class="py-3 px-1 text-center font-bold text-texto-principal">Domingo</th>
+                </tr>
+              </thead>
+              <tbody id="emp-dispo-table-body">
+                <!-- Renderizado dinámico -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bloqueos de Horario -->
+          <div class="lg:w-1/4 space-y-4">
+            <div class="bg-superficie border border-borde rounded-2xl p-5 shadow-premium space-y-4">
+              <h3 class="font-semibold text-sm text-texto-principal">Crear Bloqueo de Franja</h3>
+              <p class="text-xs text-texto-secundario">Bloquea un rango de horas en el cual no estarás disponible para recibir reservas.</p>
+              
+              <div class="space-y-3 text-xs">
+                <div>
+                  <label class="block font-medium mb-1">Día de la semana</label>
+                  <select id="lock-dia" class="w-full px-3 py-2 border border-borde rounded-lg bg-fondo/20">
+                    <option value="0">Lunes</option>
+                    <option value="1">Martes</option>
+                    <option value="2">Miércoles</option>
+                    <option value="3">Jueves</option>
+                    <option value="4">Viernes</option>
+                    <option value="5">Sábado</option>
+                    <option value="6">Domingo</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block font-medium mb-1">Desde</label>
+                    <input type="time" id="lock-desde" value="12:00" class="w-full px-2 py-1.5 border border-borde rounded-lg bg-fondo/20">
+                  </div>
+                  <div>
+                    <label class="block font-medium mb-1">Hasta</label>
+                    <input type="time" id="lock-hasta" value="13:30" class="w-full px-2 py-1.5 border border-borde rounded-lg bg-fondo/20">
+                  </div>
+                </div>
+                <button onclick="agregarBloqueoHorario()" class="w-full py-2 bg-error/10 text-error border border-error/20 hover:bg-error/20 transition rounded-xl font-bold">
+                  Bloquear Horas
+                </button>
+              </div>
+            </div>
+
+            <!-- Listado de Bloqueos -->
+            <div class="bg-superficie border border-borde rounded-2xl p-5 shadow-premium space-y-3">
+              <h4 class="font-semibold text-xs text-texto-principal uppercase tracking-wider">Bloqueos Activos</h4>
+              <div id="emp-locks-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <!-- Renderizado dinámico -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA INTERNA 3: MI PERFIL -->
+      <div id="emp-view-perfil" class="hidden max-w-xl mx-auto">
+        <div class="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
+          <h2 class="font-display text-xl font-bold text-texto-principal border-b border-borde pb-2">Información del Estilista</h2>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-texto-principal uppercase mb-1">Nombre</label>
+                <input type="text" id="emp-profile-nombre" value="Carlos" class="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-texto-principal uppercase mb-1">Apellido</label>
+                <input type="text" id="emp-profile-apellido" value="Gómez" class="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-texto-principal uppercase mb-1">Identificación</label>
+              <input type="text" id="emp-profile-id" value="12345678" class="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-texto-principal uppercase mb-1">Teléfono</label>
+              <input type="text" id="emp-profile-tel" value="+57 300 222 2222" class="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-texto-principal uppercase mb-1">Correo Electrónico (No editable)</label>
+              <input type="email" value="carlos@sgp.local" disabled="" class="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo text-texto-secundario cursor-not-allowed">
+            </div>
+            <button onclick="guardarPerfilEmpleado()" class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl text-sm font-semibold transition mt-4">Guardar Información</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== PANTALLA: ADMINISTRADOR ==================== -->
+    <section id="seccion-admin" class="hidden max-w-7xl mx-auto px-4 py-8 space-y-6 pb-24">
+      <div class="flex justify-between items-center border-b border-borde pb-4">
+        <div>
+          <h1 class="font-display text-3xl font-bold text-texto-principal">Tablero de Control</h1>
+          <p class="text-xs text-texto-secundario">Administración global del sistema SGP.</p>
+        </div>
+      </div>
+
+      <!-- Tarjetas de KPI -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p class="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Recaudación hoy</p>
+          <p id="kpi-ventas" class="font-display text-3xl font-bold text-primario mt-1">$0</p>
+          <span class="text-[10px] text-exito font-bold">+15% vs semana anterior</span>
+        </div>
+        <div class="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p class="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Reservas del día</p>
+          <p id="kpi-citas" class="font-display text-3xl font-bold text-texto-principal mt-1">0</p>
+          <span class="text-[10px] text-texto-secundario font-semibold">agendadas para hoy</span>
+        </div>
+        <div class="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p class="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Tasa de Ocupación</p>
+          <p id="kpi-ocupacion" class="font-display text-3xl font-bold text-texto-principal mt-1">0%</p>
+          <div class="w-full h-1.5 bg-fondo rounded-full mt-2 overflow-hidden">
+            <div id="kpi-ocupacion-bar" class="h-full bg-primario transition-all duration-500 w-0"></div>
+          </div>
+        </div>
+        <div class="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p class="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Clientes Activos</p>
+          <p id="kpi-clientes" class="font-display text-3xl font-bold text-texto-principal mt-1">0</p>
+          <span class="text-[10px] text-exito font-bold">+4 nuevos registrados hoy</span>
+        </div>
+      </div>
+
+      <!-- Timeline General de Citas -->
+      <div class="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 class="font-display text-xl font-bold text-texto-principal">Todas las Reservas de Hoy</h2>
+            <p class="text-xs text-texto-secundario">Vista del estado actual de todos los turnos del salón.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="admin-filter-sede" onchange="adminFiltrarReservas(this.value)" class="text-xs px-2.5 py-1.5 border border-borde rounded bg-fondo/20">
+              <option value="">Todas las Sedes</option>
+              <!-- Renderizado dinámico -->
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="border-b border-borde/70 text-left font-bold text-texto-secundario uppercase">
+                <th class="py-2.5 w-16">Hora</th>
+                <th class="py-2.5">Cliente</th>
+                <th class="py-2.5">Servicio</th>
+                <th class="py-2.5">Estilista</th>
+                <th class="py-2.5">Sede</th>
+                <th class="py-2.5 text-center">Personas</th>
+                <th class="py-2.5 text-right">Monto</th>
+                <th class="py-2.5 text-center">Estado</th>
+                <th class="py-2.5 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reservas-tbody">
+              <!-- Renderizado dinámico -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Barra Inferior Fija para abrir Sheets Administrativos -->
+      <div class="fixed bottom-0 left-0 right-0 bg-superficie/95 backdrop-blur border-t border-borde p-3.5 z-40 shadow-[0_-5px_20px_rgba(45,36,32,0.05)]">
+        <div class="max-w-7xl mx-auto flex flex-wrap gap-2 justify-center items-center">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-texto-secundario mr-2 hidden md:inline">Gestión:</span>
+          <button onclick="openSheet('empleados')" class="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Empleados</button>
+          <button onclick="openSheet('servicios')" class="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Servicios</button>
+          <button onclick="openSheet('sedes')" class="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Sedes</button>
+          <button onclick="openSheet('horarios')" class="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Horarios</button>
+          <button onclick="openSheet('reportes')" class="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Reportes</button>
+          <button onclick="openSheet('moderar')" class="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Moderación Clientes</button>
+          <button onclick="openSheet('logs')" class="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Logs del Sistema</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== SHEETS GIGANTES (MODALES LATERALES) ==================== -->
+  <div id="sheet-overlay" class="fixed inset-0 z-50 overlay hidden" onclick="closeSheet()"></div>
+  <div id="sheet-panel" class="sheet flex flex-col">
+    <!-- Header -->
+    <div class="p-6 border-b border-borde flex items-center justify-between shrink-0 bg-fondo/20">
+      <h2 class="font-display text-xl font-bold text-texto-principal" id="sheet-title">Panel Administrativo</h2>
+      <button onclick="closeSheet()" class="text-texto-secundario hover:text-texto-principal transition">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <!-- Body Content -->
+    <div id="sheet-content" class="p-6 flex-grow overflow-y-auto space-y-6">
+      <!-- Se inyecta dinámicamente según la sección -->
+    </div>
+  </div>
+
+  <!-- ==================== MODALES CENTRADOS ==================== -->
+  <!-- Modal: Validar QR Cita -->
+  <div id="validar-qr-modal" class="fixed inset-0 z-50 overlay hidden flex items-center justify-center p-4">
+    <div class="bg-superficie rounded-2xl shadow-elevated p-6 w-full max-w-md border border-borde" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-display text-lg font-bold text-texto-principal">Validar Ingreso y Registrar Cobro</h3>
+        <button onclick="closeModal('validar-qr-modal')" class="text-texto-secundario hover:text-texto-principal transition">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Resumen de cita autodetectada -->
+        <div id="checkin-resumen-box" class="bg-exito/5 border border-exito/20 rounded-xl p-4 hidden">
+          <p id="checkin-resumen-cliente" class="font-bold text-exito text-sm">Cliente: Juan Pérez</p>
+          <p id="checkin-resumen-detalles" class="text-xs text-texto-secundario mt-0.5">Corte clásico · Sede Centro</p>
+          <p id="checkin-resumen-pago" class="text-xs font-semibold text-advertencia mt-1">Pago pendiente en local</p>
+        </div>
+
+        <!-- Cámara de simulación -->
+        <div id="qr-camera-box" class="hidden bg-black rounded-xl overflow-hidden aspect-video relative border border-borde flex flex-col justify-center items-center text-center p-4">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4">
+            <span class="text-xs text-white/80">Simulando lectura de cámara...</span>
+          </div>
+          <!-- Animación de láser escáner -->
+          <div class="w-full h-0.5 bg-red-600 absolute top-1/2 left-0 shadow-[0_0_8px_#EF4444] animate-bounce"></div>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E5DDD3" stroke-width="1.5" class="opacity-50">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
+          </svg>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase text-texto-principal mb-1">Escanear QR o Ingresar Token</label>
+          <div class="flex gap-2">
+            <input type="text" id="checkin-token-input" placeholder="QR-TOKEN-XXXX" class="flex-grow px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none">
+            <button onclick="toggleCamaraSimulada()" id="btn-camera" class="px-3 py-2 bg-fondo border border-borde rounded-lg text-xs font-semibold transition hover:bg-superficie">Cámara</button>
+          </div>
+        </div>
+
+        <!-- Cobro en Efectivo -->
+        <div class="bg-fondo/40 border border-borde/70 rounded-xl p-4 space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-texto-secundario font-medium">Monto a pagar en local:</span>
+            <span id="checkin-lbl-monto" class="font-bold text-primario">$0</span>
+          </div>
+          <input type="number" id="checkin-monto-input" value="0" class="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-white text-texto-principal focus:outline-none">
+        </div>
+
+        <button onclick="registrarCheckInFinal()" class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl text-sm font-semibold transition shadow-md">
+          Confirmar Entrada y Registrar Pago
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICACIONES GLOBALES -->
+  <div id="toast-global" class="hidden fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-elevated border flex items-center gap-2 text-sm font-medium animate-toast">
+    <span id="toast-icon"></span>
+    <span id="toast-text">Notificación exitosa</span>
+  </div>
+
+  <!-- ==================== LOGICA DE NEGOCIO SIMULADA EN JS ==================== -->
+  <script>
+    // ===== VARIABLES DE ESTADO LOCAL (BASE DE DATOS EN MEMORIA DE LA DEMO) =====
+    let sedes = [
+      { id: 1, nombre: 'Sede Centro', direccion: 'Calle 123 #45-67, Bogotá', latitud: 4.60971, longitud: -74.08175, horario: 'L-V 09-18 · S 09-14' },
+      { id: 2, nombre: 'Sede Norte', direccion: 'Carrera 10 #89-12, Bogotá', latitud: 4.7110, longitud: -74.0721, horario: 'L-V 10-19 · S 10-15' }
+    ];
+
+    let empleados = [
+      { id: 101, nombre: 'Carlos', apellido: 'Gómez', email: 'carlos@sgp.local', telefono: '+573002222222', identificacion: '12345678', ubicacion_base_id: 1, especialidad: 'Cortes clásicos' },
+      { id: 102, nombre: 'Ana', apellido: 'Ruiz', email: 'ana@sgp.local', telefono: '+573003333333', identificacion: '87654321', ubicacion_base_id: 2, especialidad: 'Colorimetría' },
+      { id: 103, nombre: 'Luis', apellido: 'Díaz', email: 'luis@sgp.local', telefono: '+573004444444', identificacion: '11223344', ubicacion_base_id: 1, especialidad: 'Barbería y Barba' }
+    ];
+
+    let servicios = [
+      { id: 1, nombre: 'Corte clásico', descripcion: 'Lavado, corte clásico estilizado y peinado.', precio: 25000, duracion: 30 },
+      { id: 2, nombre: 'Barba', descripcion: 'Perfilado de barba con toalla caliente y bálsamo.', precio: 15000, duracion: 20 },
+      { id: 3, nombre: 'Tinte', descripcion: 'Aplicación de tinte profesional, lavado especial y secado.', precio: 60000, duracion: 90 },
+      { id: 4, nombre: 'Corte + Barba', descripcion: 'Combo completo para estilizado de cabello y arreglo de barba.', precio: 35000, duracion: 45 }
+    ];
+
+    let clientes = [
+      { id: 201, nombre: 'Juan Pérez', email: 'cliente@sgp.local', telefono: '+573001234567', identificacion: '10901234', estado: 'Activo', reservasActivas: 2 },
+      { id: 202, nombre: 'María López', email: 'maria@mail.com', telefono: '+573129876543', identificacion: '10203040', estado: 'Activo', reservasActivas: 1 },
+      { id: 203, nombre: 'Carlos Ruiz', email: 'carlosruiz@mail.com', telefono: '+573155554433', identificacion: '11002233', estado: 'Bloqueado', reservasActivas: 0, motivoBloqueo: 'Cancelaciones reiteradas a última hora' }
+    ];
+
+    // Reservas iniciales de hoy (Simula base de datos)
+    let reservas = [
+      { id: 1001, cliente_nombre: 'Juan Pérez', cliente_email: 'cliente@sgp.local', servicio_id: 1, servicio_nombre: 'Corte clásico', empleado_id: 101, empleado_nombre: 'Carlos Gómez', ubicacion_id: 1, ubicacion_nombre: 'Sede Centro', inicia_en: '09:00', termina_en: '09:30', precio: 25000, cantidad_personas: 1, estado: 'pendiente', qr_token: 'QR-TOKEN-JUAN' },
+      { id: 1002, cliente_nombre: 'María López', cliente_email: 'maria@mail.com', servicio_id: 3, servicio_nombre: 'Tinte', empleado_id: 103, empleado_nombre: 'Luis Díaz', ubicacion_id: 1, ubicacion_nombre: 'Sede Centro', inicia_en: '09:30', termina_en: '11:00', precio: 60000, cantidad_personas: 1, estado: 'confirmada', qr_token: 'QR-TOKEN-MARIA' },
+      { id: 1003, cliente_nombre: 'Carlos Ruiz', cliente_email: 'carlosruiz@mail.com', servicio_id: 2, servicio_nombre: 'Barba', empleado_id: 101, empleado_nombre: 'Carlos Gómez', ubicacion_id: 1, ubicacion_nombre: 'Sede Centro', inicia_en: '13:00', termina_en: '13:20', precio: 15000, cantidad_personas: 1, estado: 'completada', qr_token: 'QR-TOKEN-CARLOS' }
+    ];
+
+    // Disponibilidad semanal del empleado logueado (carlos@sgp.local)
+    // 0 = Descanso, 1 = Centro, 2 = Norte, 3 = Bloqueado
+    let dispoGrid = [];
+    let dispoGranularidad = 60;
+    let SLOTS_MIN = 360;  // 06:00
+    let SLOTS_MAX = 1320; // 22:00
+    let dispoBloqueos = [];
+
+    // Logs del sistema
+    let logs = [
+      { timestamp: '2026-06-11 09:00:15', severidad: 'INFO', mensaje: 'POST /api/auth/login 200 admin@sgp.local', tipo: 'actividad' },
+      { timestamp: '2026-06-11 09:02:40', severidad: 'INFO', mensaje: 'POST /api/reservas 201 cliente Juan Pérez agendó Corte clásico', tipo: 'actividad' },
+      { timestamp: '2026-06-11 09:05:12', severidad: 'INFO', mensaje: 'POST /api/checkin/validar 200 check-in reserva #1001 exitoso', tipo: 'actividad' },
+      { timestamp: '2026-06-11 09:12:00', severidad: 'ERROR', mensaje: 'POST /api/reservas 409 Conflicto de horario en Sede Centro', tipo: 'errores' },
+      { timestamp: '2026-06-11 10:15:33', severidad: 'INFO', mensaje: 'POST /api/cobros 201 cobro digital $60.000 completado', tipo: 'actividad' },
+      { timestamp: '2026-06-11 11:30:00', severidad: 'ERROR', mensaje: 'POST /api/checkin/validar 404 Token QR no encontrado o inválido', tipo: 'errores' },
+      { timestamp: '2026-06-11 14:02:11', severidad: 'WARN', mensaje: 'Rate limit advertido para la IP 192.168.1.102', tipo: 'actividad' }
+    ];
+
+    // Usuario activo actual
+    let currentUser = {
+      rol: 'cliente',
+      nombre: 'Juan Pérez',
+      email: 'cliente@sgp.local'
+    };
+
+    // Variables de mapa Leaflet para evitar reinicializaciones conflictivas
+    let mapEmpleado = null;
+    let mapReserva = null;
+    let markersReserva = [];
+
+    // Variable temporal para nueva reserva
+    let nuevaReservaData = {
+      sede: null,
+      empleado: null,
+      fecha: null,
+      hora: null,
+      horaFin: null,
+      servicio: null,
+      personas: 1,
+      precio: 0,
+      metodoPago: 'efectivo',
+      token: ''
+    };
+
+    // ==================== TOAST NOTIFICACIONES GLOBAL ====================
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast-global');
+      const text = document.getElementById('toast-text');
+      const icon = document.getElementById('toast-icon');
+      
+      text.textContent = msg;
+      toast.className = "fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-elevated border flex items-center gap-2 text-sm font-medium animate-toast";
+      
+      if (type === 'success') {
+        toast.classList.add('bg-green-50', 'border-green-200', 'text-exito');
+        icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+      } else if (type === 'warning') {
+        toast.classList.add('bg-amber-50', 'border-amber-200', 'text-advertencia');
+        icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+      } else {
+        toast.classList.add('bg-red-50', 'border-red-200', 'text-error');
+        icon.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+      }
+      
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
+
+    // ==================== CONTROL DE NAVEGACIÓN Y TABS ====================
+    function showTab(tabName) {
+      // Ocultar todas las secciones
+      document.getElementById('seccion-login').classList.add('hidden');
+      document.getElementById('seccion-cliente').classList.add('hidden');
+      document.getElementById('seccion-reserva').classList.add('hidden');
+      document.getElementById('seccion-empleado').classList.add('hidden');
+      document.getElementById('seccion-admin').classList.add('hidden');
+      closeAllModals();
+
+      // Mostrar la sección correspondiente
+      const targetSec = document.getElementById('seccion-' + tabName);
+      if (targetSec) targetSec.classList.remove('hidden');
+
+      // Actualizar estado del botón activo
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = "px-4 py-1.5 rounded-lg text-sm font-medium tab-btn text-texto-secundario hover:text-texto-principal transition-all duration-200";
+      });
+      const activeBtn = document.getElementById('tab-' + tabName);
+      if (activeBtn) {
+        activeBtn.className = "px-4 py-1.5 rounded-lg text-sm font-medium tab-btn bg-superficie shadow-sm text-primario transition-all duration-200";
+      }
+
+      // Inicializaciones específicas por sección
+      if (tabName === 'cliente') {
+        renderKanbanCliente();
+      } else if (tabName === 'reserva') {
+        initReservaFlow();
+      } else if (tabName === 'empleado') {
+        empleadoSwitchTab('citas');
+      } else if (tabName === 'admin') {
+        initAdminDashboard();
+      }
+      window.scrollTo(0, 0);
+    }
+
+    function closeAllModals() {
+      closeSheet();
+      document.getElementById('validar-qr-modal').classList.add('hidden');
+    }
+
+    // ==================== SECCIÓN 1: LOGIN Y REGISTRO ====================
+    function toggleAuthForms(toRegister) {
+      if (toRegister) {
+        document.getElementById('login-form-box').classList.add('hidden');
+        document.getElementById('registro-form-box').classList.remove('hidden');
+      } else {
+        document.getElementById('login-form-box').classList.remove('hidden');
+        document.getElementById('registro-form-box').classList.add('hidden');
+      }
+    }
+
+    function completarCredenciales(rol) {
+      const emailInput = document.getElementById('login-email');
+      if (rol === 'cliente') {
+        emailInput.value = 'cliente@sgp.local';
+      } else if (rol === 'empleado') {
+        emailInput.value = 'carlos@sgp.local';
+      } else if (rol === 'admin') {
+        emailInput.value = 'admin@sgp.local';
+      }
+    }
+
+    function simularLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      if (!email) {
+        showToast('Ingresa un correo de prueba', 'warning');
+        return;
+      }
+
+      if (email === 'admin@sgp.local') {
+        currentUser = { rol: 'admin', nombre: 'Administrador SGP', email: email };
+        showToast('Acceso Administrador concedido');
+        showTab('admin');
+      } else if (email.includes('carlos') || email === 'empleado@sgp.local') {
+        currentUser = { rol: 'empleado', nombre: 'Carlos Gómez', email: 'carlos@sgp.local', id: 101 };
+        showToast('Acceso Estilista concedido');
+        showTab('empleado');
+      } else {
+        // Asumir que es cliente
+        let client = clientes.find(c => c.email === email);
+        if (!client) {
+          client = { id: Date.now(), nombre: 'Juan Pérez', email: email, telefono: '+573001234567', estado: 'Activo' };
+          clientes.push(client);
+        }
+        
+        if (client.estado === 'Bloqueado') {
+          showToast('Tu cuenta ha sido bloqueada. Motivo: ' + (client.motivoBloqueo || 'No especificado'), 'error');
+          return;
+        }
+
+        currentUser = { rol: 'cliente', nombre: client.nombre, email: client.email };
+        document.getElementById('cli-welcome-title').textContent = "Hola, " + client.nombre;
+        showToast('Sesión iniciada como Cliente');
+        showTab('cliente');
+      }
+    }
+
+    function simularRegistro() {
+      const nombre = document.getElementById('reg-nombre').value.trim();
+      const apellido = document.getElementById('reg-apellido').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      
+      if (!nombre || !apellido || !email) {
+        showToast('Por favor completa los campos principales', 'warning');
+        return;
+      }
+
+      const nuevoCliente = {
+        id: Date.now(),
+        nombre: nombre + ' ' + apellido,
+        email: email,
+        telefono: document.getElementById('reg-telefono').value,
+        identificacion: document.getElementById('reg-cedula').value,
+        estado: 'Activo',
+        reservasActivas: 0
+      };
+
+      clientes.push(nuevoCliente);
+      currentUser = { rol: 'cliente', nombre: nuevoCliente.nombre, email: nuevoCliente.email };
+      document.getElementById('cli-welcome-title').textContent = "Hola, " + nuevoCliente.nombre;
+      
+      logs.push({
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        severidad: 'INFO',
+        mensaje: `REGISTRO: Cliente ${nuevoCliente.nombre} registrado exitosamente.`,
+        tipo: 'actividad'
+      });
+
+      showToast('Registro de cliente exitoso');
+      showTab('cliente');
+      toggleAuthForms(false);
+    }
+
+    // ==================== SECCIÓN 2: CLIENTE KANBAN ====================
+    function renderKanbanCliente() {
+      // Limpiar columnas
+      document.getElementById('col-pendiente').innerHTML = '';
+      document.getElementById('col-confirmada').innerHTML = '';
+      document.getElementById('col-curso').innerHTML = '';
+      document.getElementById('col-completada').innerHTML = '';
+      document.getElementById('col-cancelada').innerHTML = '';
+
+      const colCounts = { pendiente: 0, confirmada: 0, curso: 0, completada: 0, cancelada: 0 };
+      
+      // Filtrar reservas que pertenezcan al cliente logueado actual
+      const misReservas = reservas.filter(r => r.cliente_email === currentUser.email);
+      document.getElementById('cli-res-count').textContent = `${misReservas.length} citas en total`;
+
+      misReservas.forEach(res => {
+        colCounts[res.estado]++;
+        const col = document.getElementById('col-' + res.estado);
+        if (!col) return;
+
+        let badgePago = '';
+        if (res.estado === 'confirmada') {
+          badgePago = `<span class="text-[10px] px-2 py-0.5 rounded bg-green-50 text-exito border border-green-200 mt-1 inline-block font-semibold">Pagado online</span>`;
+        } else if (res.estado === 'pendiente') {
+          badgePago = `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-advertencia border border-amber-200 mt-1 inline-block font-semibold">Pago en local</span>`;
+        }
+
+        const card = document.createElement('div');
+        card.className = "bg-superficie border border-borde rounded-xl p-3.5 hover:shadow-premium hover:-translate-y-0.5 transition duration-200 space-y-2 text-xs relative group";
+        card.innerHTML = `
+          <div class="flex justify-between items-start gap-1">
+            <h4 class="font-bold text-texto-principal">${res.servicio_nombre}</h4>
+            <span class="text-[10px] text-texto-secundario font-semibold whitespace-nowrap">${res.inicia_en} - ${res.termina_en}</span>
+          </div>
+          <div class="text-[10px] text-texto-secundario leading-relaxed">
+            <p>Estilista: <strong class="text-texto-principal">${res.empleado_nombre}</strong></p>
+            <p>Sede: ${res.ubicacion_nombre}</p>
+            <p>Monto: <strong class="text-primario">$${res.precio.toLocaleString()}</strong></p>
+            ${badgePago}
+          </div>
+          <div class="pt-2 border-t border-borde/50 flex justify-between items-center text-[10px]">
+            <span class="font-mono text-[9px] text-texto-secundario">${res.qr_token}</span>
+            ${res.estado === 'pendiente' || res.estado === 'confirmada' ? `
+              <button onclick="cancelarReservaCliente(${res.id})" class="text-error hover:underline font-semibold cursor-pointer">Cancelar</button>
+            ` : ''}
+          </div>
+        `;
+        col.appendChild(card);
+      });
+
+      // Actualizar badges
+      Object.keys(colCounts).forEach(est => {
+        const bd = document.getElementById('badge-count-' + est);
+        if (bd) bd.textContent = colCounts[est];
+      });
+    }
+
+    function cancelarReservaCliente(id) {
+      if (!confirm('¿Seguro que deseas cancelar esta reserva?')) return;
+      const res = reservas.find(r => r.id === id);
+      if (res) {
+        res.estado = 'cancelada';
+        
+        logs.push({
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          severidad: 'INFO',
+          mensaje: `CANCELACIÓN: Cliente canceló reserva #${id} (${res.servicio_nombre}).`,
+          tipo: 'actividad'
+        });
+
+        showToast('Reserva cancelada correctamente');
+        renderKanbanCliente();
+      }
+    }
+
+    // ==================== SECCIÓN 3: NUEVA RESERVA FLOW ====================
+    function initReservaFlow() {
+      nuevaReservaData = {
+        sede: sedes[0],
+        empleado: null,
+        fecha: new Date().toISOString().split('T')[0],
+        hora: null,
+        horaFin: null,
+        servicio: servicios[0],
+        personas: 1,
+        precio: servicios[0].precio,
+        metodoPago: 'efectivo',
+        token: 'QR-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+      };
+      reservaIrAPaso(1);
+    }
+
+    function reservaIrAPaso(p) {
+      document.getElementById('res-step-1').classList.add('hidden');
+      document.getElementById('res-step-2').classList.add('hidden');
+      document.getElementById('res-step-3').classList.add('hidden');
+      document.getElementById('res-step-4').classList.add('hidden');
+      document.getElementById('res-step-5').classList.add('hidden');
+      
+      document.getElementById('res-step-' + p).classList.remove('hidden');
+
+      // Pintar badges
+      for (let i = 1; i <= 5; i++) {
+        const bd = document.getElementById('res-badge-' + i);
+        if (!bd) continue;
+        if (i === p) {
+          bd.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-primario text-white ring-4 ring-primario/10";
+          bd.nextElementSibling.className = "text-xs font-bold text-texto-principal";
+        } else if (i < p) {
+          bd.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-exito text-white";
+          bd.nextElementSibling.className = "text-xs font-semibold text-texto-secundario";
+        } else {
+          bd.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all bg-borde text-texto-secundario";
+          bd.nextElementSibling.className = "text-xs font-semibold text-texto-secundario";
+        }
+      }
+
+      if (p === 1) {
+        renderSedesReserva();
+      } else if (p === 2) {
+        renderEmpleadosReserva();
+      } else if (p === 3) {
+        renderCalendarioReserva();
+      } else if (p === 4) {
+        renderResumenReserva();
+      } else if (p === 5) {
+        renderPagoReserva();
+      }
+    }
+
+    function renderSedesReserva() {
+      const list = document.getElementById('res-sedes-list');
+      list.innerHTML = '';
+      
+      sedes.forEach(s => {
+        const card = document.createElement('div');
+        const isSel = nuevaReservaData.sede && nuevaReservaData.sede.id === s.id;
+        card.className = `p-4 rounded-2xl border-2 cursor-pointer transition ${isSel ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'} flex items-start gap-3`;
+        card.onclick = () => {
+          nuevaReservaData.sede = s;
+          renderSedesReserva();
+          recenterReservaMap(s.latitud, s.longitud, s.nombre);
+          document.getElementById('btn-next-step-1').disabled = false;
+        };
+        card.innerHTML = `
+          <div class="w-8 h-8 rounded-full bg-primario/10 flex items-center justify-center shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <div>
+            <h4 class="font-bold text-xs text-texto-principal">${s.nombre}</h4>
+            <p class="text-[10px] text-texto-secundario mt-0.5">${s.direccion}</p>
+            <span class="text-[9px] font-semibold text-texto-secundario/80 block mt-1">Horario: ${s.horario}</span>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      // Inicializar mapa de reserva
+      setTimeout(() => {
+        if (!mapReserva) {
+          mapReserva = L.map('reserva-mapa-leaflet').setView([4.60971, -74.08175], 13);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap'
+          }).addTo(mapReserva);
+        }
+        
+        // Limpiar marcadores viejos
+        markersReserva.forEach(m => mapReserva.removeLayer(m));
+        markersReserva = [];
+
+        sedes.forEach(s => {
+          const customIcon = L.divIcon({
+            html: `<div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#FAF7F2"/>
+                <circle cx="12" cy="10" r="3" fill="#8B5E3C"/>
+              </svg>
+            </div>`,
+            className: 'custom-leaflet-icon',
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+          });
+          const m = L.marker([s.latitud, s.longitud], { icon: customIcon }).addTo(mapReserva)
+            .bindPopup(`<b>${s.nombre}</b><br>${s.direccion}`)
+            .on('click', () => {
+              nuevaReservaData.sede = s;
+              renderSedesReserva();
+              document.getElementById('btn-next-step-1').disabled = false;
+            });
+          markersReserva.push(m);
+        });
+
+        if (nuevaReservaData.sede) {
+          recenterReservaMap(nuevaReservaData.sede.latitud, nuevaReservaData.sede.longitud, nuevaReservaData.sede.nombre);
+          document.getElementById('btn-next-step-1').disabled = false;
+        }
+      }, 100);
+    }
+
+    function recenterReservaMap(lat, lng, name) {
+      if (mapReserva) {
+        mapReserva.setView([lat, lng], 15);
+      }
+    }
+
+    function reservaPasarPaso2() {
+      if (!nuevaReservaData.sede) return;
+      document.getElementById('res-label-sede').textContent = nuevaReservaData.sede.nombre;
+      reservaIrAPaso(2);
+    }
+
+    function renderEmpleadosReserva() {
+      const grid = document.getElementById('res-empleados-grid');
+      grid.innerHTML = '';
+
+      // Filtrar empleados asignados a la sede base
+      const empsSede = empleados.filter(e => e.ubicacion_base_id === nuevaReservaData.sede.id);
+
+      empsSede.forEach(emp => {
+        const card = document.createElement('div');
+        const isSel = nuevaReservaData.empleado && nuevaReservaData.empleado.id === emp.id;
+        card.className = `p-5 rounded-2xl border-2 cursor-pointer text-center transition flex flex-col items-center gap-3 ${isSel ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'}`;
+        card.onclick = () => {
+          nuevaReservaData.empleado = emp;
+          renderEmpleadosReserva();
+          setTimeout(() => {
+            document.getElementById('res-label-estilista').textContent = emp.nombre + ' ' + emp.apellido;
+            reservaIrAPaso(3);
+          }, 300);
+        };
+        
+        // Obtener iniciales
+        const init = emp.nombre[0] + emp.apellido[0];
+
+        card.innerHTML = `
+          <div class="w-14 h-14 rounded-full bg-primario/10 text-primario font-display text-xl font-bold flex items-center justify-center">
+            ${init}
+          </div>
+          <div>
+            <h4 class="font-bold text-sm text-texto-principal">${emp.nombre} ${emp.apellido}</h4>
+            <p class="text-xs text-texto-secundario mt-0.5">${emp.especialidad}</p>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      if (empsSede.length === 0) {
+        grid.innerHTML = `<p class="col-span-3 text-center py-8 text-texto-secundario text-xs">No hay estilistas registrados en esta sede en este momento.</p>`;
+      }
+    }
+
+    function renderCalendarioReserva() {
+      const container = document.getElementById('res-calendar-days');
+      container.innerHTML = '';
+
+      // Generar 6 días a partir de hoy
+      const hoy = new Date();
+      const diasSem = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+      for (let i = 0; i < 6; i++) {
+        const fechaIter = new Date(hoy);
+        fechaIter.setDate(hoy.getDate() + i);
+        const yyyyMmDd = fechaIter.toISOString().split('T')[0];
+        
+        const col = document.createElement('div');
+        col.className = "space-y-3 bg-superficie border border-borde/50 rounded-xl p-3";
+        
+        col.innerHTML = `
+          <div class="text-center border-b border-borde/40 pb-2">
+            <span class="text-[10px] font-bold text-texto-secundario uppercase block">${diasSem[fechaIter.getDay()]}</span>
+            <span class="font-display text-lg font-bold text-texto-principal">${fechaIter.getDate()}</span>
+          </div>
+          <div class="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
+            ${renderSlotsDiaReserva(yyyyMmDd)}
+          </div>
+        `;
+        container.appendChild(col);
+      }
+    }
+
+    function renderSlotsDiaReserva(fecha) {
+      const g = dispoGranularidad;
+      let html = '';
+      
+      // Simular slots de 09:00 a 17:00
+      const horaInicio = 540; // 09:00 am en mins
+      const horaFin = 1020;  // 17:00 pm en mins
+      
+      const ahora = new Date();
+
+      for (let min = horaInicio; min < horaFin; min += g) {
+        const hh = Math.floor(min / 60);
+        const mm = min % 60;
+        const horaStr = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+        
+        // Determinar estado de la ranura
+        // Simular que algunas ranuras ya están ocupadas
+        const slotDate = new Date(fecha + 'T' + horaStr + ':00');
+        const diffMin = (slotDate - ahora) / 60000;
+        
+        let clase = 'slot-libre';
+        let onClickStr = `onclick="reservaSeleccionarSlot('${fecha}', '${horaStr}')"`;
+        let label = horaStr;
+
+        // Validar reservas ocupadas
+        const ocupada = reservas.some(r => r.empleado_id === nuevaReservaData.empleado.id && r.inicia_en === horaStr && r.estado !== 'cancelada');
+        
+        if (ocupada) {
+          clase = 'slot-ocupado';
+          onClickStr = '';
+        } else if (diffMin <= 0) {
+          // Ya pasó
+          clase = 'slot-ocupado';
+          onClickStr = '';
+        } else if (diffMin > 0 && diffMin < 60) {
+          // Antelación insuficiente
+          clase = 'slot-antelacion';
+          onClickStr = '';
+        }
+
+        html += `<button ${onClickStr} class="w-full text-center py-2.5 rounded-lg text-xs font-semibold ${clase}">${label}</button>`;
+      }
+      return html;
+    }
+
+    function reservaSeleccionarSlot(fecha, hora) {
+      nuevaReservaData.fecha = fecha;
+      nuevaReservaData.hora = hora;
+      
+      // Calcular hora fin sumando la duración del servicio actual
+      const [h, m] = hora.split(':');
+      const totalMin = parseInt(h) * 60 + parseInt(m) + nuevaReservaData.servicio.duracion;
+      const hFin = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+      const mFin = String(totalMin % 60).padStart(2, '0');
+      nuevaReservaData.horaFin = hFin + ':' + mFin;
+
+      reservaIrAPaso(4);
+    }
+
+    function renderResumenReserva() {
+      document.getElementById('res-resumen-sede').textContent = nuevaReservaData.sede.nombre;
+      document.getElementById('res-resumen-empleado').textContent = nuevaReservaData.empleado.nombre + ' ' + nuevaReservaData.empleado.apellido;
+      document.getElementById('res-resumen-fecha').textContent = nuevaReservaData.fecha + ' · ' + nuevaReservaData.hora + ' - ' + nuevaReservaData.horaFin;
+      
+      // Select de servicios
+      const select = document.getElementById('res-select-servicio');
+      select.innerHTML = '';
+      servicios.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.nombre} (${s.duracion} min · $${s.precio.toLocaleString()})`;
+        if (s.id === nuevaReservaData.servicio.id) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      document.getElementById('res-label-personas').textContent = nuevaReservaData.personas;
+      reservaCalcularTotal();
+    }
+
+    function reservaCambiarServicio(id) {
+      const serv = servicios.find(s => s.id == id);
+      if (serv) {
+        nuevaReservaData.servicio = serv;
+        // Recalcular hora fin
+        const [h, m] = nuevaReservaData.hora.split(':');
+        const totalMin = parseInt(h) * 60 + parseInt(m) + serv.duracion;
+        const hFin = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+        const mFin = String(totalMin % 60).padStart(2, '0');
+        nuevaReservaData.horaFin = hFin + ':' + mFin;
+        document.getElementById('res-resumen-fecha').textContent = nuevaReservaData.fecha + ' · ' + nuevaReservaData.hora + ' - ' + nuevaReservaData.horaFin;
+        reservaCalcularTotal();
+      }
+    }
+
+    function reservaCambiarPersonas(dir) {
+      nuevaReservaData.personas = Math.max(1, Math.min(5, nuevaReservaData.personas + dir));
+      document.getElementById('res-label-personas').textContent = nuevaReservaData.personas;
+      reservaCalcularTotal();
+    }
+
+    function reservaCalcularTotal() {
+      nuevaReservaData.precio = nuevaReservaData.servicio.precio * nuevaReservaData.personas;
+      document.getElementById('res-label-precio-total').textContent = '$' + nuevaReservaData.precio.toLocaleString();
+    }
+
+    function reservaVolverPaso(p) {
+      reservaIrAPaso(p);
+    }
+
+    function reservaCrearPreCita() {
+      // Avanzar al paso 5 (Pago)
+      reservaIrAPaso(5);
+    }
+
+    function renderPagoReserva() {
+      document.getElementById('res-label-token').textContent = nuevaReservaData.token;
+      // Reiniciar selección
+      reservaAlternarMetodoPago('efectivo');
+    }
+
+    function reservaAlternarMetodoPago(metodo) {
+      nuevaReservaData.metodoPago = metodo;
+      const btnEf = document.getElementById('btn-pago-efec');
+      const btnTarj = document.getElementById('btn-pago-tarj');
+      const form = document.getElementById('res-form-tarjeta');
+
+      if (metodo === 'efectivo') {
+        btnEf.className = "flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-primario bg-primario/5 text-center transition";
+        btnEf.querySelector('span').className = "text-xs font-bold text-primario";
+        btnTarj.className = "flex flex-col items-center gap-2 p-4 rounded-xl border border-borde hover:border-primario text-center transition";
+        btnTarj.querySelector('span').className = "text-xs font-bold text-texto-secundario";
+        form.classList.add('hidden');
+      } else {
+        btnTarj.className = "flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-primario bg-primario/5 text-center transition";
+        btnTarj.querySelector('span').className = "text-xs font-bold text-primario";
+        btnEf.className = "flex flex-col items-center gap-2 p-4 rounded-xl border border-borde hover:border-primario text-center transition";
+        btnEf.querySelector('span').className = "text-xs font-bold text-texto-secundario";
+        form.classList.remove('hidden');
+      }
+    }
+
+    function simularDescargarQR() {
+      showToast('QR descargado como imagen en tus archivos locales.');
+    }
+
+    function reservaFinalizarPago() {
+      // Crear objeto reserva formal en la base en memoria
+      const nuevaRes = {
+        id: Date.now(),
+        cliente_nombre: currentUser.nombre,
+        cliente_email: currentUser.email,
+        servicio_id: nuevaReservaData.servicio.id,
+        servicio_nombre: nuevaReservaData.servicio.nombre,
+        empleado_id: nuevaReservaData.empleado.id,
+        empleado_nombre: nuevaReservaData.empleado.nombre + ' ' + nuevaReservaData.empleado.apellido,
+        ubicacion_id: nuevaReservaData.sede.id,
+        ubicacion_nombre: nuevaReservaData.sede.nombre,
+        inicia_en: nuevaReservaData.hora,
+        termina_en: nuevaReservaData.horaFin,
+        precio: nuevaReservaData.precio,
+        cantidad_personas: nuevaReservaData.personas,
+        estado: nuevaReservaData.metodoPago === 'online' ? 'confirmada' : 'pendiente',
+        qr_token: nuevaReservaData.token
+      };
+
+      reservas.push(nuevaRes);
+      
+      logs.push({
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        severidad: 'INFO',
+        mensaje: `RESERVA: Cliente agendó cita #${nuevaRes.id}. Pago: ${nuevaReservaData.metodoPago}. Estado: ${nuevaRes.estado}`,
+        tipo: 'actividad'
+      });
+
+      showToast('Cita agendada correctamente. Activada.');
+      showTab('cliente');
+    }
+
+    // ==================== SECCIÓN 4: EMPLEADO DASHBOARD ====================
+    let empleadoActiveTab = 'citas';
+    
+    function empleadoSwitchTab(tabName) {
+      empleadoActiveTab = tabName;
+      document.getElementById('emp-view-citas').classList.add('hidden');
+      document.getElementById('emp-view-dispo').classList.add('hidden');
+      document.getElementById('emp-view-perfil').classList.add('hidden');
+
+      document.getElementById('emp-view-' + tabName).classList.remove('hidden');
+
+      // Pintar botones
+      document.querySelectorAll('.emp-tab-btn').forEach(btn => {
+        btn.className = "px-4 py-1.5 rounded-lg text-xs font-semibold text-texto-secundario hover:text-texto-principal transition";
+      });
+      document.getElementById('emp-tab-' + tabName).className = "px-4 py-1.5 rounded-lg text-xs font-semibold bg-superficie shadow-sm text-primario transition";
+
+      if (tabName === 'citas') {
+        renderTimelineEmpleado();
+      } else if (tabName === 'dispo') {
+        initDispoGrid();
+        renderDisponibilidadEmpleado();
+      }
+    }
+
+    function renderTimelineEmpleado() {
+      const list = document.getElementById('emp-timeline-list');
+      list.innerHTML = '';
+
+      // Filtrar citas de hoy asignadas a Carlos Gómez (101)
+      const misCitas = reservas.filter(r => r.empleado_id === 101 && r.estado !== 'cancelada');
+      
+      // Ordenar por hora
+      misCitas.sort((a,b) => a.inicia_en.localeCompare(b.inicia_en));
+
+      // Mostrar sede asignada
+      document.getElementById('emp-label-sede-hoy').textContent = "Viernes 30 Mayo 2026 · Sede Centro";
+      document.getElementById('emp-card-sede-nombre').textContent = "Sede Centro";
+      document.getElementById('emp-card-sede-dir').textContent = "Calle 123 #45-67, Bogotá";
+
+      let checkinsPendientes = 0;
+      let enCurso = 0;
+      let completadas = 0;
+      let totalRecaudado = 0;
+
+      // Dibujar citas e intercalar slots libres
+      let ultimoMin = 540; // 09:00
+
+      misCitas.forEach(cita => {
+        const [hIni, mIni] = cita.inicia_en.split(':').map(Number);
+        const minsCita = hIni * 60 + mIni;
+
+        // Si hay un hueco de más de 10 min entre citas, meter un bloque "Disponible"
+        if (minsCita > ultimoMin + 10) {
+          const huecoMins = minsCita - ultimoMin;
+          const huecoH = String(Math.floor(ultimoMin / 60)).padStart(2,'0') + ':' + String(ultimoMin % 60).padStart(2,'0');
+          list.appendChild(createDisponibleElement(huecoH, huecoMins));
+        }
+
+        // Crear elemento de la cita
+        const item = document.createElement('div');
+        
+        let badgeColor = 'bg-amber-50 border-amber-200 text-advertencia';
+        let statusLabel = 'Pendiente Check-in';
+        let btnValidar = '';
+        
+        if (cita.estado === 'pendiente') {
+          checkinsPendientes++;
+          btnValidar = `<button onclick="openValidarCitaRapido(${cita.id})" class="px-3.5 py-1.5 bg-primario hover:bg-primario-hover text-white rounded-lg text-xs font-bold transition">Validar</button>`;
+        } else if (cita.estado === 'confirmada') {
+          checkinsPendientes++;
+          statusLabel = 'Confirmada (Pagada)';
+          badgeColor = 'bg-blue-50 border-blue-200 text-info';
+          btnValidar = `<button onclick="openValidarCitaRapido(${cita.id})" class="px-3.5 py-1.5 bg-primario hover:bg-primario-hover text-white rounded-lg text-xs font-bold transition">Validar Check-in</button>`;
+        } else if (cita.estado === 'curso') {
+          enCurso++;
+          statusLabel = 'En Curso';
+          badgeColor = 'bg-blue-100 border-blue-300 text-blue-800';
+          btnValidar = `<button onclick="openValidarCitaRapido(${cita.id})" class="px-3.5 py-1.5 bg-exito hover:bg-green-700 text-white rounded-lg text-xs font-bold transition">Registrar Cobro</button>`;
+        } else if (cita.estado === 'completada') {
+          completadas++;
+          statusLabel = 'Completada / Cobrada';
+          badgeColor = 'bg-green-50 border-green-200 text-exito';
+          totalRecaudado += cita.precio;
+        }
+
+        // Calcular duración
+        const [hFin, mFin] = cita.termina_en.split(':').map(Number);
+        const dur = (hFin * 60 + mFin) - minsCita;
+
+        item.className = `bg-superficie border border-borde rounded-2xl p-4 flex items-center justify-between shadow-sm hover:shadow-premium transition-all duration-200`;
+        item.innerHTML = `
+          <div class="flex items-center gap-4">
+            <div class="text-center w-14 shrink-0 border-r border-borde/60 pr-4">
+              <p class="font-bold text-base text-primario">${cita.inicia_en}</p>
+              <p class="text-[10px] text-texto-secundario">${dur} min</p>
+            </div>
+            <div>
+              <p class="font-bold text-sm text-texto-principal">${cita.cliente_nombre}</p>
+              <p class="text-xs text-texto-secundario">${cita.servicio_nombre} · ${cita.cantidad_personas} pers.</p>
+              <div class="flex gap-2 items-center mt-1">
+                <span class="text-[10px] font-semibold text-primario">Sede Centro</span>
+                <span class="text-[10px] font-bold text-exito">$${cita.precio.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}">${statusLabel}</span>
+            ${btnValidar}
+          </div>
+        `;
+        list.appendChild(item);
+
+        ultimoMin = hFin * 60 + mFin;
+      });
+
+      // Llenar slot libre final si no cubre hasta las 18:00
+      if (ultimoMin < 1080) {
+        list.appendChild(createDisponibleElement(
+          String(Math.floor(ultimoMin/60)).padStart(2,'0') + ':' + String(ultimoMin%60).padStart(2,'0'),
+          1080 - ultimoMin
+        ));
+      }
+
+      // Actualizar resumen
+      document.getElementById('emp-res-pend').textContent = checkinsPendientes;
+      document.getElementById('emp-res-curs').textContent = enCurso;
+      document.getElementById('emp-res-comp').textContent = completadas;
+      document.getElementById('emp-res-monto').textContent = '$' + totalRecaudado.toLocaleString();
+
+      // Iniciar mapa Leaflet de Empleado
+      setTimeout(() => {
+        if (!mapEmpleado) {
+          mapEmpleado = L.map('empleado-mapa-leaflet').setView([4.60971, -74.08175], 15);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap'
+          }).addTo(mapEmpleado);
+        }
+
+        const customIcon = L.divIcon({
+          html: `<div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B84C3D" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#F5E6E3"/>
+              <circle cx="12" cy="10" r="3" fill="#B84C3D"/>
+            </svg>
+          </div>`,
+          className: 'custom-leaflet-icon',
+          iconSize: [30, 30],
+          iconAnchor: [15, 30]
+        });
+
+        // Borrar marcadores antiguos e insertar
+        mapEmpleado.eachLayer(layer => {
+          if (layer instanceof L.Marker) mapEmpleado.removeLayer(layer);
+        });
+        
+        L.marker([4.60971, -74.08175], { icon: customIcon }).addTo(mapEmpleado)
+          .bindPopup('<b>Sede Centro</b><br>Calle 123 #45-67')
+          .openPopup();
+      }, 100);
+    }
+
+    function createDisponibleElement(horaStr, duracionMins) {
+      const div = document.createElement('div');
+      div.className = "bg-fondo/50 border border-dashed border-borde rounded-2xl p-4 flex items-center gap-4 transition hover:bg-fondo/80";
+      div.innerHTML = `
+        <div class="text-center w-14 shrink-0 pr-4">
+          <p class="font-bold text-sm text-texto-secundario/50">${horaStr}</p>
+        </div>
+        <div>
+          <p class="text-texto-secundario/60 italic text-xs font-semibold">Disponible</p>
+          <p class="text-[10px] text-texto-secundario/40 mt-0.5">${duracionMins} minutos libres</p>
+        </div>
+      `;
+      return div;
+    }
+
+    // ==================== MODAL VALIDAR QR Y COBRO PAGO ====================
+    let checkinActiveCitaId = null;
+    let cameraStreamSim = null;
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      if (id === 'validar-qr-modal') {
+        apagarCamaraSimulada();
+      }
+    }
+
+    function openValidarCitaRapido(citaId) {
+      const cita = reservas.find(r => r.id === citaId);
+      if (!cita) return;
+
+      checkinActiveCitaId = citaId;
+      document.getElementById('checkin-resumen-cliente').textContent = "Cliente: " + cita.cliente_nombre;
+      document.getElementById('checkin-resumen-detalles').textContent = `${cita.servicio_nombre} · ${cita.inicia_en} - ${cita.termina_en} · ${cita.ubicacion_nombre}`;
+      
+      const pagoLbl = document.getElementById('checkin-resumen-pago');
+      const montoInput = document.getElementById('checkin-monto-input');
+      const lblMonto = document.getElementById('checkin-lbl-monto');
+
+      if (cita.estado === 'confirmada' || cita.estado === 'curso') {
+        pagoLbl.textContent = "Pago online registrado ($0 adicionales)";
+        pagoLbl.className = "text-xs font-semibold text-exito mt-1";
+        montoInput.value = "0";
+        lblMonto.textContent = "$0";
+      } else {
+        pagoLbl.textContent = "Pago pendiente en local";
+        pagoLbl.className = "text-xs font-semibold text-advertencia mt-1";
+        montoInput.value = cita.precio;
+        lblMonto.textContent = "$" + cita.precio.toLocaleString();
+      }
+
+      document.getElementById('checkin-token-input').value = cita.qr_token;
+      document.getElementById('checkin-resumen-box').classList.remove('hidden');
+
+      openModal('validar-qr-modal');
+    }
+
+    function toggleCamaraSimulada() {
+      const box = document.getElementById('qr-camera-box');
+      if (box.classList.contains('hidden')) {
+        box.classList.remove('hidden');
+        document.getElementById('btn-camera').textContent = "Apagar";
+        showToast('Escáner activado. Leyendo código...');
+      } else {
+        apagarCamaraSimulada();
+      }
+    }
+
+    function apagarCamaraSimulada() {
+      const box = document.getElementById('qr-camera-box');
+      box.classList.add('hidden');
+      document.getElementById('btn-camera').textContent = "Cámara";
+    }
+
+    function registrarCheckInFinal() {
+      const token = document.getElementById('checkin-token-input').value.trim();
+      const monto = parseFloat(document.getElementById('checkin-monto-input').value) || 0;
+
+      if (!token) {
+        showToast('Por favor introduce un token QR válido', 'warning');
+        return;
+      }
+
+      // Buscar cita por token o ID seleccionado
+      let cita = null;
+      if (checkinActiveCitaId) {
+        cita = reservas.find(r => r.id === checkinActiveCitaId);
+      } else {
+        cita = reservas.find(r => r.qr_token === token);
+      }
+
+      if (!cita) {
+        showToast('Cita no encontrada para el token: ' + token, 'error');
+        return;
+      }
+
+      if (cita.estado === 'pendiente' || cita.estado === 'confirmada') {
+        cita.estado = 'curso';
+        showToast('Entrada validada. Cita ahora está En Curso.');
+      } else if (cita.estado === 'curso') {
+        cita.estado = 'completada';
+        cita.precio = monto > 0 ? monto : cita.precio;
+        showToast('Cobro registrado. Cita Completada con éxito.');
+      } else {
+        showToast('Esta cita ya se encuentra completada o cancelada', 'warning');
+      }
+
+      logs.push({
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        severidad: 'INFO',
+        mensaje: `CHECK-IN: Check-in realizado para la reserva #${cita.id}. Estado: ${cita.estado}. Monto: $${monto}`,
+        type: 'actividad'
+      });
+
+      closeModal('validar-qr-modal');
+      renderTimelineEmpleado();
+      renderKanbanCliente();
+    }
+
+    // ==================== DISPONIBILIDAD EMPLEADO (INTERACTIVO DRAG/DROP) ====================
+    let isMouseDown = false;
+    let dragStartVal = 0;
+
+    function initDispoGrid() {
+      if (dispoGrid.length > 0) return;
+      const totalSlots = (SLOTS_MAX - SLOTS_MIN) / dispoGranularidad;
+      dispoGrid = [];
+      for (let i = 0; i < totalSlots; i++) {
+        const row = [];
+        const mins = SLOTS_MIN + i * dispoGranularidad;
+        const hora = Math.floor(mins / 60);
+
+        for (let d = 0; d < 7; d++) {
+          // Domingo libre por defecto
+          if (d === 6) row.push(0);
+          // Lun, Mar, Mié, Jue, Vie en Centro (1) de 09:00 a 17:00
+          else if (d < 5 && hora >= 9 && hora < 18) row.push(1);
+          // Sábado en Norte (2) de 09:00 a 14:00
+          else if (d === 5 && hora >= 9 && hora < 14) row.push(2);
+          else row.push(0); // Descanso
+        }
+        dispoGrid.push(row);
+      }
+    }
+
+    function renderDisponibilidadEmpleado() {
+      const tbody = document.getElementById('emp-dispo-table-body');
+      tbody.innerHTML = '';
+
+      const totalSlots = (SLOTS_MAX - SLOTS_MIN) / dispoGranularidad;
+
+      // Eventos globales para drag and drop
+      document.onmouseup = () => { isMouseDown = false; };
+
+      for (let s = 0; s < totalSlots; s++) {
+        const mins = SLOTS_MIN + s * dispoGranularidad;
+        const hh = Math.floor(mins / 60);
+        const mm = mins % 60;
+        const horaStr = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-borde/30 hover:bg-fondo/20";
+        
+        let tdHora = `<td class="py-2 px-3 font-semibold text-texto-secundario border-r border-borde/50 sticky left-0 bg-white z-10">${horaStr}</td>`;
+        let tdsCeldas = '';
+
+        for (let d = 0; d < 7; d++) {
+          let val = dispoGrid[s][d];
+          
+          // Verificar si hay un bloqueo temporal en esta hora/día
+          const diaSelect = d;
+          const bloqueado = dispoBloqueos.some(b => {
+            if (b.dia !== diaSelect) return false;
+            const [bHIni, bMIni] = b.desde.split(':').map(Number);
+            const [bHFin, bMFin] = b.hasta.split(':').map(Number);
+            const bIniMins = bHIni * 60 + bMIni;
+            const bFinMins = bHFin * 60 + bMFin;
+            return mins >= bIniMins && mins < bFinMins;
+          });
+
+          if (bloqueado) {
+            val = 3; // Forzar estado a No Disponible
+            dispoGrid[s][d] = 3;
+          }
+
+          let bg = '#FAF7F2';
+          let border = 'border-borde/25';
+          if (val === 1) { bg = '#DCE8E0'; border = 'border-[#A3C9A8]'; } // Centro
+          else if (val === 2) { bg = '#DCE8F2'; border = 'border-[#A3BDD4]'; } // Norte
+          else if (val === 3) { bg = '#F2D8D5'; border = 'border-[#E8B4AF]'; } // Bloqueado
+
+          tdsCeldas += `
+            <td 
+              class="border-r border-b border-borde/25 py-2 cursor-pointer transition select-none hover:ring-1 hover:ring-primario/30" 
+              style="background: ${bg}; border-color: ${border}"
+              onmousedown="dispoMouseDown(event, ${s}, ${d})"
+              onmouseenter="dispoMouseEnter(${s}, ${d})"
+              title="${val === 1 ? 'Sede Centro' : val === 2 ? 'Sede Norte' : val === 3 ? 'Bloqueado (No disponible)' : 'Descanso'}"
+            ></td>
+          `;
+        }
+        tr.innerHTML = tdHora + tdsCeldas;
+        tbody.appendChild(tr);
+      }
+      renderBloqueosLista();
+    }
+
+    function dispoMouseDown(e, s, d) {
+      isMouseDown = true;
+      e.preventDefault();
+      
+      const val = dispoGrid[s][d];
+      if (val === 3) {
+        showToast('Esta celda está bloqueada por franja horaria manual. Elimina el bloqueo a la derecha.', 'warning');
+        return;
+      }
+      
+      // Ciclo: 0 (Descanso) -> 1 (Centro) -> 2 (Norte) -> 0 (Descanso)
+      dragStartVal = (val + 1) % 3;
+      dispoGrid[s][d] = dragStartVal;
+      renderDisponibilidadEmpleado();
+    }
+
+    function dispoMouseEnter(s, d) {
+      if (!isMouseDown) return;
+      if (dispoGrid[s][d] === 3) return;
+      
+      dispoGrid[s][d] = dragStartVal;
+      renderDisponibilidadEmpleado();
+    }
+
+    function agregarBloqueoHorario() {
+      const dia = parseInt(document.getElementById('lock-dia').value);
+      const desde = document.getElementById('lock-desde').value;
+      const hasta = document.getElementById('lock-hasta').value;
+
+      if (!desde || !hasta || desde >= hasta) {
+        showToast('Rango de hora inválido', 'warning');
+        return;
+      }
+
+      dispoBloqueos.push({ dia, desde, hasta });
+      
+      // Forzar actualización de celdas
+      const totalSlots = (SLOTS_MAX - SLOTS_MIN) / dispoGranularidad;
+      for (let s = 0; s < totalSlots; s++) {
+        const mins = SLOTS_MIN + s * dispoGranularidad;
+        const [hD, mD] = desde.split(':').map(Number);
+        const [hH, mH] = hasta.split(':').map(Number);
+        const md = hD * 60 + mD;
+        const mh = hH * 60 + mH;
+        if (mins >= md && mins < mh) {
+          dispoGrid[s][dia] = 3;
+        }
+      }
+
+      showToast('Bloqueo de horario agregado');
+      renderDisponibilidadEmpleado();
+    }
+
+    function eliminarBloqueo(idx) {
+      const b = dispoBloqueos[idx];
+      dispoBloqueos.splice(idx, 1);
+
+      // Reestablecer celdas que tenían bloqueo (3) a descanso (0)
+      const totalSlots = (SLOTS_MAX - SLOTS_MIN) / dispoGranularidad;
+      for (let s = 0; s < totalSlots; s++) {
+        const mins = SLOTS_MIN + s * dispoGranularidad;
+        const [hD, mD] = b.desde.split(':').map(Number);
+        const [hH, mH] = b.hasta.split(':').map(Number);
+        const md = hD * 60 + mD;
+        const mh = hH * 60 + mH;
+        if (mins >= md && mins < mh && dispoGrid[s][b.dia] === 3) {
+          dispoGrid[s][b.dia] = 0;
+        }
+      }
+
+      showToast('Bloqueo eliminado');
+      renderDisponibilidadEmpleado();
+    }
+
+    function renderBloqueosLista() {
+      const list = document.getElementById('emp-locks-list');
+      list.innerHTML = '';
+      
+      const diasN = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+      dispoBloqueos.forEach((b, idx) => {
+        const item = document.createElement('div');
+        item.className = "flex justify-between items-center bg-error/5 border border-error/15 rounded-xl px-3 py-2 text-xs text-error font-medium";
+        item.innerHTML = `
+          <span>${diasN[b.dia]}: ${b.desde} - ${b.hasta}</span>
+          <button onclick="eliminarBloqueo(${idx})" class="font-bold hover:opacity-70">×</button>
+        `;
+        list.appendChild(item);
+      });
+
+      if (dispoBloqueos.length === 0) {
+        list.innerHTML = `<p class="text-center text-[10px] py-4 text-texto-secundario/60">No hay bloqueos registrados</p>`;
+      }
+    }
+
+    function guardarDisponibilidad() {
+      // Validar si cambió la sede (RF10)
+      showToast('Disponibilidad guardada correctamente. Se notificó al sistema.');
+      logs.push({
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        severidad: 'INFO',
+        mensaje: `JORNADA: Carlos Gómez guardó cambios de disponibilidad/turnos en el calendario.`,
+        tipo: 'actividad'
+      });
+    }
+
+    function guardarPerfilEmpleado() {
+      const nombre = document.getElementById('emp-profile-nombre').value;
+      const apellido = document.getElementById('emp-profile-apellido').value;
+      const tel = document.getElementById('emp-profile-tel').value;
+
+      showToast('Datos de perfil actualizados.');
+      
+      // Actualizar en el listado global
+      const c = empleados.find(e => e.id === 101);
+      if (c) {
+        c.nombre = nombre;
+        c.apellido = apellido;
+        c.telefono = tel;
+      }
+    }
+
+    // ==================== SECCIÓN 5: ADMINISTRACIÓN TABLERO ====================
+    let adminFilterSedeVal = '';
+
+    function initAdminDashboard() {
+      adminFilterSedeVal = '';
+      
+      // Select de filtro sedes
+      const select = document.getElementById('admin-filter-sede');
+      select.innerHTML = '<option value="">Todas las Sedes</option>';
+      sedes.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.nombre;
+        select.appendChild(opt);
+      });
+
+      renderKPIsAdmin();
+      renderReservasAdmin();
+    }
+
+    function renderKPIsAdmin() {
+      // Calcular recaudado hoy
+      const comp = reservas.filter(r => r.estado === 'completada');
+      const total = comp.reduce((sum, r) => sum + r.precio, 0);
+      document.getElementById('kpi-ventas').textContent = '$' + total.toLocaleString();
+
+      // Citas de hoy agendadas
+      const delDia = reservas.filter(r => r.estado !== 'cancelada');
+      document.getElementById('kpi-citas').textContent = delDia.length;
+
+      // Ocupación
+      // 100% sería completar todos los turnos disponibles (digamos 12 turnos por día como base)
+      const capMax = 12;
+      const porc = Math.min(100, Math.round((delDia.length / capMax) * 100));
+      document.getElementById('kpi-ocupacion').textContent = porc + '%';
+      document.getElementById('kpi-ocupacion-bar').style.width = porc + '%';
+
+      // Clientes Activos
+      document.getElementById('kpi-clientes').textContent = clientes.length;
+    }
+
+    function renderReservasAdmin() {
+      const tbody = document.getElementById('admin-reservas-tbody');
+      tbody.innerHTML = '';
+
+      let list = [...reservas];
+      if (adminFilterSedeVal) {
+        list = list.filter(r => r.ubicacion_id == adminFilterSedeVal);
+      }
+
+      // Ordenar por hora
+      list.sort((a,b) => a.inicia_en.localeCompare(b.inicia_en));
+
+      list.forEach(res => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-borde/40 hover:bg-fondo/20";
+        
+        let badgeColor = 'bg-amber-50 border-amber-200 text-advertencia';
+        let badgeLabel = 'Pendiente';
+
+        if (res.estado === 'confirmada') {
+          badgeColor = 'bg-blue-50 border-blue-200 text-info';
+          badgeLabel = 'Confirmada';
+        } else if (res.estado === 'curso') {
+          badgeColor = 'bg-blue-100 border-blue-300 text-blue-800';
+          badgeLabel = 'En curso';
+        } else if (res.estado === 'completada') {
+          badgeColor = 'bg-green-50 border-green-200 text-exito';
+          badgeLabel = 'Completada';
+        } else if (res.estado === 'cancelada') {
+          badgeColor = 'bg-red-50 border-red-200 text-error';
+          badgeLabel = 'Cancelada';
+        }
+
+        tr.innerHTML = `
+          <td class="py-3 font-semibold text-texto-principal">${res.inicia_en}</td>
+          <td class="py-3 font-bold text-texto-principal">${res.cliente_nombre}</td>
+          <td class="py-3">${res.servicio_nombre}</td>
+          <td class="py-3">${res.empleado_nombre}</td>
+          <td class="py-3">${res.ubicacion_nombre}</td>
+          <td class="py-3 text-center">${res.cantidad_personas}</td>
+          <td class="py-3 text-right font-bold text-primario">$${res.precio.toLocaleString()}</td>
+          <td class="py-3 text-center">
+            <span class="text-[10px] px-2 py-0.5 rounded-full border ${badgeColor} font-bold">${badgeLabel}</span>
+          </td>
+          <td class="py-3 text-center">
+            ${res.estado === 'pendiente' || res.estado === 'confirmada' || res.estado === 'curso' ? `
+              <button onclick="openValidarCitaRapido(${res.id})" class="text-xs px-2.5 py-1 bg-primario hover:bg-primario-hover text-white rounded-lg transition font-medium">Validar / Cobrar</button>
+            ` : '—'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colSpan="9" class="py-8 text-center text-texto-secundario text-xs">No hay reservas para los criterios seleccionados</td></tr>`;
+      }
+    }
+
+    function adminFiltrarReservas(val) {
+      adminFilterSedeVal = val;
+      renderReservasAdmin();
+    }
+
+    // ==================== SHEETS ADMIN (CRUD INTERACTIVO Y VISTAS) ====================
+    let activeSheet = null;
+
+    function openSheet(name) {
+      activeSheet = name;
+      const sheet = document.getElementById('sheet-panel');
+      const title = document.getElementById('sheet-title');
+      const content = document.getElementById('sheet-content');
+
+      // Títulos del Panel
+      const titles = {
+        empleados: 'Gestión de Estilistas',
+        servicios: 'Catálogo de Servicios',
+        sedes: 'Sedes de Peluquería',
+        horarios: 'Horarios de Apertura',
+        reportes: 'Reportes y Estadísticas',
+        moderar: 'Moderar Clientes',
+        logs: 'Logs del Sistema'
+      };
+
+      title.textContent = titles[name] || 'Panel';
+      
+      document.getElementById('sheet-overlay').classList.remove('hidden');
+      sheet.classList.add('open');
+
+      // Renderizar el contenido correspondiente de manera interactiva
+      renderSheetContent();
+    }
+
+    function closeSheet() {
+      const sheet = document.getElementById('sheet-panel');
+      document.getElementById('sheet-overlay').classList.add('hidden');
+      sheet.classList.remove('open');
+      activeSheet = null;
+    }
+
+    function renderSheetContent() {
+      const content = document.getElementById('sheet-content');
+      content.innerHTML = ''; // Limpiar
+
+      if (activeSheet === 'empleados') {
+        renderSheetEmpleados(content);
+      } else if (activeSheet === 'servicios') {
+        renderSheetServicios(content);
+      } else if (activeSheet === 'sedes') {
+        renderSheetSedes(content);
+      } else if (activeSheet === 'horarios') {
+        renderSheetHorarios(content);
+      } else if (activeSheet === 'reportes') {
+        renderSheetReportes(content);
+      } else if (activeSheet === 'moderar') {
+        renderSheetModerar(content);
+      } else if (activeSheet === 'logs') {
+        renderSheetLogs(content);
+      }
+    }
+
+    // ----- CRUD EMPLEADOS -----
+    let adminEmpFormShow = false;
+    let adminEmpEditId = null;
+
+    function renderSheetEmpleados(c) {
+      c.innerHTML = `
+        <div class="flex justify-between items-center">
+          <h3 class="font-bold text-sm text-texto-principal uppercase tracking-wider">Listado de Estilistas</h3>
+          <button onclick="adminToggleEmpForm()" class="px-3 py-1.5 bg-primario text-white rounded-lg text-xs font-semibold hover:bg-primario-hover transition">
+            ${adminEmpFormShow ? 'Cancelar' : '+ Agregar Nuevo'}
+          </button>
+        </div>
+        
+        <div id="emp-form-box" class="${adminEmpFormShow ? '' : 'hidden'} bg-fondo/40 border border-borde p-4 rounded-xl space-y-3">
+          <h4 class="font-bold text-xs text-primario uppercase">${adminEmpEditId ? 'Editar Estilista' : 'Registrar Nuevo Estilista'}</h4>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block mb-1">Nombre</label>
+              <input type="text" id="form-emp-nombre" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div>
+              <label class="block mb-1">Apellido</label>
+              <input type="text" id="form-emp-apellido" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div>
+              <label class="block mb-1">Cédula</label>
+              <input type="text" id="form-emp-cedula" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div>
+              <label class="block mb-1">Teléfono</label>
+              <input type="text" id="form-emp-tel" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div class="col-span-2">
+              <label class="block mb-1">Email</label>
+              <input type="email" id="form-emp-email" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div class="col-span-2">
+              <label class="block mb-1">Especialidad</label>
+              <input type="text" id="form-emp-esp" placeholder="Ej: Colorimetría, Barbería" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div class="col-span-2">
+              <label class="block mb-1">Sede Base</label>
+              <select id="form-emp-sede" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+                ${sedes.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <button onclick="adminGuardarEmpleado()" class="w-full py-2 bg-primario hover:bg-primario-hover text-white rounded-lg text-xs font-semibold transition">
+            Guardar Estilista
+          </button>
+        </div>
+
+        <div class="space-y-2">
+          ${empleados.map(emp => {
+            const sedeName = sedes.find(s => s.id === emp.ubicacion_base_id)?.nombre || 'Sede';
+            return `
+              <div class="bg-fondo/20 border border-borde/70 rounded-xl p-3 flex justify-between items-center text-xs">
+                <div>
+                  <p class="font-bold text-texto-principal">${emp.nombre} ${emp.apellido}</p>
+                  <p class="text-texto-secundario text-[10px] mt-0.5">${emp.email} · Sede: ${sedeName}</p>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-primario/10 text-primario font-semibold block w-fit mt-1">${emp.especialidad}</span>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="adminEditarEmpleado(${emp.id})" class="text-xs text-primario hover:underline font-semibold">Editar</button>
+                  <button onclick="adminBorrarEmpleado(${emp.id})" class="text-xs text-error hover:underline font-semibold">Eliminar</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function adminToggleEmpForm() {
+      adminEmpFormShow = !adminEmpFormShow;
+      adminEmpEditId = null;
+      renderSheetContent();
+    }
+
+    function adminGuardarEmpleado() {
+      const nombre = document.getElementById('form-emp-nombre').value.trim();
+      const apellido = document.getElementById('form-emp-apellido').value.trim();
+      const email = document.getElementById('form-emp-email').value.trim();
+      const telefono = document.getElementById('form-emp-tel').value.trim();
+      const identificacion = document.getElementById('form-emp-cedula').value.trim();
+      const especialidad = document.getElementById('form-emp-esp').value.trim();
+      const ubicacion_base_id = parseInt(document.getElementById('form-emp-sede').value);
+
+      if (!nombre || !apellido || !email) {
+        showToast('Por favor rellene nombre, apellido y email', 'warning');
+        return;
+      }
+
+      if (adminEmpEditId) {
+        // Editar
+        const emp = empleados.find(e => e.id === adminEmpEditId);
+        if (emp) {
+          emp.nombre = nombre;
+          emp.apellido = apellido;
+          emp.email = email;
+          emp.telefono = telefono;
+          emp.identificacion = identificacion;
+          emp.especialidad = especialidad;
+          emp.ubicacion_base_id = ubicacion_base_id;
+          showToast('Estilista actualizado correctamente');
+        }
+      } else {
+        // Crear
+        const nuevo = {
+          id: Date.now(),
+          nombre, apellido, email, telefono, identificacion, especialidad, ubicacion_base_id
+        };
+        empleados.push(nuevo);
+        showToast('Estilista registrado correctamente');
+      }
+
+      adminEmpFormShow = false;
+      adminEmpEditId = null;
+      renderSheetContent();
+      renderTimelineEmpleado();
+    }
+
+    function adminEditarEmpleado(id) {
+      const emp = empleados.find(e => e.id === id);
+      if (!emp) return;
+
+      adminEmpEditId = id;
+      adminEmpFormShow = true;
+      renderSheetContent();
+
+      // Pre-poblar
+      document.getElementById('form-emp-nombre').value = emp.nombre;
+      document.getElementById('form-emp-apellido').value = emp.apellido;
+      document.getElementById('form-emp-email').value = emp.email;
+      document.getElementById('form-emp-tel').value = emp.telefono;
+      document.getElementById('form-emp-cedula').value = emp.identificacion;
+      document.getElementById('form-emp-esp').value = emp.especialidad;
+      document.getElementById('form-emp-sede').value = emp.ubicacion_base_id;
+    }
+
+    function adminBorrarEmpleado(id) {
+      if (!confirm('¿Seguro que deseas eliminar a este estilista del salón?')) return;
+      empleados = empleados.filter(e => e.id !== id);
+      showToast('Estilista eliminado');
+      renderSheetContent();
+    }
+
+    // ----- CRUD SERVICIOS -----
+    let adminSrvFormShow = false;
+    let adminSrvEditId = null;
+
+    function renderSheetServicios(c) {
+      c.innerHTML = `
+        <div class="flex justify-between items-center">
+          <h3 class="font-bold text-sm text-texto-principal uppercase tracking-wider">Catálogo de Servicios</h3>
+          <button onclick="adminToggleSrvForm()" class="px-3 py-1.5 bg-primario text-white rounded-lg text-xs font-semibold hover:bg-primario-hover transition">
+            ${adminSrvFormShow ? 'Cancelar' : '+ Agregar Nuevo'}
+          </button>
+        </div>
+
+        <div id="srv-form-box" class="${adminSrvFormShow ? '' : 'hidden'} bg-fondo/40 border border-borde p-4 rounded-xl space-y-3">
+          <h4 class="font-bold text-xs text-primario uppercase">${adminSrvEditId ? 'Editar Servicio' : 'Crear Nuevo Servicio'}</h4>
+          <div class="space-y-2 text-xs">
+            <div>
+              <label class="block mb-1">Nombre del Servicio</label>
+              <input type="text" id="form-srv-nombre" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div>
+              <label class="block mb-1">Descripción</label>
+              <input type="text" id="form-srv-desc" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block mb-1">Precio ($ COP)</label>
+                <input type="number" id="form-srv-precio" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+              </div>
+              <div>
+                <label class="block mb-1">Duración (minutos)</label>
+                <input type="number" id="form-srv-dur" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+              </div>
+            </div>
+          </div>
+          <button onclick="adminGuardarServicio()" class="w-full py-2 bg-primario hover:bg-primario-hover text-white rounded-lg text-xs font-semibold transition">
+            Guardar Servicio
+          </button>
+        </div>
+
+        <div class="space-y-2">
+          ${servicios.map(s => `
+            <div class="bg-fondo/20 border border-borde/70 rounded-xl p-4 text-xs space-y-2">
+              <div class="flex justify-between items-start">
+                <div>
+                  <h4 class="font-bold text-sm text-texto-principal">${s.nombre}</h4>
+                  <p class="text-texto-secundario text-[10px] mt-0.5">${s.descripcion}</p>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="adminEditarServicio(${s.id})" class="text-primario hover:underline font-semibold">Editar</button>
+                  <button onclick="adminBorrarServicio(${s.id})" class="text-error hover:underline font-semibold">Eliminar</button>
+                </div>
+              </div>
+              <div class="flex gap-4 text-[10px] text-texto-secundario font-medium pt-2 border-t border-borde/40">
+                <span>Precio: <strong class="text-primario">$${s.precio.toLocaleString()}</strong></span>
+                <span>Duración: <strong class="text-texto-principal">${s.duracion} min</strong></span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function adminToggleSrvForm() {
+      adminSrvFormShow = !adminSrvFormShow;
+      adminSrvEditId = null;
+      renderSheetContent();
+    }
+
+    function adminGuardarServicio() {
+      const nombre = document.getElementById('form-srv-nombre').value.trim();
+      const descripcion = document.getElementById('form-srv-desc').value.trim();
+      const precio = parseFloat(document.getElementById('form-srv-precio').value) || 0;
+      const duracion = parseInt(document.getElementById('form-srv-dur').value) || 0;
+
+      if (!nombre || precio <= 0 || duracion <= 0) {
+        showToast('Completa correctamente el nombre, precio y duración', 'warning');
+        return;
+      }
+
+      if (adminSrvEditId) {
+        const s = servicios.find(srv => srv.id === adminSrvEditId);
+        if (s) {
+          s.nombre = nombre;
+          s.descripcion = descripcion;
+          s.precio = precio;
+          s.duracion = duracion;
+          showToast('Servicio actualizado');
+        }
+      } else {
+        const nuevo = {
+          id: Date.now(),
+          nombre, descripcion, precio, duracion
+        };
+        servicios.push(nuevo);
+        showToast('Nuevo servicio creado');
+      }
+
+      adminSrvFormShow = false;
+      adminSrvEditId = null;
+      renderSheetContent();
+    }
+
+    function adminEditarServicio(id) {
+      const s = servicios.find(srv => srv.id === id);
+      if (!s) return;
+
+      adminSrvEditId = id;
+      adminSrvFormShow = true;
+      renderSheetContent();
+
+      document.getElementById('form-srv-nombre').value = s.nombre;
+      document.getElementById('form-srv-desc').value = s.descripcion;
+      document.getElementById('form-srv-precio').value = s.precio;
+      document.getElementById('form-srv-dur').value = s.duracion;
+    }
+
+    function adminBorrarServicio(id) {
+      if (!confirm('¿Seguro que deseas eliminar este servicio?')) return;
+      servicios = servicios.filter(srv => srv.id !== id);
+      showToast('Servicio eliminado');
+      renderSheetContent();
+    }
+
+    // ----- CRUD SEDES -----
+    let adminSedeFormShow = false;
+    let adminSedeEditId = null;
+
+    function renderSheetSedes(c) {
+      c.innerHTML = `
+        <div class="flex justify-between items-center">
+          <h3 class="font-bold text-sm text-texto-principal uppercase tracking-wider">Sedes Habilitadas</h3>
+          <button onclick="adminToggleSedeForm()" class="px-3 py-1.5 bg-primario text-white rounded-lg text-xs font-semibold hover:bg-primario-hover transition">
+            ${adminSedeFormShow ? 'Cancelar' : '+ Agregar Nueva'}
+          </button>
+        </div>
+
+        <div id="sede-form-box" class="${adminSedeFormShow ? '' : 'hidden'} bg-fondo/40 border border-borde p-4 rounded-xl space-y-3">
+          <h4 class="font-bold text-xs text-primario uppercase">${adminSedeEditId ? 'Editar Sede' : 'Registrar Nueva Sede'}</h4>
+          <div class="space-y-2 text-xs">
+            <div>
+              <label class="block mb-1">Nombre de la Sede</label>
+              <input type="text" id="form-sed-nombre" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div>
+              <label class="block mb-1">Dirección Física</label>
+              <input type="text" id="form-sed-dir" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block mb-1">Latitud</label>
+                <input type="number" step="any" id="form-sed-lat" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+              </div>
+              <div>
+                <label class="block mb-1">Longitud</label>
+                <input type="number" step="any" id="form-sed-lng" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+              </div>
+            </div>
+            <div>
+              <label class="block mb-1">Horario Laboral</label>
+              <input type="text" id="form-sed-hor" placeholder="Ej: L-V 09-18 · S 09-14" class="w-full px-2.5 py-1.5 border border-borde rounded bg-white">
+            </div>
+          </div>
+          <button onclick="adminGuardarSede()" class="w-full py-2 bg-primario hover:bg-primario-hover text-white rounded-lg text-xs font-semibold transition">
+            Guardar Sede
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          ${sedes.map(s => `
+            <div class="bg-fondo/20 border border-borde/70 rounded-xl p-4 text-xs space-y-2">
+              <div class="flex justify-between items-start">
+                <div>
+                  <h4 class="font-bold text-sm text-texto-principal">${s.nombre}</h4>
+                  <p class="text-texto-secundario text-[10px] mt-0.5">${s.direccion}</p>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="adminEditarSede(${s.id})" class="text-primario hover:underline font-semibold">Editar</button>
+                  <button onclick="adminBorrarSede(${s.id})" class="text-error hover:underline font-semibold">Eliminar</button>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-4 text-[10px] text-texto-secundario pt-2 border-t border-borde/40 font-medium">
+                <span>Horario: <strong class="text-texto-principal">${s.horario}</strong></span>
+                <span>Coordenadas: <strong>${s.latitud}, ${s.longitud}</strong></span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function adminToggleSedeForm() {
+      adminSedeFormShow = !adminSedeFormShow;
+      adminSedeEditId = null;
+      renderSheetContent();
+    }
+
+    function adminGuardarSede() {
+      const nombre = document.getElementById('form-sed-nombre').value.trim();
+      const direccion = document.getElementById('form-sed-dir').value.trim();
+      const latitud = parseFloat(document.getElementById('form-sed-lat').value) || 0;
+      const longitud = parseFloat(document.getElementById('form-sed-lng').value) || 0;
+      const horario = document.getElementById('form-sed-hor').value.trim();
+
+      if (!nombre || !direccion) {
+        showToast('Por favor completa nombre y dirección de la sede', 'warning');
+        return;
+      }
+
+      if (adminSedeEditId) {
+        const s = sedes.find(sed => sed.id === adminSedeEditId);
+        if (s) {
+          s.nombre = nombre;
+          s.direccion = direccion;
+          s.latitud = latitud;
+          s.longitud = longitud;
+          s.horario = horario;
+          showToast('Sede actualizada correctamente');
+        }
+      } else {
+        const nuevo = {
+          id: Date.now(),
+          nombre, direccion, latitud, longitud, horario
+        };
+        sedes.push(nuevo);
+        showToast('Nueva sede agregada correctamente');
+      }
+
+      adminSedeFormShow = false;
+      adminSedeEditId = null;
+      renderSheetContent();
+      renderSedesReserva();
+    }
+
+    function adminEditarSede(id) {
+      const s = sedes.find(sed => sed.id === id);
+      if (!s) return;
+
+      adminSedeEditId = id;
+      adminSedeFormShow = true;
+      renderSheetContent();
+
+      document.getElementById('form-sed-nombre').value = s.nombre;
+      document.getElementById('form-sed-dir').value = s.direccion;
+      document.getElementById('form-sed-lat').value = s.latitud;
+      document.getElementById('form-sed-lng').value = s.longitud;
+      document.getElementById('form-sed-hor').value = s.horario;
+    }
+
+    function adminBorrarSede(id) {
+      if (sedes.length <= 1) {
+        showToast('Debe haber al menos una sede activa en el sistema', 'error');
+        return;
+      }
+      if (!confirm('¿Seguro que deseas eliminar esta sede? Se cancelará el mapa de reservas asignado.')) return;
+      sedes = sedes.filter(sed => sed.id !== id);
+      showToast('Sede eliminada');
+      renderSheetContent();
+      renderSedesReserva();
+    }
+
+    // ----- HORARIOS GLOBALES -----
+    function renderSheetHorarios(c) {
+      c.innerHTML = `
+        <div class="space-y-4 text-xs">
+          <p class="text-texto-secundario leading-relaxed">Configura los horarios predeterminados de apertura para el salón en general.</p>
+          
+          <div class="space-y-2">
+            <div class="flex items-center justify-between p-3 bg-fondo/20 border border-borde rounded-xl">
+              <span class="font-bold w-20">Lunes a Viernes</span>
+              <div class="flex items-center gap-1">
+                <input type="time" value="09:00" class="px-2 py-1 border border-borde rounded bg-white">
+                <span>a</span>
+                <input type="time" value="18:00" class="px-2 py-1 border border-borde rounded bg-white">
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-fondo/20 border border-borde rounded-xl">
+              <span class="font-bold w-20">Sábados</span>
+              <div class="flex items-center gap-1">
+                <input type="time" value="09:00" class="px-2 py-1 border border-borde rounded bg-white">
+                <span>a</span>
+                <input type="time" value="14:00" class="px-2 py-1 border border-borde rounded bg-white">
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-fondo/20 border border-borde rounded-xl opacity-60">
+              <span class="font-bold w-20">Domingos</span>
+              <span class="text-error font-bold">CERRADO (Feriado)</span>
+            </div>
+          </div>
+          
+          <button onclick="showToast('Horarios guardados correctamente'); closeSheet()" class="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl font-bold transition">
+            Guardar Configuración de Horario
+          </button>
+        </div>
+      `;
+    }
+
+    // ----- REPORTES -----
+    let reportActiveTab = 'ventas';
+    function renderSheetReportes(c) {
+      c.innerHTML = `
+        <div class="flex gap-1 bg-fondo border border-borde rounded-xl p-1 mb-4">
+          <button onclick="reportSwitchTab('ventas')" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold ${reportActiveTab === 'ventas' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'} transition">Ventas</button>
+          <button onclick="reportSwitchTab('ocupacion')" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold ${reportActiveTab === 'ocupacion' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'} transition">Ocupación</button>
+          <button onclick="reportSwitchTab('recurrentes')" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold ${reportActiveTab === 'recurrentes' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'} transition">Clientes Recurrentes</button>
+        </div>
+
+        <div id="report-view-container">
+          <!-- Renderizado específico -->
+        </div>
+      `;
+      renderReportTabContent();
+    }
+
+    function reportSwitchTab(t) {
+      reportActiveTab = t;
+      renderSheetContent();
+    }
+
+    function renderReportTabContent() {
+      const container = document.getElementById('report-view-container');
+      if (!container) return;
+
+      if (reportActiveTab === 'ventas') {
+        // Ventas por servicios
+        const data = {};
+        let total = 0;
+        reservas.forEach(r => {
+          if (r.estado === 'completada') {
+            data[r.servicio_nombre] = (data[r.servicio_nombre] || 0) + r.precio;
+            total += r.precio;
+          }
+        });
+
+        container.innerHTML = `
+          <div class="bg-fondo/20 border border-borde rounded-xl p-4 space-y-4 text-xs">
+            <div class="flex justify-between border-b border-borde/40 pb-2 font-bold text-sm">
+              <span>Recaudado Total Hoy:</span>
+              <span class="text-primario">$${total.toLocaleString()}</span>
+            </div>
+            <div class="space-y-2">
+              ${Object.keys(data).length > 0 ? Object.keys(data).map(key => `
+                <div class="flex justify-between items-center">
+                  <span>${key}</span>
+                  <span class="font-semibold text-texto-principal">$${data[key].toLocaleString()}</span>
+                </div>
+              `).join('') : '<p class="text-center text-texto-secundario py-4">No se registran transacciones cobradas hoy.</p>'}
+            </div>
+          </div>
+        `;
+      } else if (reportActiveTab === 'ocupacion') {
+        const delDia = reservas.filter(r => r.estado !== 'cancelada');
+        const completadas = delDia.filter(r => r.estado === 'completada').length;
+        const pendientes = delDia.filter(r => r.estado === 'pendiente' || r.estado === 'confirmada').length;
+        
+        container.innerHTML = `
+          <div class="bg-fondo/20 border border-borde rounded-xl p-4 space-y-4 text-xs">
+            <h4 class="font-bold text-sm text-texto-principal border-b border-borde/40 pb-2">Métricas de Citas</h4>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span>Citas agendadas:</span>
+                <span class="font-semibold">${delDia.length}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Completadas:</span>
+                <span class="font-semibold text-exito">${completadas}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Pendientes por Check-in:</span>
+                <span class="font-semibold text-advertencia">${pendientes}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (reportActiveTab === 'recurrentes') {
+        container.innerHTML = `
+          <div class="bg-fondo/20 border border-borde rounded-xl p-4 space-y-3 text-xs">
+            <h4 class="font-bold text-sm text-texto-principal border-b border-borde/40 pb-2">Clientes Frecuentes</h4>
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <span>Juan Pérez</span>
+                <span class="font-bold text-primario">5 Citas agendadas</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span>María López</span>
+                <span class="font-bold text-primario">4 Citas agendadas</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span>Carlos Ruiz</span>
+                <span class="font-bold text-primario">1 Cita agendada</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // ----- MODERACIÓN DE CLIENTES -----
+    function renderSheetModerar(c) {
+      c.innerHTML = `
+        <div class="space-y-3">
+          ${clientes.map(cli => {
+            const isBlock = cli.estado === 'Bloqueado';
+            return `
+              <div class="bg-fondo/20 border border-borde/70 rounded-xl p-3 flex justify-between items-center text-xs">
+                <div>
+                  <p class="font-bold text-texto-principal">${cli.nombre}</p>
+                  <p class="text-texto-secundario text-[10px] mt-0.5">${cli.email} · Tel: ${cli.telefono}</p>
+                  ${isBlock ? `<p class="text-[9px] text-error font-semibold mt-1">Bloqueado: ${cli.motivoBloqueo}</p>` : ''}
+                </div>
+                <div class="flex gap-2">
+                  ${isBlock ? `
+                    <button onclick="adminDesbloquearCliente(${cli.id})" class="text-exito hover:underline font-semibold">Desbloquear</button>
+                  ` : `
+                    <button onclick="adminPreguntarBloqueo(${cli.id})" class="text-error hover:underline font-semibold">Bloquear</button>
+                  `}
+                  <button onclick="adminEliminarCliente(${cli.id})" class="text-texto-secundario hover:text-error hover:underline font-semibold">Borrar</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function adminPreguntarBloqueo(id) {
+      const motivo = prompt('Introduce el motivo del bloqueo de este cliente:');
+      if (motivo === null) return;
+      if (!motivo.trim()) {
+        showToast('Debes ingresar un motivo de bloqueo', 'warning');
+        return;
+      }
+
+      const cli = clientes.find(c => c.id === id);
+      if (cli) {
+        cli.estado = 'Bloqueado';
+        cli.motivoBloqueo = motivo;
+        showToast('Cliente bloqueado.');
+        
+        // Registrar logs
+        logs.push({
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          severidad: 'WARN',
+          mensaje: `MODERACIÓN: Cliente ${cli.nombre} bloqueado. Motivo: ${motivo}`,
+          tipo: 'actividad'
+        });
+
+        renderSheetContent();
+      }
+    }
+
+    function adminDesbloquearCliente(id) {
+      const cli = clientes.find(c => c.id === id);
+      if (cli) {
+        cli.estado = 'Activo';
+        cli.motivoBloqueo = '';
+        showToast('Cliente desbloqueado con éxito.');
+
+        logs.push({
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          severidad: 'INFO',
+          mensaje: `MODERACIÓN: Cliente ${cli.nombre} desbloqueado.`,
+          tipo: 'actividad'
+        });
+
+        renderSheetContent();
+      }
+    }
+
+    function adminEliminarCliente(id) {
+      if (!confirm('¿Seguro que deseas eliminar este cliente del sistema de forma permanente?')) return;
+      clientes = clientes.filter(c => c.id !== id);
+      showToast('Cliente eliminado permanentemente');
+      renderSheetContent();
+    }
+
+    // ----- LOGS -----
+    let logActiveTab = 'actividad';
+    let logSearchText = '';
+    let logSeverityFilter = '';
+
+    function renderSheetLogs(c) {
+      c.innerHTML = `
+        <div class="flex gap-2">
+          <div class="flex-grow">
+            <input type="text" id="log-search" oninput="logFiltrarBusqueda(this.value)" placeholder="Buscar logs..." class="w-full px-3 py-1.5 border border-borde rounded-lg text-xs">
+          </div>
+          <div>
+            <select id="log-sev" onchange="logFiltrarSeveridad(this.value)" class="px-3 py-1.5 border border-borde rounded-lg text-xs bg-fondo/20">
+              <option value="">Severidad</option>
+              <option value="INFO">INFO</option>
+              <option value="WARN">WARN</option>
+              <option value="ERROR">ERROR</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex gap-1 bg-fondo border border-borde rounded-xl p-1">
+          <button onclick="logSwitchTab('actividad')" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold ${logActiveTab === 'actividad' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'} transition">logs.txt (Actividad)</button>
+          <button onclick="logSwitchTab('errores')" class="flex-1 py-1.5 rounded-lg text-[10px] font-bold ${logActiveTab === 'errores' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'} transition">errores.txt (Fallos)</button>
+        </div>
+
+        <div class="bg-gray-900 text-green-400 rounded-2xl p-4 font-mono text-[10px] h-96 overflow-y-auto whitespace-pre-wrap leading-relaxed shadow-inner" id="log-console">
+          <!-- Renderizado de logs -->
+        </div>
+
+        <div class="flex gap-2 justify-end">
+          <button onclick="exportarLogs('json')" class="px-3 py-1.5 bg-fondo border border-borde hover:bg-superficie text-texto-principal rounded-lg text-[10px] font-bold transition">Exportar JSON</button>
+          <button onclick="exportarLogs('csv')" class="px-3 py-1.5 bg-fondo border border-borde hover:bg-superficie text-texto-principal rounded-lg text-[10px] font-bold transition">Exportar CSV</button>
+        </div>
+      `;
+
+      renderLogConsole();
+    }
+
+    function logSwitchTab(t) {
+      logActiveTab = t;
+      renderSheetContent();
+    }
+
+    function logFiltrarBusqueda(val) {
+      logSearchText = val.toLowerCase();
+      renderLogConsole();
+    }
+
+    function logFiltrarSeveridad(val) {
+      logSeverityFilter = val;
+      renderLogConsole();
+    }
+
+    function renderLogConsole() {
+      const consoleDiv = document.getElementById('log-console');
+      if (!consoleDiv) return;
+
+      // Filtrar logs
+      let filtered = logs.filter(l => l.tipo === logActiveTab);
+
+      if (logSearchText) {
+        filtered = filtered.filter(l => l.mensaje.toLowerCase().includes(logSearchText));
+      }
+
+      if (logSeverityFilter) {
+        filtered = filtered.filter(l => l.severidad === logSeverityFilter);
+      }
+
+      if (filtered.length === 0) {
+        consoleDiv.textContent = `[Sin logs de tipo ${logActiveTab} que coincidan]`;
+        return;
+      }
+
+      let text = '';
+      filtered.forEach(l => {
+        let colorCls = '';
+        if (l.severidad === 'WARN') {
+          text += `[${l.timestamp}] \x1b[33m${l.severidad}\x1b[0m  ${l.mensaje}\n`;
+        } else if (l.severidad === 'ERROR') {
+          text += `[${l.timestamp}] \x1b[31m${l.severidad}\x1b[0m  ${l.mensaje}\n`;
+        } else {
+          text += `[${l.timestamp}] ${l.severidad}  ${l.mensaje}\n`;
+        }
+      });
+
+      // Simular colores ANSI para la consola web reemplazando códigos escape
+      let parsedHtml = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\x1b\[33m/g, '<span class="text-amber-400">')
+        .replace(/\x1b\[31m/g, '<span class="text-red-400 font-bold">')
+        .replace(/\x1b\[0m/g, '</span>');
+
+      consoleDiv.innerHTML = parsedHtml;
+    }
+
+    function exportarLogs(format) {
+      showToast(`Logs exportados correctamente en formato .${format}`);
+    }
+
+    // ===== CARGA INICIAL DE LA DEMO =====
+    showTab('login');
+  </script>
+
+
+</body></html>

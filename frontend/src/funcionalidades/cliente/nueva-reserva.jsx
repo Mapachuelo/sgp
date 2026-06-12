@@ -2,6 +2,30 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Badge, Modal, Toast, Input, Spinner } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
+
+const customMarkerIcon = new L.DivIcon({
+  html: `<div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B84C3D" stroke-width="2">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#F5E6E3"/>
+      <circle cx="12" cy="10" r="3" fill="#B84C3D"/>
+    </svg>
+  </div>`,
+  className: 'custom-leaflet-icon',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+});
+
+function MapRecenter({ lat, lng }) {
+  const map = useMap();
+  useEffect(() => {
+    if (lat && lng) {
+      map.setView([lat, lng], 15);
+    }
+  }, [lat, lng, map]);
+  return null;
+}
 
 const PASOS = [
   { num: 1, label: 'Ubicacion' },
@@ -31,17 +55,17 @@ export default function NuevaReserva() {
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null);
 
   const [semana, setSemana] = useState([]);
-  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
-  const [slots, setSlots] = useState(null);
+  const [slots, setSlots] = useState({}); // Mapa de { fecha: data }
   const [servicios, setServicios] = useState([]);
-  const [modalServicio, setModalServicio] = useState(false);
   const [slotSeleccionado, setSlotSeleccionado] = useState(null);
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
   const [servicioSeleccionado, setServicioSeleccionado] = useState('');
   const [cantidad, setCantidad] = useState(1);
   const [preferencias, setPreferencias] = useState(null);
   const [granularidad, setGranularidad] = useState(30);
 
   const [reservaCreada, setReservaCreada] = useState(null);
+  const [metodoPago, setMetodoPago] = useState('efectivo'); // 'efectivo' o 'online'
   const [formPago, setFormPago] = useState({ titular: '', numero: '', expiracion: '', cvv: '' });
   const [pagoCompletado, setPagoCompletado] = useState(false);
 
@@ -77,49 +101,54 @@ export default function NuevaReserva() {
       const [servs, prefs] = await Promise.all([api.reservas.servicios(), api.preferencias.get()]);
       setServicios(servs || []);
       setPreferencias(prefs);
-      setGranularidad(prefs?.granularidad_calendario || 30);
-      generarSemana();
+      const g = prefs?.granularidad_calendario || 30;
+      setGranularidad(g);
+
+      // Generar los 6 días a partir de hoy
+      const dias = [];
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      for (let i = 0; i < 6; i++) {
+        const fecha = new Date(hoy);
+        fecha.setDate(hoy.getDate() + i);
+        dias.push({
+          fecha: fecha.toISOString().split('T')[0],
+          diaSemana: DIAS_SEMANA[fecha.getDay() === 0 ? 5 : fecha.getDay() - 1] || 'Lun',
+          esHoy: i === 0,
+          esPasado: false,
+          objetoFecha: fecha
+        });
+      }
+      setSemana(dias);
+
+      // Cargar disponibilidad en paralelo para los 6 días
+      const promesas = dias.map(d =>
+        api.reservas.disponibilidad({ empleado_id: empleadoSeleccionado.id, ubicacion_id: ubicacionSeleccionada.id, fecha: d.fecha })
+          .then(res => ({ fecha: d.fecha, data: res || { slots_ocupados: [] } }))
+          .catch(() => ({ fecha: d.fecha, data: { slots_ocupados: [] } }))
+      );
+      const resultados = await Promise.all(promesas);
+      const mapaSlots = {};
+      resultados.forEach(r => {
+        mapaSlots[r.fecha] = r.data;
+      });
+      setSlots(mapaSlots);
     } catch (err) { mostrarToast(err.message, 'error'); }
     finally { setCargando(false); }
   };
 
-  const generarSemana = () => {
-    const dias = [];
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const diaActual = hoy.getDay();
-    const lunes = new Date(hoy);
-    lunes.setDate(hoy.getDate() - (diaActual === 0 ? 6 : diaActual - 1));
-    for (let i = 0; i < 6; i++) {
-      const fecha = new Date(lunes);
-      fecha.setDate(lunes.getDate() + i);
-      dias.push({ fecha: fecha.toISOString().split('T')[0], diaSemana: DIAS_SEMANA[i], esHoy: fecha.getTime() === hoy.getTime(), esPasado: fecha < hoy });
-    }
-    setSemana(dias);
-    setDiaSeleccionado(null);
-    setSlots(null);
-  };
-
-  const cargarSlots = (fecha) => {
-    if (!empleadoSeleccionado?.id || !ubicacionSeleccionada?.id) return;
-    api.reservas.disponibilidad({ empleado_id: empleadoSeleccionado.id, ubicacion_id: ubicacionSeleccionada.id, fecha })
-      .then(data => setSlots(data || { slots_ocupados: [] }))
-      .catch(err => mostrarToast(err.message, 'error'));
-  };
-
-  const handleDiaClick = (dia) => { if (!dia.esPasado) { setDiaSeleccionado(dia); setSlots(null); cargarSlots(dia.fecha); } };
-
-  const handleSlotClick = (hora) => {
+  const handleSlotClick = (dia, hora) => {
     const ahora = new Date();
     const [h, m] = hora.split(':');
-    const slotDate = new Date(diaSeleccionado.fecha + 'T00:00:00');
+    const slotDate = new Date(dia.fecha + 'T00:00:00');
     slotDate.setHours(parseInt(h), parseInt(m), 0, 0);
     const diffMin = (slotDate - ahora) / 60000;
     if (diffMin < 0 || diffMin < 60) return;
     setSlotSeleccionado(hora);
+    setDiaSeleccionado(dia);
     setServicioSeleccionado(servicios.length > 0 ? String(servicios[0].id) : '');
     setCantidad(1);
-    setModalServicio(true);
+    setPaso(4);
   };
 
   const handleCrearReserva = async () => {
@@ -147,28 +176,36 @@ export default function NuevaReserva() {
         cantidad_personas: cantidad,
       });
       setReservaCreada(data);
-      setModalServicio(false);
-      setPaso(4);
-      mostrarToast('Reserva creada con exito', 'success');
+      setPaso(5);
+      mostrarToast('Reserva pre-registrada con exito', 'success');
     } catch (err) { mostrarToast(err.message, 'error'); }
     finally { setCargando(false); }
   };
 
-  const handlePagoSubmit = (e) => { e.preventDefault(); setPagoCompletado(true); mostrarToast('Pago procesado'); };
+  const handlePagoSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (metodoPago === 'online') {
+      if (!formPago.titular.trim() || !formPago.numero.trim() || !formPago.expiracion.trim() || !formPago.cvv.trim()) {
+        mostrarToast('Completa todos los campos de pago', 'warning');
+        return;
+      }
+    }
+    setPagoCompletado(true);
+    mostrarToast('Reserva activada correctamente');
+  };
 
   const getPasoVariant = (num) => { if (num < paso) return 'success'; if (num === paso) return 'info'; return 'default'; };
 
   const volverAtras = () => {
     if (paso === 2) { setPaso(1); setEmpleadoSeleccionado(null); }
-    else if (paso === 3) { setPaso(2); setDiaSeleccionado(null); setSlots(null); }
+    else if (paso === 3) { setPaso(2); setSlots({}); }
     else if (paso === 4) setPaso(3);
     else if (paso === 5) setPaso(4);
   };
 
   const generarSlotsDelDia = () => {
-    if (!diaSeleccionado) return [];
-    const horaDesde = preferencias?.rango_hora_desde || '06:00:00';
-    const horaHasta = preferencias?.rango_hora_hasta || '22:00:00';
+    const horaDesde = preferencias?.rango_hora_desde || '09:00:00';
+    const horaHasta = preferencias?.rango_hora_hasta || '17:00:00';
     const g = granularidad || 30;
     const slotsArr = [];
     const [hI, mI] = horaDesde.split(':').map(Number);
@@ -184,11 +221,12 @@ export default function NuevaReserva() {
     return slotsArr;
   };
 
-  const esSlotOcupado = (hora) => {
-    if (!slots?.slots_ocupados) return false;
-    const slotDate = new Date(diaSeleccionado.fecha + 'T' + hora + ':00');
+  const esSlotOcupado = (fecha, hora) => {
+    const slotsDia = slots?.[fecha]?.slots_ocupados;
+    if (!slotsDia) return false;
+    const slotDate = new Date(fecha + 'T' + hora + ':00');
     const slotMin = slotDate.getUTCHours() * 60 + slotDate.getUTCMinutes();
-    return slots.slots_ocupados.some((s) => {
+    return slotsDia.some((s) => {
       const ini = new Date(s.inicia_en);
       const fin = new Date(s.termina_en);
       const iniMin = ini.getUTCHours() * 60 + ini.getUTCMinutes();
@@ -197,21 +235,19 @@ export default function NuevaReserva() {
     });
   };
 
-  const esSlotAntelacion = (hora) => {
-    if (!diaSeleccionado) return false;
+  const esSlotAntelacion = (fecha, hora) => {
     const ahora = new Date();
     const [h, m] = hora.split(':');
-    const slotDate = new Date(diaSeleccionado.fecha + 'T00:00:00');
+    const slotDate = new Date(fecha + 'T00:00:00');
     slotDate.setHours(parseInt(h), parseInt(m), 0, 0);
     const diffMin = (slotDate - ahora) / 60000;
     return diffMin > 0 && diffMin < 60;
   };
 
-  const esSlotPasado = (hora) => {
-    if (!diaSeleccionado) return false;
+  const esSlotPasado = (fecha, hora) => {
     const ahora = new Date();
     const [h, m] = hora.split(':');
-    const slotDate = new Date(diaSeleccionado.fecha + 'T00:00:00');
+    const slotDate = new Date(fecha + 'T00:00:00');
     slotDate.setHours(parseInt(h), parseInt(m), 0, 0);
     return slotDate <= ahora;
   };
@@ -224,249 +260,455 @@ export default function NuevaReserva() {
     a.click();
   };
 
+  const selectedServ = servicios.find((s) => String(s.id) === String(servicioSeleccionado));
+  const totalPrecio = selectedServ ? parseFloat(selectedServ.precio_base || selectedServ.precio || 0) * cantidad : 0;
+
   if (pagoCompletado) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
         <Toast open={toast.open} message={toast.message} type={toast.type} />
-        <Card className="p-10">
+        <Card className="p-10 shadow-elevated">
           <div className="text-exito mb-6">
             <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
             </svg>
           </div>
-          <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">Reserva confirmada</h2>
-          <p className="text-texto-secundario mb-6">Tu cita ha sido agendada correctamente.</p>
-          {reservaCreada?.qr_data_url && <img src={reservaCreada.qr_data_url} alt="QR" className="w-40 h-40 mx-auto mb-6" />}
-          <Button onClick={() => navigate('/cliente')}>Ir al dashboard</Button>
+          <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">¡Tu Cita ha sido Confirmada!</h2>
+          <p className="text-texto-secundario mb-6">Tu reserva se encuentra activa. Muestra el código QR al ingresar.</p>
+          {reservaCreada?.qr_data_url && (
+            <div className="border border-borde p-4 rounded-3xl bg-white shadow-sm inline-block mb-6">
+              <img src={reservaCreada.qr_data_url} alt="QR" className="w-40 h-40 mx-auto" />
+              {reservaCreada.qr_token && (
+                <span className="font-mono text-xs text-texto-principal font-bold mt-2 block">{reservaCreada.qr_token}</span>
+              )}
+            </div>
+          )}
+          <div className="flex gap-3 justify-center">
+            <Button variant="secundario" onClick={descargarQR}>Descargar QR</Button>
+            <Button onClick={() => navigate('/cliente')}>Ir al dashboard</Button>
+          </div>
         </Card>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <Toast open={toast.open} message={toast.message} type={toast.type} />
-      <h1 className="font-display text-3xl font-bold text-texto-principal mb-8">Nueva Reserva</h1>
+  const diasSem = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-      <div className="flex items-center justify-between mb-10 flex-wrap gap-y-2">
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <Toast open={toast.open} message={toast.message} type={toast.type} />
+      <div className="text-center space-y-2 max-w-xl mx-auto mb-6">
+        <h1 className="font-display text-3xl font-bold text-texto-principal">Agendar Cita</h1>
+        <p className="text-sm text-texto-secundario">Sigue los pasos interactivos para completar la reserva en la sede de tu elección.</p>
+      </div>
+
+      <div className="flex justify-between items-center max-w-2xl mx-auto relative mb-10 overflow-x-auto pb-2">
         {PASOS.map((p, i) => (
           <div key={p.num} className="flex items-center">
-            <div className="flex items-center gap-2">
-              <Badge variant={getPasoVariant(p.num)}>{p.num}</Badge>
-              <span className={`text-sm font-medium ${p.num <= paso ? 'text-texto-principal' : 'text-texto-secundario'}`}>{p.label}</span>
+            <div className="flex items-center gap-2 select-none">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                p.num === paso ? 'bg-primario text-white' : p.num < paso ? 'bg-exito text-white' : 'bg-borde text-texto-secundario'
+              }`}>
+                {p.num}
+              </div>
+              <span className={`text-xs font-semibold ${p.num <= paso ? 'text-texto-principal' : 'text-texto-secundario'}`}>{p.label}</span>
             </div>
-            {i < PASOS.length - 1 && <div className={`w-8 h-px mx-2 ${p.num < paso ? 'bg-exito' : 'bg-borde'}`} />}
+            {i < PASOS.length - 1 && <div className={`w-12 h-px mx-2 ${p.num < paso ? 'bg-exito' : 'bg-borde'}`} />}
           </div>
         ))}
       </div>
 
       {/* STEP 1 */}
       {paso === 1 && (
-        <div>
-          <h2 className="font-display text-xl font-semibold text-texto-principal mb-6">Selecciona una sede</h2>
-          {cargando && ubicaciones.length === 0 ? (
-            <div className="flex justify-center py-12"><Spinner /></div>
-          ) : ubicaciones.length === 0 ? (
-            <Card><p className="text-texto-secundario text-center py-8">No hay ubicaciones disponibles.</p></Card>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-4">
-              {ubicaciones.map((ubic) => (
-                <Card
-                  key={ubic.id}
-                  onClick={() => setUbicacionSeleccionada(ubic)}
-                  className={`cursor-pointer transition border-2 ${ubicacionSeleccionada?.id === ubic.id ? 'border-primario ring-2 ring-primario/20' : 'border-borde hover:border-primario'}`}
+        <div className="space-y-6">
+          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 1: Selecciona la sede del servicio</h2>
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="lg:w-1/2 flex flex-col gap-3">
+              {cargando && ubicaciones.length === 0 ? (
+                <div className="flex justify-center py-12"><Spinner /></div>
+              ) : ubicaciones.length === 0 ? (
+                <Card><p className="text-texto-secundario text-center py-8">No hay ubicaciones disponibles.</p></Card>
+              ) : (
+                <div className="space-y-3">
+                  {ubicaciones.map((ubic) => {
+                    const isSel = ubicacionSeleccionada?.id === ubic.id;
+                    return (
+                      <div
+                        key={ubic.id}
+                        onClick={() => setUbicacionSeleccionada(ubic)}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition flex items-start gap-3 bg-superficie ${
+                          isSel ? 'border-primario bg-primario/5 ring-2 ring-primario/10' : 'border-borde hover:border-primario'
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primario/10 flex items-center justify-center shrink-0">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-sm text-texto-principal">{ubic.nombre}</h3>
+                          {ubic.direccion && <p className="text-xs text-texto-secundario mt-0.5">{ubic.direccion}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="lg:w-1/2 bg-superficie rounded-2xl border border-borde p-4 shadow-premium space-y-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-texto-secundario">Mapa de Sedes</p>
+              <div className="h-64 rounded-xl border border-borde overflow-hidden relative z-10 bg-fondo">
+                <MapContainer
+                  center={ubicacionSeleccionada ? [parseFloat(ubicacionSeleccionada.latitud), parseFloat(ubicacionSeleccionada.longitud)] : [4.60971, -74.08175]}
+                  zoom={13}
+                  scrollWheelZoom={false}
+                  style={{ height: '100%', width: '100%' }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primario/10 flex items-center justify-center shrink-0">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                      </svg>
-                    </div>
-                    <div><h3 className="font-semibold text-texto-principal">{ubic.nombre}</h3>{ubic.direccion && <p className="text-xs text-texto-secundario mt-0.5">{ubic.direccion}</p>}</div>
-                  </div>
-                </Card>
-              ))}
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  {ubicaciones.map((u) => (
+                    <Marker
+                      key={u.id}
+                      position={[parseFloat(u.latitud), parseFloat(u.longitud)]}
+                      icon={customMarkerIcon}
+                      eventHandlers={{
+                        click: () => setUbicacionSeleccionada(u)
+                      }}
+                    />
+                  ))}
+                  {ubicacionSeleccionada && (
+                    <MapRecenter
+                      lat={parseFloat(ubicacionSeleccionada.latitud)}
+                      lng={parseFloat(ubicacionSeleccionada.longitud)}
+                    />
+                  )}
+                </MapContainer>
+              </div>
+              <Button
+                onClick={irAPaso2}
+                disabled={!ubicacionSeleccionada}
+                className="w-full py-3"
+              >
+                {cargando ? <Spinner /> : 'Siguiente: Elegir Estilista'}
+              </Button>
             </div>
-          )}
-          {ubicaciones.length > 0 && (
-            <div className="mt-8">
-              <Button onClick={irAPaso2} disabled={!ubicacionSeleccionada}>{cargando ? <Spinner /> : 'Siguiente: Elegir empleado'}</Button>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
       {/* STEP 2 */}
       {paso === 2 && (
-        <div>
-          <div className="flex items-center gap-3 mb-6">
-            <h2 className="font-display text-xl font-semibold text-texto-principal">Selecciona un empleado</h2>
-            {ubicacionSeleccionada && <Badge variant="info">{ubicacionSeleccionada.nombre}</Badge>}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <button onClick={volverAtras} className="text-xs text-primario hover:underline flex items-center gap-1">← Volver</button>
+            <span className="text-xs text-texto-secundario">Sede: <strong className="text-texto-principal">{ubicacionSeleccionada?.nombre}</strong></span>
           </div>
+          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 2: Selecciona un Estilista</h2>
           {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : empleados.length === 0 ? (
-            <Card><p className="text-texto-secundario text-center py-8">No hay empleados disponibles para esta sede.</p></Card>
+            <Card><p className="text-texto-secundario text-center py-8">No hay estilistas registrados en esta sede en este momento.</p></Card>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {empleados.map((emp) => (
-                <Card
-                  key={emp.id}
-                  onClick={() => setEmpleadoSeleccionado(emp)}
-                  className={`cursor-pointer transition border-2 text-center ${empleadoSeleccionado?.id === emp.id ? 'border-primario ring-2 ring-primario/20' : 'border-borde hover:border-primario'}`}
-                >
-                  <div className="w-12 h-12 rounded-full bg-primario/10 text-primario flex items-center justify-center mx-auto mb-2 font-semibold text-lg">{obtenerIniciales(emp.nombre)}</div>
-                  <p className="text-sm font-medium text-texto-principal">{emp.nombre} {emp.apellido}</p>
-                </Card>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {empleados.map((emp) => {
+                const isSel = empleadoSeleccionado?.id === emp.id;
+                return (
+                  <div
+                    key={emp.id}
+                    onClick={() => {
+                      setEmpleadoSeleccionado(emp);
+                      setTimeout(() => {
+                        irAPaso3();
+                      }, 300);
+                    }}
+                    className={`p-5 rounded-2xl border-2 cursor-pointer text-center transition flex flex-col items-center gap-3 bg-superficie ${
+                      isSel ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'
+                    }`}
+                  >
+                    <div className="w-14 h-14 rounded-full bg-primario/10 text-primario font-display text-xl font-bold flex items-center justify-center">
+                      {obtenerIniciales(emp.nombre)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-texto-principal">{emp.nombre} {emp.apellido}</h4>
+                      {emp.especialidad && <p className="text-xs text-texto-secundario mt-0.5">{emp.especialidad}</p>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          <div className="mt-8 flex gap-3">
-            <Button variant="secundario" onClick={volverAtras}>Atras</Button>
-            <Button onClick={irAPaso3} disabled={!empleadoSeleccionado}>{cargando ? <Spinner /> : 'Siguiente: Elegir horario'}</Button>
+          <div className="mt-8">
+            <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
           </div>
         </div>
       )}
 
-      {/* STEP 3: Calendario */}
+      {/* STEP 3 */}
       {paso === 3 && (
-        <div>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="font-display text-xl font-semibold text-texto-principal">Selecciona el horario</h2>
-              {empleadoSeleccionado && <Badge variant="info">{empleadoSeleccionado.nombre}</Badge>}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <button onClick={volverAtras} className="text-xs text-primario hover:underline flex items-center gap-1">← Volver</button>
+            <span className="text-xs text-texto-secundario">Estilista: <strong className="text-texto-principal">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</strong></span>
+          </div>
+          <div className="flex justify-between items-center flex-wrap gap-2 border-b border-borde pb-4">
+            <div>
+              <h2 className="font-display text-lg font-bold text-texto-principal">Paso 3: Escoge el día y la hora</h2>
+              <p className="text-xs text-texto-secundario">Haga clic en una ranura libre para agendar. Debe tener al menos 60m de antelación.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-texto-secundario">Granularidad:</span>
-              <select value={granularidad} onChange={(e) => setGranularidad(Number(e.target.value))} className="px-3 py-1.5 border border-borde rounded-lg text-xs text-texto-principal bg-fondo">
-                <option value={5}>5 min</option>
-                <option value={10}>10 min</option>
-                <option value={15}>15 min</option>
-                <option value={30}>30 min</option>
-                <option value={60}>60 min</option>
+            <div className="flex gap-2">
+              <select
+                value={granularidad}
+                onChange={(e) => setGranularidad(Number(e.target.value))}
+                className="text-xs px-2 py-1.5 border border-borde rounded bg-superficie text-texto-principal"
+              >
+                <option value="15">Intervalo 15m</option>
+                <option value="30">Intervalo 30m</option>
+                <option value="60">Intervalo 60m</option>
               </select>
             </div>
           </div>
-          {cargando && semana.length === 0 ? (
+
+          {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : (
-            <>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
-                {semana.map((dia) => (
-                  <button key={dia.fecha} onClick={() => handleDiaClick(dia)} disabled={dia.esPasado}
-                    className={`p-3 rounded-xl text-center transition border-2 ${dia.esPasado ? 'opacity-30 cursor-not-allowed border-borde' : diaSeleccionado?.fecha === dia.fecha ? 'border-primario bg-primario/10' : dia.esHoy ? 'border-secundario bg-secundario/5' : 'border-borde hover:border-primario'}`}>
-                    <p className="text-xs text-texto-secundario">{dia.diaSemana}</p>
-                    <p className="text-lg font-bold text-texto-principal">{dia.fecha.split('-')[2]}</p>
-                  </button>
-                ))}
-              </div>
-              {diaSeleccionado && (
-                <div>
-                  <p className="text-sm text-texto-secundario mb-3">{diaSeleccionado.diaSemana} {diaSeleccionado.fecha} — slots de {granularidad} min</p>
-                  {slots === null ? (
-                    <div className="flex justify-center py-6"><Spinner /></div>
-                  ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                      {generarSlotsDelDia().map((hora) => {
-                        const ocupado = esSlotOcupado(hora);
-                        const pasado = esSlotPasado(hora);
-                        const antelacion = !pasado && !ocupado && esSlotAntelacion(hora);
-                        const libre = !pasado && !ocupado && !antelacion;
-                        return (
-                          <button key={hora} onClick={() => libre && handleSlotClick(hora)} disabled={!libre}
-                            className={`p-2 rounded-lg text-xs text-center font-medium transition ${pasado ? 'opacity-20 cursor-not-allowed bg-fondo' : ocupado ? 'slot-ocupado rounded-lg' : antelacion ? 'slot-antelacion rounded-lg' : 'slot-libre rounded-lg'}`}>
-                            {hora}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="flex gap-4 mt-4 text-xs">
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-exito/30 border border-exito/50" /> Disponible</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-error/20 border border-error/40" /> Ocupado</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-advertencia/20 border border-advertencia/40" /> Anticipacion &lt;60min</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              {semana.map((dia) => (
+                <div key={dia.fecha} className="space-y-3 bg-superficie border border-borde/50 rounded-xl p-3 shadow-sm">
+                  <div className="text-center border-b border-borde/40 pb-2">
+                    <span className="text-[10px] font-bold text-texto-secundario uppercase block">{diasSem[dia.objetoFecha.getDay()]}</span>
+                    <span className="font-display text-lg font-bold text-texto-principal">{dia.objetoFecha.getDate()}</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
+                    {generarSlotsDelDia().map((hora) => {
+                      const ocupado = esSlotOcupado(dia.fecha, hora);
+                      const pasado = esSlotPasado(dia.fecha, hora);
+                      const antelacion = !pasado && !ocupado && esSlotAntelacion(dia.fecha, hora);
+                      const libre = !pasado && !ocupado && !antelacion;
+
+                      let clase = 'slot-libre';
+                      if (ocupado || pasado) clase = 'slot-ocupado';
+                      else if (antelacion) clase = 'slot-antelacion';
+
+                      return (
+                        <button
+                          key={hora}
+                          onClick={() => libre && handleSlotClick(dia, hora)}
+                          disabled={!libre}
+                          className={`w-full text-center py-2 rounded-lg text-xs font-semibold ${clase}`}
+                        >
+                          {hora}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
           )}
-          <div className="mt-8"><Button variant="secundario" onClick={volverAtras}>Atras</Button></div>
+
+          <div className="flex gap-4 text-xs font-medium border-t border-borde/50 pt-4">
+            <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#DCE8E0] border border-[#A3C9A8]" /> Disponible</span>
+            <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#F5E6E3] border border-[#E8C5C0]" /> Ocupado / Pasado</span>
+            <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded bg-[#FFF3E6] border border-[#F0C78E]" /> Anticipación &lt;60m</span>
+          </div>
+
+          <div className="mt-8">
+            <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
+          </div>
         </div>
       )}
 
-      {/* Modal servicio */}
-      <Modal open={modalServicio} onClose={() => setModalServicio(false)} title="Confirmar reserva">
-        <div className="space-y-4">
-          <div className="bg-fondo rounded-xl p-4 space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-texto-secundario">Dia</span><span className="font-semibold">{diaSeleccionado?.fecha}</span></div>
-            <div className="flex justify-between"><span className="text-texto-secundario">Horario</span><span className="font-semibold">{slotSeleccionado}</span></div>
-            <div className="flex justify-between"><span className="text-texto-secundario">Empleado</span><span className="font-semibold">{empleadoSeleccionado?.nombre}</span></div>
-            <div className="flex justify-between"><span className="text-texto-secundario">Sede</span><span className="font-semibold">{ubicacionSeleccionada?.nombre}</span></div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-texto-principal mb-2">Servicio</label>
-            <div className="grid grid-cols-2 gap-2">
-              {servicios.map((s) => (
-                <label key={s.id} className={`flex items-center gap-2 bg-fondo rounded-lg p-3 border cursor-pointer transition ${String(servicioSeleccionado) === String(s.id) ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'}`}>
-                  <input type="radio" name="servicio" value={s.id} checked={String(servicioSeleccionado) === String(s.id)} onChange={(e) => setServicioSeleccionado(e.target.value)} className="accent-primario" />
-                  <div><p className="text-sm font-medium">{s.nombre}</p><p className="text-xs text-texto-secundario">{s.duracion_base_minutos} min · ${parseFloat(s.precio_base).toLocaleString()}</p></div>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-texto-principal mb-1">Personas (1-5)</label>
-            <Input type="number" min="1" max="5" value={cantidad} onChange={(e) => setCantidad(Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))} />
-          </div>
-          <Button className="w-full" onClick={handleCrearReserva} disabled={cargando}>{cargando ? <Spinner /> : 'Confirmar reserva'}</Button>
-        </div>
-      </Modal>
-
-      {/* STEP 4: Confirmar */}
-      {paso === 4 && reservaCreada && (
-        <div className="text-center max-w-xl mx-auto">
-          <Card className="p-8">
-            <div className="w-20 h-20 rounded-full bg-exito/10 mx-auto mb-4 flex items-center justify-center">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4A7C59" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-            </div>
-            <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">Reserva confirmada</h2>
-            <p className="text-texto-secundario mb-4">{diaSeleccionado?.fecha} — {slotSeleccionado} — {ubicacionSeleccionada?.nombre}</p>
-            {reservaCreada.qr_data_url && (
-              <div className="mb-4">
-                <img src={reservaCreada.qr_data_url} alt="QR" className="w-48 h-48 mx-auto mb-3 border-2 border-borde rounded-xl p-2 bg-white" />
-                <Button variant="secundario" size="sm" onClick={descargarQR}>Descargar QR</Button>
+      {/* STEP 4 */}
+      {paso === 4 && diaSeleccionado && slotSeleccionado && (
+        <div className="space-y-6">
+          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 4: Confirma los detalles de tu cita</h2>
+          <div className="bg-superficie border border-borde rounded-2xl shadow-premium max-w-xl mx-auto p-6 space-y-6">
+            <div className="space-y-3">
+              <h3 className="font-display text-xl font-bold text-texto-principal border-b border-borde/50 pb-2">Resumen</h3>
+              <div className="grid grid-cols-2 gap-y-2 text-sm">
+                <span className="text-texto-secundario">Sede</span>
+                <span className="font-semibold text-right">{ubicacionSeleccionada?.nombre}</span>
+                <span className="text-texto-secundario">Estilista</span>
+                <span className="font-semibold text-right">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</span>
+                <span className="text-texto-secundario">Fecha y Hora</span>
+                <span className="font-semibold text-right text-primario">{diaSeleccionado.fecha} · {slotSeleccionado}</span>
               </div>
-            )}
-            <p className="text-sm font-semibold text-texto-principal mb-4">Como deseas pagar?</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setPaso(5)} className="bg-exito/5 border-2 border-exito/20 rounded-xl p-4 cursor-pointer hover:border-exito hover:bg-exito/10 transition">
-                <p className="text-sm font-semibold text-exito">Online</p><p className="text-xs text-texto-secundario">Tarjeta / Nequi</p>
-              </button>
-              <button onClick={() => { handlePagoSubmit({ preventDefault: () => {} }); }} className="bg-secundario/5 border-2 border-secundario/20 rounded-xl p-4 cursor-pointer hover:border-secundario hover:bg-secundario/10 transition">
-                <p className="text-sm font-semibold text-secundario">Efectivo</p><p className="text-xs text-texto-secundario">Pagar en local</p>
-              </button>
             </div>
-          </Card>
-          <div className="mt-4"><Button variant="secundario" onClick={volverAtras}>Atras</Button></div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Selecciona el Servicio</label>
+                <select
+                  value={servicioSeleccionado}
+                  onChange={(e) => setServicioSeleccionado(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
+                >
+                  {servicios.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre} ({s.duracion_base_minutos || s.duracion || 30} min · ${parseFloat(s.precio_base || s.precio || 0).toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Personas</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCantidad(c => Math.max(1, c - 1))}
+                      className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
+                    >
+                      -
+                    </button>
+                    <span className="font-semibold w-8 text-center text-sm">{cantidad}</span>
+                    <button
+                      onClick={() => setCantidad(c => Math.min(5, c + 1))}
+                      className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="text-right flex flex-col justify-end">
+                  <span className="text-xs text-texto-secundario">Total a pagar:</span>
+                  <span className="text-2xl font-bold text-primario">${totalPrecio.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-borde/50">
+              <Button variant="secundario" className="flex-1" onClick={volverAtras}>Atrás</Button>
+              <Button className="flex-grow flex-1" onClick={handleCrearReserva} disabled={cargando}>
+                {cargando ? <Spinner /> : 'Confirmar Reserva'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* STEP 5 */}
-      {paso === 5 && (
-        <div className="max-w-md mx-auto">
-          <h2 className="font-display text-xl font-bold text-texto-principal mb-6">Pago online</h2>
-          <Card>
-            <form onSubmit={handlePagoSubmit} className="space-y-4">
-              <Input label="Titular" value={formPago.titular} onChange={(e) => setFormPago({ ...formPago, titular: e.target.value })} placeholder="Juan Perez" />
-              <Input label="Numero de tarjeta" value={formPago.numero} onChange={(e) => setFormPago({ ...formPago, numero: e.target.value })} placeholder="4242 4242 4242 4242" />
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Vencimiento" value={formPago.expiracion} onChange={(e) => setFormPago({ ...formPago, expiracion: e.target.value })} placeholder="MM/AA" />
-                <Input label="CVV" value={formPago.cvv} onChange={(e) => setFormPago({ ...formPago, cvv: e.target.value })} placeholder="123" />
+      {paso === 5 && reservaCreada && (
+        <div className="space-y-6">
+          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 5: Proceso de Pago y Código QR</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* QR e Instrucciones */}
+            <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-exito/10 flex items-center justify-center text-exito">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
               </div>
-              <Button type="submit" className="w-full">Pagar</Button>
-            </form>
-          </Card>
-          <div className="mt-4"><Button variant="secundario" onClick={volverAtras}>Atras</Button></div>
+              <div>
+                <h3 className="font-display text-lg font-bold text-texto-principal">¡Tu Reserva ha sido Registrada!</h3>
+                <p className="text-xs text-texto-secundario mt-1">Hemos generado un token de acceso QR. Elige el método de pago para activarla.</p>
+              </div>
+
+              {reservaCreada.qr_data_url && (
+                <div className="border border-borde p-3 rounded-2xl bg-white shadow-sm inline-block">
+                  <div className="flex flex-col items-center">
+                    <img src={reservaCreada.qr_data_url} alt="QR" className="w-32 h-32" />
+                    {reservaCreada.qr_token && (
+                      <span className="font-mono text-xs text-texto-principal font-bold mt-2">{reservaCreada.qr_token}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <Button variant="secundario" size="sm" onClick={descargarQR}>Descargar QR</Button>
+            </div>
+
+            {/* Formularios de Pago */}
+            <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
+              <h3 className="font-semibold text-sm text-texto-principal uppercase tracking-wider">Selecciona la forma de pago</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMetodoPago('efectivo')}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-center transition ${
+                    metodoPago === 'efectivo' ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'
+                  }`}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={metodoPago === 'efectivo' ? '#8B5E3C' : '#8C7B70'} strokeWidth="1.5">
+                    <rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <span className={`text-xs font-bold ${metodoPago === 'efectivo' ? 'text-primario' : 'text-texto-secundario'}`}>Efectivo en Local</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetodoPago('online')}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-center transition ${
+                    metodoPago === 'online' ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'
+                  }`}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={metodoPago === 'online' ? '#8B5E3C' : '#8C7B70'} strokeWidth="1.5">
+                    <rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>
+                  </svg>
+                  <span className={`text-xs font-bold ${metodoPago === 'online' ? 'text-primario' : 'text-texto-secundario'}`}>Pago con Tarjeta</span>
+                </button>
+              </div>
+
+              {metodoPago === 'online' && (
+                <div className="space-y-3 animate-fade-in">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Nombre del Tarjetahabiente</label>
+                    <input
+                      type="text"
+                      placeholder="Juan Pérez"
+                      value={formPago.titular}
+                      onChange={(e) => setFormPago({ ...formPago, titular: e.target.value })}
+                      className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Número de Tarjeta</label>
+                    <input
+                      type="text"
+                      placeholder="4242 4242 4242 4242"
+                      value={formPago.numero}
+                      onChange={(e) => setFormPago({ ...formPago, numero: e.target.value })}
+                      className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Expiración</label>
+                      <input
+                        type="text"
+                        placeholder="MM/AA"
+                        value={formPago.expiracion}
+                        onChange={(e) => setFormPago({ ...formPago, expiracion: e.target.value })}
+                        className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">CVV</label>
+                      <input
+                        type="password"
+                        placeholder="***"
+                        value={formPago.cvv}
+                        onChange={(e) => setFormPago({ ...formPago, cvv: e.target.value })}
+                        className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={handlePagoSubmit}
+                className="w-full py-3 bg-exito hover:bg-green-700 text-white rounded-xl font-semibold transition shadow-md"
+              >
+                Confirmar y Activar Reserva
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-center mt-4">
+            <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
+          </div>
         </div>
       )}
     </div>

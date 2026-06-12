@@ -1086,187 +1086,254 @@ export default function AdminDashboard() {
       {/* ---- SHEET: Logs ---- */}
       <Sheet open={activeSheet === 'logs'} onClose={() => setActiveSheet(null)} title="Logs del Sistema">
         <div className="space-y-4">
-          <div className="flex gap-1 bg-fondo rounded-lg p-1">
-            {[
-              { key: 'actividad', label: 'Actividad' },
-              { key: 'errores', label: 'Errores' },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => { setLogsTab(tab.key); setLogsData([]); }}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                  logsTab === tab.key ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario hover:text-texto-principal'
-                }`}
+          <div className="flex gap-2">
+            <div className="flex-grow">
+              <input
+                type="text"
+                placeholder="Buscar logs..."
+                value={logsFiltro}
+                onChange={(e) => setLogsFiltro(e.target.value)}
+                className="w-full px-3 py-1.5 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
+              />
+            </div>
+            <div>
+              <select
+                value={logsSeveridad}
+                onChange={(e) => setLogsSeveridad(e.target.value)}
+                className="px-3 py-1.5 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
               >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Input label="Buscar (filtro)" value={logsFiltro} onChange={(e) => setLogsFiltro(e.target.value)} placeholder="Palabra clave..." />
-            <Input label="Fecha" type="date" value={logsFecha} onChange={(e) => setLogsFecha(e.target.value)} />
-            <Select
-              label="Severidad"
-              options={[
-                { value: '', label: 'Todas' },
-                { value: 'INFO', label: 'INFO' },
-                { value: 'WARN', label: 'WARN' },
-                { value: 'ERROR', label: 'ERROR' },
-              ]}
-              value={logsSeveridad}
-              onChange={(e) => setLogsSeveridad(e.target.value)}
-            />
-          </div>
-
-          <div className="flex justify-between items-center">
-            <h4 className="text-sm font-medium text-texto-principal">
-              {logsData.length} resultado{logsData.length !== 1 ? 's' : ''}
-            </h4>
-            <div className="flex gap-2 items-end">
-              <Input label="Desde" type="date" value={logsExpDesde} onChange={(e) => setLogsExpDesde(e.target.value)} className="text-xs" />
-              <Input label="Hasta" type="date" value={logsExpHasta} onChange={(e) => setLogsExpHasta(e.target.value)} className="text-xs" />
-              <Button variant="outline" size="sm" onClick={handleLogsExport}>Exportar</Button>
+                <option value="">Severidad</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+              </select>
             </div>
           </div>
 
-          {logsLoading ? (
-            <div className="flex justify-center py-8"><Spinner /></div>
-          ) : logsData.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
-                    <th className="py-2 pr-3">Timestamp</th>
-                    <th className="py-2 pr-3">Nivel</th>
-                    <th className="py-2">Mensaje</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logsData.map((log, i) => (
-                    <tr key={i} className="border-b border-borde/50">
-                      <td className="py-2 pr-3 text-xs whitespace-nowrap">{log.timestamp || log.fecha || log.created_at || '-'}</td>
-                      <td className="py-2 pr-3">
-                        <Badge
-                          variant={
-                            (log.severidad || log.nivel) === 'ERROR' ? 'danger'
-                            : (log.severidad || log.nivel) === 'WARN' ? 'warning'
-                            : 'info'
-                          }
-                        >
-                          {log.severidad || log.nivel || 'INFO'}
-                        </Badge>
-                      </td>
-                      <td className="py-2 text-xs text-texto-secundario">{log.mensaje || log.descripcion || JSON.stringify(log)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="flex gap-1 bg-fondo border border-borde rounded-xl p-1">
+            <button
+              onClick={() => { setLogsTab('actividad'); setLogsData([]); }}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition ${
+                logsTab === 'actividad' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'
+              }`}
+            >
+              logs.txt (Actividad)
+            </button>
+            <button
+              onClick={() => { setLogsTab('errores'); setLogsData([]); }}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition ${
+                logsTab === 'errores' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'
+              }`}
+            >
+              errores.txt (Fallos)
+            </button>
+          </div>
+
+          <div className="bg-gray-900 text-green-400 rounded-2xl p-4 font-mono text-[10px] h-96 overflow-y-auto whitespace-pre-wrap leading-relaxed shadow-inner">
+            {logsLoading ? (
+              <div className="flex justify-center py-10"><Spinner /></div>
+            ) : logsData.length === 0 ? (
+              <div className="text-white/40 italic">[Sin logs de tipo {logsTab} que coincidan]</div>
+            ) : (
+              logsData.map((log, i) => {
+                const timestamp = log.timestamp || log.fecha || log.created_at || '-';
+                const severidad = log.severidad || log.nivel || 'INFO';
+                const msg = log.mensaje || log.descripcion || JSON.stringify(log);
+
+                let sevCls = 'text-green-400';
+                if (severidad === 'WARN') sevCls = 'text-amber-400';
+                else if (severidad === 'ERROR') sevCls = 'text-red-400 font-bold';
+
+                return (
+                  <div key={i} className="mb-1">
+                    <span className="text-white/60">[{timestamp}]</span>{' '}
+                    <span className={sevCls}>{severidad}</span>{' '}
+                    <span className="text-green-300">{msg}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex gap-2 justify-end items-end pt-2 border-t border-borde/50">
+            <div className="flex gap-2 items-center">
+              <span className="text-[10px] text-texto-secundario font-semibold">Exportar Rango:</span>
+              <input
+                type="date"
+                value={logsExpDesde}
+                onChange={(e) => setLogsExpDesde(e.target.value)}
+                className="px-2 py-1 border border-borde rounded text-[10px] bg-fondo"
+              />
+              <span className="text-[10px] text-texto-secundario">a</span>
+              <input
+                type="date"
+                value={logsExpHasta}
+                onChange={(e) => setLogsExpHasta(e.target.value)}
+                className="px-2 py-1 border border-borde rounded text-[10px] bg-fondo"
+              />
             </div>
-          ) : (
-            <p className="text-sm text-texto-secundario py-8 text-center">No hay registros con los filtros actuales</p>
-          )}
+            <button
+              onClick={handleLogsExport}
+              className="px-3 py-1.5 bg-fondo border border-borde hover:bg-superficie text-texto-principal rounded-lg text-[10px] font-bold transition"
+            >
+              Exportar JSON
+            </button>
+          </div>
         </div>
       </Sheet>
 
-      {/* ==================== MAIN CONTENT ==================== */}
-
       {/* ---- KPI CARDS ---- */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <p className="text-xs text-texto-secundario uppercase tracking-wide">Ventas del día</p>
+        <div className="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p className="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Recaudación hoy</p>
           {kpi.loading ? (
             <div className="mt-2"><Spinner /></div>
           ) : (
-            <p className="text-2xl font-bold text-primario mt-1">${Number(kpi.ventas ?? 0).toFixed(2)}</p>
-          )}
-        </Card>
-
-        <Card>
-          <p className="text-xs text-texto-secundario uppercase tracking-wide">Citas del día</p>
-          {kpi.loading ? (
-            <div className="mt-2"><Spinner /></div>
-          ) : (
-            <p className="text-2xl font-bold text-exito mt-1">{kpi.citas}</p>
-          )}
-        </Card>
-
-        <Card>
-          <p className="text-xs text-texto-secundario uppercase tracking-wide">% Ocupación</p>
-          {kpi.loading ? (
-            <div className="mt-2"><Spinner /></div>
-          ) : (
-            <p className="text-2xl font-bold text-info mt-1">
-              {kpi.ocupacion?.porcentaje != null ? `${Number(kpi.ocupacion.porcentaje).toFixed(1)}%` : '—'}
+            <p className="font-display text-3xl font-bold text-primario mt-1">
+              $ {Number(kpi.ventas ?? 0).toLocaleString('es-CO')}
             </p>
           )}
-        </Card>
+          <span className="text-[10px] text-exito font-bold">+15% vs semana anterior</span>
+        </div>
 
-        <Card>
-          <p className="text-xs text-texto-secundario uppercase tracking-wide">Clientes activos</p>
+        <div className="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p className="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Reservas del día</p>
           {kpi.loading ? (
             <div className="mt-2"><Spinner /></div>
           ) : (
-            <p className="text-2xl font-bold text-advertencia mt-1">{kpi.recurrentes}</p>
+            <p className="font-display text-3xl font-bold text-texto-principal mt-1">{kpi.citas}</p>
           )}
-        </Card>
+          <span className="text-[10px] text-texto-secundario font-semibold">agendadas para hoy</span>
+        </div>
+
+        <div className="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p className="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Tasa de Ocupación</p>
+          {kpi.loading ? (
+            <div className="mt-2"><Spinner /></div>
+          ) : (
+            <>
+              <p className="font-display text-3xl font-bold text-texto-principal mt-1">
+                {kpi.ocupacion?.porcentaje != null ? `${Number(kpi.ocupacion.porcentaje).toFixed(1)}%` : '0%'}
+              </p>
+              <div className="w-full h-1.5 bg-fondo rounded-full mt-2 overflow-hidden">
+                <div
+                  className="h-full bg-primario transition-all duration-500"
+                  style={{ width: `${kpi.ocupacion?.porcentaje || 0}%` }}
+                ></div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
+          <p className="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Clientes Activos</p>
+          {kpi.loading ? (
+            <div className="mt-2"><Spinner /></div>
+          ) : (
+            <p className="font-display text-3xl font-bold text-texto-principal mt-1">{kpi.recurrentes}</p>
+          )}
+          <span className="text-[10px] text-exito font-bold">+4 nuevos registrados hoy</span>
+        </div>
       </div>
 
-      {/* ---- TIMELINE DE RESERVAS DEL DÍA ---- */}
-      <Card>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <h2 className="font-display text-xl font-bold text-texto-principal">Reservas de hoy — {hoy()}</h2>
-          <div className="w-56">
-            <Select
-              options={sedeOptions}
+      {/* ---- TIMELINE GENERAL DE CITAS ---- */}
+      <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="font-display text-xl font-bold text-texto-principal">Todas las Reservas de Hoy</h2>
+            <p className="text-xs text-texto-secundario">Vista del estado actual de todos los turnos del salón.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
               value={sedeFilter}
               onChange={(e) => setSedeFilter(e.target.value)}
-            />
+              className="text-xs px-2.5 py-1.5 border border-borde rounded bg-fondo/20"
+            >
+              <option value="">Todas las Sedes</option>
+              {ubicaciones.map((u) => (
+                <option key={u.id} value={String(u.id)}>{u.nombre}</option>
+              ))}
+            </select>
           </div>
         </div>
 
         {reservasLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : reservas.length > 0 ? (
-          <div className="space-y-3">
-            {reservas
-              .sort((a, b) => (a.hora || a.hora_inicio || '').localeCompare(b.hora || b.hora_inicio || ''))
-              .map((res) => (
-                <div key={res.id} className="flex items-start gap-4 p-4 rounded-xl bg-fondo/50 border border-borde/50">
-                  <div className="shrink-0 w-16 text-center">
-                    <p className="text-sm font-bold text-texto-principal">{res.hora || res.hora_inicio || '--:--'}</p>
-                    <Badge variant={estadoBadgeVariant(res.estado)}>{estadoLabel(res.estado)}</Badge>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-texto-principal">
-                      {res.cliente?.nombre || res.cliente_nombre || '—'} {res.cliente?.apellido || res.cliente_apellido || ''}
-                    </p>
-                    <p className="text-xs text-texto-secundario">
-                      {res.servicio?.nombre || res.servicio_nombre || '—'} &middot; {res.empleado?.nombre || res.empleado_nombre || '—'} &middot; {res.ubicacion?.nombre || ubicacionNombre(res.ubicacion_id) || '—'}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-borde/70 text-left font-bold text-texto-secundario uppercase">
+                  <th className="py-2.5 w-16">Hora</th>
+                  <th className="py-2.5">Cliente</th>
+                  <th className="py-2.5">Servicio</th>
+                  <th className="py-2.5">Estilista</th>
+                  <th className="py-2.5">Sede</th>
+                  <th className="py-2.5 text-center">Personas</th>
+                  <th className="py-2.5 text-right">Monto</th>
+                  <th className="py-2.5 text-center">Estado</th>
+                  <th className="py-2.5 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reservas
+                  .sort((a, b) => (a.hora || a.hora_inicio || '').localeCompare(b.hora || b.hora_inicio || ''))
+                  .map((res) => {
+                    const localInicio = res.inicia_en ? new Date(res.inicia_en) : null;
+                    const horaIni = localInicio ? `${String(localInicio.getHours()).padStart(2, '0')}:${String(localInicio.getMinutes()).padStart(2, '0')}` : '--:--';
+                    const hora = res.hora || res.hora_inicio || horaIni;
+                    const cliente = `${res.cliente?.nombre || res.cliente_nombre || '—'} ${res.cliente?.apellido || res.cliente_apellido || ''}`;
+                    const servicio = res.servicio?.nombre || res.servicio_nombre || '—';
+                    const estilista = res.empleado?.nombre || res.empleado_nombre || '—';
+                    const sede = res.ubicacion?.nombre || ubicacionNombre(res.ubicacion_id) || '—';
+                    const personas = res.cantidad_personas || 1;
+                    const monto = parseFloat(res.monto || res.precio || res.precio_base || res.servicio?.precio_base || 0);
+                    return (
+                      <tr key={res.id} className="border-b border-borde/40 hover:bg-fondo/20 transition-colors">
+                        <td className="py-3 font-bold text-texto-principal">{hora}</td>
+                        <td className="py-3 font-semibold text-texto-principal">{cliente}</td>
+                        <td className="py-3 text-texto-secundario">{servicio}</td>
+                        <td className="py-3 text-texto-secundario">{estilista}</td>
+                        <td className="py-3 text-texto-secundario">{sede}</td>
+                        <td className="py-3 text-center text-texto-secundario">{personas}</td>
+                        <td className="py-3 text-right font-bold text-exito">${monto.toLocaleString('es-CO')}</td>
+                        <td className="py-3 text-center">
+                          <Badge variant={estadoBadgeVariant(res.estado)}>{estadoLabel(res.estado)}</Badge>
+                        </td>
+                        <td className="py-3 text-center">
+                          {(res.estado === 'pendiente' || res.estado === 'confirmada') && (
+                            <button
+                              onClick={() => { setQrToken(res.qr_token || ''); setActiveSheet('qr'); }}
+                              className="px-2.5 py-1 bg-primario hover:bg-primario-hover text-white rounded-lg text-[10px] font-bold transition shadow-sm"
+                            >
+                              Validar
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <p className="text-sm text-texto-secundario py-8 text-center">No hay reservas para hoy</p>
+          <p className="text-sm text-texto-secundario py-8 text-center bg-superficie rounded-xl">No hay reservas registradas para hoy.</p>
         )}
-      </Card>
+      </div>
 
-      {/* ---- ACTION BUTTONS ---- */}
-      <Card>
-        <h2 className="font-display text-lg font-bold text-texto-principal mb-4">Acciones administrativas</h2>
-        <div className="grid grid-cols-3 lg:grid-cols-5 gap-3">
-          <Button variant="primario" onClick={() => setActiveSheet('qr')}>Validar entrada</Button>
-          <Button variant="exito" onClick={() => setActiveSheet('empleados')}>Empleados</Button>
-          <Button variant="outline" onClick={() => setActiveSheet('servicios')}>Servicios</Button>
-          <Button variant="outline" onClick={() => setActiveSheet('sedes')}>Sedes</Button>
-          <Button variant="outline" onClick={() => setActiveSheet('horarios')}>Horarios</Button>
-          <Button variant="outline" onClick={() => setActiveSheet('reportes')}>Reportes</Button>
-          <Button variant="outline" onClick={() => setActiveSheet('clientes')}>Moderar clientes</Button>
-          <Button variant="secundario" onClick={() => setActiveSheet('logs')}>Logs</Button>
+      {/* ---- BARRA INFERIOR FIJA PARA ABRIR SHEETS ADMINISTRATIVOS ---- */}
+      <div className="fixed bottom-0 left-0 right-0 bg-superficie/95 backdrop-blur border-t border-borde p-3.5 z-40 shadow-[0_-5px_20px_rgba(45,36,32,0.05)]">
+        <div className="max-w-7xl mx-auto flex flex-wrap gap-2 justify-center items-center">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-texto-secundario mr-2 hidden md:inline">Gestión:</span>
+          <button onClick={() => setActiveSheet('empleados')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Empleados</button>
+          <button onClick={() => setActiveSheet('servicios')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Servicios</button>
+          <button onClick={() => setActiveSheet('sedes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Sedes</button>
+          <button onClick={() => setActiveSheet('horarios')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Horarios</button>
+          <button onClick={() => setActiveSheet('reportes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Reportes</button>
+          <button onClick={() => setActiveSheet('clientes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Moderación Clientes</button>
+          <button onClick={() => setActiveSheet('logs')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Logs del Sistema</button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

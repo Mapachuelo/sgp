@@ -61,27 +61,60 @@ export default function EmpleadoPerfil() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-xl mx-auto px-4 py-8">
       <Toast open={toast.open} message={toast.message} type={toast.type} />
 
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-texto-principal">Mi Perfil</h1>
-        <p className="text-texto-secundario mt-1">Administra tu informacion personal</p>
-      </div>
+      <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
+        <h2 className="font-display text-xl font-bold text-texto-principal border-b border-borde pb-2">Información del Estilista</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Nombre</label>
+              <input
+                type="text"
+                value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Apellido</label>
+              <input
+                type="text"
+                value={form.apellido}
+                onChange={(e) => setForm({ ...form, apellido: e.target.value })}
+                className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Teléfono</label>
+            <input
+              type="text"
+              value={form.telefono}
+              onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Correo Electrónico (No editable)</label>
+            <input
+              type="email"
+              value={form.email}
+              disabled
+              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo text-texto-secundario cursor-not-allowed"
+            />
+          </div>
 
-      <Card>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
-            <Input label="Apellido" value={form.apellido} onChange={(e) => setForm({ ...form, apellido: e.target.value })} />
-          </div>
-          <Input label="Telefono" type="tel" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
-          <Input label="Email" type="email" value={form.email} disabled />
-          <div className="pt-2">
-            <Button type="submit" disabled={guardando}>{guardando ? <Spinner /> : 'Guardar cambios'}</Button>
-          </div>
+          <button
+            type="submit"
+            disabled={guardando}
+            className="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl text-sm font-semibold transition mt-4 flex justify-center items-center gap-2"
+          >
+            {guardando ? <Spinner /> : 'Guardar Información'}
+          </button>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }

@@ -321,17 +321,29 @@ export default function EmpleadoDisponibilidad() {
   };
 
   const getSedeColor = (sedeId) => {
-    if (!ubicaciones || ubicaciones.length === 0) return SEDE_COLORS[0];
     const idx = ubicaciones.findIndex((u) => u.id === sedeId);
-    return SEDE_COLORS[idx >= 0 ? idx % SEDE_COLORS.length : 0];
+    const colores = [
+      { bg: '#DCE8E0', border: '#A3C9A8', text: '#4A7C59' }, // Sede Centro
+      { bg: '#DCE8F2', border: '#A3BDD4', text: '#5B7B9A' }, // Sede Norte
+      { bg: '#F5E8DC', border: '#E5C7A3', text: '#C4883C' },
+      { bg: '#EADCF5', border: '#CFA3E5', text: '#8A5B9A' },
+      { bg: '#F5DCE6', border: '#E5A3BD', text: '#9A5B7B' },
+    ];
+    return colores[idx >= 0 ? idx % colores.length : 0];
   };
 
-  const getSlotClass = (dia, slot) => {
+  const getSlotStyle = (dia, slot) => {
     const entry = slots[dia]?.[slot];
-    if (!entry) return NO_DISPONIBLE_CLASS;
-    if (entry.tipo === 'descanso') return DESCANSO_CLASS;
-    if (entry.tipo === 'disponible') return getSedeColor(entry.sedeId);
-    return NO_DISPONIBLE_CLASS;
+    if (!entry || entry.tipo === 'no_disponible') {
+      return { background: '#F2D8D5', borderColor: '#E8B4AF', color: '#B84C3D' };
+    }
+    if (entry.tipo === 'descanso') {
+      return { background: '#FAF7F2', borderColor: '#E5DDD3', color: '#8C7B70' };
+    }
+    if (entry.tipo === 'disponible') {
+      return getSedeColor(entry.sedeId);
+    }
+    return { background: '#F2D8D5', borderColor: '#E8B4AF', color: '#B84C3D' };
   };
 
   const getSlotLabel = (dia, slot) => {
@@ -354,139 +366,235 @@ export default function EmpleadoDisponibilidad() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
       <Toast open={toast.open} message={toast.message} type={toast.type} />
 
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-8">
-        <div className="flex-1">
-          <h1 className="font-display text-3xl font-bold text-texto-principal">Mi Disponibilidad</h1>
-          <p className="text-texto-secundario mt-1">Configura tus horarios semanales, sedes y servicios</p>
+      {/* Encabezado */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8 border-b border-borde/60 pb-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-texto-principal">Planificación de Turnos</h1>
+          <p className="text-texto-secundario mt-1">Configura tus horarios semanales por sede y gestiona tus servicios asignados.</p>
         </div>
-        <div className="flex items-start gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <Select
-            label="Granularidad"
+            label="Intervalo"
             options={GRANULARIDADES}
-            value={granularidad}
+            value={String(granularidad)}
             onChange={(e) => setGranularidad(Number(e.target.value))}
+            className="text-xs font-normal"
           />
-          <div className="pt-6">
-            <Button onClick={guardarCambios} disabled={guardando}>
-              {guardando ? <Spinner /> : 'Guardar cambios'}
+          <div className="pt-5">
+            <Button onClick={guardarCambios} disabled={guardando} variant="primario">
+              {guardando ? <Spinner /> : 'Guardar Cambios'}
             </Button>
           </div>
         </div>
       </div>
 
-      {ubicaciones.length > 0 && (
-        <Card className="mb-6" padding>
-          <h3 className="text-sm font-semibold text-texto-principal mb-3">Leyenda de sedes</h3>
-          <div className="flex flex-wrap gap-3">
-            {ubicaciones.map((sede, i) => (
-              <div key={sede.id} className={`text-xs font-medium px-3 py-1.5 rounded-full border ${SEDE_COLORS[i % SEDE_COLORS.length]}`}>
-                {sede.nombre}
-              </div>
-            ))}
-            <div className="text-xs font-medium px-3 py-1.5 rounded-full border bg-gray-100 border-gray-300 text-gray-600 line-through">Descanso</div>
-            <div className="text-xs font-medium px-3 py-1.5 rounded-full border bg-red-50 border-red-200 text-red-500">No disponible</div>
-          </div>
-        </Card>
-      )}
-
-      {/* Gestion de servicios por empleado */}
-      <Card className="mb-6" padding>
-        <h3 className="text-sm font-semibold text-texto-principal mb-3">Mis servicios</h3>
-        <p className="text-xs text-texto-secundario mb-3">Selecciona los servicios que realizas y su duracion estimada</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {misServicios.map((ms) => {
-            const serv = servicios.find((s) => s.id === ms.servicio_id);
-            return (
-              <span key={ms.servicio_id} className="inline-flex items-center gap-1 text-xs bg-primario/10 text-primario px-2 py-1 rounded-full">
-                {serv?.nombre || 'Servicio'} ({ms.duracion_minutos}min)
-                <button onClick={() => eliminarServicio(ms.servicio_id)} className="text-error hover:underline ml-1">x</button>
-              </span>
-            );
-          })}
-        </div>
-        <div className="flex items-end gap-2">
-          <Select
-            options={[
-              { value: '', label: 'Seleccionar servicio...' },
-              ...servicios.filter((s) => !misServicios.find((ms) => ms.servicio_id === s.id)).map((s) => ({ value: s.id, label: s.nombre })),
-            ]}
-            value={servicioSeleccionado}
-            onChange={(e) => setServicioSeleccionado(e.target.value)}
-          />
-          <Select
-            options={[{ value: 10, label: '10 min' }, { value: 15, label: '15 min' }, { value: 20, label: '20 min' }, { value: 30, label: '30 min' }, { value: 45, label: '45 min' }, { value: 60, label: '60 min' }, { value: 90, label: '90 min' }]}
-            value={duracionServicio}
-            onChange={(e) => setDuracionServicio(Number(e.target.value))}
-          />
-          <Button variant="primario" size="sm" onClick={agregarServicio} disabled={!servicioSeleccionado}>
-            Agregar
-          </Button>
-        </div>
-      </Card>
-
-      {/* Tabla de disponibilidad */}
-      <Card className="overflow-x-auto" padding={false}>
-        <div className="max-h-[65vh] overflow-y-auto">
-          <table className="w-full min-w-[800px] border-collapse">
-            <thead className="sticky top-0 z-20">
-              <tr>
-                <th className="sticky left-0 top-0 bg-superficie z-30 border-b border-borde py-3 px-3 text-left text-xs font-semibold text-texto-secundario uppercase w-20">Hora</th>
-                {DIAS.map((dia, idx) => (
-                  <th key={idx} className="top-0 bg-superficie border-b border-borde py-2 px-2 text-center text-xs font-semibold align-top">
-                    <div className="mb-2">{dia}</div>
-                    <Select
-                      options={[
-                        { value: '', label: '—' },
-                        ...ubicaciones.map((u) => ({ value: u.id, label: u.nombre })),
-                      ]}
-                      value={sedesPorDia[idx] || ''}
-                      onChange={(e) => handleSedeChange(idx, e.target.value)}
-                      className="text-xs font-normal"
-                    />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {horasDisponibles.map((slot) => (
-                <tr key={slot}>
-                  <td className="sticky left-0 bg-superficie z-10 border-b border-borde/50 py-1.5 px-3 text-xs font-medium text-texto-secundario whitespace-nowrap">{slot}</td>
-                  {DIAS.map((_, idx) => {
-                    const clase = getSlotClass(idx, slot);
-                    const label = getSlotLabel(idx, slot);
-                    return (
-                      <td key={idx} className="border-b border-r border-borde/30 p-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleSlot(idx, slot)}
-                          className={`w-full text-center py-2 text-xs font-medium border cursor-pointer transition hover:ring-2 hover:ring-primario/40 hover:z-10 relative ${clase}`}
-                        >
-                          {label || '\u00A0'}
-                        </button>
+      {/* Contenedor principal de dos columnas */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* Lado izquierdo: Grilla de disponibilidad (lg:w-3/4) */}
+        <div className="lg:w-3/4 space-y-6">
+          <Card padding={false} className="overflow-hidden border border-borde/70 shadow-premium">
+            <div className="overflow-x-auto max-h-[70vh]">
+              <table className="w-full min-w-[750px] border-collapse text-xs">
+                <thead className="sticky top-0 z-20">
+                  <tr className="border-b border-borde bg-fondo/50 backdrop-blur">
+                    <th className="sticky left-0 bg-superficie z-30 border-b border-borde py-3 px-4 text-left font-bold text-texto-secundario uppercase tracking-wider w-24">Hora</th>
+                    {DIAS.map((dia, idx) => (
+                      <th key={idx} className="border-b border-borde py-3 px-2 text-center font-bold text-texto-principal w-28">
+                        <div className="mb-2 uppercase text-[10px] tracking-wider text-texto-secundario font-bold">{dia}</div>
+                        <Select
+                          options={[
+                            { value: '', label: '—' },
+                            ...ubicaciones.map((u) => ({ value: u.id, label: u.nombre })),
+                          ]}
+                          value={sedesPorDia[idx] || ''}
+                          onChange={(e) => handleSedeChange(idx, e.target.value)}
+                          className="text-xs font-normal max-w-full"
+                        />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {horasDisponibles.map((slot) => (
+                    <tr key={slot} className="hover:bg-fondo/20 transition-colors">
+                      <td className="sticky left-0 bg-superficie z-10 border-b border-borde/40 py-2 px-4 text-xs font-semibold text-texto-secundario whitespace-nowrap">{slot}</td>
+                      {DIAS.map((_, idx) => {
+                        const style = getSlotStyle(idx, slot);
+                        const label = getSlotLabel(idx, slot);
+                        return (
+                          <td key={idx} className="border-b border-r border-borde/20 p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => toggleSlot(idx, slot)}
+                              style={style}
+                              className="w-full text-center py-2 text-xs font-semibold rounded-lg border transition hover:ring-2 hover:ring-primario/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-sm relative"
+                            >
+                              {label || '\u00A0'}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {/* Fila de acciones globales por día */}
+                  <tr className="bg-fondo/10">
+                    <td className="sticky left-0 bg-superficie z-10 border-t border-borde/70 py-4 px-4 text-xs font-bold text-texto-principal whitespace-nowrap">Acciones</td>
+                    {DIAS.map((_, idx) => (
+                      <td key={idx} className="border-t border-borde/50 py-3 px-2 align-top">
+                        <div className="flex flex-col gap-1.5">
+                          <button 
+                            type="button" 
+                            className="text-[10px] py-1 px-1.5 rounded bg-primario/5 text-primario border border-primario/10 hover:bg-primario/10 transition font-medium text-center cursor-pointer"
+                            onClick={() => setAllDay(idx, 'disponible')}
+                          >
+                            Todo Sede
+                          </button>
+                          <button 
+                            type="button" 
+                            className="text-[10px] py-1 px-1.5 rounded bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 transition font-medium text-center cursor-pointer"
+                            onClick={() => setAllDay(idx, 'descanso')}
+                          >
+                            Todo Descanso
+                          </button>
+                          <button 
+                            type="button" 
+                            className="text-[10px] py-1 px-1.5 rounded bg-red-50 text-error border border-red-100 hover:bg-red-100 transition font-medium text-center cursor-pointer"
+                            onClick={() => setAllDay(idx, 'no_disponible')}
+                          >
+                            Todo Bloqueado
+                          </button>
+                        </div>
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
-              <tr>
-                <td className="sticky left-0 bg-superficie z-10 border-t-2 border-borde py-2 px-3 text-xs font-semibold text-texto-secundario whitespace-nowrap">Acciones</td>
-                {DIAS.map((_, idx) => (
-                  <td key={idx} className="border-t-2 border-borde py-2 px-1 align-top">
-                    <div className="flex flex-col gap-1">
-                      <Button variant="secundario" size="sm" className="text-xs w-full" onClick={() => setAllDay(idx, 'disponible')}>Todo disponible</Button>
-                      <Button variant="secundario" size="sm" className="text-xs w-full" onClick={() => setAllDay(idx, 'descanso')}>Todo descanso</Button>
-                      <Button variant="danger" size="sm" className="text-xs w-full" onClick={() => setAllDay(idx, 'no_disponible')}>Todo no disp.</Button>
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
-      </Card>
+
+        {/* Lado derecho: Servicios asignados y Leyendas (lg:w-1/4) */}
+        <div className="lg:w-1/4 space-y-6">
+          {/* Card de Servicios Asignados */}
+          <Card padding={true} className="border border-borde/70 shadow-premium">
+            <h3 className="font-display text-lg font-bold text-texto-principal mb-2">Mis Servicios Asignados</h3>
+            <p className="text-xs text-texto-secundario mb-4">Gestiona los servicios del catálogo que tienes habilitados para realizar.</p>
+            
+            {/* Listado de servicios actuales */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {misServicios.length === 0 ? (
+                <div className="w-full text-center py-4 bg-fondo/30 rounded-xl border border-dashed border-borde text-xs text-texto-secundario">
+                  Sin servicios asignados.
+                </div>
+              ) : (
+                misServicios.map((ms) => {
+                  const serv = servicios.find((s) => s.id === ms.servicio_id);
+                  return (
+                    <span 
+                      key={ms.servicio_id} 
+                      className="inline-flex items-center gap-1.5 text-xs bg-primario/10 text-primario px-3 py-1.5 rounded-full font-medium"
+                    >
+                      {serv?.nombre || 'Servicio'}
+                      <span className="text-[10px] text-texto-secundario">({ms.duracion_minutos}m)</span>
+                      <button 
+                        onClick={() => eliminarServicio(ms.servicio_id)} 
+                        className="text-error hover:text-red-700 hover:scale-110 transition font-bold ml-1 text-sm focus:outline-none"
+                        title="Desvincular servicio"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Formulario para agregar servicio */}
+            <div className="space-y-3 pt-4 border-t border-borde/50">
+              <label className="block text-xs font-semibold text-texto-principal uppercase tracking-wider">Vincular Nuevo Servicio</label>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] text-texto-secundario mb-1">Servicio</label>
+                  <Select
+                    options={[
+                      { value: '', label: 'Seleccionar...' },
+                      ...servicios
+                        .filter((s) => !misServicios.find((ms) => ms.servicio_id === s.id))
+                        .map((s) => ({ value: String(s.id), label: s.nombre })),
+                    ]}
+                    value={servicioSeleccionado}
+                    onChange={(e) => setServicioSeleccionado(e.target.value)}
+                    className="w-full text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-texto-secundario mb-1">Duración estimada</label>
+                  <Select
+                    options={[
+                      { value: '10', label: '10 min' },
+                      { value: '15', label: '15 min' },
+                      { value: '20', label: '20 min' },
+                      { value: '30', label: '30 min' },
+                      { value: '45', label: '45 min' },
+                      { value: '60', label: '60 min' },
+                      { value: '90', label: '90 min' },
+                    ]}
+                    value={String(duracionServicio)}
+                    onChange={(e) => setDuracionServicio(Number(e.target.value))}
+                    className="w-full text-xs"
+                  />
+                </div>
+
+                <Button 
+                  variant="primario" 
+                  size="sm" 
+                  onClick={agregarServicio} 
+                  disabled={!servicioSeleccionado}
+                  className="w-full py-2 text-xs font-semibold"
+                >
+                  Vincular Servicio
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Card de Leyenda de Sedes y Colores */}
+          <Card padding={true} className="border border-borde/70 shadow-premium">
+            <h3 className="font-semibold text-sm text-texto-principal mb-3">Leyenda de Disponibilidad</h3>
+            <div className="space-y-2 text-xs">
+              {ubicaciones.map((sede) => {
+                const color = getSedeColor(sede.id);
+                return (
+                  <div key={sede.id} className="flex items-center gap-2.5 py-1">
+                    <span 
+                      className="w-4 h-4 rounded border shrink-0 transition-transform hover:scale-110 shadow-sm"
+                      style={{ backgroundColor: color.bg, borderColor: color.border }}
+                    />
+                    <span className="font-medium text-texto-principal">{sede.nombre}</span>
+                  </div>
+                );
+              })}
+              
+              <div className="flex items-center gap-2.5 py-1">
+                <span className="w-4 h-4 rounded border bg-[#FAF7F2] border-[#E5DDD3] shrink-0 shadow-sm" />
+                <span className="text-texto-secundario">Descanso (Fuera de Turno)</span>
+              </div>
+              
+              <div className="flex items-center gap-2.5 py-1">
+                <span className="w-4 h-4 rounded border bg-[#F2D8D5] border-[#E8B4AF] shrink-0 shadow-sm" />
+                <span className="text-texto-secundario">Bloqueado (No Disponible)</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+      </div>
     </div>
   );
 }

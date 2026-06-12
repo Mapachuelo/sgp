@@ -142,14 +142,14 @@ export default function ClienteDashboard() {
                 </div>
                 <div className="space-y-3">
                   {col.items.map((reserva) => (
-                    <Card key={reserva.id} padding={true} className="p-4">
+                    <Card key={reserva.id} padding={true} className="p-4 hover:shadow-md hover:-translate-y-0.5 transition duration-200">
                       <h4 className="font-semibold text-texto-principal text-sm mb-2">
-                        {reserva.servicio?.nombre || 'Sin servicio'}
+                        {reserva.servicio?.nombre || reserva.servicio_nombre || 'Sin servicio'}
                       </h4>
                       <div className="text-xs text-texto-secundario space-y-1.5 mb-3">
                         <div className="flex items-center gap-1.5">
                           <svg
-                            className="w-3.5 h-3.5 shrink-0"
+                            className="w-3.5 h-3.5 shrink-0 text-texto-secundario/70"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -160,12 +160,12 @@ export default function ClienteDashboard() {
                             <line x1="8" y1="2" x2="8" y2="6" />
                             <line x1="3" y1="10" x2="21" y2="10" />
                           </svg>
-                          {formatearFecha(reserva.fecha)} {formatearHora(reserva.hora)}
+                          <span>{formatearFecha(reserva.fecha)} a las {formatearHora(reserva.hora || reserva.inicia_en?.slice(11, 19))}</span>
                         </div>
-                        {reserva.empleado?.nombre && (
+                        {(reserva.empleado?.nombre || reserva.empleado_nombre) && (
                           <div className="flex items-center gap-1.5">
                             <svg
-                              className="w-3.5 h-3.5 shrink-0"
+                              className="w-3.5 h-3.5 shrink-0 text-texto-secundario/70"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -174,13 +174,13 @@ export default function ClienteDashboard() {
                               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                               <circle cx="12" cy="7" r="4" />
                             </svg>
-                            {reserva.empleado.nombre}
+                            <span>Estilista: <strong class="text-texto-principal">{reserva.empleado?.nombre || reserva.empleado_nombre}</strong></span>
                           </div>
                         )}
-                        {reserva.ubicacion?.nombre && (
+                        {(reserva.ubicacion?.nombre || reserva.ubicacion_nombre) && (
                           <div className="flex items-center gap-1.5">
                             <svg
-                              className="w-3.5 h-3.5 shrink-0"
+                              className="w-3.5 h-3.5 shrink-0 text-texto-secundario/70"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -189,11 +189,16 @@ export default function ClienteDashboard() {
                               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                               <circle cx="12" cy="10" r="3" />
                             </svg>
-                            {reserva.ubicacion.nombre}
+                            <span>Sede: {reserva.ubicacion?.nombre || reserva.ubicacion_nombre}</span>
+                          </div>
+                        )}
+                        {reserva.qr_token && (
+                          <div className="flex items-center gap-1.5 font-mono text-[9px] text-texto-secundario/80">
+                            <span>Token: {reserva.qr_token}</span>
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pt-2 border-t border-borde/40">
                         <Badge variant={estadoAVariante(reserva.estado)}>
                           {reserva.estado?.replace('_', ' ')}
                         </Badge>
