@@ -47,6 +47,9 @@ export default function NuevaReserva() {
   const [paso, setPaso] = useState(1);
   const [cargando, setCargando] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+  const [isMobile, setIsMobile] = useState(false);
+  const [diaInicioMovil, setDiaInicioMovil] = useState(0);
+  const [fechaBase, setFechaBase] = useState(null);
 
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
@@ -74,6 +77,13 @@ export default function NuevaReserva() {
     setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 3000);
   };
 
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => { cargarUbicaciones(); }, []);
 
   const cargarUbicaciones = async () => {
@@ -93,9 +103,8 @@ export default function NuevaReserva() {
     finally { setCargando(false); }
   };
 
-  const irAPaso3 = async () => {
+  const cargarCalendario = async (baseDate) => {
     if (!empleadoSeleccionado) return;
-    setPaso(3);
     setCargando(true);
     try {
       const [servs, prefs] = await Promise.all([api.reservas.servicios(), api.preferencias.get()]);
@@ -104,22 +113,28 @@ export default function NuevaReserva() {
       const g = prefs?.granularidad_calendario || 30;
       setGranularidad(g);
 
-      // Generar los 6 días a partir de hoy
+      // Generar los 6 días a partir de baseDate
       const dias = [];
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
+      
+      const base = new Date(baseDate);
+      base.setHours(0, 0, 0, 0);
+
       for (let i = 0; i < 6; i++) {
-        const fecha = new Date(hoy);
-        fecha.setDate(hoy.getDate() + i);
+        const fecha = new Date(base);
+        fecha.setDate(base.getDate() + i);
         dias.push({
           fecha: fecha.toISOString().split('T')[0],
           diaSemana: DIAS_SEMANA[fecha.getDay() === 0 ? 5 : fecha.getDay() - 1] || 'Lun',
-          esHoy: i === 0,
-          esPasado: false,
+          esHoy: fecha.getTime() === hoy.getTime(),
+          esPasado: fecha < hoy,
           objetoFecha: fecha
         });
       }
       setSemana(dias);
+      setFechaBase(base);
+      setDiaInicioMovil(0);
 
       // Cargar disponibilidad en paralelo para los 6 días
       const promesas = dias.map(d =>
@@ -135,6 +150,12 @@ export default function NuevaReserva() {
       setSlots(mapaSlots);
     } catch (err) { mostrarToast(err.message, 'error'); }
     finally { setCargando(false); }
+  };
+
+  const irAPaso3 = async () => {
+    if (!empleadoSeleccionado) return;
+    setPaso(3);
+    await cargarCalendario(new Date());
   };
 
   const handleSlotClick = (dia, hora) => {
@@ -458,7 +479,58 @@ export default function NuevaReserva() {
               <h2 className="font-display text-lg font-bold text-texto-principal">Paso 3: Escoge el día y la hora</h2>
               <p className="text-xs text-texto-secundario">Haga clic en una ranura libre para agendar. Debe tener al menos 60m de antelación.</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {fechaBase && (
+                <div className="flex gap-1.5 items-center mr-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nueva = new Date(fechaBase);
+                      nueva.setDate(nueva.getDate() - 6);
+                      const hoy = new Date();
+                      hoy.setHours(0, 0, 0, 0);
+                      if (nueva < hoy) {
+                        cargarCalendario(hoy);
+                      } else {
+                        cargarCalendario(nueva);
+                      }
+                    }}
+                    disabled={fechaBase.getTime() <= new Date().setHours(0, 0, 0, 0)}
+                    className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
+                    title="Ver 6 días anteriores"
+                  >
+                    ←
+                  </button>
+                  <input
+                    type="date"
+                    value={fechaBase ? `${fechaBase.getFullYear()}-${String(fechaBase.getMonth() + 1).padStart(2, '0')}-${String(fechaBase.getDate()).padStart(2, '0')}` : ''}
+                    min={(() => {
+                      const hoy = new Date();
+                      return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+                    })()}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const partes = e.target.value.split('-').map(Number);
+                        const nueva = new Date(partes[0], partes[1] - 1, partes[2]);
+                        cargarCalendario(nueva);
+                      }
+                    }}
+                    className="text-xs px-2.5 py-1.5 border border-borde rounded bg-superficie text-texto-principal focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nueva = new Date(fechaBase);
+                      nueva.setDate(nueva.getDate() + 6);
+                      cargarCalendario(nueva);
+                    }}
+                    className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold transition cursor-pointer"
+                    title="Ver siguientes 6 días"
+                  >
+                    →
+                  </button>
+                </div>
+              )}
               <select
                 value={granularidad}
                 onChange={(e) => setGranularidad(Number(e.target.value))}
@@ -473,61 +545,93 @@ export default function NuevaReserva() {
 
           {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
-          ) : (
-            <Card padding={false} className="max-w-4xl mx-auto overflow-hidden border border-borde/70 shadow-premium">
-              <div className="overflow-y-auto overflow-x-auto max-h-[42vh]">
-                <table className="w-full min-w-[700px] border-collapse text-xs">
-                  <thead className="sticky top-0 z-20">
-                    <tr className="border-b border-borde bg-superficie/95 backdrop-blur">
-                      <th className="sticky left-0 bg-superficie z-30 border-b border-borde py-4 px-4 text-left font-bold text-texto-secundario uppercase tracking-wider w-24">Hora</th>
-                      {semana.map((dia) => (
-                        <th key={dia.fecha} className="border-b border-borde py-3 px-2 text-center font-bold text-texto-principal">
-                          <span className="text-[10px] font-bold text-texto-secundario uppercase block">{diasSem[dia.objetoFecha.getDay()]}</span>
-                          <span className="font-display text-base font-bold text-texto-principal">{dia.objetoFecha.getDate()}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {generarSlotsDelDia().map((hora) => (
-                      <tr key={hora} className="hover:bg-fondo/20 transition-colors">
-                        <td className="sticky left-0 bg-superficie z-10 border-b border-borde/40 py-2.5 px-4 text-xs font-semibold text-texto-secundario whitespace-nowrap">{hora}</td>
-                        {semana.map((dia) => {
-                          const ocupado = esSlotOcupado(dia.fecha, hora);
-                          const pasado = esSlotPasado(dia.fecha, hora);
-                          const antelacion = !pasado && !ocupado && esSlotAntelacion(dia.fecha, hora);
-                          const libre = !pasado && !ocupado && !antelacion;
+          ) : (() => {
+            const diasVisibles = isMobile 
+              ? semana.slice(diaInicioMovil, Math.min(semana.length, diaInicioMovil + 2))
+              : semana;
+            
+            return (
+              <>
+                {isMobile && (
+                  <div className="flex justify-between items-center bg-superficie border border-borde/60 p-3 rounded-xl shadow-sm max-w-4xl mx-auto mb-3">
+                    <button
+                      type="button"
+                      disabled={diaInicioMovil === 0}
+                      onClick={() => setDiaInicioMovil((prev) => Math.max(0, prev - 1))}
+                      className="px-3 py-1.5 rounded-lg border border-borde bg-fondo/35 text-xs font-semibold hover:bg-superficie disabled:opacity-50 cursor-pointer"
+                    >
+                      ← Anterior
+                    </button>
+                    <span className="text-xs font-bold text-texto-principal">
+                      Días: {diasVisibles[0] ? new Date(diasVisibles[0].fecha + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : ''} - {diasVisibles[1] ? new Date(diasVisibles[1].fecha + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : ''}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={diaInicioMovil >= semana.length - 2}
+                      onClick={() => setDiaInicioMovil((prev) => Math.min(semana.length - 2, prev + 1))}
+                      className="px-3 py-1.5 rounded-lg border border-borde bg-fondo/35 text-xs font-semibold hover:bg-superficie disabled:opacity-50 cursor-pointer"
+                    >
+                      Siguiente →
+                    </button>
+                  </div>
+                )}
 
-                          let clase = 'slot-libre';
-                          let label = 'Disponible';
-                          if (ocupado || pasado) {
-                            clase = 'slot-ocupado';
-                            label = 'Ocupado';
-                          } else if (antelacion) {
-                            clase = 'slot-antelacion';
-                            label = '< 60 min';
-                          }
+                <Card padding={false} className="max-w-4xl mx-auto overflow-hidden border border-borde/70 shadow-premium">
+                  <div className="overflow-y-auto overflow-x-auto max-h-[42vh]">
+                    <table className={`w-full border-collapse text-xs ${isMobile ? '' : 'min-w-[700px]'}`}>
+                      <thead className="sticky top-0 z-20">
+                        <tr className="border-b border-borde bg-superficie/95 backdrop-blur">
+                          <th className="sticky left-0 bg-superficie z-30 border-b border-borde py-4 px-4 text-left font-bold text-texto-secundario uppercase tracking-wider w-24">Hora</th>
+                          {diasVisibles.map((dia) => (
+                            <th key={dia.fecha} className="border-b border-borde py-3 px-2 text-center font-bold text-texto-principal">
+                              <span className="text-[10px] font-bold text-texto-secundario uppercase block">{diasSem[dia.objetoFecha.getDay()]}</span>
+                              <span className="font-display text-base font-bold text-texto-principal">{dia.objetoFecha.getDate()}</span>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {generarSlotsDelDia().map((hora) => (
+                          <tr key={hora} className="hover:bg-fondo/20 transition-colors">
+                            <td className="sticky left-0 bg-superficie z-10 border-b border-borde/40 py-2.5 px-4 text-xs font-semibold text-texto-secundario whitespace-nowrap">{hora}</td>
+                            {diasVisibles.map((dia) => {
+                              const ocupado = esSlotOcupado(dia.fecha, hora);
+                              const pasado = esSlotPasado(dia.fecha, hora);
+                              const antelacion = !pasado && !ocupado && esSlotAntelacion(dia.fecha, hora);
+                              const libre = !pasado && !ocupado && !antelacion;
 
-                          return (
-                            <td key={dia.fecha} className="border-b border-r border-borde/20 p-0.5">
-                              <button
-                                type="button"
-                                onClick={() => libre && handleSlotClick(dia, hora)}
-                                disabled={!libre}
-                                className={`w-full text-center py-2 text-[10px] font-bold rounded-lg border transition hover:ring-2 hover:ring-primario/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-sm relative ${clase}`}
-                              >
-                                {label}
-                              </button>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
+                              let clase = 'slot-libre';
+                              let label = 'Disponible';
+                              if (ocupado || pasado) {
+                                clase = 'slot-ocupado';
+                                label = 'Ocupado';
+                              } else if (antelacion) {
+                                clase = 'slot-antelacion';
+                                label = '< 60 min';
+                              }
+
+                              return (
+                                <td key={dia.fecha} className="border-b border-r border-borde/20 p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => libre && handleSlotClick(dia, hora)}
+                                    disabled={!libre}
+                                    className={`w-full text-center py-2 text-[10px] font-bold rounded-lg border transition hover:ring-2 hover:ring-primario/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-sm relative ${clase}`}
+                                  >
+                                    {label}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </>
+            );
+          })()}
 
           <div className="flex flex-wrap justify-center gap-6 text-xs font-medium border-t border-borde/50 pt-4 max-w-4xl mx-auto">
             <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#DCE8E0] border-[#A3C9A8]" /> Disponible</span>

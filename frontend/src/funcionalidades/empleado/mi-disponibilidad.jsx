@@ -40,6 +40,8 @@ function generarSlots(inicio, fin, granularidad) {
 
 export default function EmpleadoDisponibilidad() {
   const [cargando, setCargando] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [diaInicioMovil, setDiaInicioMovil] = useState(0);
   const [horaInicio, setHoraInicio] = useState('06:00');
   const [horaFin, setHoraFin] = useState('22:00');
   const [horasDisponibles, setHorasDisponibles] = useState([]);
@@ -136,6 +138,13 @@ export default function EmpleadoDisponibilidad() {
     } finally {
       setCargando(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
@@ -365,6 +374,10 @@ export default function EmpleadoDisponibilidad() {
     );
   }
 
+  const diasVisibles = isMobile 
+    ? [diaInicioMovil, Math.min(6, diaInicioMovil + 1)] 
+    : [0, 1, 2, 3, 4, 5, 6];
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
       <Toast open={toast.open} message={toast.message} type={toast.type} />
@@ -396,33 +409,60 @@ export default function EmpleadoDisponibilidad() {
         
         {/* Lado izquierdo: Grilla de disponibilidad (lg:w-3/4) */}
         <div className="lg:w-3/4 space-y-6">
+          {isMobile && (
+            <div className="flex justify-between items-center bg-superficie border border-borde/60 p-3 rounded-xl shadow-sm">
+              <button
+                type="button"
+                disabled={diaInicioMovil === 0}
+                onClick={() => setDiaInicioMovil((prev) => Math.max(0, prev - 1))}
+                className="px-3 py-1.5 rounded-lg border border-borde bg-fondo/35 text-xs font-semibold hover:bg-superficie disabled:opacity-50 cursor-pointer"
+              >
+                ← Anterior
+              </button>
+              <span className="text-xs font-bold text-texto-principal">
+                Días: {DIAS[diaInicioMovil]} - {DIAS[Math.min(6, diaInicioMovil + 1)]}
+              </span>
+              <button
+                type="button"
+                disabled={diaInicioMovil >= 5}
+                onClick={() => setDiaInicioMovil((prev) => Math.min(5, prev + 1))}
+                className="px-3 py-1.5 rounded-lg border border-borde bg-fondo/35 text-xs font-semibold hover:bg-superficie disabled:opacity-50 cursor-pointer"
+              >
+                Siguiente →
+              </button>
+            </div>
+          )}
+
           <Card padding={false} className="overflow-hidden border border-borde/70 shadow-premium">
             <div className="overflow-x-auto max-h-[70vh]">
-              <table className="w-full min-w-[750px] border-collapse text-xs">
+              <table className={`w-full border-collapse text-xs ${isMobile ? '' : 'min-w-[750px]'}`}>
                 <thead className="sticky top-0 z-20">
                   <tr className="border-b border-borde bg-fondo/50 backdrop-blur">
                     <th className="sticky left-0 bg-superficie z-30 border-b border-borde py-3 px-4 text-left font-bold text-texto-secundario uppercase tracking-wider w-24">Hora</th>
-                    {DIAS.map((dia, idx) => (
-                      <th key={idx} className="border-b border-borde py-3 px-2 text-center font-bold text-texto-principal w-28">
-                        <div className="mb-2 uppercase text-[10px] tracking-wider text-texto-secundario font-bold">{dia}</div>
-                        <Select
-                          options={[
-                            { value: '', label: '—' },
-                            ...ubicaciones.map((u) => ({ value: u.id, label: u.nombre })),
-                          ]}
-                          value={sedesPorDia[idx] || ''}
-                          onChange={(e) => handleSedeChange(idx, e.target.value)}
-                          className="text-xs font-normal max-w-full"
-                        />
-                      </th>
-                    ))}
+                    {diasVisibles.map((idx) => {
+                      const dia = DIAS[idx];
+                      return (
+                        <th key={idx} className="border-b border-borde py-3 px-2 text-center font-bold text-texto-principal">
+                          <div className="mb-2 uppercase text-[10px] tracking-wider text-texto-secundario font-bold">{dia}</div>
+                          <Select
+                            options={[
+                              { value: '', label: '—' },
+                              ...ubicaciones.map((u) => ({ value: u.id, label: u.nombre })),
+                            ]}
+                            value={sedesPorDia[idx] || ''}
+                            onChange={(e) => handleSedeChange(idx, e.target.value)}
+                            className="text-xs font-normal max-w-full"
+                          />
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {horasDisponibles.map((slot) => (
                     <tr key={slot} className="hover:bg-fondo/20 transition-colors">
                       <td className="sticky left-0 bg-superficie z-10 border-b border-borde/40 py-2 px-4 text-xs font-semibold text-texto-secundario whitespace-nowrap">{slot}</td>
-                      {DIAS.map((_, idx) => {
+                      {diasVisibles.map((idx) => {
                         const style = getSlotStyle(idx, slot);
                         const label = getSlotLabel(idx, slot);
                         return (
@@ -443,7 +483,7 @@ export default function EmpleadoDisponibilidad() {
                   {/* Fila de acciones globales por día */}
                   <tr className="bg-fondo/10">
                     <td className="sticky left-0 bg-superficie z-10 border-t border-borde/70 py-4 px-4 text-xs font-bold text-texto-principal whitespace-nowrap">Acciones</td>
-                    {DIAS.map((_, idx) => (
+                    {diasVisibles.map((idx) => (
                       <td key={idx} className="border-t border-borde/50 py-3 px-2 align-top">
                         <div className="flex flex-col gap-1.5">
                           <button 

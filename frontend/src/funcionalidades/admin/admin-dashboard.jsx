@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [reservas, setReservas] = useState([]);
   const [reservasLoading, setReservasLoading] = useState(true);
   const [sedeFilter, setSedeFilter] = useState('');
+  const [fechaFiltro, setFechaFiltro] = useState(hoy());
 
   // Validar QR
   const [qrToken, setQrToken] = useState('');
@@ -133,7 +134,7 @@ export default function AdminDashboard() {
     const cargarReservas = async () => {
       setReservasLoading(true);
       try {
-        const params = { fecha: hoy() };
+        const params = { fecha: fechaFiltro };
         if (sedeFilter) params.ubicacion_id = sedeFilter;
         const data = await api.reservas.list(params);
         setReservas(data || []);
@@ -144,7 +145,7 @@ export default function AdminDashboard() {
       }
     };
     cargarReservas();
-  }, [sedeFilter]);
+  }, [sedeFilter, fechaFiltro]);
 
   // ==================== VALIDAR QR ====================
 
@@ -1240,10 +1241,42 @@ export default function AdminDashboard() {
       <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h2 className="font-display text-xl font-bold text-texto-principal">Todas las Reservas de Hoy</h2>
+            <h2 className="font-display text-xl font-bold text-texto-principal">
+              Todas las Reservas {fechaFiltro === hoy() ? 'de Hoy' : `del ${fechaFiltro}`}
+            </h2>
             <p className="text-xs text-texto-secundario">Vista del estado actual de todos los turnos del salón.</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date(fechaFiltro + 'T00:00:00');
+                d.setDate(d.getDate() - 1);
+                setFechaFiltro(d.toISOString().split('T')[0]);
+              }}
+              className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold transition cursor-pointer"
+              title="Día anterior"
+            >
+              ←
+            </button>
+            <input
+              type="date"
+              value={fechaFiltro}
+              onChange={(e) => setFechaFiltro(e.target.value)}
+              className="text-xs px-2.5 py-1.5 border border-borde rounded bg-superficie text-texto-principal focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date(fechaFiltro + 'T00:00:00');
+                d.setDate(d.getDate() + 1);
+                setFechaFiltro(d.toISOString().split('T')[0]);
+              }}
+              className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold transition cursor-pointer"
+              title="Día siguiente"
+            >
+              →
+            </button>
             <select
               value={sedeFilter}
               onChange={(e) => setSedeFilter(e.target.value)}
@@ -1317,7 +1350,9 @@ export default function AdminDashboard() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-texto-secundario py-8 text-center bg-superficie rounded-xl">No hay reservas registradas para hoy.</p>
+          <p className="text-sm text-texto-secundario py-8 text-center bg-superficie rounded-xl">
+            No hay reservas registradas para {fechaFiltro === hoy() ? 'hoy' : `el ${fechaFiltro}`}.
+          </p>
         )}
       </div>
 

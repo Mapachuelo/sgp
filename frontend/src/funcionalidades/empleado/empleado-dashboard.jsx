@@ -278,6 +278,12 @@ export default function EmpleadoDashboard() {
 
   const hoy = new Date().toISOString().slice(0, 10);
 
+  const cambiarDia = (offset) => {
+    const d = new Date(fecha + 'T00:00:00');
+    d.setDate(d.getDate() + offset);
+    setFecha(d.toISOString().slice(0, 10));
+  };
+
   const cargarCitas = useCallback(async (fechaFiltro) => {
     setCargando(true);
     setError('');
@@ -436,13 +442,29 @@ export default function EmpleadoDashboard() {
             {esHoy ? 'Mis reservas de hoy' : `Mis reservas del ${fecha}`}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => cambiarDia(-1)}
+            className="px-3 py-2.5 border border-borde rounded-lg text-texto-principal bg-superficie hover:bg-fondo text-sm font-semibold transition cursor-pointer"
+            title="Día anterior"
+          >
+            ←
+          </button>
           <input
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            className="px-3 py-2.5 border border-borde rounded-lg text-texto-principal bg-superficie focus:outline-none focus:ring-2 focus:ring-primario/30 text-sm animate-fade-in"
+            className="px-3 py-2.5 border border-borde rounded-lg text-texto-principal bg-superficie focus:outline-none focus:ring-2 focus:ring-primario/30 text-sm"
           />
+          <button
+            type="button"
+            onClick={() => cambiarDia(1)}
+            className="px-3 py-2.5 border border-borde rounded-lg text-texto-principal bg-superficie hover:bg-fondo text-sm font-semibold transition cursor-pointer"
+            title="Día siguiente"
+          >
+            →
+          </button>
           <Button onClick={() => setModalQR(true)}>
             Validar QR
           </Button>
