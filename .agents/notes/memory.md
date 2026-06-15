@@ -137,3 +137,26 @@
 - Se ejecutó `pnpm run lint` sobre el backend para validar el estándar de codificación.
 - Se recrearon los contenedores con `podman compose up --build -d` para verificar el correcto despliegue local de la aplicación.
 
+---
+
+## Sesion — 15 Junio 2026
+
+### Mejoras de Usabilidad en Dashboard de Clientes y Agendamiento
+
+#### Dashboard de Clientes (cliente-dashboard.jsx)
+- Se añadieron botones de filtro por separado para filtrar reservas por estado de manera interactiva en tiempo real.
+- Se cambió el grid rígido horizontal de 5 columnas por un grid responsivo (`grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4`), limitando su altura a `max-h-[55vh]` con scroll vertical interno (`overflow-y-auto pr-2`) para evitar estiramientos.
+- Se aplicó la clase `break-all` al `qr_token` para solucionar el desbordamiento de letras ("Token") en pantallas móviles reducidas.
+
+#### Agendar Cita (nueva-reserva.jsx)
+- **Paso 1 (Sedes):** Se añadió un buscador de texto y un selector de filtrado por ciudad (las ciudades se obtienen de forma dinámica de la dirección de cada sede). El listado de sedes tiene ahora una altura máxima fija (`max-h-[300px]`) con scroll vertical y los marcadores en el mapa Leaflet se filtran dinámicamente.
+- **Paso 3 (Calendario):** Se removió el bloque condicional responsivo que mostraba `"Días: 15 jun - 16 jun"` y los botones Anterior/Siguiente en móviles, limitando la visualización a exactamente 2 días en móviles (`diasVisibles = isMobile ? semana.slice(0, 2) : semana`) y 6 días en escritorio, para un diseño responsive y limpio delegando el cambio de fecha al selector de calendario superior.
+- **Paso 5 (Pago):** Se implementó una función formateadora para agregar automáticamente la barra `/` en el campo "Expiración" (`MM/AA`), restringiendo a solo dígitos y permitiendo borrar de forma natural con backspace.
+- **Cuadros QR Fijos:** Se limitó el ancho del cuadro blanco del código QR a `w-48` en confirmación y `w-40` en paso 5, aplicando `break-all` al texto del token para evitar que el hash distorsione o ensanche la caja en pantallas móviles.
+- **Stepper (Indicador de Progreso):** Se removió el scroll horizontal y se ajustó para ser 100% fijo y responsivo (se ocultan las etiquetas de texto en móviles y las líneas conectoras se expanden proporcionalmente vía `flex-grow`).
+
+#### Verificación y Pruebas
+- Se ejecutó `pnpm --filter frontend build` y compiló correctamente.
+- Se verificó lint en backend sin novedades críticas.
+
+

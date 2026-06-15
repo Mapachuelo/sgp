@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Badge, Modal, Toast, Input, Spinner } from '../../componentes/ui/index.jsx';
+import { Button, Card, Badge, Modal, Toast, Input, Spinner, Select } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -53,6 +53,28 @@ export default function NuevaReserva() {
 
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
+  const [filtroNombre, setFiltroNombre] = useState('');
+  const [filtroCiudad, setFiltroCiudad] = useState('Todas');
+
+  const obtenerCiudad = (direccion) => {
+    if (!direccion) return 'Otras';
+    const partes = direccion.split(',');
+    if (partes.length > 1) {
+      return partes[partes.length - 1].trim();
+    }
+    return 'Otras';
+  };
+
+  const ciudades = ['Todas', ...new Set(ubicaciones.map((u) => obtenerCiudad(u.direccion)))];
+
+  const ubicacionesFiltradas = ubicaciones.filter((u) => {
+    const coincideNombre = u.nombre.toLowerCase().includes(filtroNombre.toLowerCase()) ||
+                          (u.direccion && u.direccion.toLowerCase().includes(filtroNombre.toLowerCase()));
+    const ciudad = obtenerCiudad(u.direccion);
+    const coincideCiudad = filtroCiudad === 'Todas' || ciudad.toLowerCase() === filtroCiudad.toLowerCase();
+    return coincideNombre && coincideCiudad;
+  });
+
 
   const [empleados, setEmpleados] = useState([]);
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null);
@@ -203,6 +225,31 @@ export default function NuevaReserva() {
     finally { setCargando(false); }
   };
 
+  const handleExpiracionChange = (e) => {
+    const input = e.target.value;
+    const previousValue = formPago.expiracion;
+    
+    // If user is deleting, just let them delete
+    if (input.length < previousValue.length) {
+      setFormPago({ ...formPago, expiracion: input });
+      return;
+    }
+    
+    let clean = input.replace(/\D/g, '');
+    if (clean.length > 4) {
+      clean = clean.slice(0, 4);
+    }
+    
+    let formatted = clean;
+    if (clean.length > 2) {
+      formatted = `${clean.slice(0, 2)}/${clean.slice(2)}`;
+    } else if (clean.length === 2) {
+      formatted = `${clean}/`;
+    }
+    
+    setFormPago({ ...formPago, expiracion: formatted });
+  };
+
   const handlePagoSubmit = (e) => {
     if (e) e.preventDefault();
     if (metodoPago === 'online') {
@@ -297,10 +344,10 @@ export default function NuevaReserva() {
           <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">¡Tu Cita ha sido Confirmada!</h2>
           <p className="text-texto-secundario mb-6">Tu reserva se encuentra activa. Muestra el código QR al ingresar.</p>
           {reservaCreada?.qr_data_url && (
-            <div className="border border-borde p-4 rounded-3xl bg-white shadow-sm inline-block mb-6">
+            <div className="border border-borde p-4 rounded-3xl bg-white shadow-sm inline-block mb-6 max-w-full w-48">
               <img src={reservaCreada.qr_data_url} alt="QR" className="w-40 h-40 mx-auto" />
               {reservaCreada.qr_token && (
-                <span className="font-mono text-xs text-texto-principal font-bold mt-2 block">{reservaCreada.qr_token}</span>
+                <span className="font-mono text-[10px] sm:text-xs text-texto-principal font-bold mt-2 block break-all">{reservaCreada.qr_token}</span>
               )}
             </div>
           )}
@@ -323,18 +370,18 @@ export default function NuevaReserva() {
         <p className="text-sm text-texto-secundario">Sigue los pasos interactivos para completar la reserva en la sede de tu elección.</p>
       </div>
 
-      <div className="flex justify-between items-center max-w-2xl mx-auto relative mb-10 overflow-x-auto pb-2">
+      <div className="flex justify-between items-center max-w-2xl mx-auto relative mb-10 px-4">
         {PASOS.map((p, i) => (
-          <div key={p.num} className="flex items-center">
-            <div className="flex items-center gap-2 select-none">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+          <div key={p.num} className={`flex items-center ${i < PASOS.length - 1 ? 'flex-grow' : ''}`}>
+            <div className="flex items-center gap-1.5 select-none shrink-0">
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                 p.num === paso ? 'bg-primario text-white' : p.num < paso ? 'bg-exito text-white' : 'bg-borde text-texto-secundario'
               }`}>
                 {p.num}
               </div>
-              <span className={`text-xs font-semibold ${p.num <= paso ? 'text-texto-principal' : 'text-texto-secundario'}`}>{p.label}</span>
+              <span className={`text-[10px] sm:text-xs font-semibold hidden sm:inline-block ${p.num <= paso ? 'text-texto-principal' : 'text-texto-secundario'}`}>{p.label}</span>
             </div>
-            {i < PASOS.length - 1 && <div className={`w-12 h-px mx-2 ${p.num < paso ? 'bg-exito' : 'bg-borde'}`} />}
+            {i < PASOS.length - 1 && <div className={`flex-grow h-px mx-2 sm:mx-3 ${p.num < paso ? 'bg-exito' : 'bg-borde'}`} />}
           </div>
         ))}
       </div>
@@ -345,13 +392,33 @@ export default function NuevaReserva() {
           <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 1: Selecciona la sede del servicio</h2>
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="lg:w-1/2 flex flex-col gap-3">
+              {/* Buscador y filtro de ciudad */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+                <Input
+                  label="Buscar sede"
+                  placeholder="Nombre o dirección..."
+                  value={filtroNombre}
+                  onChange={(e) => setFiltroNombre(e.target.value)}
+                />
+                <Select
+                  label="Filtrar por ciudad"
+                  value={filtroCiudad}
+                  onChange={(e) => setFiltroCiudad(e.target.value)}
+                  options={ciudades.map((c) => ({ value: c, label: c }))}
+                />
+              </div>
+
               {cargando && ubicaciones.length === 0 ? (
                 <div className="flex justify-center py-12"><Spinner /></div>
-              ) : ubicaciones.length === 0 ? (
-                <Card><p className="text-texto-secundario text-center py-8">No hay ubicaciones disponibles.</p></Card>
+              ) : ubicacionesFiltradas.length === 0 ? (
+                <Card>
+                  <p className="text-texto-secundario text-center py-8">
+                    No se encontraron sedes con los filtros seleccionados.
+                  </p>
+                </Card>
               ) : (
-                <div className="space-y-3">
-                  {ubicaciones.map((ubic) => {
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                  {ubicacionesFiltradas.map((ubic) => {
                     const isSel = ubicacionSeleccionada?.id === ubic.id;
                     return (
                       <div
@@ -390,7 +457,7 @@ export default function NuevaReserva() {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
-                  {ubicaciones.map((u) => (
+                  {ubicacionesFiltradas.map((u) => (
                     <Marker
                       key={u.id}
                       position={[parseFloat(u.latitud), parseFloat(u.longitud)]}
@@ -546,36 +613,10 @@ export default function NuevaReserva() {
           {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : (() => {
-            const diasVisibles = isMobile 
-              ? semana.slice(diaInicioMovil, Math.min(semana.length, diaInicioMovil + 2))
-              : semana;
+            const diasVisibles = isMobile ? semana.slice(0, 2) : semana;
             
             return (
               <>
-                {isMobile && (
-                  <div className="flex justify-between items-center bg-superficie border border-borde/60 p-3 rounded-xl shadow-sm max-w-4xl mx-auto mb-3">
-                    <button
-                      type="button"
-                      disabled={diaInicioMovil === 0}
-                      onClick={() => setDiaInicioMovil((prev) => Math.max(0, prev - 1))}
-                      className="px-3 py-1.5 rounded-lg border border-borde bg-fondo/35 text-xs font-semibold hover:bg-superficie disabled:opacity-50 cursor-pointer"
-                    >
-                      ← Anterior
-                    </button>
-                    <span className="text-xs font-bold text-texto-principal">
-                      Días: {diasVisibles[0] ? new Date(diasVisibles[0].fecha + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : ''} - {diasVisibles[1] ? new Date(diasVisibles[1].fecha + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : ''}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={diaInicioMovil >= semana.length - 2}
-                      onClick={() => setDiaInicioMovil((prev) => Math.min(semana.length - 2, prev + 1))}
-                      className="px-3 py-1.5 rounded-lg border border-borde bg-fondo/35 text-xs font-semibold hover:bg-superficie disabled:opacity-50 cursor-pointer"
-                    >
-                      Siguiente →
-                    </button>
-                  </div>
-                )}
-
                 <Card padding={false} className="max-w-4xl mx-auto overflow-hidden border border-borde/70 shadow-premium">
                   <div className="overflow-y-auto overflow-x-auto max-h-[42vh]">
                     <table className={`w-full border-collapse text-xs ${isMobile ? '' : 'min-w-[700px]'}`}>
@@ -733,11 +774,11 @@ export default function NuevaReserva() {
               </div>
 
               {reservaCreada.qr_data_url && (
-                <div className="border border-borde p-3 rounded-2xl bg-white shadow-sm inline-block">
+                <div className="border border-borde p-3 rounded-2xl bg-white shadow-sm inline-block max-w-full w-40">
                   <div className="flex flex-col items-center">
                     <img src={reservaCreada.qr_data_url} alt="QR" className="w-32 h-32" />
                     {reservaCreada.qr_token && (
-                      <span className="font-mono text-xs text-texto-principal font-bold mt-2">{reservaCreada.qr_token}</span>
+                      <span className="font-mono text-[9px] sm:text-[10px] text-texto-principal font-bold mt-2 break-all text-center">{reservaCreada.qr_token}</span>
                     )}
                   </div>
                 </div>
@@ -804,7 +845,8 @@ export default function NuevaReserva() {
                         type="text"
                         placeholder="MM/AA"
                         value={formPago.expiracion}
-                        onChange={(e) => setFormPago({ ...formPago, expiracion: e.target.value })}
+                        onChange={handleExpiracionChange}
+                        maxLength="5"
                         className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
                       />
                     </div>
