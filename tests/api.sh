@@ -25,6 +25,20 @@ probar() {
   fi
 }
 
+probar_error() {
+  local descripcion="$1"
+  local subcadena_error="$2"
+  shift 2
+  local salida=$("$@" 2>&1)
+  if echo "$salida" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok']==False and '$subcadena_error' in d.get('error','')" 2>/dev/null; then
+    verde "  [PASS] $descripcion"
+    PASS=$((PASS + 1))
+  else
+    rojo "  [FAIL] $descripcion -> Esperaba error conteniendo '$subcadena_error'. Salida: $salida"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 echo "================================================="
 echo "  PRUEBAS DE INTEGRACION SGP"
 echo "================================================="
@@ -90,9 +104,23 @@ probar "PUT /empleados/disponibilidad" \
   -H "Authorization: Bearer $EMP_TOKEN" \
   -d '[{"dia_semana":1,"ubicacion_id":1,"hora_inicio":"09:00","hora_fin":"18:00"},{"dia_semana":2,"ubicacion_id":1,"hora_inicio":"09:00","hora_fin":"18:00"},{"dia_semana":3,"ubicacion_id":1,"hora_inicio":"09:00","hora_fin":"18:00"},{"dia_semana":4,"ubicacion_id":1,"hora_inicio":"09:00","hora_fin":"18:00"},{"dia_semana":5,"ubicacion_id":1,"hora_inicio":"09:00","hora_fin":"18:00"},{"dia_semana":6,"ubicacion_id":1,"hora_inicio":"09:00","hora_fin":"14:00"}]'
 
+# Disponibilidad empleado con duplicados en el mismo dia (debe fallar)
+probar_error "PUT /empleados/disponibilidad (duplicado en mismo dia)" "más de una sede" \
+  curl -s -X PUT "$API/empleados/disponibilidad" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $EMP_TOKEN" \
+  -d '[{"dia_semana":1,"ubicacion_id":1,"hora_inicio":"09:00","hora_fin":"18:00"},{"dia_semana":1,"ubicacion_id":2,"hora_inicio":"09:00","hora_fin":"18:00"}]'
+
+
+# Calcular una fecha futura (e.g. 5 días desde hoy) y evitar domingos
+FUTURE_DAY=$(date -d "+5 days" +%Y-%m-%d)
+D_WEEK=$(date -d "$FUTURE_DAY" +%u)
+if [ "$D_WEEK" -eq 7 ]; then
+  FUTURE_DAY=$(date -d "$FUTURE_DAY +1 day" +%Y-%m-%d)
+fi
+
 # Crear reserva
-FUTURE_DATE="2026-06-03T10:00:00Z"
-FUTURE_END="2026-06-03T10:30:00Z"
+FUTURE_DATE="${FUTURE_DAY}T10:00:00Z"
+FUTURE_END="${FUTURE_DAY}T10:30:00Z"
 RESERVA=$(curl -s -X POST "$API/reservas" -H "Content-Type: application/json" \
   -H "Authorization: Bearer $CLI_TOKEN" \
   -d "{\"empleado_id\":2,\"servicio_id\":1,\"ubicacion_id\":1,\"inicia_en\":\"$FUTURE_DATE\",\"termina_en\":\"$FUTURE_END\",\"cantidad_personas\":1}")
@@ -105,7 +133,7 @@ probar "GET /reservas/me (cliente)" curl -s "$API/reservas/me" -H "Authorization
 probar "GET /reservas (admin)" curl -s "$API/reservas" -H "Authorization: Bearer $ADMIN_TOKEN"
 
 probar "GET /reservas/disponibilidad" \
-  curl -s "$API/reservas/disponibilidad?fecha=2026-06-03&empleado_id=2&ubicacion_id=1"
+  curl -s "$API/reservas/disponibilidad?fecha=$FUTURE_DAY&empleado_id=2&ubicacion_id=1"
 
 echo ""
 echo "--- Fase 4.4: Checkin ---"
@@ -123,10 +151,10 @@ fi
 echo ""
 echo "--- Fase 4.5: Reportes ---"
 probar "GET /reportes/ventas-diarias" \
-  curl -s "$API/reportes/ventas-diarias?fecha=2026-06-03" -H "Authorization: Bearer $ADMIN_TOKEN"
+  curl -s "$API/reportes/ventas-diarias?fecha=$FUTURE_DAY" -H "Authorization: Bearer $ADMIN_TOKEN"
 
 probar "GET /reportes/ocupacion" \
-  curl -s "$API/reportes/ocupacion?fecha=2026-06-03" -H "Authorization: Bearer $ADMIN_TOKEN"
+  curl -s "$API/reportes/ocupacion?fecha=$FUTURE_DAY" -H "Authorization: Bearer $ADMIN_TOKEN"
 
 probar "GET /reportes/clientes-recurrentes" \
   curl -s "$API/reportes/clientes-recurrentes" -H "Authorization: Bearer $ADMIN_TOKEN"

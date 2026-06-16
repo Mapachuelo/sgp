@@ -167,5 +167,35 @@
 - **Cambio de 'Dashboard' a 'Inicio':** Se renombraron las etiquetas de navegación del Administrador y del Cliente a "Inicio" en `layout.jsx`.
 - **Botón de retorno al Inicio:** Se actualizó el texto del botón al finalizar una reserva en `nueva-reserva.jsx` para que diga "Ir al inicio".
 
+#### Responsividad en el Dashboard del Administrador (admin-dashboard.jsx)
+- **Adaptabilidad de KPI y Formularios:** Se configuró la grilla de KPI para apilarse en móviles y los formularios de creación/edición para usar `grid-cols-1 sm:grid-cols-2`, logrando un uso óptimo del espacio.
+- **Scroll Horizontal en Tablas:** Se añadieron anchos mínimos a las tablas de reportes, clientes, sedes, servicios y empleados, evitando el colapso visual del texto y habilitando un scroll horizontal suave dentro de cada hoja.
+- **Controles Adaptables:** Se rediseñaron filtros, selectores y botones de exportación de logs/reportes para apilarse verticalmente en móviles y alinearse horizontalmente en escritorio (`flex-col sm:flex-row`).
 
+#### Asignación de Múltiples Sedes y Horarios (admin-dashboard.jsx y disponibilidad en backend)
+- **Backend multi-sede:** Se habilitó el soporte para la asignación y limpieza de disponibilidad multi-sede mediante un nuevo enrutador de administrador (`GET` / `PUT` `/api/empleados/:empleadoId/disponibilidad`), y se flexibilizó la validación del servicio para admitir asignaciones vacías.
+- **Frontend interactivo de horarios:** Se implementó una sección en el formulario de empleados con checkboxes para seleccionar múltiples sedes, y un visualizador de horarios semanales (Lunes a Domingo) para configurar cuándo está disponible el empleado y cuándo en descanso para cada una de ellas de manera independiente.
+- **Filtro de Sede Base:** Se restringieron las opciones del selector de Sede Base en el formulario para mostrar exclusivamente aquellas sedes que hayan sido marcadas previamente.
 
+---
+
+## Sesión — 15 Junio 2026 (Segunda Parte)
+
+### Remoción de "Sede base" y Bloqueo de Disponibilidad Duplicada
+
+#### Remoción de "Sede base"
+- Se removió completamente el selector obsoleto "Sede base" del formulario de empleados en [admin-dashboard.jsx](file:///home/mapachuelo/Documentos/github/trabajos/sgp/frontend/src/funcionalidades/admin/admin-dashboard.jsx).
+- Se eliminó la columna "Sede" de la tabla de listado de empleados en el frontend.
+- Se omitió el campo `ubicacion_base_id` en las llamadas de guardado del empleado para limpiar la lógica.
+
+#### Bloqueo de Disponibilidad Duplicada
+- **Frontend (admin-dashboard.jsx):**
+  - Se introdujo `crearHorarioVacio()` para que al asignar ubicaciones adicionales no se autogeneren horarios en conflicto.
+  - Se modificó `updateDiaConfig` para impedir que se asigne disponibilidad a un empleado en más de una sede el mismo día, mostrando un Toast de error.
+- **Backend (disponibilidad.service.js):**
+  - Se añadió validación en `updateDisponibilidad` que arroja `HttpError(400)` si la payload de disponibilidad contiene días repetidos (`dia_semana` duplicados) para diferentes sedes.
+
+#### Pruebas y Despliegue
+- Se corrigió [api.sh](file:///home/mapachuelo/Documentos/github/trabajos/sgp/tests/api.sh) para calcular fechas futuras de forma dinámica y evitar fallos por fechas pasadas.
+- Se añadió un caso de prueba para el bloqueo de duplicidad de disponibilidad en el mismo día.
+- Se reiniciaron los contenedores de Podman y todas las pruebas de integración pasaron con éxito (`39 PASS, 0 FAIL`).

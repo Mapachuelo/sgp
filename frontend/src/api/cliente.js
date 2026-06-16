@@ -82,6 +82,8 @@ const api = {
   disponibilidad: {
     get: () => request('/empleados/disponibilidad'),
     update: (body) => request('/empleados/disponibilidad', { method: 'PUT', body: JSON.stringify(body) }),
+    getByAdmin: (empleadoId) => request(`/empleados/${empleadoId}/disponibilidad`),
+    updateByAdmin: (empleadoId, body) => request(`/empleados/${empleadoId}/disponibilidad`, { method: 'PUT', body: JSON.stringify(body) }),
   },
   logs: {
     actividad: (params) => request(`/logs/actividad?${new URLSearchParams(params)}`),

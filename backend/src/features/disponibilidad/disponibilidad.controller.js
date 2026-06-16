@@ -18,6 +18,23 @@ const disponibilidadController = {
     emitDisponibilidadActualizada(req.usuario.id, new Date().toISOString());
     res.json({ ok: true, data: result });
   }),
+
+  getByAdmin: asyncHandler(async (req, res) => {
+    const empleadoId = parseInt(req.params.empleadoId, 10);
+    const disponibilidad = await disponibilidadService.getDisponibilidad(empleadoId);
+    res.json({ ok: true, data: disponibilidad });
+  }),
+
+  updateByAdmin: asyncHandler(async (req, res) => {
+    const empleadoId = parseInt(req.params.empleadoId, 10);
+    const result = await disponibilidadService.updateDisponibilidad(
+      empleadoId,
+      req.body
+    );
+    logger.info({ empleado_id: empleadoId, admin_id: req.usuario.id }, 'Disponibilidad de empleado actualizada por admin');
+    emitDisponibilidadActualizada(empleadoId, new Date().toISOString());
+    res.json({ ok: true, data: result });
+  }),
 };
 
 module.exports = disponibilidadController;

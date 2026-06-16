@@ -8,14 +8,24 @@ const disponibilidadService = {
   },
 
   async updateDisponibilidad(empleado_id, items) {
-    if (!Array.isArray(items) || items.length === 0) {
-      throw new HttpError(400, 'Debe enviar al menos un item de disponibilidad');
+    if (!Array.isArray(items)) {
+      throw new HttpError(400, 'Los items de disponibilidad deben ser un arreglo');
+    }
+
+    const diasAsignados = new Set();
+    for (const item of items) {
+      if (diasAsignados.has(item.dia_semana)) {
+        throw new HttpError(400, 'El empleado no puede estar disponible en más de una sede el mismo día');
+      }
+      diasAsignados.add(item.dia_semana);
     }
 
     const ubicacionesAnteriores = await disponibilidadModel.getUbicacionesAnteriores(empleado_id);
 
     await disponibilidadModel.deleteDisponibilidadEmpleado(empleado_id);
-    await disponibilidadModel.insertDisponibilidad(empleado_id, items);
+    if (items.length > 0) {
+      await disponibilidadModel.insertDisponibilidad(empleado_id, items);
+    }
 
     const nuevasUbicaciones = [...new Set(items.map((i) => i.ubicacion_id))];
     const sedesCambiadas = ubicacionesAnteriores.filter(

@@ -42,9 +42,115 @@ export default function AdminDashboard() {
   // Empleados
   const [empleados, setEmpleados] = useState([]);
   const [empleadosLoading, setEmpleadosLoading] = useState(false);
-  const [empForm, setEmpForm] = useState({ nombre: '', apellido: '', email: '', password: '', telefono: '', identificacion: '', ubicacion_base_id: '' });
+  const [empForm, setEmpForm] = useState({
+    nombre: '',
+    apellido: '',
+    email: '',
+    password: '',
+    telefono: '',
+    identificacion: '',
+    sedes_asignadas: [],
+    horarios: {},
+  });
   const [empEditId, setEmpEditId] = useState(null);
   const [empShowAdd, setEmpShowAdd] = useState(false);
+  const [selectedSedeScheduleId, setSelectedSedeScheduleId] = useState(null);
+
+  function crearHorarioDefault() {
+    const h = {};
+    for (let d = 1; d <= 7; d++) {
+      h[d] = {
+        disponible: d <= 5, // Lunes a Viernes
+        hora_inicio: '08:00',
+        hora_fin: '17:00',
+      };
+    }
+    return h;
+  }
+
+  function crearHorarioVacio() {
+    const h = {};
+    for (let d = 1; d <= 7; d++) {
+      h[d] = {
+        disponible: false,
+        hora_inicio: '08:00',
+        hora_fin: '17:00',
+      };
+    }
+    return h;
+  }
+
+  function toggleSedeAsignada(sedeId, checked) {
+    setEmpForm((prev) => {
+      let nuevasSedes = [...(prev.sedes_asignadas || [])];
+      let nuevosHorarios = { ...(prev.horarios || {}) };
+
+      if (checked) {
+        if (!nuevasSedes.includes(sedeId)) {
+          nuevasSedes.push(sedeId);
+        }
+        if (!nuevosHorarios[sedeId]) {
+          nuevosHorarios[sedeId] = nuevasSedes.length === 1 ? crearHorarioDefault() : crearHorarioVacio();
+        }
+      } else {
+        nuevasSedes = nuevasSedes.filter((id) => id !== sedeId);
+        delete nuevosHorarios[sedeId];
+      }
+
+      // Automatically select the active schedule view
+      if (nuevasSedes.length > 0) {
+        if (!selectedSedeScheduleId || !nuevasSedes.includes(selectedSedeScheduleId)) {
+          setSelectedSedeScheduleId(nuevasSedes[0]);
+        }
+      } else {
+        setSelectedSedeScheduleId(null);
+      }
+
+      return {
+        ...prev,
+        sedes_asignadas: nuevasSedes,
+        horarios: nuevosHorarios,
+      };
+    });
+  }
+
+  function updateDiaConfig(sedeId, dia, campo, valor) {
+    if (campo === 'disponible' && valor === true) {
+      let sedeDuplicadaId = null;
+      Object.entries(empForm.horarios || {}).forEach(([sid, dias]) => {
+        if (Number(sid) !== Number(sedeId) && empForm.sedes_asignadas?.includes(Number(sid))) {
+          if (dias[dia]?.disponible) {
+            sedeDuplicadaId = Number(sid);
+          }
+        }
+      });
+
+      if (sedeDuplicadaId) {
+        const sedeName = ubicaciones.find((u) => u.id === sedeDuplicadaId)?.nombre || `Sede #${sedeDuplicadaId}`;
+        const diasNombres = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' };
+        mostrarToast(setToast, `El empleado ya tiene asignado un horario en ${sedeName} el día ${diasNombres[dia]}`, 'error');
+        return;
+      }
+    }
+
+    setEmpForm((prev) => {
+      const nuevosHorarios = { ...(prev.horarios || {}) };
+      if (!nuevosHorarios[sedeId]) {
+        nuevosHorarios[sedeId] = crearHorarioVacio();
+      }
+      nuevosHorarios[sedeId] = {
+        ...nuevosHorarios[sedeId],
+        [dia]: {
+          ...(nuevosHorarios[sedeId][dia] || { disponible: false, hora_inicio: '08:00', hora_fin: '17:00' }),
+          [campo]: valor,
+        },
+      };
+      return {
+        ...prev,
+        horarios: nuevosHorarios,
+      };
+    });
+  }
 
   // Servicios
   const [servicios, setServicios] = useState([]);
@@ -213,19 +319,51 @@ export default function AdminDashboard() {
   }, []);
 
   const resetEmpForm = () => {
-    setEmpForm({ nombre: '', apellido: '', email: '', password: '', telefono: '', identificacion: '', ubicacion_base_id: '' });
+    setEmpForm({
+      nombre: '',
+      apellido: '',
+      email: '',
+      password: '',
+      telefono: '',
+      identificacion: '',
+      sedes_asignadas: [],
+      horarios: {},
+    });
+    setSelectedSedeScheduleId(null);
     setEmpShowAdd(false);
     setEmpEditId(null);
   };
 
   const handleEmpSave = async () => {
     try {
-      if (empEditId) {
-        const { password, ...rest } = empForm;
-        await api.auth.empleados.update(empEditId, password ? empForm : rest);
+      const disponibilidadItems = [];
+      Object.entries(empForm.horarios || {}).forEach(([ubicacionId, dias]) => {
+        if (empForm.sedes_asignadas?.includes(Number(ubicacionId))) {
+          Object.entries(dias).forEach(([diaSemana, config]) => {
+            if (config.disponible) {
+              disponibilidadItems.push({
+                ubicacion_id: Number(ubicacionId),
+                dia_semana: Number(diaSemana),
+                hora_inicio: config.hora_inicio || '08:00',
+                hora_fin: config.hora_fin || '17:00',
+              });
+            }
+          });
+        }
+      });
+
+      let empId = empEditId;
+      if (empId) {
+        const { password, sedes_asignadas, horarios, ubicacion_base_id, ...rest } = empForm;
+        await api.auth.empleados.update(empId, password ? { ...rest, password } : rest);
+        await api.disponibilidad.updateByAdmin(empId, disponibilidadItems);
         mostrarToast(setToast, 'Empleado actualizado');
       } else {
-        await api.auth.empleados.create(empForm);
+        const { sedes_asignadas, horarios, ubicacion_base_id, ...rest } = empForm;
+        const createdEmp = await api.auth.empleados.create(rest);
+        if (createdEmp?.id) {
+          await api.disponibilidad.updateByAdmin(createdEmp.id, disponibilidadItems);
+        }
         mostrarToast(setToast, 'Empleado creado');
       }
       resetEmpForm();
@@ -246,7 +384,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const iniciarEditarEmp = (emp) => {
+  const iniciarEditarEmp = async (emp) => {
     setEmpEditId(emp.id);
     setEmpShowAdd(false);
     setEmpForm({
@@ -256,8 +394,53 @@ export default function AdminDashboard() {
       password: '',
       telefono: emp.telefono || '',
       identificacion: emp.identificacion || '',
-      ubicacion_base_id: emp.ubicacion_base_id ?? '',
+      sedes_asignadas: [],
+      horarios: {},
     });
+
+    try {
+      const items = await api.disponibilidad.getByAdmin(emp.id);
+      const sedes = [...new Set(items.map((i) => i.ubicacion_id))];
+      
+      const horariosMap = {};
+      sedes.forEach((sid) => {
+        horariosMap[sid] = crearHorarioDefault();
+        for (let d = 1; d <= 7; d++) {
+          horariosMap[sid][d].disponible = false;
+        }
+      });
+
+      items.forEach((item) => {
+        const sid = item.ubicacion_id;
+        const dia = item.dia_semana;
+        const inicio = (item.hora_inicio || '').slice(0, 5);
+        const fin = (item.hora_fin || '').slice(0, 5);
+
+        if (!horariosMap[sid]) {
+          horariosMap[sid] = crearHorarioDefault();
+        }
+
+        horariosMap[sid][dia] = {
+          disponible: true,
+          hora_inicio: inicio || '08:00',
+          hora_fin: fin || '17:00',
+        };
+      });
+
+      setEmpForm((p) => ({
+        ...p,
+        sedes_asignadas: sedes,
+        horarios: horariosMap,
+      }));
+      
+      if (sedes.length > 0) {
+        setSelectedSedeScheduleId(sedes[0]);
+      } else {
+        setSelectedSedeScheduleId(null);
+      }
+    } catch (e) {
+      mostrarToast(setToast, 'Error al cargar la disponibilidad del empleado', 'error');
+    }
   };
 
   useEffect(() => {
@@ -644,7 +827,7 @@ export default function AdminDashboard() {
 
           {(empShowAdd || empEditId) && (
             <Card>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Nombre" value={empForm.nombre} onChange={(e) => setEmpForm((p) => ({ ...p, nombre: e.target.value }))} />
                 <Input label="Apellido" value={empForm.apellido} onChange={(e) => setEmpForm((p) => ({ ...p, apellido: e.target.value }))} />
                 <Input label="Email" type="email" value={empForm.email} onChange={(e) => setEmpForm((p) => ({ ...p, email: e.target.value }))} />
@@ -652,13 +835,129 @@ export default function AdminDashboard() {
                 {empEditId && <Input label="Nuevo Password (opcional)" type="password" value={empForm.password} onChange={(e) => setEmpForm((p) => ({ ...p, password: e.target.value }))} placeholder="Dejar vacío para no cambiar" />}
                 <Input label="Teléfono" value={empForm.telefono} onChange={(e) => setEmpForm((p) => ({ ...p, telefono: e.target.value }))} />
                 <Input label="Identificación" value={empForm.identificacion} onChange={(e) => setEmpForm((p) => ({ ...p, identificacion: e.target.value }))} />
-                <Select
-                  label="Sede base"
-                  options={[{ value: '', label: 'Seleccionar...' }, ...ubicaciones.map((u) => ({ value: String(u.id), label: u.nombre }))]}
-                  value={String(empForm.ubicacion_base_id ?? '')}
-                  onChange={(e) => setEmpForm((p) => ({ ...p, ubicacion_base_id: e.target.value ? Number(e.target.value) : '' }))}
-                />
               </div>
+
+              {/* ---- SECCIÓN: Sedes Asignadas ---- */}
+              <div className="space-y-2 mt-4">
+                <span className="text-xs font-bold text-texto-secundario uppercase tracking-wider block">
+                  Sedes de trabajo asignadas:
+                </span>
+                <div className="flex flex-wrap gap-2.5">
+                  {ubicaciones.map((u) => (
+                    <label
+                      key={u.id}
+                      className="flex items-center gap-2 text-xs font-semibold text-texto-principal bg-fondo border border-borde p-2 rounded-xl cursor-pointer hover:bg-superficie transition shadow-sm select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={empForm.sedes_asignadas?.includes(u.id) || false}
+                        onChange={(e) => toggleSedeAsignada(u.id, e.target.checked)}
+                        className="rounded text-primario border-borde w-4 h-4 cursor-pointer"
+                      />
+                      {u.nombre}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* ---- SECCIÓN: Horarios asignados por sede ---- */}
+              {empForm.sedes_asignadas?.length > 0 && (
+                <div className="border-t border-borde/60 pt-4 mt-4 space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-texto-secundario">
+                      Configurar Horarios por Sede:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {empForm.sedes_asignadas.map((sid) => {
+                        const sedeObj = ubicaciones.find((u) => u.id === sid);
+                        if (!sedeObj) return null;
+                        const isSelected = selectedSedeScheduleId === sid;
+                        return (
+                          <button
+                            key={sid}
+                            type="button"
+                            onClick={() => setSelectedSedeScheduleId(sid)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-primario text-white shadow-sm'
+                                : 'bg-fondo border border-borde text-texto-principal hover:bg-superficie'
+                            }`}
+                          >
+                            {sedeObj.nombre}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {selectedSedeScheduleId && empForm.horarios?.[selectedSedeScheduleId] && (
+                    <Card className="bg-fondo/20 border-borde/50 p-4 space-y-3">
+                      <p className="text-xs font-bold text-texto-secundario mb-2">
+                        Días y Horas para {ubicaciones.find((u) => u.id === selectedSedeScheduleId)?.nombre}:
+                      </p>
+                      <div className="space-y-2">
+                        {[
+                          { dia: 1, label: 'Lunes' },
+                          { dia: 2, label: 'Martes' },
+                          { dia: 3, label: 'Miércoles' },
+                          { dia: 4, label: 'Jueves' },
+                          { dia: 5, label: 'Viernes' },
+                          { dia: 6, label: 'Sábado' },
+                          { dia: 7, label: 'Domingo' },
+                        ].map(({ dia, label }) => {
+                          const config = empForm.horarios[selectedSedeScheduleId][dia] || {
+                            disponible: false,
+                            hora_inicio: '08:00',
+                            hora_fin: '17:00',
+                          };
+                          return (
+                            <div
+                              key={dia}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-superficie rounded-xl border border-borde/30 text-xs"
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={config.disponible}
+                                  onChange={(e) =>
+                                    updateDiaConfig(selectedSedeScheduleId, dia, 'disponible', e.target.checked)
+                                  }
+                                  className="rounded text-primario border-borde cursor-pointer w-4 h-4"
+                                />
+                                <span className="font-semibold text-texto-principal w-20">{label}</span>
+                                <Badge variant={config.disponible ? 'success' : 'secondary'}>
+                                  {config.disponible ? 'Disponible' : 'Descanso'}
+                                </Badge>
+                              </div>
+                              {config.disponible && (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="time"
+                                    value={config.hora_inicio}
+                                    onChange={(e) =>
+                                      updateDiaConfig(selectedSedeScheduleId, dia, 'hora_inicio', e.target.value)
+                                    }
+                                    className="px-2 py-1 border border-borde rounded bg-fondo text-xs focus:outline-none"
+                                  />
+                                  <span className="text-texto-secundario">a</span>
+                                  <input
+                                    type="time"
+                                    value={config.hora_fin}
+                                    onChange={(e) =>
+                                      updateDiaConfig(selectedSedeScheduleId, dia, 'hora_fin', e.target.value)
+                                    }
+                                    className="px-2 py-1 border border-borde rounded bg-fondo text-xs focus:outline-none"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2 mt-4">
                 <Button variant="primario" size="sm" onClick={handleEmpSave}>{empEditId ? 'Actualizar' : 'Guardar'}</Button>
                 <Button variant="secundario" size="sm" onClick={resetEmpForm}>Cancelar</Button>
@@ -670,7 +969,7 @@ export default function AdminDashboard() {
             <div className="flex justify-center py-8"><Spinner /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[700px]">
                 <thead>
                   <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
                     <th className="py-2 pr-3">Nombre</th>
@@ -678,7 +977,6 @@ export default function AdminDashboard() {
                     <th className="py-2 pr-3">Email</th>
                     <th className="py-2 pr-3">Teléfono</th>
                     <th className="py-2 pr-3">Identificación</th>
-                    <th className="py-2 pr-3">Sede</th>
                     <th className="py-2">Acciones</th>
                   </tr>
                 </thead>
@@ -690,7 +988,6 @@ export default function AdminDashboard() {
                       <td className="py-2 pr-3 text-xs">{emp.email}</td>
                       <td className="py-2 pr-3">{emp.telefono}</td>
                       <td className="py-2 pr-3">{emp.identificacion}</td>
-                      <td className="py-2 pr-3">{ubicacionNombre(emp.ubicacion_base_id)}</td>
                       <td className="py-2">
                         <div className="flex gap-1">
                           <Button variant="outline" size="sm" onClick={() => iniciarEditarEmp(emp)}>Editar</Button>
@@ -721,7 +1018,7 @@ export default function AdminDashboard() {
 
           {(srvShowAdd || srvEditId) && (
             <Card>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Nombre" value={srvForm.nombre} onChange={(e) => setSrvForm((p) => ({ ...p, nombre: e.target.value }))} />
                 <Input label="Precio" type="number" value={srvForm.precio} onChange={(e) => setSrvForm((p) => ({ ...p, precio: e.target.value }))} />
                 <Input label="Duración (min)" type="number" value={srvForm.duracion} onChange={(e) => setSrvForm((p) => ({ ...p, duracion: e.target.value }))} />
@@ -738,7 +1035,7 @@ export default function AdminDashboard() {
             <div className="flex justify-center py-8"><Spinner /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead>
                   <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
                     <th className="py-2 pr-3">Nombre</th>
@@ -809,7 +1106,7 @@ export default function AdminDashboard() {
 
           {(sedShowAdd || sedEditId) && (
             <Card>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Nombre" value={sedForm.nombre} onChange={(e) => setSedForm((p) => ({ ...p, nombre: e.target.value }))} />
                 <Input label="Dirección" value={sedForm.direccion} onChange={(e) => setSedForm((p) => ({ ...p, direccion: e.target.value }))} />
                 <Input label="Latitud" type="number" step="any" value={sedForm.latitud} onChange={(e) => setSedForm((p) => ({ ...p, latitud: e.target.value }))} />
@@ -826,7 +1123,7 @@ export default function AdminDashboard() {
             <div className="flex justify-center py-8"><Spinner /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead>
                   <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
                     <th className="py-2 pr-3">Nombre</th>
@@ -878,7 +1175,7 @@ export default function AdminDashboard() {
               {horarios.map((j, idx) => (
                 <Card key={idx} className="space-y-2">
                   <p className="text-sm font-medium text-texto-principal">{j.fecha || `Día #${idx + 1}`}</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input
                       label="Hora inicio"
                       type="time"
@@ -905,7 +1202,7 @@ export default function AdminDashboard() {
       {/* ---- SHEET: Reportes ---- */}
       <Sheet open={activeSheet === 'reportes'} onClose={() => setActiveSheet(null)} title="Reportes">
         <div className="space-y-4">
-          <div className="flex gap-1 bg-fondo rounded-lg p-1">
+          <div className="flex flex-wrap gap-1 bg-fondo border border-borde rounded-xl p-1">
             {[
               { key: 'ventas', label: 'Ventas diarias' },
               { key: 'ocupacion', label: 'Ocupación' },
@@ -936,24 +1233,26 @@ export default function AdminDashboard() {
                 <Badge variant="success">Total: ${Number(repData?.total ?? 0).toFixed(2)}</Badge>
               </div>
               {repData?.desglose?.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
-                      <th className="py-2 pr-3">Servicio</th>
-                      <th className="py-2 pr-3">Cantidad</th>
-                      <th className="py-2">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {repData.desglose.map((d, i) => (
-                      <tr key={i} className="border-b border-borde/50">
-                        <td className="py-2 pr-3">{d.servicio || `Servicio #${d.servicio_id}`}</td>
-                        <td className="py-2 pr-3">{d.cantidad}</td>
-                        <td className="py-2">${Number(d.total).toFixed(2)}</td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
+                        <th className="py-2 pr-3">Servicio</th>
+                        <th className="py-2 pr-3">Cantidad</th>
+                        <th className="py-2">Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {repData.desglose.map((d, i) => (
+                        <tr key={i} className="border-b border-borde/50">
+                          <td className="py-2 pr-3">{d.servicio || `Servicio #${d.servicio_id}`}</td>
+                          <td className="py-2 pr-3">{d.cantidad}</td>
+                          <td className="py-2">${Number(d.total).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p className="text-sm text-texto-secundario py-8 text-center">Sin datos de ventas para esta fecha</p>
               )}
@@ -962,28 +1261,30 @@ export default function AdminDashboard() {
             <div>
               <h4 className="font-display text-lg text-texto-principal mb-3">Ocupación del {repFecha}</h4>
               {Array.isArray(repData) && repData.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
-                      <th className="py-2 pr-3">Sede</th>
-                      <th className="py-2 pr-3">Total</th>
-                      <th className="py-2 pr-3">Completadas</th>
-                      <th className="py-2 pr-3">Canceladas</th>
-                      <th className="py-2">No Show</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {repData.map((d, i) => (
-                      <tr key={i} className="border-b border-borde/50">
-                        <td className="py-2 pr-3">{d.sede || ubicacionNombre(d.ubicacion_id)}</td>
-                        <td className="py-2 pr-3">{d.total}</td>
-                        <td className="py-2 pr-3">{d.completadas ?? d.confirmadas ?? 0}</td>
-                        <td className="py-2 pr-3">{d.canceladas ?? 0}</td>
-                        <td className="py-2">{d.no_show ?? 0}</td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[600px]">
+                    <thead>
+                      <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
+                        <th className="py-2 pr-3">Sede</th>
+                        <th className="py-2 pr-3">Total</th>
+                        <th className="py-2 pr-3">Completadas</th>
+                        <th className="py-2 pr-3">Canceladas</th>
+                        <th className="py-2">No Show</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {repData.map((d, i) => (
+                        <tr key={i} className="border-b border-borde/50">
+                          <td className="py-2 pr-3">{d.sede || ubicacionNombre(d.ubicacion_id)}</td>
+                          <td className="py-2 pr-3">{d.total}</td>
+                          <td className="py-2 pr-3">{d.completadas ?? d.confirmadas ?? 0}</td>
+                          <td className="py-2 pr-3">{d.canceladas ?? 0}</td>
+                          <td className="py-2">{d.no_show ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p className="text-sm text-texto-secundario py-8 text-center">Sin datos de ocupación para esta fecha</p>
               )}
@@ -992,24 +1293,26 @@ export default function AdminDashboard() {
             <div>
               <h4 className="font-display text-lg text-texto-principal mb-3">Clientes recurrentes</h4>
               {Array.isArray(repData) && repData.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
-                      <th className="py-2 pr-3">Cliente</th>
-                      <th className="py-2 pr-3">Email</th>
-                      <th className="py-2">Total reservas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {repData.map((d, i) => (
-                      <tr key={i} className="border-b border-borde/50">
-                        <td className="py-2 pr-3">{d.nombre} {d.apellido}</td>
-                        <td className="py-2 pr-3 text-xs">{d.email}</td>
-                        <td className="py-2">{d.total_reservas ?? d.total ?? 0}</td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
+                        <th className="py-2 pr-3">Cliente</th>
+                        <th className="py-2 pr-3">Email</th>
+                        <th className="py-2">Total reservas</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {repData.map((d, i) => (
+                        <tr key={i} className="border-b border-borde/50">
+                          <td className="py-2 pr-3">{d.nombre} {d.apellido}</td>
+                          <td className="py-2 pr-3 text-xs">{d.email}</td>
+                          <td className="py-2">{d.total_reservas ?? d.total ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p className="text-sm text-texto-secundario py-8 text-center">No hay clientes recurrentes</p>
               )}
@@ -1025,7 +1328,7 @@ export default function AdminDashboard() {
             <div className="flex justify-center py-8"><Spinner /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[700px]">
                 <thead>
                   <tr className="border-b border-borde text-left text-texto-secundario text-xs uppercase">
                     <th className="py-2 pr-3">Nombre</th>
@@ -1055,7 +1358,7 @@ export default function AdminDashboard() {
                           {c.bloqueado ? (
                             <Button variant="exito" size="sm" onClick={() => handleDesbloquear(c.id)}>Desbloquear</Button>
                           ) : bloqueoId === c.id ? (
-                            <div className="flex items-center gap-1">
+                            <div className="flex flex-wrap items-center gap-1 justify-center">
                               <input
                                 className="px-2 py-1 border border-borde rounded text-xs w-32"
                                 placeholder="Motivo"
@@ -1087,7 +1390,7 @@ export default function AdminDashboard() {
       {/* ---- SHEET: Logs ---- */}
       <Sheet open={activeSheet === 'logs'} onClose={() => setActiveSheet(null)} title="Logs del Sistema">
         <div className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-grow">
               <input
                 type="text"
@@ -1156,8 +1459,8 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          <div className="flex gap-2 justify-end items-end pt-2 border-t border-borde/50">
-            <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center pt-2 border-t border-borde/50">
+            <div className="flex flex-wrap gap-2 items-center">
               <span className="text-[10px] text-texto-secundario font-semibold">Exportar Rango:</span>
               <input
                 type="date"
@@ -1175,7 +1478,7 @@ export default function AdminDashboard() {
             </div>
             <button
               onClick={handleLogsExport}
-              className="px-3 py-1.5 bg-fondo border border-borde hover:bg-superficie text-texto-principal rounded-lg text-[10px] font-bold transition"
+              className="px-3 py-1.5 bg-fondo border border-borde hover:bg-superficie text-texto-principal rounded-lg text-[10px] font-bold transition cursor-pointer"
             >
               Exportar JSON
             </button>
@@ -1202,7 +1505,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ---- KPI CARDS ---- */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
           <p className="text-xs font-semibold text-texto-secundario uppercase tracking-wider">Recaudación hoy</p>
           {kpi.loading ? (
@@ -1264,7 +1567,7 @@ export default function AdminDashboard() {
             </h2>
             <p className="text-xs text-texto-secundario">Vista del estado actual de todos los turnos del salón.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => {
@@ -1312,7 +1615,7 @@ export default function AdminDashboard() {
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : reservas.length > 0 ? (
           <div className="overflow-x-auto max-h-[55vh] overflow-y-auto pr-1">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs min-w-[800px] md:min-w-full">
               <thead>
                 <tr className="border-b border-borde/70 text-left font-bold text-texto-secundario uppercase">
                   <th className="py-2.5 w-16">Hora</th>
