@@ -1183,6 +1183,24 @@ export default function AdminDashboard() {
         </div>
       </Sheet>
 
+      {/* ---- SECCIÓN DE GESTIÓN ---- */}
+      <div className="bg-superficie border border-borde rounded-2xl p-4 shadow-premium">
+        <div className="flex flex-wrap gap-3 items-center">
+          <span className="text-xs font-bold uppercase tracking-wider text-texto-secundario mr-1">
+            Gestión:
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setActiveSheet('empleados')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Empleados</button>
+            <button onClick={() => setActiveSheet('servicios')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Servicios</button>
+            <button onClick={() => setActiveSheet('sedes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Sedes</button>
+            <button onClick={() => setActiveSheet('horarios')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Horarios</button>
+            <button onClick={() => setActiveSheet('reportes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Reportes</button>
+            <button onClick={() => setActiveSheet('clientes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Moderación Clientes</button>
+            <button onClick={() => setActiveSheet('logs')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Logs del Sistema</button>
+          </div>
+        </div>
+      </div>
+
       {/* ---- KPI CARDS ---- */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
@@ -1354,20 +1372,6 @@ export default function AdminDashboard() {
             No hay reservas registradas para {fechaFiltro === hoy() ? 'hoy' : `el ${fechaFiltro}`}.
           </p>
         )}
-      </div>
-
-      {/* ---- BARRA INFERIOR FIJA PARA ABRIR SHEETS ADMINISTRATIVOS ---- */}
-      <div className="fixed bottom-0 left-0 right-0 bg-superficie/95 backdrop-blur border-t border-borde p-3.5 z-40 shadow-[0_-5px_20px_rgba(45,36,32,0.05)]">
-        <div className="max-w-7xl mx-auto flex flex-wrap gap-2 justify-center items-center">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-texto-secundario mr-2 hidden md:inline">Gestión:</span>
-          <button onClick={() => setActiveSheet('empleados')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Empleados</button>
-          <button onClick={() => setActiveSheet('servicios')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Servicios</button>
-          <button onClick={() => setActiveSheet('sedes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Sedes</button>
-          <button onClick={() => setActiveSheet('horarios')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Horarios</button>
-          <button onClick={() => setActiveSheet('reportes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Reportes</button>
-          <button onClick={() => setActiveSheet('clientes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Moderación Clientes</button>
-          <button onClick={() => setActiveSheet('logs')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition">Logs del Sistema</button>
-        </div>
       </div>
     </div>
   );

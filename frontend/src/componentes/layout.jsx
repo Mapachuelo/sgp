@@ -11,7 +11,7 @@ export default function Layout() {
 
   const navItems = {
     cliente: [
-      { path: '/cliente', label: 'Dashboard' },
+      { path: '/cliente', label: 'Inicio' },
       { path: '/cliente/reservar', label: 'Reservar' },
       { path: '/cliente/perfil', label: 'Mi Perfil' },
     ],
@@ -21,7 +21,7 @@ export default function Layout() {
       { path: '/empleado/perfil', label: 'Mi Perfil' },
     ],
     admin: [
-      { path: '/admin', label: 'Dashboard' },
+      { path: '/admin', label: 'Inicio' },
     ],
   };
 

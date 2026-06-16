@@ -353,7 +353,7 @@ export default function NuevaReserva() {
           )}
           <div className="flex gap-3 justify-center">
             <Button variant="secundario" onClick={descargarQR}>Descargar QR</Button>
-            <Button onClick={() => navigate('/cliente')}>Ir al dashboard</Button>
+            <Button onClick={() => navigate('/cliente')}>Ir al inicio</Button>
           </div>
         </Card>
       </div>

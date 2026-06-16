@@ -149,27 +149,26 @@ export default function EmpleadoDisponibilidad() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-  useEffect(() => {
+  const cambiarGranularidad = (newG) => {
     if (horasDisponibles.length === 0) return;
-
-    const newSlots = generarSlots(horaInicio, horaFin, granularidad);
-
+    const newSlots = generarSlots(horaInicio, horaFin, newG);
     const ajustado = {};
     for (let d = 0; d < 7; d++) {
       ajustado[d] = {};
       newSlots.forEach((slot) => {
-        const oldSlot = Object.keys(slots[d] || {}).find((os) => os <= slot && (
-          slot.split(':').map(Number)[0] * 60 + slot.split(':').map(Number)[1] -
-          (os.split(':').map(Number)[0] * 60 + os.split(':').map(Number)[1]) < (granularidad || 60)
-        ));
-        if (oldSlot !== undefined) {
-          const closestIdx = horasDisponibles.indexOf(oldSlot);
-          const targetIdx = newSlots.indexOf(slot);
-          if (closestIdx >= 0 && targetIdx >= 0 && Math.abs(targetIdx - closestIdx) <= 1) {
-            ajustado[d][slot] = { ...(slots[d]?.[oldSlot] || { tipo: 'no_disponible' }) };
-          } else {
-            ajustado[d][slot] = { tipo: 'no_disponible' };
+        const [sh, sm] = slot.split(':').map(Number);
+        const slotMin = sh * 60 + sm;
+        const oldSlotsKeys = Object.keys(slots[d] || {});
+        let matchedOldSlot = null;
+        oldSlotsKeys.forEach((os) => {
+          const [oh, om] = os.split(':').map(Number);
+          const osMin = oh * 60 + om;
+          if (osMin <= slotMin && slotMin - osMin < (granularidad || 60)) {
+            matchedOldSlot = os;
           }
+        });
+        if (matchedOldSlot && slots[d]?.[matchedOldSlot]) {
+          ajustado[d][slot] = { ...slots[d][matchedOldSlot] };
         } else {
           ajustado[d][slot] = { tipo: 'no_disponible' };
         }
@@ -177,7 +176,8 @@ export default function EmpleadoDisponibilidad() {
     }
     setSlots(ajustado);
     setHorasDisponibles(newSlots);
-  }, [granularidad]);
+    setGranularidad(newG);
+  };
 
   const toggleSlot = (dia, slot) => {
     setSlots((prev) => {
@@ -393,7 +393,7 @@ export default function EmpleadoDisponibilidad() {
             label="Intervalo"
             options={GRANULARIDADES}
             value={String(granularidad)}
-            onChange={(e) => setGranularidad(Number(e.target.value))}
+            onChange={(e) => cambiarGranularidad(Number(e.target.value))}
             className="text-xs font-normal"
           />
           <div className="pt-5">
@@ -480,37 +480,6 @@ export default function EmpleadoDisponibilidad() {
                       })}
                     </tr>
                   ))}
-                  {/* Fila de acciones globales por día */}
-                  <tr className="bg-fondo/10">
-                    <td className="sticky left-0 bg-superficie z-10 border-t border-borde/70 py-4 px-4 text-xs font-bold text-texto-principal whitespace-nowrap">Acciones</td>
-                    {diasVisibles.map((idx) => (
-                      <td key={idx} className="border-t border-borde/50 py-3 px-2 align-top">
-                        <div className="flex flex-col gap-1.5">
-                          <button 
-                            type="button" 
-                            className="text-[10px] py-1 px-1.5 rounded bg-primario/5 text-primario border border-primario/10 hover:bg-primario/10 transition font-medium text-center cursor-pointer"
-                            onClick={() => setAllDay(idx, 'disponible')}
-                          >
-                            Todo Sede
-                          </button>
-                          <button 
-                            type="button" 
-                            className="text-[10px] py-1 px-1.5 rounded bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 transition font-medium text-center cursor-pointer"
-                            onClick={() => setAllDay(idx, 'descanso')}
-                          >
-                            Todo Descanso
-                          </button>
-                          <button 
-                            type="button" 
-                            className="text-[10px] py-1 px-1.5 rounded bg-red-50 text-error border border-red-100 hover:bg-red-100 transition font-medium text-center cursor-pointer"
-                            onClick={() => setAllDay(idx, 'no_disponible')}
-                          >
-                            Todo Bloqueado
-                          </button>
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
                 </tbody>
               </table>
             </div>

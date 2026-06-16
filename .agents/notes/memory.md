@@ -159,4 +159,13 @@
 - Se ejecutó `pnpm --filter frontend build` y compiló correctamente.
 - Se verificó lint en backend sin novedades críticas.
 
+#### Dashboard de Administrador (admin-dashboard.jsx)
+- **Reubicación de Sección de Gestión:** Se removió la barra fija flotante del extremo inferior de la pantalla.
+- **Contenedor Premium Integrado:** Se insertó un nuevo bloque inline para "Gestión del Sistema" situado justo encima de las tarjetas de KPI ("Recaudación hoy"). Este bloque mantiene el estilo del dashboard con un contenedor premium (`bg-superficie border border-borde rounded-2xl p-4 shadow-premium`) y flexbox responsivo para que los botones se distribuyan de forma fluida en todo tipo de pantallas.
+
+#### Navegación y Etiquetas (layout.jsx y nueva-reserva.jsx)
+- **Cambio de 'Dashboard' a 'Inicio':** Se renombraron las etiquetas de navegación del Administrador y del Cliente a "Inicio" en `layout.jsx`.
+- **Botón de retorno al Inicio:** Se actualizó el texto del botón al finalizar una reserva en `nueva-reserva.jsx` para que diga "Ir al inicio".
+
+
 
