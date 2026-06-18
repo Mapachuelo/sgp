@@ -31,11 +31,12 @@ const reservasService = {
       throw new HttpError(400, 'fecha, empleado_id y ubicacion_id son requeridos');
     }
 
-    const diaSemana = new Date(fecha).getDay();
+    const diaSemana = new Date(fecha).getUTCDay();
     const diaMapeado = diaSemana === 0 ? 7 : diaSemana;
 
     const jornada = await reservasModel.findJornada(ubicacion_id, fecha);
     const slotsOcupados = await reservasModel.findSlotsOcupados(fecha, empleado_id);
+    const disponibilidadEmpleado = await reservasModel.findEmpleadoDisponibilidadDia(empleado_id, ubicacion_id, diaMapeado);
 
     return {
       fecha,
@@ -44,6 +45,7 @@ const reservasService = {
       dia_semana: diaMapeado,
       jornada: jornada || null,
       slots_ocupados: slotsOcupados,
+      disponibilidad_empleado: disponibilidadEmpleado || null,
     };
   },
 

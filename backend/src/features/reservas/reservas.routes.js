@@ -16,7 +16,7 @@ router.get('/disponibilidad', reservasController.disponibilidad);
 router.get('/jornada', reservasController.getJornada);
 router.put('/jornada', authenticate, authorize('admin'), reservasController.updateJornada);
 
-router.get('/empleado-tiempos-servicio', authenticate, authorize('admin', 'empleado'), reservasController.getEmpleadoTiemposServicio);
+router.get('/empleado-tiempos-servicio', authenticate, authorize('admin', 'empleado', 'cliente'), reservasController.getEmpleadoTiemposServicio);
 router.put('/empleado-tiempos-servicio', authenticate, authorize('admin', 'empleado'), reservasController.updateEmpleadoTiemposServicio);
 
 router.post('/', authenticate, authorize('cliente'), reservasController.crearReserva);

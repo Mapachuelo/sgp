@@ -131,7 +131,7 @@ const reservasModel = {
   },
 
   async findEmpleadosDisponibles(fecha, ubicacion_id) {
-    const diaSemana = new Date(fecha).getDay();
+    const diaSemana = new Date(fecha).getUTCDay();
     const diaMapeado = diaSemana === 0 ? 7 : diaSemana;
 
     const { rows } = await pool.query(
@@ -157,6 +157,16 @@ const reservasModel = {
       [empleado_id, fecha]
     );
     return rows;
+  },
+
+  async findEmpleadoDisponibilidadDia(empleado_id, ubicacion_id, dia_semana) {
+    const { rows } = await pool.query(
+      `SELECT hora_inicio, hora_fin 
+       FROM empleado_disponibilidad 
+       WHERE empleado_id = $1 AND ubicacion_id = $2 AND dia_semana = $3`,
+      [empleado_id, ubicacion_id, dia_semana]
+    );
+    return rows[0] || null;
   },
 
   async findJornada(ubicacion_id, fecha) {
@@ -189,7 +199,7 @@ const reservasModel = {
 
   async findEmpleadoTiemposServicio(empleado_id) {
     const { rows } = await pool.query(
-      `SELECT etp.*, sc.nombre as servicio_nombre
+      `SELECT etp.*, sc.nombre as servicio_nombre, sc.precio_base
        FROM empleado_tiempo_servicio etp
        JOIN servicio_catalogo sc ON etp.servicio_id = sc.id
        WHERE etp.empleado_id = $1`,
@@ -210,12 +220,11 @@ const reservasModel = {
   },
 
   async upsertEmpleadoTiempoServicio(empleado_id, items) {
+    await pool.query('DELETE FROM empleado_tiempo_servicio WHERE empleado_id = $1', [empleado_id]);
     for (const item of items) {
       await pool.query(
         `INSERT INTO empleado_tiempo_servicio (empleado_id, servicio_id, duracion_minutos)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (empleado_id, servicio_id) DO UPDATE
-         SET duracion_minutos = EXCLUDED.duracion_minutos`,
+         VALUES ($1, $2, $3)`,
         [empleado_id, item.servicio_id, item.duracion_minutos]
       );
     }

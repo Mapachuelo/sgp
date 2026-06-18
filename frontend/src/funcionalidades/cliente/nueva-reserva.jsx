@@ -35,7 +35,14 @@ const PASOS = [
   { num: 5, label: 'Pago' },
 ];
 
-const DIAS_SEMANA = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+const DIAS_SEMANA = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+
+function formatearFechaLocal(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function obtenerIniciales(nombre) {
   if (!nombre) return '??';
@@ -119,7 +126,7 @@ export default function NuevaReserva() {
     setPaso(2);
     setCargando(true);
     try {
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = formatearFechaLocal(new Date());
       setEmpleados(await api.reservas.empleadosDisponibles({ ubicacion_id: ubicacionSeleccionada.id, fecha: hoy }) || []);
     } catch (err) { mostrarToast(err.message, 'error'); }
     finally { setCargando(false); }
@@ -129,8 +136,17 @@ export default function NuevaReserva() {
     if (!empleadoSeleccionado) return;
     setCargando(true);
     try {
-      const [servs, prefs] = await Promise.all([api.reservas.servicios(), api.preferencias.get()]);
-      setServicios(servs || []);
+      const [empServs, prefs] = await Promise.all([
+        api.reservas.empleadoTiempos.get(empleadoSeleccionado.id),
+        api.preferencias.get()
+      ]);
+      const mappedServs = (empServs || []).map(s => ({
+        id: s.servicio_id,
+        nombre: s.servicio_nombre,
+        duracion_base_minutos: s.duracion_minutos || 30,
+        precio_base: s.precio_base
+      }));
+      setServicios(mappedServs);
       setPreferencias(prefs);
       const g = prefs?.granularidad_calendario || 30;
       setGranularidad(g);
@@ -147,8 +163,8 @@ export default function NuevaReserva() {
         const fecha = new Date(base);
         fecha.setDate(base.getDate() + i);
         dias.push({
-          fecha: fecha.toISOString().split('T')[0],
-          diaSemana: DIAS_SEMANA[fecha.getDay() === 0 ? 5 : fecha.getDay() - 1] || 'Lun',
+          fecha: formatearFechaLocal(fecha),
+          diaSemana: DIAS_SEMANA[fecha.getDay() === 0 ? 6 : fecha.getDay() - 1] || 'Lun',
           esHoy: fecha.getTime() === hoy.getTime(),
           esPasado: fecha < hoy,
           objetoFecha: fecha
@@ -318,6 +334,18 @@ export default function NuevaReserva() {
     const slotDate = new Date(fecha + 'T00:00:00');
     slotDate.setHours(parseInt(h), parseInt(m), 0, 0);
     return slotDate <= ahora;
+  };
+
+  const esSlotFueraDeDisponibilidad = (fecha, hora) => {
+    const disp = slots?.[fecha]?.disponibilidad_empleado;
+    if (!disp) return true;
+    const [h, m] = hora.split(':').map(Number);
+    const slotMin = h * 60 + m;
+    const [hIni, mIni] = disp.hora_inicio.split(':').map(Number);
+    const iniMin = hIni * 60 + mIni;
+    const [hFin, mFin] = disp.hora_fin.split(':').map(Number);
+    const finMin = hFin * 60 + mFin;
+    return slotMin < iniMin || slotMin >= finMin;
   };
 
   const descargarQR = () => {
@@ -636,14 +664,21 @@ export default function NuevaReserva() {
                           <tr key={hora} className="hover:bg-fondo/20 transition-colors">
                             <td className="sticky left-0 bg-superficie z-10 border-b border-borde/40 py-2.5 px-4 text-xs font-semibold text-texto-secundario whitespace-nowrap">{hora}</td>
                             {diasVisibles.map((dia) => {
-                              const ocupado = esSlotOcupado(dia.fecha, hora);
+                              const fueraDeDisponibilidad = esSlotFueraDeDisponibilidad(dia.fecha, hora);
+                              const ocupado = !fueraDeDisponibilidad && esSlotOcupado(dia.fecha, hora);
                               const pasado = esSlotPasado(dia.fecha, hora);
-                              const antelacion = !pasado && !ocupado && esSlotAntelacion(dia.fecha, hora);
-                              const libre = !pasado && !ocupado && !antelacion;
+                              const antelacion = !pasado && !fueraDeDisponibilidad && !ocupado && esSlotAntelacion(dia.fecha, hora);
+                              const libre = !pasado && !fueraDeDisponibilidad && !ocupado && !antelacion;
 
                               let clase = 'slot-libre';
                               let label = 'Disponible';
-                              if (ocupado || pasado) {
+                              if (pasado) {
+                                clase = 'slot-pasado';
+                                label = 'Pasado';
+                              } else if (fueraDeDisponibilidad) {
+                                clase = 'slot-no-disponible';
+                                label = 'No disponible';
+                              } else if (ocupado) {
                                 clase = 'slot-ocupado';
                                 label = 'Ocupado';
                               } else if (antelacion) {
@@ -676,7 +711,9 @@ export default function NuevaReserva() {
 
           <div className="flex flex-wrap justify-center gap-6 text-xs font-medium border-t border-borde/50 pt-4 max-w-4xl mx-auto">
             <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#DCE8E0] border-[#A3C9A8]" /> Disponible</span>
-            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#F5E6E3] border-[#E8C5C0]" /> Ocupado / Pasado</span>
+            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#F5E6E3] border-[#E8C5C0]" /> Ocupado</span>
+            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#EBEBEB] border-[#D1D1D1]" /> Pasado</span>
+            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#E2E8F0] border-[#CBD5E1]" /> No disponible</span>
             <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#FFF3E6] border-[#F0C78E]" /> Anticipación &lt;60m</span>
           </div>
 

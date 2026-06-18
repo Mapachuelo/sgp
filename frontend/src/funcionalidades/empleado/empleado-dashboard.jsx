@@ -23,6 +23,13 @@ const ESTADO_LABEL = {
   cancelada: 'Cancelada',
 };
 
+const formatearFechaLocal = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 const formatearHoraLocal = (isoString) => {
   if (!isoString) return '';
   const d = new Date(isoString);
@@ -270,18 +277,18 @@ export default function EmpleadoDashboard() {
   const [modalQR, setModalQR] = useState(false);
   const [citaPrevia, setCitaPrevia] = useState(null);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(formatearFechaLocal(new Date()));
 
   const [sedeHoy, setSedeHoy] = useState(null);
   const [disponibilidadHoy, setDisponibilidadHoy] = useState(null);
   const [cargandoSede, setCargandoSede] = useState(true);
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = formatearFechaLocal(new Date());
 
   const cambiarDia = (offset) => {
     const d = new Date(fecha + 'T00:00:00');
     d.setDate(d.getDate() + offset);
-    setFecha(d.toISOString().slice(0, 10));
+    setFecha(formatearFechaLocal(d));
   };
 
   const cargarCitas = useCallback(async (fechaFiltro) => {

@@ -199,3 +199,52 @@
 - Se corrigió [api.sh](file:///home/mapachuelo/Documentos/github/trabajos/sgp/tests/api.sh) para calcular fechas futuras de forma dinámica y evitar fallos por fechas pasadas.
 - Se añadió un caso de prueba para el bloqueo de duplicidad de disponibilidad en el mismo día.
 - Se reiniciaron los contenedores de Podman y todas las pruebas de integración pasaron con éxito (`39 PASS, 0 FAIL`).
+
+---
+
+## Sesión — 18 Junio 2026
+
+### Corrección de Disponibilidad de Empleados y Asignación de Servicios
+
+#### Flujo de Reserva del Cliente (nueva-reserva.jsx)
+- **Servicios Específicos por Estilista**: Se reemplazó la carga de todos los servicios del catálogo por la consulta a los servicios asociados individualmente al estilista seleccionado en el paso anterior (`api.reservas.empleadoTiempos.get`). El dropdown en el paso 4 ahora solo despliega dichos servicios específicos con sus respectivas duraciones y precios personalizados.
+- **Validación y Visualización de Disponibilidad en Calendario**:
+  - Implementado el helper `esSlotFueraDeDisponibilidad` que valida si cada bloque horario está fuera de la jornada de trabajo registrada del empleado para ese día de la semana y sede.
+  - Se definieron nuevos estados y clases de visualización para las celdas horarias:
+    - **Pasado**: franjas que ya pasaron de la hora actual. Se muestran como "Pasado" en gris neutro (`slot-pasado`) y deshabilitadas.
+    - **No disponible**: franjas fuera de la jornada de trabajo del empleado en ese día. Se muestran como "No disponible" en gris azulado (`slot-no-disponible`) y deshabilitadas.
+    - **Ocupado**: franjas reservadas por otros clientes en su jornada laboral activa. Se muestran como "Ocupado" en rojo suave (`slot-ocupado`) y deshabilitadas.
+    - **Disponible**: franjas dentro de la jornada y no reservadas. Se muestran en verde suave (`slot-libre`) y son seleccionables.
+  - La leyenda al pie de la tabla del calendario fue actualizada para documentar los nuevos colores y significados de los estados.
+
+#### Panel de Administración (admin-dashboard.jsx y backend)
+- **Asignación Interactiva de Servicios en Empleados**:
+  - Se agregó una nueva sección de "Servicios y Duraciones" al formulario de creación/edición de empleados dentro del panel administrativo. Presenta todos los servicios del catálogo con un checkbox y un input de número para que el administrador pueda asociarlos directamente al empleado con su duración en minutos.
+  - Al editar un empleado, se recuperan automáticamente sus servicios individuales.
+- **Asignación Interactiva de Servicios en Servicios**:
+  - Se modificó la tarjeta "Tiempos de servicio por empleado" en la pestaña de servicios para mostrar una lista editable completa con checkboxes y duraciones customizadas para el empleado seleccionado, con su respectivo botón "Guardar Tiempos de Servicio".
+- **Backend (reservas.model.js y reservas.service.js)**:
+  - Modificado el método `findEmpleadoTiemposServicio` para que también retorne el campo `precio_base` de la tabla de servicios.
+  - Modificado `upsertEmpleadoTiempoServicio` para realizar una limpieza completa previa de servicios mediante `DELETE` y evitar la persistencia de servicios desmarcados.
+  - Añadida consulta `findEmpleadoDisponibilidadDia` en el modelo y adaptada la función `getDisponibilidad` del servicio para devolver la información de disponibilidad específica del estilista (`disponibilidad_empleado`) a las peticiones del frontend.
+
+#### Corrección de Desfase de Zona Horaria (Sábado/Domingo)
+- Se solucionó el problema de sincronía del calendario en el frontend con respecto a los días laborables del empleado: la fecha en formato string se parseaba usando la zona horaria del servidor (Bogotá, UTC-5), lo que desfasaba el cálculo en fines de semana. Se modificó el uso de `.getDay()` por `.getUTCDay()` tanto en el modelo `findEmpleadosDisponibles` ([reservas.model.js](file:///home/sena/Documentos/github/sgp/backend/src/features/reservas/reservas.model.js)) como en el servicio `getDisponibilidad` ([reservas.service.js](file:///home/sena/Documentos/github/sgp/backend/src/features/reservas/reservas.service.js)).
+
+#### Ocultación del Campo de Duración Global de Servicios
+- En el panel del Administrador, se ocultó la duración del formulario global de creación/edición de servicios en [admin-dashboard.jsx](file:///home/sena/Documentos/github/sgp/frontend/src/funcionalidades/admin/admin-dashboard.jsx) y se removió la columna `Duración` de la tabla de servicios generales, delegando esta configuración a los tiempos de servicio específicos por empleado.
+- Se adaptó la función de guardado `handleSrvSave` para enviar `duracion_base_minutos` con un valor por defecto de 30 minutos a la API.
+- Se mapearon los nombres de las columnas devueltas por PostgreSQL (`precio_base`, `duracion_base_minutos`) a las propiedades del frontend (`precio`, `duracion`) en `cargarServicios` para un renderizado correcto.
+
+#### Verificación y Pruebas
+- Se ejecutó `pnpm run lint` validando que el código backend y frontend esté libre de errores.
+- Se corrigió un problema adicional de desfase horario en el frontend reemplazando el uso de `.toISOString().split('T')[0]` por un helper `formatearFechaLocal` en `nueva-reserva.jsx`, `admin-dashboard.jsx` y `empleado-dashboard.jsx`.
+- Se insertaron los servicios de prueba para el empleado Carlos Gómez (ID: 2) directamente en la base de datos de Podman:
+  - Corte clásico (30 min)
+  - Barba (20 min)
+- Se recompiló el frontend y se reconstruyeron las imágenes de los contenedores de Podman sin caché para aplicar todos los cambios de forma definitiva.
+- **Correcciones Adicionales**:
+  - Se autorizó el rol `cliente` para el endpoint `GET /api/reservas/empleado-tiempos-servicio` en `reservas.routes.js`, lo que elimina el error "No tiene permisos para esta accion" al renderizar el calendario del estilista seleccionado.
+  - Se configuró la carga de empleados (`cargarEmpleados()`) al abrir la pestaña de Servicios en `admin-dashboard.jsx` (`activeSheet === 'servicios'`), resolviendo el dropdown vacío en la tarjeta "Tiempos de servicio por empleado".
+
+

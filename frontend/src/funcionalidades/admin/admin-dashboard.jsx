@@ -3,7 +3,20 @@ import { Button, Input, Card, Badge, Sheet, Modal, Toast, Select, Spinner } from
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
 
-const hoy = () => new Date().toISOString().split('T')[0];
+const hoy = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const formatearFechaLocal = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 function mostrarToast(setToast, message, type = 'success') {
   setToast({ open: true, message, type });
@@ -163,6 +176,8 @@ export default function AdminDashboard() {
   const [etEmpleadoId, setEtEmpleadoId] = useState('');
   const [etTiempos, setEtTiempos] = useState([]);
   const [etLoading, setEtLoading] = useState(false);
+  const [etForm, setEtForm] = useState({});
+  const [srvToAddId, setSrvToAddId] = useState('');
 
   // Sedes
   const [sedes, setSedes] = useState([]);
@@ -328,6 +343,7 @@ export default function AdminDashboard() {
       identificacion: '',
       sedes_asignadas: [],
       horarios: {},
+      servicios_asignados: {},
     });
     setSelectedSedeScheduleId(null);
     setEmpShowAdd(false);
@@ -352,17 +368,29 @@ export default function AdminDashboard() {
         }
       });
 
+      const serviciosItems = [];
+      Object.entries(empForm.servicios_asignados || {}).forEach(([srvId, config]) => {
+        if (config.checked) {
+          serviciosItems.push({
+            servicio_id: Number(srvId),
+            duracion_minutos: Number(config.duracion) || 30
+          });
+        }
+      });
+
       let empId = empEditId;
       if (empId) {
-        const { password, sedes_asignadas, horarios, ubicacion_base_id, ...rest } = empForm;
+        const { password, sedes_asignadas, horarios, servicios_asignados, ubicacion_base_id, ...rest } = empForm;
         await api.auth.empleados.update(empId, password ? { ...rest, password } : rest);
         await api.disponibilidad.updateByAdmin(empId, disponibilidadItems);
+        await api.reservas.empleadoTiempos.update({ empleado_id: empId, items: serviciosItems });
         mostrarToast(setToast, 'Empleado actualizado');
       } else {
-        const { sedes_asignadas, horarios, ubicacion_base_id, ...rest } = empForm;
+        const { sedes_asignadas, horarios, servicios_asignados, ubicacion_base_id, ...rest } = empForm;
         const createdEmp = await api.auth.empleados.create(rest);
         if (createdEmp?.id) {
           await api.disponibilidad.updateByAdmin(createdEmp.id, disponibilidadItems);
+          await api.reservas.empleadoTiempos.update({ empleado_id: createdEmp.id, items: serviciosItems });
         }
         mostrarToast(setToast, 'Empleado creado');
       }
@@ -396,6 +424,7 @@ export default function AdminDashboard() {
       identificacion: emp.identificacion || '',
       sedes_asignadas: [],
       horarios: {},
+      servicios_asignados: {},
     });
 
     try {
@@ -427,10 +456,20 @@ export default function AdminDashboard() {
         };
       });
 
+      const times = await api.reservas.empleadoTiempos.get(emp.id);
+      const srvMap = {};
+      times.forEach(t => {
+        srvMap[t.servicio_id] = {
+          checked: true,
+          duracion: t.tiempo_minutos || t.duracion || 30
+        };
+      });
+
       setEmpForm((p) => ({
         ...p,
         sedes_asignadas: sedes,
         horarios: horariosMap,
+        servicios_asignados: srvMap,
       }));
       
       if (sedes.length > 0) {
@@ -439,12 +478,12 @@ export default function AdminDashboard() {
         setSelectedSedeScheduleId(null);
       }
     } catch (e) {
-      mostrarToast(setToast, 'Error al cargar la disponibilidad del empleado', 'error');
+      mostrarToast(setToast, 'Error al cargar los datos del empleado', 'error');
     }
   };
 
   useEffect(() => {
-    if (activeSheet === 'empleados') cargarEmpleados();
+    if (activeSheet === 'empleados' || activeSheet === 'servicios') cargarEmpleados();
   }, [activeSheet, cargarEmpleados]);
 
   // ==================== SERVICIOS ====================
@@ -453,7 +492,12 @@ export default function AdminDashboard() {
     setServiciosLoading(true);
     try {
       const data = await api.reservas.servicios();
-      setServicios(data || []);
+      const mapped = (data || []).map(s => ({
+        ...s,
+        precio: s.precio ?? s.precio_base,
+        duracion: s.duracion ?? s.duracion_base_minutos
+      }));
+      setServicios(mapped);
     } catch (e) {
       mostrarToast(setToast, e.message, 'error');
     } finally {
@@ -469,7 +513,12 @@ export default function AdminDashboard() {
 
   const handleSrvSave = async () => {
     try {
-      const body = { ...srvForm, precio: Number(srvForm.precio) || 0, duracion: Number(srvForm.duracion) || 0 };
+      const body = {
+        nombre: srvForm.nombre,
+        descripcion: srvForm.descripcion,
+        precio_base: Number(srvForm.precio) || 0,
+        duracion_base_minutos: 30 // Valor por defecto
+      };
       if (srvEditId) {
         await api.reservas.updateServicio(srvEditId, body);
         mostrarToast(setToast, 'Servicio actualizado');
@@ -501,18 +550,27 @@ export default function AdminDashboard() {
     setSrvForm({
       nombre: srv.nombre || '',
       descripcion: srv.descripcion || '',
-      precio: srv.precio ?? '',
-      duracion: srv.duracion ?? '',
+      precio: srv.precio ?? srv.precio_base ?? '',
+      duracion: '',
     });
   };
 
   const cargarEmpleadoTiempos = async (empId) => {
     setEtEmpleadoId(empId);
-    if (!empId) { setEtTiempos([]); return; }
+    if (!empId) { setEtTiempos([]); setEtForm({}); return; }
     setEtLoading(true);
     try {
       const data = await api.reservas.empleadoTiempos.get(empId);
       setEtTiempos(data || []);
+      
+      const form = {};
+      data.forEach((t) => {
+        form[t.servicio_id] = {
+          checked: true,
+          duracion: t.tiempo_minutos || t.duracion || 30
+        };
+      });
+      setEtForm(form);
     } catch (e) {
       mostrarToast(setToast, e.message, 'error');
     } finally {
@@ -958,6 +1016,58 @@ export default function AdminDashboard() {
                   )}
                 </div>
               )}
+              {/* ---- SECCIÓN: Servicios Asignados ---- */}
+              <div className="border-t border-borde/60 pt-4 mt-4 space-y-3">
+                <span className="text-xs font-bold text-texto-secundario uppercase tracking-wider block">
+                  Servicios y Duraciones:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2">
+                  {servicios.map((s) => {
+                    const config = empForm.servicios_asignados?.[s.id] || { checked: false, duracion: s.duracion_base_minutos || s.duracion || 30 };
+                    return (
+                      <div key={s.id} className="flex items-center justify-between p-2 bg-fondo rounded-xl border border-borde/50 text-xs">
+                        <label className="flex items-center gap-2 font-semibold text-texto-principal cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={config.checked}
+                            onChange={(e) => {
+                              setEmpForm(p => ({
+                                ...p,
+                                servicios_asignados: {
+                                  ...p.servicios_asignados,
+                                  [s.id]: { ...config, checked: e.target.checked }
+                                }
+                              }));
+                            }}
+                            className="rounded text-primario border-borde w-4 h-4 cursor-pointer"
+                          />
+                          {s.nombre}
+                        </label>
+                        {config.checked && (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="5"
+                              value={config.duracion}
+                              onChange={(e) => {
+                                setEmpForm(p => ({
+                                  ...p,
+                                  servicios_asignados: {
+                                    ...p.servicios_asignados,
+                                    [s.id]: { ...config, duracion: Number(e.target.value) }
+                                  }
+                                }));
+                              }}
+                              className="w-16 px-1.5 py-0.5 border border-borde rounded bg-superficie text-xs focus:outline-none text-center"
+                            />
+                            <span className="text-texto-secundario text-[10px]">min</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="flex gap-2 mt-4">
                 <Button variant="primario" size="sm" onClick={handleEmpSave}>{empEditId ? 'Actualizar' : 'Guardar'}</Button>
                 <Button variant="secundario" size="sm" onClick={resetEmpForm}>Cancelar</Button>
@@ -1021,7 +1131,6 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Nombre" value={srvForm.nombre} onChange={(e) => setSrvForm((p) => ({ ...p, nombre: e.target.value }))} />
                 <Input label="Precio" type="number" value={srvForm.precio} onChange={(e) => setSrvForm((p) => ({ ...p, precio: e.target.value }))} />
-                <Input label="Duración (min)" type="number" value={srvForm.duracion} onChange={(e) => setSrvForm((p) => ({ ...p, duracion: e.target.value }))} />
                 <Input label="Descripción" value={srvForm.descripcion} onChange={(e) => setSrvForm((p) => ({ ...p, descripcion: e.target.value }))} />
               </div>
               <div className="flex gap-2 mt-4">
@@ -1041,7 +1150,6 @@ export default function AdminDashboard() {
                     <th className="py-2 pr-3">Nombre</th>
                     <th className="py-2 pr-3">Descripción</th>
                     <th className="py-2 pr-3">Precio</th>
-                    <th className="py-2 pr-3">Duración</th>
                     <th className="py-2">Acciones</th>
                   </tr>
                 </thead>
@@ -1051,7 +1159,6 @@ export default function AdminDashboard() {
                       <td className="py-2 pr-3 font-medium">{srv.nombre}</td>
                       <td className="py-2 pr-3 text-xs text-texto-secundario max-w-[200px] truncate">{srv.descripcion}</td>
                       <td className="py-2 pr-3">${Number(srv.precio).toFixed(2)}</td>
-                      <td className="py-2 pr-3">{srv.duracion} min</td>
                       <td className="py-2">
                         <div className="flex gap-1">
                           <Button variant="outline" size="sm" onClick={() => iniciarEditarSrv(srv)}>Editar</Button>
@@ -1061,7 +1168,7 @@ export default function AdminDashboard() {
                     </tr>
                   ))}
                   {servicios.length === 0 && (
-                    <tr><td colSpan="5" className="py-8 text-center text-texto-secundario">No hay servicios registrados</td></tr>
+                    <tr><td colSpan="4" className="py-8 text-center text-texto-secundario">No hay servicios registrados</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1078,17 +1185,115 @@ export default function AdminDashboard() {
             />
             {etLoading ? (
               <div className="flex justify-center py-4"><Spinner /></div>
-            ) : etEmpleadoId && etTiempos.length > 0 ? (
-              <div className="mt-3 text-sm space-y-1">
-                {etTiempos.map((t, i) => (
-                  <div key={i} className="flex justify-between border-b border-borde/30 py-1">
-                    <span>{t.servicio_nombre || `Servicio #${t.servicio_id}`}</span>
-                    <span className="text-texto-secundario">{t.tiempo_minutos || t.duracion} min</span>
+            ) : etEmpleadoId ? (
+              <div className="mt-4 space-y-4">
+                {/* Selector de servicio a agregar + Botón a la derecha */}
+                <div className="flex items-end gap-2 bg-fondo/35 p-3 rounded-2xl border border-borde/40">
+                  <div className="flex-grow">
+                    <Select
+                      label="Asociar nuevo servicio"
+                      value={srvToAddId}
+                      onChange={(e) => setSrvToAddId(e.target.value)}
+                      options={[
+                        { value: '', label: 'Seleccionar servicio...' },
+                        ...servicios
+                          .filter((s) => !etTiempos.some((t) => t.servicio_id === s.id))
+                          .map((s) => ({ value: String(s.id), label: s.nombre }))
+                      ]}
+                    />
                   </div>
-                ))}
+                  <Button
+                    type="button"
+                    variant="primario"
+                    disabled={!srvToAddId}
+                    onClick={() => {
+                      const chosen = servicios.find(s => String(s.id) === String(srvToAddId));
+                      if (chosen) {
+                        setEtTiempos(p => [
+                          ...p,
+                          {
+                            servicio_id: chosen.id,
+                            servicio_nombre: chosen.nombre,
+                            tiempo_minutos: chosen.duracion_base_minutos || chosen.duracion || 30
+                          }
+                        ]);
+                        setSrvToAddId('');
+                      }
+                    }}
+                  >
+                    Agregar
+                  </Button>
+                </div>
+
+                {/* Lista de servicios activos */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-texto-secundario uppercase tracking-wider block">
+                    Servicios Activos:
+                  </span>
+                  {etTiempos.length === 0 ? (
+                    <p className="text-xs text-texto-secundario italic p-2 bg-fondo/20 border border-dashed border-borde rounded-xl text-center">
+                      No tiene servicios activos asignados.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                      {etTiempos.map((t, idx) => (
+                        <div key={t.servicio_id} className="flex items-center justify-between p-3 bg-fondo rounded-xl border border-borde/50 text-xs">
+                          <span className="font-semibold text-texto-principal">{t.servicio_nombre || t.nombre}</span>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="5"
+                                value={t.tiempo_minutos || t.duracion || 30}
+                                onChange={(e) => {
+                                  const updatedVal = Number(e.target.value);
+                                  setEtTiempos(prev => prev.map((item, i) => i === idx ? { ...item, tiempo_minutos: updatedVal } : item));
+                                }}
+                                className="w-16 px-1.5 py-0.5 border border-borde rounded bg-superficie text-xs focus:outline-none text-center"
+                              />
+                              <span className="text-texto-secundario text-[10px]">min</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEtTiempos(prev => prev.filter((_, i) => i !== idx));
+                              }}
+                              className="text-error hover:text-red-700 transition font-bold"
+                              title="Remover servicio"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="inline-block align-middle">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  variant="primario"
+                  size="sm"
+                  className="w-full mt-2"
+                  onClick={async () => {
+                    try {
+                      const items = etTiempos.map(t => ({
+                        servicio_id: t.servicio_id,
+                        duracion_minutos: Number(t.tiempo_minutos || t.duracion) || 30
+                      }));
+                      await api.reservas.empleadoTiempos.update({ empleado_id: Number(etEmpleadoId), items });
+                      mostrarToast(setToast, 'Tiempos de servicio actualizados');
+                      cargarEmpleadoTiempos(etEmpleadoId);
+                    } catch (e) {
+                      mostrarToast(setToast, e.message, 'error');
+                    }
+                  }}
+                >
+                  Guardar Tiempos de Servicio
+                </Button>
               </div>
-            ) : etEmpleadoId && etTiempos.length === 0 ? (
-              <p className="text-sm text-texto-secundario mt-3">No hay tiempos registrados para este empleado</p>
             ) : null}
           </Card>
         </div>
@@ -1573,7 +1778,7 @@ export default function AdminDashboard() {
               onClick={() => {
                 const d = new Date(fechaFiltro + 'T00:00:00');
                 d.setDate(d.getDate() - 1);
-                setFechaFiltro(d.toISOString().split('T')[0]);
+                setFechaFiltro(formatearFechaLocal(d));
               }}
               className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold transition cursor-pointer"
               title="Día anterior"
@@ -1591,7 +1796,7 @@ export default function AdminDashboard() {
               onClick={() => {
                 const d = new Date(fechaFiltro + 'T00:00:00');
                 d.setDate(d.getDate() + 1);
-                setFechaFiltro(d.toISOString().split('T')[0]);
+                setFechaFiltro(formatearFechaLocal(d));
               }}
               className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold transition cursor-pointer"
               title="Día siguiente"
