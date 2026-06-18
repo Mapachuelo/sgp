@@ -1,15 +1,16 @@
-PODMAN_COMPOSE ?= podman-compose
-
-.PHONY: up down ps logs
+.PHONY: up down build logs test
 
 up:
-	$(PODMAN_COMPOSE) up --build -d
+	podman-compose up -d --build
 
 down:
-	$(PODMAN_COMPOSE) stop
+	podman-compose down
 
-ps:
-	$(PODMAN_COMPOSE) ps
+build:
+	podman-compose build --no-cache
 
 logs:
-	$(PODMAN_COMPOSE) logs -f
+	podman-compose logs -f
+
+test:
+	bash tests/api.sh

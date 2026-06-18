@@ -1,0 +1,44 @@
+@import "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap";
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --font-body: "Inter", sans-serif;
+  --font-display: "Playfair Display", serif;
+  --color-fondo: #FAF7F2;
+  --color-superficie: #FFFFFF;
+  --color-borde: #E5DDD3;
+  --color-primario: #8B5E3C;
+  --color-primario-hover: #7A5233;
+  --color-secundario: #C9A96E;
+  --color-texto-principal: #2D2420;
+  --color-texto-secundario: #8C7B70;
+  --color-exito: #4A7C59;
+  --color-advertencia: #C4883C;
+  --color-error: #B84C3D;
+  --color-info: #5B7B9A;
+}
+
+.bg-pattern {
+  background-color: #FAF7F2;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M28 8c-2 6-4 10-6 14l2 2c2-4 4-8 6-14l-2-2zm4 0c2 6 4 10 6 14l-2 2c-2-4-4-8-6-14l2-2zM18 22c6 2 10 4 14 6l-2 2c-4-2-8-4-14-6l2-2zm24 0c-6 2-10 4-14 6l2 2c4-2 8-4 14-6l-2-2zM8 28c6-2 10-4 14-6l2 2c-4 2-8 4 14 6l-2-2zm44 0c-6-2-10-4-14-6l-2 2c4 2 8 4 14 6l2-2z' fill='%23E5DDD3' fill-opacity='0.3'/%3E%3C/svg%3E");
+}
+
+.overlay { background: rgba(45,36,32,0.4); backdrop-filter: blur(2px); }
+
+.slot-libre {
+  background: #DCE8E0; border: 1px solid #A3C9A8; color: #4A7C59; cursor: pointer;
+}
+.slot-libre:hover { background: #C5DDC9; border-color: #4A7C59; }
+.slot-ocupado {
+  background: #F5E6E3; border: 1px solid #E8C5C0; color: #B84C3D; cursor: not-allowed; opacity: 0.6;
+}
+.slot-antelacion {
+  background: #FFF3E6; border: 1px solid #F0C78E; color: #C4883C; cursor: not-allowed;
+}
+.slot-pasado {
+  background: #EBEBEB; border: 1px solid #D1D1D1; color: #737373; cursor: not-allowed; opacity: 0.6;
+}
+.slot-no-disponible {
+  background: #E2E8F0; border: 1px solid #CBD5E1; color: #64748B; cursor: not-allowed; opacity: 0.6;
+}
