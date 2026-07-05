@@ -7,12 +7,14 @@ services:
       POSTGRES_DB: sgp
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sgp_user -d sgp"]
       interval: 5s
       retries: 5
     ports:
       - "5432:5432"
+
   backend:
     build:
       context: .
@@ -28,6 +30,7 @@ services:
       NODE_ENV: development
     ports:
       - "3000:3000"
+
   frontend:
     build:
       context: .
@@ -36,5 +39,6 @@ services:
       - backend
     ports:
       - "8080:80"
+
 volumes:
   pgdata:

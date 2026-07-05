@@ -4,15 +4,17 @@ RUN corepack enable && corepack prepare pnpm@11 --activate
 
 WORKDIR /app
 
-COPY pnpm-workspace.yaml ./
-COPY package.json ./
-COPY backend/package.json ./backend/package.json
-COPY frontend/package.json ./frontend/package.json
-COPY db/ ./db/
+# Copiar archivos de configuración del workspace primero (cache de Docker)
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
 
-RUN pnpm self-update ||pnpm install --frozen-lockfile || pnpm install
+# Instalar dependencias con lockfile determinista
+RUN pnpm install --frozen-lockfile
 
+# Copiar código fuente del backend y scripts de DB
 COPY backend/ ./backend/
+COPY db/ ./db/
 
 EXPOSE 3000
 CMD ["pnpm", "start"]
