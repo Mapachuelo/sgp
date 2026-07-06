@@ -60,12 +60,26 @@ sgp/
 
 ## Ejecucion con Podman
 
+### Levantar entorno
+#### Opción 1
+### Requisitos
+- Podman
+
+Crear las imagenes necesarias
+```
+ podman build -t localhost/sgp-backend:latest -f Containerfile 
+ podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx
+```
+Ejecución
+```
+podman kube play sgp-pod.yaml
+```
+
+#### Opción 2
 ### Requisitos
 
 - Podman
 - podman-compose
-
-### Levantar entorno
 
 ```bash
 git clone <repo-url> sgp && cd sgp
@@ -85,16 +99,6 @@ Tres servicios:
 - **Frontend:** `http://localhost:8080`
 - **API directa:** `http://localhost:3000/api`
 - **Healthcheck:** `http://localhost:3000/api/healthcheck`
-
-### Atajos Makefile
-
-```bash
-make up       # podman-compose up -d --build
-make down     # podman-compose down
-make build    # podman-compose build --no-cache
-make logs     # podman-compose logs -f
-make test     # bash tests/api.sh
-```
 
 ### Usuarios semilla
 
@@ -239,13 +243,6 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Helmet para headers HTTP
 - CORS configurado para origen del frontend
 - SQL injection prevenido con consultas parametrizadas (pg)
-
-## Pruebas
-
-```bash
-bash tests/api.sh
-# 38 PASS, 0 FAIL
-```
 
 Cubre: healthcheck, auth (register/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad, reservas (crear/listar/cancelar), checkin, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs, preferencias, rate limiting.
 
