@@ -3,8 +3,6 @@ node_modules
 .env
 logs.txt
 errores.txt
-demo.html
-demo2.html
 *.log
 .agents
 docs
