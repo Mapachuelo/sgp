@@ -20,7 +20,7 @@ spec:
         - name: pgdata
           mountPath: /var/lib/postgresql/data
         - name: db-init
-          mountPath: /docker-entrypoint-initdb.d/init.sql
+          mountPath: /docker-entrypoint-initdb.d/init.sql:Z
           readOnly: true
 
     # 2. Backend Node.js
