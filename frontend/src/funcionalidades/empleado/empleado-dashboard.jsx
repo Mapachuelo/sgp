@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../api/cliente';
 import { useAuth } from '../../hooks/use-auth';
+import useWebSocket from '../../hooks/use-websocket.js';
 import { Button, Card, Badge, Modal, Toast, Spinner } from '../../componentes/ui/index.jsx';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -271,6 +272,7 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
 
 export default function EmpleadoDashboard() {
   const { usuario } = useAuth();
+  const { ultimoEvento } = useWebSocket();
   const [citas, setCitas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -278,6 +280,18 @@ export default function EmpleadoDashboard() {
   const [citaPrevia, setCitaPrevia] = useState(null);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
   const [fecha, setFecha] = useState(formatearFechaLocal(new Date()));
+
+  const fechaRef = useRef(fecha);
+  useEffect(() => { fechaRef.current = fecha; }, [fecha]);
+
+  useEffect(() => {
+    if (!ultimoEvento) return;
+    if (ultimoEvento.tipo === 'reserva.actualizada') {
+      const f = fechaRef.current;
+      cargarCitas(f);
+      cargarSedeHoy(f);
+    }
+  }, [ultimoEvento, cargarCitas, cargarSedeHoy]);
 
   const [sedeHoy, setSedeHoy] = useState(null);
   const [disponibilidadHoy, setDisponibilidadHoy] = useState(null);

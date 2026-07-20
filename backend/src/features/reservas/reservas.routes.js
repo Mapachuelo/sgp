@@ -11,7 +11,7 @@ router.post('/servicios', authenticate, authorize('admin'), reservasController.c
 router.put('/servicios/:id', authenticate, authorize('admin'), reservasController.actualizarServicio);
 router.delete('/servicios/:id', authenticate, authorize('admin'), reservasController.eliminarServicio);
 
-router.get('/disponibilidad', reservasController.disponibilidad);
+router.get('/disponibilidad', authenticate, authorize('cliente', 'empleado', 'admin'), reservasController.disponibilidad);
 
 router.get('/jornada', reservasController.getJornada);
 router.put('/jornada', authenticate, authorize('admin'), reservasController.updateJornada);

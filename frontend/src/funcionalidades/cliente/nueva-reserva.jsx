@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Badge, Modal, Toast, Input, Spinner, Select } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
+import useWebSocket from '../../hooks/use-websocket.js';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -51,12 +52,37 @@ function obtenerIniciales(nombre) {
 
 export default function NuevaReserva() {
   const navigate = useNavigate();
+  const { ultimoEvento } = useWebSocket();
   const [paso, setPaso] = useState(1);
   const [cargando, setCargando] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
   const [isMobile, setIsMobile] = useState(false);
   const [diaInicioMovil, setDiaInicioMovil] = useState(0);
   const [fechaBase, setFechaBase] = useState(null);
+  const fechaBaseRef = useRef(fechaBase);
+  const empleadoSeleccionadoRef = useRef(null);
+  const ubicacionSeleccionadaRef = useRef(null);
+  const pasoRef = useRef(paso);
+
+  useEffect(() => { fechaBaseRef.current = fechaBase; }, [fechaBase]);
+  useEffect(() => { empleadoSeleccionadoRef.current = empleadoSeleccionado; }, [empleadoSeleccionado]);
+  useEffect(() => { ubicacionSeleccionadaRef.current = ubicacionSeleccionada; }, [ubicacionSeleccionada]);
+  useEffect(() => { pasoRef.current = paso; }, [paso]);
+
+  useEffect(() => {
+    if (!ultimoEvento) return;
+    if (ultimoEvento.tipo === 'disponibilidad.actualizada' && pasoRef.current === 3) {
+      const emp = empleadoSeleccionadoRef.current;
+      const base = fechaBaseRef.current;
+      if (emp) {
+        cargarCalendario(base || new Date()).catch(() => {});
+      }
+    }
+    if (ultimoEvento.tipo === 'reserva.actualizada' && pasoRef.current === 3) {
+      const base = fechaBaseRef.current;
+      cargarCalendario(base || new Date()).catch(() => {});
+    }
+  }, [ultimoEvento]);
 
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
