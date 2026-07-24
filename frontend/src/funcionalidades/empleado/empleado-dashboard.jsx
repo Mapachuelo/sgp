@@ -291,7 +291,8 @@ export default function EmpleadoDashboard() {
       cargarCitas(f);
       cargarSedeHoy(f);
     }
-  }, [ultimoEvento, cargarCitas, cargarSedeHoy]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ultimoEvento]);
 
   const [sedeHoy, setSedeHoy] = useState(null);
   const [disponibilidadHoy, setDisponibilidadHoy] = useState(null);

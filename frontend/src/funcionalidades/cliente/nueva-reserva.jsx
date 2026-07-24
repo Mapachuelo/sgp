@@ -64,26 +64,6 @@ export default function NuevaReserva() {
   const ubicacionSeleccionadaRef = useRef(null);
   const pasoRef = useRef(paso);
 
-  useEffect(() => { fechaBaseRef.current = fechaBase; }, [fechaBase]);
-  useEffect(() => { empleadoSeleccionadoRef.current = empleadoSeleccionado; }, [empleadoSeleccionado]);
-  useEffect(() => { ubicacionSeleccionadaRef.current = ubicacionSeleccionada; }, [ubicacionSeleccionada]);
-  useEffect(() => { pasoRef.current = paso; }, [paso]);
-
-  useEffect(() => {
-    if (!ultimoEvento) return;
-    if (ultimoEvento.tipo === 'disponibilidad.actualizada' && pasoRef.current === 3) {
-      const emp = empleadoSeleccionadoRef.current;
-      const base = fechaBaseRef.current;
-      if (emp) {
-        cargarCalendario(base || new Date()).catch(() => {});
-      }
-    }
-    if (ultimoEvento.tipo === 'reserva.actualizada' && pasoRef.current === 3) {
-      const base = fechaBaseRef.current;
-      cargarCalendario(base || new Date()).catch(() => {});
-    }
-  }, [ultimoEvento]);
-
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
   const [filtroNombre, setFiltroNombre] = useState('');
@@ -113,7 +93,7 @@ export default function NuevaReserva() {
   const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null);
 
   const [semana, setSemana] = useState([]);
-  const [slots, setSlots] = useState({}); // Mapa de { fecha: data }
+  const [slots, setSlots] = useState({});
   const [servicios, setServicios] = useState([]);
   const [slotSeleccionado, setSlotSeleccionado] = useState(null);
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
@@ -123,9 +103,30 @@ export default function NuevaReserva() {
   const [granularidad, setGranularidad] = useState(30);
 
   const [reservaCreada, setReservaCreada] = useState(null);
-  const [metodoPago, setMetodoPago] = useState('efectivo'); // 'efectivo' o 'online'
+  const [metodoPago, setMetodoPago] = useState('efectivo');
   const [formPago, setFormPago] = useState({ titular: '', numero: '', expiracion: '', cvv: '' });
   const [pagoCompletado, setPagoCompletado] = useState(false);
+
+  useEffect(() => { fechaBaseRef.current = fechaBase; }, [fechaBase]);
+  useEffect(() => { empleadoSeleccionadoRef.current = empleadoSeleccionado; }, [empleadoSeleccionado]);
+  useEffect(() => { ubicacionSeleccionadaRef.current = ubicacionSeleccionada; }, [ubicacionSeleccionada]);
+  useEffect(() => { pasoRef.current = paso; }, [paso]);
+
+  useEffect(() => {
+    if (!ultimoEvento) return;
+    if (ultimoEvento.tipo === 'disponibilidad.actualizada' && pasoRef.current === 3) {
+      const emp = empleadoSeleccionadoRef.current;
+      const base = fechaBaseRef.current;
+      if (emp) {
+        cargarCalendario(base || new Date()).catch(() => {});
+      }
+    }
+    if (ultimoEvento.tipo === 'reserva.actualizada' && pasoRef.current === 3) {
+      const base = fechaBaseRef.current;
+      cargarCalendario(base || new Date()).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ultimoEvento]);
 
   const mostrarToast = (message, type = 'success') => {
     setToast({ open: true, message, type });

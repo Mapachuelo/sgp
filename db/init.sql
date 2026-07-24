@@ -186,3 +186,73 @@ BEGIN
     WHERE NOT EXISTS (SELECT 1 FROM jornada WHERE ubicacion_id = sede_id AND fecha = '2026-06-06');
   END IF;
 END $$;
+
+-- Seed empleado_disponibilidad (horario semanal del empleado)
+DO $$
+DECLARE
+  emp_id INTEGER;
+  sede_id INTEGER;
+  d INTEGER;
+  h_ini TIME;
+  h_fin TIME;
+BEGIN
+  SELECT id INTO emp_id FROM app_user WHERE email = 'empleado@sgp.local';
+  SELECT id INTO sede_id FROM ubicacion WHERE nombre = 'Sede Centro';
+
+  IF emp_id IS NOT NULL AND sede_id IS NOT NULL THEN
+    FOR d IN 1..7 LOOP
+      IF d BETWEEN 1 AND 5 THEN
+        h_ini := '09:00'; h_fin := '18:00';
+      ELSIF d = 6 THEN
+        h_ini := '09:00'; h_fin := '14:00';
+      ELSE
+        h_ini := NULL; h_fin := NULL;
+      END IF;
+
+      IF h_ini IS NOT NULL THEN
+        INSERT INTO empleado_disponibilidad (empleado_id, ubicacion_id, dia_semana, hora_inicio, hora_fin)
+        SELECT emp_id, sede_id, d, h_ini, h_fin
+        WHERE NOT EXISTS (
+          SELECT 1 FROM empleado_disponibilidad
+          WHERE empleado_id = emp_id AND ubicacion_id = sede_id AND dia_semana = d
+        );
+      END IF;
+    END LOOP;
+  END IF;
+END $$;
+
+-- Seed jornada (julio-agosto 2026, L-V 09-18, S 09-14)
+DO $$
+DECLARE
+  sede_id INTEGER;
+  d DATE := '2026-07-01';
+  fin DATE := '2026-08-31';
+  h_ini TIME;
+  h_fin TIME;
+  dow INTEGER;
+BEGIN
+  SELECT id INTO sede_id FROM ubicacion WHERE nombre = 'Sede Centro';
+
+  IF sede_id IS NOT NULL THEN
+    WHILE d <= fin LOOP
+      dow := EXTRACT(DOW FROM d);
+      IF dow = 0 THEN
+        NULL; -- Domingo sin jornada
+      ELSIF dow = 6 THEN
+        h_ini := '09:00'; h_fin := '14:00';
+      ELSE
+        h_ini := '09:00'; h_fin := '18:00';
+      END IF;
+
+      IF h_ini IS NOT NULL THEN
+        INSERT INTO jornada (ubicacion_id, fecha, hora_inicio, hora_fin)
+        SELECT sede_id, d, h_ini, h_fin
+        WHERE NOT EXISTS (SELECT 1 FROM jornada WHERE ubicacion_id = sede_id AND fecha = d);
+      END IF;
+
+      d := d + 1;
+      h_ini := NULL;
+      h_fin := NULL;
+    END LOOP;
+  END IF;
+END $$;
