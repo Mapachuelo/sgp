@@ -24,9 +24,9 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 │   └── src
 ├── db
 │   └── init.sql
-├── podman-compose.yml
+├── sgp-db-pod.yaml
+├── sgp-app-pod.yaml
 ├── pnpm-workspace.yaml
-├── Makefile
 └── README.md
 ```
 
@@ -63,7 +63,7 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 - **Backend:** Node.js + Express (CommonJS). Arquitectura feature-based (`backend/src/features/auth/`, `backend/src/features/reservas/`, etc). Autenticacion JWT con middleware de roles.
 - **Base de datos:** PostgreSQL 17. Esquema definido en `db/init.sql`. Sin ORM, consultas SQL directas con `pg`.
 - **Tiempo real:** WebSocket (`ws`) para notificaciones de disponibilidad.
-- **Despliegue:** Podman + podman-compose. Tres contenedores: `db` (PostgreSQL 17 Alpine), `backend` (Node 22 Alpine), `frontend` (Nginx Alpine sirviendo SPA compilada). Sin Docker.
+- **Despliegue:** Podman (kube play). Dos pods: `sgp-db` (PostgreSQL 17 Alpine con PVC persistente) y `sgp-app` (backend Node 22 Alpine + frontend Nginx Alpine sirviendo SPA compilada). Sin Docker.
 - **Logs:** Pino logger. Archivos `logs.txt` (actividad) y `errores.txt` (excepciones) en backend. Acceso via `/api/logs/*` restringido a admin.
 - **Convencion de idioma en codigo:** Nombres de archivos, rutas API, tablas de BD y variables en español (`empleado`, `ubicacion`, `reserva`, `cobro`). Roles: `cliente`, `empleado`, `admin`.
 

@@ -52,7 +52,7 @@
 #### Infraestructura
 - Monorepo pnpm workspaces con `backend/` y `frontend/` (placeholder)
 - Podman: 2 contenedores (`db` postgres:17-alpine + `backend` Node 22 Alpine)
-- `podman-compose up -d --build` funcional
+- `podman kube play` con pods `sgp-db` y `sgp-app` funcional
 - ESLint + Prettier configurados, lint limpio (0 errores, 0 warnings)
 
 #### Base de datos (db/init.sql)
@@ -93,7 +93,7 @@
 - Todos los modelos usan `require('../../config/db')` (2 niveles, no 3)
 
 ### Decisiones importantes
-- `.env` excluido del contenedor via `.containerignore`; variables se pasan via `environment:` en podman-compose.yml
+- `.env` excluido del contenedor via `.containerignore`; variables se pasan via `environment:` en sgp-app-pod.yaml
 - `db/init.sql` copiado al contenedor via `COPY db/ ./db/` en Containerfile
 - PostgreSQL 17 requiere volumen limpio si habia PG16 previo
 - Imagen postgres debe ser `docker.io/library/postgres:17-alpine` (fully qualified)

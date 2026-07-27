@@ -19,7 +19,7 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 | Lint | ESLint + Prettier | latest |
 | Mapas | Leaflet + react-leaflet | latest |
 | Monorepo | pnpm workspaces | 10 |
-| Contenedores | Podman + podman-compose | latest |
+| Contenedores | Podman (kube play) | latest |
 | Seguridad | HTTPS (Nginx reverse proxy + Let's Encrypt) + express-rate-limit | latest |
 
 ## Comandos de ejecucion
@@ -36,10 +36,11 @@ pnpm run lint                         # ESLint en frontend y backend
 ### Contenedores
 
 ```bash
-make up                               # podman-compose up -d --build
-make down                             # podman-compose down
-make logs                             # podman-compose logs -f
-make build                            # podman-compose build --no-cache
+podman network create sgp-net                     # Crear red (una sola vez)
+podman build -t localhost/sgp-backend:latest -f Containerfile .
+podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman kube play sgp-db-pod.yaml --network sgp-net
+podman kube play sgp-app-pod.yaml --network sgp-net
 ```
 
 ### Pruebas
@@ -54,10 +55,10 @@ bash tests/api.sh                     # Pruebas de integracion bash + curl
 sgp/
 ├── pnpm-workspace.yaml
 ├── package.json              # Root: scripts dev, build, start, test
-├── podman-compose.yml        # db, backend, frontend
+├── sgp-db-pod.yaml           # Pod PostgreSQL + PVC persistente
+├── sgp-app-pod.yaml          # Pod backend + frontend
 ├── Containerfile             # Backend (Node 22 Alpine + pnpm)
 ├── Containerfile.nginx       # Frontend (Nginx Alpine)
-├── Makefile
 ├── .env.example
 ├── .gitignore
 ├── .containerignore
@@ -249,11 +250,12 @@ sgp/
 
 ## Despliegue
 
-- `podman-compose.yml` define 3 servicios: `db`, `backend`, `frontend`.
+- `sgp-db-pod.yaml` define el pod de PostgreSQL 17 Alpine con PVC persistente (`sgp-pgdata`).
+- `sgp-app-pod.yaml` define el pod de aplicacion con backend Node.js + frontend Nginx.
+- Los pods se conectan via la red `sgp-net`.
 - `Containerfile` (backend): Node 22 Alpine, instala pnpm, copia monorepo, ejecuta `pnpm --filter backend start`.
 - `Containerfile.nginx` (frontend): Nginx Alpine, copia `frontend/dist/` tras build, configura proxy reverso a backend en `/api`.
 - Variables de entorno en `.env` y `.env.example`.
-- `Makefile` con shortcuts: `up`, `down`, `build`, `logs`.
 
 ## Testing
 
