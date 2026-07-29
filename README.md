@@ -76,21 +76,23 @@ Al eliminar el pod `sgp-app` para actualizar, la base de datos sigue corriendo e
 
 ### Levantar entorno
 
+#### 1. Build de imagenes (solo la primera vez o al cambiar codigo)
 ```bash
-# 1. Build de imagenes (solo la primera vez o al cambiar codigo)
 podman build -t localhost/sgp-backend:latest -f Containerfile .
 podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
-
-# 2. Crear red compartida (una sola vez)
+```
+#### 2. Crear red compartida (una sola vez)
+```
 podman network create sgp-net
-
-# 3. Levantar base de datos
+```
+#### 3. Levantar base de datos
+```
 podman kube play sgp-db-pod.yaml --network sgp-net
-
-# 4. Levantar backend + frontend
+```
+#### 4. Levantar backend + frontend
+```
 podman kube play sgp-app-pod.yaml --network sgp-net
 ```
-
 ### Acceso
 
 - **Frontend:** `http://localhost:8080`
@@ -110,7 +112,7 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 
 ```bash
 podman kube down sgp-app-pod.yaml
-podman kube down sgp-db-pod.yaml   # los datos persisten en el volumen sgp-pgdata
+podman kube down sgp-db-pod.yaml  
 ```
 
 Para eliminar tambien los datos:
