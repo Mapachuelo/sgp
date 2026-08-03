@@ -4,6 +4,7 @@ import Layout from './componentes/layout';
 import RutaProtegida from './componentes/ruta-protegida';
 import LoginPage from './funcionalidades/auth/login-page';
 import RegistroPage from './funcionalidades/auth/registro-page';
+import VerificarPage from './funcionalidades/auth/verificar-page';
 import ClienteDashboard from './funcionalidades/cliente/cliente-dashboard';
 import NuevaReserva from './funcionalidades/cliente/nueva-reserva';
 import MiPerfil from './funcionalidades/cliente/mi-perfil';
@@ -19,6 +20,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegistroPage />} />
+          <Route path="/verificar" element={<VerificarPage />} />
 
           <Route element={<RutaProtegida roles={['cliente']}><Layout /></RutaProtegida>}>
             <Route path="/cliente" element={<ClienteDashboard />} />

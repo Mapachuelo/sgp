@@ -11,4 +11,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = authLimiter;
+const verificacionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: {
+    ok: false,
+    error: 'Demasiados reenvios. Intente nuevamente en 15 minutos.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = { authLimiter, verificacionLimiter };

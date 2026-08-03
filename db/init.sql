@@ -18,9 +18,16 @@ CREATE TABLE IF NOT EXISTS app_user (
   motivo_bloqueo TEXT,
   bloqueado_por INTEGER REFERENCES app_user(id),
   bloqueado_en TIMESTAMPTZ,
+  verificado BOOLEAN DEFAULT FALSE,
+  token_verificacion TEXT,
+  token_verificacion_expiracion TIMESTAMPTZ,
   creado_en TIMESTAMPTZ DEFAULT NOW(),
   actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS verificado BOOLEAN DEFAULT FALSE;
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS token_verificacion TEXT;
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS token_verificacion_expiracion TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS empleado_perfil (
   usuario_id INTEGER PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
@@ -256,3 +263,7 @@ BEGIN
     END LOOP;
   END IF;
 END $$;
+
+-- Backfill: usuarios creados antes del sistema de verificacion quedan verificados
+UPDATE app_user SET verificado = TRUE
+WHERE verificado IS FALSE AND token_verificacion IS NULL AND token_verificacion_expiracion IS NULL;

@@ -1,12 +1,14 @@
 const { Router } = require('express');
 const authController = require('./auth.controller');
 const { authenticate, authorize } = require('../../shared/middlewares/auth.middleware');
-const authLimiter = require('../../shared/middlewares/rateLimit.middleware');
+const { authLimiter, verificacionLimiter } = require('../../shared/middlewares/rateLimit.middleware');
 
 const router = Router();
 
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
+router.post('/verificar', verificacionLimiter, authController.verificar);
+router.post('/reenviar-codigo', verificacionLimiter, authController.reenviarCodigo);
 router.get('/me', authenticate, authController.getMe);
 
 router.get('/empleados', authenticate, authorize('admin'), authController.listarEmpleados);

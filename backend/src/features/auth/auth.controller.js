@@ -40,6 +40,38 @@ const authController = {
     });
   }),
 
+  verificar: asyncHandler(async (req, res) => {
+    const { email, codigo } = req.body;
+
+    if (!email || !codigo) {
+      throw new HttpError(400, 'Email y codigo son requeridos');
+    }
+
+    const resultado = await authService.verificar({ email, codigo });
+    logger.info({ email }, 'Cuenta verificada exitosamente');
+
+    res.json({
+      ok: true,
+      data: resultado,
+    });
+  }),
+
+  reenviarCodigo: asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new HttpError(400, 'Email es requerido');
+    }
+
+    const resultado = await authService.reenviarCodigo(email);
+    logger.info({ email }, 'Codigo de verificacion reenviado');
+
+    res.json({
+      ok: true,
+      data: resultado,
+    });
+  }),
+
   getMe: asyncHandler(async (req, res) => {
     const usuario = await authService.getMe(req.usuario.id);
     res.json({

@@ -27,6 +27,8 @@ const api = {
   auth: {
     login: (body) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
     register: (body) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+    verificar: (body) => request('/auth/verificar', { method: 'POST', body: JSON.stringify(body) }),
+    reenviarCodigo: (body) => request('/auth/reenviar-codigo', { method: 'POST', body: JSON.stringify(body) }),
     me: () => request('/auth/me'),
     empleados: {
       list: () => request('/auth/empleados'),

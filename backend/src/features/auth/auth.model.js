@@ -11,21 +11,48 @@ const authModel = {
 
   async findById(id) {
     const { rows } = await pool.query(
-      'SELECT id, email, rol, nombre, apellido, telefono, esta_bloqueado, creado_en, actualizado_en FROM app_user WHERE id = $1',
+      'SELECT id, email, rol, nombre, apellido, telefono, esta_bloqueado, verificado, creado_en, actualizado_en FROM app_user WHERE id = $1',
       [id]
     );
     return rows[0] || null;
   },
 
-  async create({ email, password_hash, rol, nombre, apellido, telefono }) {
+  async create({ email, password_hash, rol, nombre, apellido, telefono, verificado = false }) {
     const tel = telefono && telefono.trim() ? telefono.trim() : null;
     const { rows } = await pool.query(
-      `INSERT INTO app_user (email, password_hash, rol, nombre, apellido, telefono)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, email, rol, nombre, apellido, telefono, esta_bloqueado, creado_en, actualizado_en`,
-      [email, password_hash, rol, nombre, apellido, tel]
+      `INSERT INTO app_user (email, password_hash, rol, nombre, apellido, telefono, verificado)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, email, rol, nombre, apellido, telefono, esta_bloqueado, verificado, creado_en, actualizado_en`,
+      [email, password_hash, rol, nombre, apellido, tel, verificado]
     );
     return rows[0];
+  },
+
+  async saveVerificationToken(id, tokenHash, expiracion) {
+    await pool.query(
+      `UPDATE app_user SET token_verificacion = $2, token_verificacion_expiracion = $3
+       WHERE id = $1`,
+      [id, tokenHash, expiracion]
+    );
+  },
+
+  async findVerificationData(id) {
+    const { rows } = await pool.query(
+      `SELECT id, verificado, token_verificacion, token_verificacion_expiracion
+       FROM app_user WHERE id = $1`,
+      [id]
+    );
+    return rows[0] || null;
+  },
+
+  async markVerified(id) {
+    const { rows } = await pool.query(
+      `UPDATE app_user SET verificado = TRUE, token_verificacion = NULL, token_verificacion_expiracion = NULL
+       WHERE id = $1
+       RETURNING id, email, rol, nombre, apellido, telefono, verificado`,
+      [id]
+    );
+    return rows[0] || null;
   },
 
   async createEmpleadoPerfil(usuario_id, data) {

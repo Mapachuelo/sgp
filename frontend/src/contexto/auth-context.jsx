@@ -39,6 +39,11 @@ export function AuthProvider({ children }) {
 
   const register = async (datos) => {
     const data = await api.auth.register(datos);
+    return data;
+  };
+
+  const verificarCuenta = async (email, codigo) => {
+    const data = await api.auth.verificar({ email, codigo });
     localStorage.setItem('sgp_token', data.token);
     localStorage.setItem('sgp_usuario', JSON.stringify(data.usuario));
     setUsuario(data.usuario);
@@ -52,7 +57,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ usuario, cargando, login, register, logout, setUsuario }}>
+    <AuthContext.Provider value={{ usuario, cargando, login, register, verificarCuenta, logout, setUsuario }}>
       {children}
     </AuthContext.Provider>
   );
