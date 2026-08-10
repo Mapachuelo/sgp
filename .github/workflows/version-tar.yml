@@ -1,0 +1,56 @@
+name: Version tar.gz
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  versionar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Contar commits desde la ultima version
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            COUNT=$(git rev-list --count "$LAST_TAG..HEAD")
+          else
+            COUNT=$(git rev-list --count HEAD)
+          fi
+          echo "count=$COUNT" >> "$GITHUB_ENV"
+          echo "last_tag=$LAST_TAG" >> "$GITHUB_ENV"
+
+      - name: Salir si hay menos de 3 commits (no manual)
+        if: github.event_name == 'push' && env.count < 3
+        run: echo "Menos de 3 commits desde la ultima version, no se genera version"
+
+      - name: Calcular proxima version
+        if: github.event_name == 'workflow_dispatch' || env.count >= 3
+        run: |
+          if [ -z "$last_tag" ]; then
+            VER="v1.0.0"
+          else
+            PATCH=$(echo "$last_tag" | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\)/\1/')
+            VER="v1.0.$((PATCH + 1))"
+          fi
+          echo "version=$VER" >> "$GITHUB_ENV"
+
+      - name: Crear tar.gz
+        if: github.event_name == 'workflow_dispatch' || env.count >= 3
+        run: tar -czf "sgp-$version.tar.gz" --exclude='.git' --exclude='node_modules' --exclude='dist' .
+
+      - name: Crear tag y release
+        if: github.event_name == 'workflow_dispatch' || env.count >= 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag "$version"
+          git push origin "$version"
+          gh release create "$version" "sgp-$version.tar.gz" --title "SGP $version" --generate-notes
