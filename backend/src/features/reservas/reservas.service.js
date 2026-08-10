@@ -95,6 +95,18 @@ const reservasService = {
       throw new HttpError(400, 'cantidad_personas debe estar entre 1 y 5');
     }
 
+    const slotsOcupados = await reservasModel.findSlotsOcupados(inicia_en.split('T')[0], empleado_id);
+    const inicioMs = new Date(inicia_en).getTime();
+    const terminoMs = new Date(termina_en).getTime();
+    const conflicto = slotsOcupados.some((slot) => {
+      const slotInicio = new Date(slot.inicia_en).getTime();
+      const slotTermino = new Date(slot.termina_en).getTime();
+      return inicioMs < slotTermino && terminoMs > slotInicio;
+    });
+    if (conflicto) {
+      throw new HttpError(409, 'El horario seleccionado se superpone con otra reserva activa');
+    }
+
     const reserva = await reservasModel.createReserva({
       cliente_id,
       empleado_id,

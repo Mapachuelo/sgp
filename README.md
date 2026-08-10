@@ -16,7 +16,7 @@ Aplicacion web fullstack para la gestion operativa de peluquerias: reservas onli
 | Realtime | WebSocket (ws) |
 | Logs | Pino (logs.txt + errores.txt) |
 | Monorepo | pnpm workspaces |
-| Contenedores | Podman + podman-compose |
+| Contenedores | Podman (kube play, 2 pods) |
 | Lint | ESLint + Prettier |
 
 ## Estructura del proyecto
@@ -25,11 +25,11 @@ Aplicacion web fullstack para la gestion operativa de peluquerias: reservas onli
 sgp/
 ├── pnpm-workspace.yaml
 ├── package.json              # Root: scripts dev, lint, start, test
-├── podman-compose.yml        # 3 servicios: db, backend, frontend
 ├── Containerfile             # Backend (Node 22 Alpine + pnpm)
 ├── Containerfile.nginx       # Frontend (Nginx Alpine)
 ├── nginx.conf                # Proxy reverso /api → backend, SPA fallback
-├── Makefile                  # up, down, build, logs, test
+├── sgp-db-pod.yaml           # Pod PostgreSQL + PVC persistente
+├── sgp-app-pod.yaml          # Pod backend + frontend
 ├── .env / .env.example
 ├── db/
 │   └── init.sql              # 10 tablas + seed data
@@ -60,45 +60,66 @@ sgp/
 
 ## Ejecucion con Podman
 
+### Requisitos
+- Podman
+
+### Arquitectura de pods
+
+Dos pods independientes conectados via red `sgp-net`:
+
+| Pod | Contenido | Acceso host |
+|-----|-----------|-------------|
+| `sgp-db` | PostgreSQL 17 Alpine + PVC `sgp-pgdata` | Solo interno (`sgp-db:5432`) |
+| `sgp-app` | Backend Node.js (:3000) + Frontend Nginx (:80) | `http://localhost:8080` |
+
+Al eliminar el pod `sgp-app` para actualizar, la base de datos sigue corriendo en `sgp-db` y los datos persisten en el volumen.
+
 ### Levantar entorno
-#### Opción 1
-### Requisitos
-- Podman
 
-Crear las imagenes necesarias
-```
- podman build -t localhost/sgp-backend:latest -f Containerfile 
- podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx
-```
-Ejecución
-```
-podman kube play sgp-pod.yaml
-```
-
-#### Opción 2
-### Requisitos
-
-- Podman
-- podman-compose
-
+#### 1. Build de imagenes (solo la primera vez o al cambiar codigo)
 ```bash
-git clone <repo-url> sgp && cd sgp
-podman-compose up -d --build
+podman build -t localhost/sgp-backend:latest -f Containerfile .
+podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
 ```
-
-Tres servicios:
-
-| Servicio | Puerto host | Descripcion |
-|----------|------------|-------------|
-| `db` | 5432 | PostgreSQL 17 Alpine |
-| `backend` | 3000 | API REST + WebSocket |
-| `frontend` | 8080 | Nginx sirviendo SPA + proxy /api → backend |
-
+#### 2. Crear red compartida (una sola vez)
+```
+podman network create sgp-net
+```
+#### 3. Levantar base de datos
+```
+podman kube play sgp-db-pod.yaml --network sgp-net
+```
+#### 4. Levantar backend + frontend
+```
+podman kube play sgp-app-pod.yaml --network sgp-net
+```
 ### Acceso
 
 - **Frontend:** `http://localhost:8080`
 - **API directa:** `http://localhost:3000/api`
 - **Healthcheck:** `http://localhost:3000/api/healthcheck`
+
+### Actualizar solo la app (sin tocar la base de datos)
+
+```bash
+podman build -t localhost/sgp-backend:latest -f Containerfile .
+podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman kube down sgp-app-pod.yaml
+podman kube play sgp-app-pod.yaml --network sgp-net
+```
+
+### Detener
+
+```bash
+podman kube down sgp-app-pod.yaml
+podman kube down sgp-db-pod.yaml  
+```
+
+Para eliminar tambien los datos:
+
+```bash
+podman volume rm sgp-pgdata
+```
 
 ### Usuarios semilla
 
@@ -106,13 +127,6 @@ Tres servicios:
 |-----|-------|----------|
 | Admin | admin@sgp.local | admin123 |
 | Empleado | empleado@sgp.local | empleado123 |
-
-### Detener
-
-```bash
-podman-compose down
-podman-compose down -v   # eliminar tambien volumen de datos
-```
 
 ## Base de datos (10 tablas)
 
@@ -170,7 +184,7 @@ Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barb
 | POST | `/api/reservas/servicios` | Admin |
 | PUT | `/api/reservas/servicios/:id` | Admin |
 | DELETE | `/api/reservas/servicios/:id` | Admin |
-| GET | `/api/reservas/disponibilidad` | Publico |
+| GET | `/api/reservas/disponibilidad` | Autenticado |
 | GET | `/api/reservas/jornada` | Publico |
 | PUT | `/api/reservas/jornada` | Admin |
 | GET | `/api/reservas/empleado-tiempos-servicio` | Admin |

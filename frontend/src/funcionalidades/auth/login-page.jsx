@@ -9,11 +9,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [noVerificada, setNoVerificada] = useState(false);
   const [cargando, setCargando] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setNoVerificada(false);
     setCargando(true);
     try {
       const data = await login(email, password);
@@ -24,7 +26,9 @@ export default function LoginPage() {
       else if (rol === 'admin') navigate('/admin', { replace: true });
       else navigate('/', { replace: true });
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
+      const mensaje = err.message || 'Error al iniciar sesión';
+      setError(mensaje);
+      if (mensaje.toLowerCase().includes('verificada')) setNoVerificada(true);
     } finally {
       setCargando(false);
     }
@@ -89,6 +93,17 @@ export default function LoginPage() {
                 Regístrate
               </Link>
             </p>
+            {noVerificada && (
+              <p className="mt-3 text-center text-sm font-body">
+                <Link
+                  to="/verificar"
+                  state={{ email }}
+                  className="text-primario font-semibold hover:underline"
+                >
+                  Verificar mi cuenta
+                </Link>
+              </p>
+            )}
           </div>
         </div>
       </div>

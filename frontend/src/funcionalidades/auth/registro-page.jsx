@@ -69,7 +69,7 @@ export default function RegistroPage() {
         email: form.email,
         password: form.password,
       });
-      navigate('/cliente', { replace: true });
+      navigate('/verificar', { state: { email: form.email }, replace: true });
     } catch (err) {
       setError(err.message || 'Error al registrarse');
     } finally {

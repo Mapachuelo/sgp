@@ -13,13 +13,14 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 | BD | PostgreSQL Alpine | 17 |
 | BD driver | pg (raw SQL, sin ORM) | latest |
 | Auth | JWT (jsonwebtoken) + bcryptjs + AES-256 (crypto) + helmet | latest |
+| Correo | Brevo API v3 REST (`fetch` nativo, sin SMTP) | latest |
 | QR | qrcode | latest |
 | Realtime | WebSocket (ws) | latest |
 | Logs | Pino (logs.txt + errores.txt) | latest |
 | Lint | ESLint + Prettier | latest |
 | Mapas | Leaflet + react-leaflet | latest |
 | Monorepo | pnpm workspaces | 10 |
-| Contenedores | Podman + podman-compose | latest |
+| Contenedores | Podman (kube play) | latest |
 | Seguridad | HTTPS (Nginx reverse proxy + Let's Encrypt) + express-rate-limit | latest |
 
 ## Comandos de ejecucion
@@ -36,10 +37,11 @@ pnpm run lint                         # ESLint en frontend y backend
 ### Contenedores
 
 ```bash
-make up                               # podman-compose up -d --build
-make down                             # podman-compose down
-make logs                             # podman-compose logs -f
-make build                            # podman-compose build --no-cache
+podman network create sgp-net                     # Crear red (una sola vez)
+podman build -t localhost/sgp-backend:latest -f Containerfile .
+podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman kube play sgp-db-pod.yaml --network sgp-net
+podman kube play sgp-app-pod.yaml --network sgp-net --configmap sgp-config.yaml
 ```
 
 ### Pruebas
@@ -54,10 +56,10 @@ bash tests/api.sh                     # Pruebas de integracion bash + curl
 sgp/
 ├── pnpm-workspace.yaml
 ├── package.json              # Root: scripts dev, build, start, test
-├── podman-compose.yml        # db, backend, frontend
+├── sgp-db-pod.yaml           # Pod PostgreSQL + PVC persistente
+├── sgp-app-pod.yaml          # Pod backend + frontend
 ├── Containerfile             # Backend (Node 22 Alpine + pnpm)
 ├── Containerfile.nginx       # Frontend (Nginx Alpine)
-├── Makefile
 ├── .env.example
 ├── .gitignore
 ├── .containerignore
@@ -108,7 +110,8 @@ sgp/
 │       ├── funcionalidades/
 │       │   ├── auth/
 │       │   │   ├── login-page.jsx
-│       │   │   └── registro-page.jsx
+│       │   │   ├── registro-page.jsx
+│       │   │   └── verificar-page.jsx
 │       │   ├── cliente/
 │       │   │   ├── cliente-dashboard.jsx
 │       │   │   ├── nueva-reserva.jsx
@@ -185,6 +188,8 @@ sgp/
 │       │       ├── preferencias.service.js
 │       │       └── preferencias.model.js
 │       ├── integrations/
+│       │   ├── email/
+│       │   │   └── mailer.js
 │       │   └── realtime/
 │       │       └── ws-hub.js
 │       ├── routes/
@@ -200,6 +205,8 @@ sgp/
 │               ├── error.middleware.js
 │               ├── notFound.middleware.js
 │               └── rateLimit.middleware.js
+│   └── scripts/
+│       └── enviar-correo-prueba.js
 └── tests/
     └── api.sh
 ```
@@ -221,10 +228,12 @@ sgp/
 - **HTTPS** obligatorio en produccion (Nginx reverse proxy + Let's Encrypt). Desarrollo local en HTTP.
 - Tokens **JWT** con expiracion configurable (`JWT_EXPIRES_IN`, default 30m). Middleware `auth.middleware.js` exporta `authenticate` (verifica token) y `authorize(...roles)` (verifica rol).
 - **RBAC** con tres roles: `admin`, `empleado`, `cliente`.
-- **Rate limiting** con `express-rate-limit` en endpoints de auth (max 10 intentos por IP cada 15 min).
+- **Verificacion de cuenta por OTP:** al registrarse, el backend genera un codigo de 6 digitos (hash SHA-256 en BD), lo envia por correo via Brevo API v3 (`integrations/email/mailer.js`) y no emite JWT hasta `POST /api/auth/verificar`. Expiracion de 15 min (`token_verificacion_expiracion`). Reenvio limitado a 3 cada 15 min (`verificacionLimiter`). Usuarios creados antes del sistema quedan verificados por backfill en `db/init.sql`. Empleados creados por admin nacen verificados.
+- **Rate limiting** con `express-rate-limit` en endpoints de auth (`authLimiter` max 10 intentos por IP cada 15 min; `verificacionLimiter` max 3 reenvios cada 15 min).
 - **Helmet** para headers de seguridad HTTP.
 - **CORS** configurado solo para el origen del frontend (`VITE_API_URL`).
 - **SQL injection:** prevenido mediante consultas parametrizadas con `pg` (sin concatenacion de strings).
+- **Credenciales de Brevo** (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`) solo en `.env` (gitignored) o `sgp-config.yaml` (gitignored). En `sgp-app-pod.yaml` se referencian con `configMapKeyRef` (sin valores, seguro para repo publico); se aplican con `podman kube play --configmap sgp-config.yaml`. Nunca en `.env.example` ni en repositorios publicos.
 
 ## Base de datos
 
@@ -249,14 +258,16 @@ sgp/
 
 ## Despliegue
 
-- `podman-compose.yml` define 3 servicios: `db`, `backend`, `frontend`.
+- `sgp-db-pod.yaml` define el pod de PostgreSQL 17 Alpine con PVC persistente (`sgp-pgdata`).
+- `sgp-app-pod.yaml` define el pod de aplicacion con backend Node.js + frontend Nginx.
+- Los pods se conectan via la red `sgp-net`.
 - `Containerfile` (backend): Node 22 Alpine, instala pnpm, copia monorepo, ejecuta `pnpm --filter backend start`.
 - `Containerfile.nginx` (frontend): Nginx Alpine, copia `frontend/dist/` tras build, configura proxy reverso a backend en `/api`.
-- Variables de entorno en `.env` y `.env.example`.
-- `Makefile` con shortcuts: `up`, `down`, `build`, `logs`.
+- Variables de entorno en `.env` y `.env.example`. `sgp-config.yaml` (gitignored) contiene las credenciales de Brevo y se aplica con `--configmap`.
+- Script de prueba de correo: `pnpm --filter backend exec node scripts/enviar-correo-prueba.js [email]` (usa las variables `BREVO_*` del `.env`).
 
 ## Testing
 
-- `tests/api.sh`: script bash que prueba los endpoints principales con `curl`.
+- `tests/api.sh`: script bash que prueba los endpoints principales con `curl`, incluido el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
 - Pruebas manuales con el demo (`demo.html`) como referencia visual.
 - No hay tests unitarios en el MVP inicial. Se agregaran en fase 10.

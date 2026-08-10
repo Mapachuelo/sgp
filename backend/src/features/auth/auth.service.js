@@ -1,8 +1,29 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authModel = require('./auth.model');
 const env = require('../../config/env');
 const HttpError = require('../../shared/http-error');
+const { enviarCorreoVerificacion } = require('../../integrations/email/mailer');
+const logger = require('../../shared/logger');
+
+const EXPIRACION_TOKEN_MINUTOS = 15;
+
+function generarCodigo() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function hashCodigo(codigo) {
+  return crypto.createHash('sha256').update(codigo).digest('hex');
+}
+
+function emitirToken(usuario) {
+  return jwt.sign(
+    { id: usuario.id, email: usuario.email, rol: usuario.rol },
+    env.jwtSecret,
+    { expiresIn: env.jwtExpiresIn }
+  );
+}
 
 const authService = {
   async register({ email, password, nombre, apellido, telefono }) {
@@ -23,13 +44,86 @@ const authService = {
 
     await authModel.ensurePreferencias(usuario.id);
 
-    const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, rol: usuario.rol },
-      env.jwtSecret,
-      { expiresIn: env.jwtExpiresIn }
-    );
+    const codigo = generarCodigo();
+    const expiracion = new Date(Date.now() + EXPIRACION_TOKEN_MINUTOS * 60 * 1000);
+    await authModel.saveVerificationToken(usuario.id, hashCodigo(codigo), expiracion);
 
-    return { token, usuario };
+    let correoEnviado = true;
+    try {
+      await enviarCorreoVerificacion({ email, nombre, codigo });
+    } catch (err) {
+      correoEnviado = false;
+      logger.error({ err, email }, 'No se pudo enviar el correo de verificacion');
+    }
+
+    return {
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        telefono: usuario.telefono,
+        rol: usuario.rol,
+      },
+      correoEnviado,
+    };
+  },
+
+  async verificar({ email, codigo }) {
+    const usuario = await authModel.findByEmail(email);
+    if (!usuario) {
+      throw new HttpError(404, 'Usuario no encontrado');
+    }
+
+    if (usuario.verificado) {
+      throw new HttpError(409, 'La cuenta ya esta verificada');
+    }
+
+    if (!codigo || !/^\d{6}$/.test(codigo)) {
+      throw new HttpError(400, 'El codigo debe tener 6 digitos');
+    }
+
+    const datos = await authModel.findVerificationData(usuario.id);
+    if (!datos.token_verificacion || !datos.token_verificacion_expiracion) {
+      throw new HttpError(400, 'No hay codigo pendiente. Solicita uno nuevo.');
+    }
+
+    if (new Date(datos.token_verificacion_expiracion) < new Date()) {
+      throw new HttpError(400, 'El codigo expiro. Solicita uno nuevo.');
+    }
+
+    if (datos.token_verificacion !== hashCodigo(codigo)) {
+      throw new HttpError(400, 'El codigo es incorrecto');
+    }
+
+    const usuarioVerificado = await authModel.markVerified(usuario.id);
+    const token = emitirToken(usuarioVerificado);
+
+    return { token, usuario: usuarioVerificado };
+  },
+
+  async reenviarCodigo(email) {
+    const usuario = await authModel.findByEmail(email);
+    if (!usuario) {
+      throw new HttpError(404, 'Usuario no encontrado');
+    }
+
+    if (usuario.verificado) {
+      throw new HttpError(409, 'La cuenta ya esta verificada');
+    }
+
+    const codigo = generarCodigo();
+    const expiracion = new Date(Date.now() + EXPIRACION_TOKEN_MINUTOS * 60 * 1000);
+    await authModel.saveVerificationToken(usuario.id, hashCodigo(codigo), expiracion);
+
+    try {
+      await enviarCorreoVerificacion({ email, nombre: usuario.nombre, codigo });
+    } catch (err) {
+      logger.error({ err, email }, 'No se pudo reenviar el correo de verificacion');
+      throw new HttpError(502, 'No se pudo enviar el correo. Intenta nuevamente.');
+    }
+
+    return { reenviado: true };
   },
 
   async login(email, password) {
@@ -42,16 +136,16 @@ const authService = {
       throw new HttpError(403, 'Su cuenta esta bloqueada. Contacte al administrador.');
     }
 
+    if (!usuario.verificado) {
+      throw new HttpError(403, 'Cuenta no verificada. Revisa tu correo para completar la verificacion.');
+    }
+
     const esValida = await bcrypt.compare(password, usuario.password_hash);
     if (!esValida) {
       throw new HttpError(401, 'Credenciales invalidas');
     }
 
-    const token = jwt.sign(
-      { id: usuario.id, email: usuario.email, rol: usuario.rol },
-      env.jwtSecret,
-      { expiresIn: env.jwtExpiresIn }
-    );
+    const token = emitirToken(usuario);
 
     return {
       token,
@@ -89,6 +183,7 @@ const authService = {
       nombre: data.nombre,
       apellido: data.apellido,
       telefono: data.telefono || null,
+      verificado: true,
     });
 
     await authModel.ensurePreferencias(usuario.id);

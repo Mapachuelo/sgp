@@ -39,7 +39,7 @@ El SGP se compone de tres capas principales: **Web Front‑End**, **API Back‑E
 ## 2. Descripción General
 
 ### 2.1 Perspectiva del Producto  
-El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL) y sin integraciones externas obligatorias en el MVP. El correo de confirmacion y otras integraciones quedan como mejoras futuras.
+El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL) y sin integraciones externas obligatorias en el MVP. La verificacion de cuentas se realiza mediante correo electronico OTP a traves de Brevo (API REST v3). Otras integraciones (pasarelas de pago, WhatsApp) quedan como mejoras futuras.
 
 ```
 ┌───────────────────────┐
@@ -68,6 +68,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 | **F10** | Panel del Empleado | Dashboard del empleado con timeline de citas del día, mapa de la sede donde trabaja hoy, botones de validación QR y cobro. |
 | **F11** | Panel del Administrador | Dashboard con KPIs, timeline de citas de todas las sedes, y barra de botones que abren ventanas flotantes (modales/sheets) para cada sección: validar QR, cobro, empleados, servicios, sedes, horarios, reportes, moderar clientes y logs. |
 | **F12** | Gestión de Logs | El administrador accede a dos archivos desde el panel: `logs.txt` (actividad general del sistema) y `errores.txt` (errores y excepciones). Permite buscar, filtrar por fecha/severidad y exportar. |
+| **F13** | Verificación de Cuenta | Al registrarse, el cliente recibe un código OTP de 6 dígitos por correo (Brevo API REST v3). El sistema valida el código con expiración de 15 minutos; el login queda bloqueado (403) hasta completar la verificación. Permite reenviar el código (máx. 3 cada 15 min). |
 
 ### 2.3 Características de los Usuarios  
 | Tipo de Usuario | Habilidades | Acciones Principales |
@@ -117,7 +118,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 #### 3.1.3 Interfaz de Software (API)  
 | ID | Requisito | Descripción |
 |----|-----------|-------------|
-| API1 | Endpoints REST | `/api/auth/*`, `/api/clientes/*`, `/api/reservas/*`, `/api/checkin/validar`, `/api/reportes/*`, `/api/ubicaciones/*`, `/api/empleados/disponibilidad/*`, `/api/logs/*`, `/api/preferencias/*`. |
+| API1 | Endpoints REST | `/api/auth/*`, `/api/clientes/*`, `/api/reservas/*`, `/api/checkin/validar`, `/api/reportes/*`, `/api/ubicaciones/*`, `/api/empleados/disponibilidad/*`, `/api/logs/*`, `/api/preferencias/*`. Auth incluye `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/verificar`, `POST /api/auth/reenviar-codigo`. |
 | API2 | Autenticación JWT | Tokens con expiración 30 minutos. |
 
 #### 3.1.4 Interfaz de Comunicación  
@@ -141,6 +142,7 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 | **RF10** | Dashboard del Empleado | Alta | El empleado, al iniciar sesión, ve el panel de citas del día de la(s) sede(s) donde trabaja hoy. Cada cita se muestra como tarjeta con: hora, cliente, servicio, estado y sede. El estado se distingue por color (`pendiente` gris, `en curso` azul, `cobrado` verde, `cancelada` rojo). Incluye botones de acción rápida: `[Validar QR]` y `[Registrar cobro]`. En el panel lateral se muestra el mapa Leaflet con la ubicación de la sede del día. |
 | **RF11** | Dashboard del Administrador | Alta | El administrador ve una pantalla fija con: (a) 4 tarjetas KPI (ventas del día, citas del día, % ocupación, clientes activos del mes), (b) timeline de todas las citas de hoy filtrable por sede, (c) barra inferior con 9 botones que abren ventanas flotantes (una sola a la vez): `[Validar QR]` y `[Cobro]` como modales chicos centrados; `[Empleados]`, `[Servicios]`, `[Sedes]`, `[Horarios]`, `[Reportes]`, `[Moderar clientes]` y `[Logs]` como sheets laterales que se deslizan desde la derecha. El dashboard siempre permanece visible de fondo. |
 | **RF12** | Gestión de Logs | Media | El administrador accede al gestor de logs desde el botón `[Logs]` del dashboard. Visualiza dos archivos: `logs.txt` (actividad general: inicios de sesión, reservas creadas, check-ins, cobros) y `errores.txt` (excepciones, fallos de conexión, validaciones fallidas). Funcionalidades: (a) buscar por palabra clave, (b) filtrar por fecha, (c) filtrar por severidad (`INFO`, `WARN`, `ERROR`), (d) exportar rango de líneas a `.txt`. Acceso restringido a rol admin. El backend registra automáticamente eventos en ambos archivos mediante el logger Pino. |
+| **RF13** | Verificación de Cuenta | Alta | Al registrarse (`POST /api/auth/register`), el sistema crea la cuenta, genera un código OTP de 6 dígitos (almacenado como hash SHA-256 con expiración de 15 min) y lo envía por correo electrónico (Brevo API REST v3). El registro **no** emite token de sesión: el cliente debe confirmar en `POST /api/auth/verificar` con `{ email, codigo }` para obtener su JWT. `POST /api/auth/reenviar-codigo` genera un nuevo código (máx. 3 cada 15 min por IP). El login de una cuenta no verificada responde 403 "Cuenta no verificada". Los usuarios creados antes de esta funcionalidad quedan marcados como verificados automáticamente; los empleados creados por el admin nacen verificados. |
 
 > *Para cada RF se debe crear una tabla de trazabilidad (RF ↔ F) en el documento final.*
 
@@ -188,3 +190,4 @@ El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL
 | **RF10** | Dashboard del Empleado | F10 | Panel del Empleado | ✅ Vinculado |
 | **RF11** | Dashboard del Administrador | F11 | Panel del Administrador | ✅ Vinculado |
 | **RF12** | Gestión de Logs | F12 | Gestión de Logs | ✅ Vinculado |
+| **RF13** | Verificación de Cuenta | F13 | Verificación de Cuenta | ✅ Vinculado |

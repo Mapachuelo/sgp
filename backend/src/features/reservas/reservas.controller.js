@@ -2,6 +2,7 @@ const reservasService = require('./reservas.service');
 const asyncHandler = require('../../shared/async-handler');
 const HttpError = require('../../shared/http-error');
 const logger = require('../../shared/logger');
+const { emitReservaActualizada } = require('../../integrations/realtime/ws-hub');
 
 const reservasController = {
   listarServicios: asyncHandler(async (_req, res) => {
@@ -62,6 +63,7 @@ const reservasController = {
   crearReserva: asyncHandler(async (req, res) => {
     const reserva = await reservasService.createReserva(req.usuario.id, req.body);
     logger.info({ reserva_id: reserva.id, cliente_id: req.usuario.id }, 'Reserva creada');
+    emitReservaActualizada(reserva.id, 'pendiente');
     res.status(201).json({ ok: true, data: reserva });
   }),
 
@@ -76,6 +78,7 @@ const reservasController = {
       req.usuario.id
     );
     logger.info({ reserva_id: req.params.id }, 'Reserva cancelada por cliente');
+    emitReservaActualizada(result.id, 'cancelada');
     res.json({ ok: true, data: result });
   }),
 

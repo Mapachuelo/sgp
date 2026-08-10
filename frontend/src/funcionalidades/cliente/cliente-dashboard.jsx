@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Card, Badge, Toast, Spinner } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
+import useWebSocket from '../../hooks/use-websocket.js';
 
 const COLUMNAS = [
   { key: 'pendiente', label: 'Pendiente', variant: 'warning' },
@@ -41,10 +42,18 @@ function formatearHora(hora) {
 export default function ClienteDashboard() {
   const navigate = useNavigate();
   const { usuario } = useAuth();
+  const { ultimoEvento } = useWebSocket();
   const [reservas, setReservas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
   const [filtroSeleccionado, setFiltroSeleccionado] = useState('todos');
+
+  useEffect(() => {
+    if (!ultimoEvento) return;
+    if (ultimoEvento.tipo === 'reserva.actualizada') {
+      cargarReservas();
+    }
+  }, [ultimoEvento]);
 
   const mostrarToast = (message, type = 'success') => {
     setToast({ open: true, message, type });

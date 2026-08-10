@@ -52,7 +52,7 @@
 #### Infraestructura
 - Monorepo pnpm workspaces con `backend/` y `frontend/` (placeholder)
 - Podman: 2 contenedores (`db` postgres:17-alpine + `backend` Node 22 Alpine)
-- `podman-compose up -d --build` funcional
+- `podman kube play` con pods `sgp-db` y `sgp-app` funcional
 - ESLint + Prettier configurados, lint limpio (0 errores, 0 warnings)
 
 #### Base de datos (db/init.sql)
@@ -93,7 +93,7 @@
 - Todos los modelos usan `require('../../config/db')` (2 niveles, no 3)
 
 ### Decisiones importantes
-- `.env` excluido del contenedor via `.containerignore`; variables se pasan via `environment:` en podman-compose.yml
+- `.env` excluido del contenedor via `.containerignore`; variables se pasan via `environment:` en sgp-app-pod.yaml
 - `db/init.sql` copiado al contenedor via `COPY db/ ./db/` en Containerfile
 - PostgreSQL 17 requiere volumen limpio si habia PG16 previo
 - Imagen postgres debe ser `docker.io/library/postgres:17-alpine` (fully qualified)
@@ -248,3 +248,48 @@
   - Se configuró la carga de empleados (`cargarEmpleados()`) al abrir la pestaña de Servicios en `admin-dashboard.jsx` (`activeSheet === 'servicios'`), resolviendo el dropdown vacío en la tarjeta "Tiempos de servicio por empleado".
 
 
+
+---
+
+## Sesion — 2 Agosto 2026
+
+### Verificacion de cuenta por correo OTP (Brevo SMTP)
+
+#### Que se hizo
+- Nueva columna `verificado`, `token_verificacion`, `token_verificacion_expiracion` en `app_user` (db/init.sql, con ALTER IF NOT EXISTS para BD existentes).
+- Backfill al final de init.sql: usuarios sin token quedan verificados (migra cuentas previas). Empleados creados por admin nacen `verificado = TRUE` (createEmpleado).
+- `register` ya NO emite JWT: genera codigo OTP de 6 digitos (hash SHA-256 en BD), expiracion 15 min, lo envia por correo y devuelve `{ usuario, correoEnviado }`.
+- Nuevos endpoints: `POST /api/auth/verificar` (email + codigo → JWT), `POST /api/auth/reenviar-codigo` (max 3 cada 15 min, limiter `verificacionLimiter`).
+- `login` rechaza con 403 "Cuenta no verificada..." si `verificado = FALSE`.
+- `backend/src/integrations/email/mailer.js`: nodemailer + SMTP Brevo (`smtp-relay.sendinblue.com:587`). El host `smtp-relay.brevo.com` NO funciona (cert mismatch), usar sendinblue.
+- Script de prueba: `pnpm --filter backend exec node scripts/enviar-correo-prueba.js [email]`.
+- Frontend: nueva pagina `/verificar` (verificar-page.jsx) con input 6 digitos + reenvio con contador 60s; registro redirige a /verificar sin sesion; login muestra enlace "Verificar mi cuenta" ante 403.
+- `env.js` ahora carga `.env` desde la raiz del repo (path absoluto) porque dotenv lee desde el cwd.
+- `sgp-config.yaml` (gitignored) con SMTP_* para `podman kube play --configmap`. Pod yaml publico NO lleva credenciales.
+- `tests/api.sh` reescrito: registro 201, login sin verificar 403, codigo incorrecto 400, reenvio.
+
+#### Decisiones
+- OTP almacenado como SHA-256 (no legible en BD); expiracion 15 min.
+- Registro siempre crea la cuenta aunque el correo falle (correoEnviado=false) para no bloquear cuentas; reenviar-codigo reintenta el envio.
+- Usuarios pre-existentes y seeds (admin/empleado) verificados por backfill para no romper logins.
+
+#### Estado actual
+- Flujo completo validado en contenedores (pod de prueba sgp-app-test en hostPort 8081, red sgp-net): registro, 403 sin verificar, verificacion con codigo correcto → JWT, login posterior OK, rate limiter 429 OK.
+- PENDIENTE (bloquea envio real): credenciales SMTP de Brevo invalidas — `Invalid login 535` con SMTP_USER=ajulianc47@gmail.com y key `xkeysib-0b75...`. El usuario debe revisar en Brevo (SMTP & API) la SMTP key correcta y el email de login. En el panel de Brevo ademas hay que verificar el remitente (sender) para produccion.
+- PENDIENTE: rotar la key (se compartio por chat). `.env` y `sgp-config.yaml` contienen la key real (gitignored, verificado con git check-ignore).
+- PENDIENTE: pod normal sgp-app no puede desplegarse en 8080 mientras corra el proyecto parqueadero (conflicto de puertos).
+
+#### Bugs conocidos
+- Ninguno en el flujo de verificacion.
+
+#### Proximos pasos
+- Conseguir credenciales SMTP validas y probar `node scripts/enviar-correo-prueba.js`.
+- Reconstruir imagen frontend (ya hecho) y desplegar pod normal cuando 8080 este libre.
+
+### Actualizacion: mailer cambiado a Brevo API v3 (SMTP descartado)
+- La key de Brevo funciona con la API v3 (`POST /v3/smtp/email`) pero NO como SMTP (`535 Invalid login` con el email de cuenta). Se reescribio `backend/src/integrations/email/mailer.js` usando `fetch` nativo de Node 22 (sin nodemailer, dependencia removida).
+- Variables: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` (remitente verificado), `BREVO_SENDER_NAME` en `.env`, `.env.example` (placeholders) y `sgp-config.yaml` (gitignored).
+- `sgp-app-pod.yaml` referencia las variables con `valueFrom.configMapKeyRef` (sin valores, seguro para repo publico). `podman kube play --configmap sgp-config.yaml` las inyecta (probado en contenedor: 3 vars presentes).
+- Envio real verificado: script y flujo completo (registro, reenvio 200) enviaron correos OTP correctamente via API Brevo (MessageId devuelto).
+- `tests/api.sh`: 4/4 PASS en contenedor (registro 201, login 403 sin verificar, reenvio 200, codigo incorrecto 400).
+- Pendiente: rotar la key (se compartio por chat) y verificar remitente oficial en Brevo para produccion.

@@ -5,7 +5,7 @@ RUN corepack enable && corepack prepare pnpm@11 --activate
 
 WORKDIR /app
 
-# Copiar archivos de configuración del workspace (cache de Docker)
+# Copiar archivos de configuración del workspace (cache de build)
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/

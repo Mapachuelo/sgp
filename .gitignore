@@ -1,5 +1,6 @@
 node_modules/
 .env
+sgp-config.yaml
 logs.txt
 errores.txt
 dist/
