@@ -44,7 +44,10 @@ jobs:
 
       - name: Crear tar.gz
         if: github.event_name == 'workflow_dispatch' || env.count >= 3
-        run: tar -czf "sgp-$version.tar.gz" --exclude='.git' --exclude='node_modules' --exclude='dist' .
+        run: |
+          TAR_PATH="/tmp/sgp-$version.tar.gz"
+          tar -czf "$TAR_PATH" --exclude='.git' --exclude='node_modules' --exclude='dist' .
+          mv "$TAR_PATH" "sgp-$version.tar.gz"
 
       - name: Crear tag y release
         if: github.event_name == 'workflow_dispatch' || env.count >= 3
