@@ -22,20 +22,11 @@ spec:
         - name: NODE_ENV
           value: development
         - name: BREVO_API_KEY
-          valueFrom:
-            configMapKeyRef:
-              name: sgp-config
-              key: BREVO_API_KEY
+          value: PON_AQUI_TU_API_KEY
         - name: BREVO_SENDER_EMAIL
-          valueFrom:
-            configMapKeyRef:
-              name: sgp-config
-              key: BREVO_SENDER_EMAIL
+          value: pon_aqui_tu@correo.com
         - name: BREVO_SENDER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: sgp-config
-              key: BREVO_SENDER_NAME
+          value: SGP
 
     - name: frontend
       image: localhost/sgp-frontend:latest
