@@ -96,7 +96,7 @@ podman kube play sgp-db-pod.yaml --network sgp-net
 # Levantar backend + frontend
 podman kube play sgp-app-pod.yaml --network sgp-net
 ```
-```
+
 ### Acceso
 
 - **Frontend:** `http://localhost:8080`
