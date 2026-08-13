@@ -85,14 +85,15 @@ podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
 ```
 podman network create sgp-net
 ```
-
+#### Creación de los contenedores
 ```
+# Cambiar el nombre del archivo
 mv example.sgp-app-pod.yaml sgp-app-pod.yaml
 mv example.sgp-db-pod.yaml sgp-db-pod.yaml 
 
-#### 3. Levantar base de datos
+# Levantar base de datos
 podman kube play sgp-db-pod.yaml --network sgp-net
-#### 4. Levantar backend + frontend
+# Levantar backend + frontend
 podman kube play sgp-app-pod.yaml --network sgp-net
 ```
 ```
