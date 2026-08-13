@@ -87,8 +87,8 @@ podman network create sgp-net
 ```
 #### 3. Cambiar el nombre del archivo
 ```
-mv example.sgp-app-pod.yaml sgp-app-pod.yaml
-mv example.sgp-db-pod.yaml sgp-db-pod.yaml 
+cp example.sgp-app-pod.yaml sgp-app-pod.yaml
+cp example.sgp-db-pod.yaml sgp-db-pod.yaml 
 ```
 #### 4. Api key
 en el archivo `sgp-app-pod.yaml` se debe agregar las apis para el acceso de token de mensajes personalizados, si no se agrega no arranca el contenedor podman
