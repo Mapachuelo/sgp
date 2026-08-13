@@ -85,12 +85,16 @@ podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
 ```
 podman network create sgp-net
 ```
-#### Creación de los contenedores
+#### 3. Cambiar el nombre del archivo
 ```
-# Cambiar el nombre del archivo
 mv example.sgp-app-pod.yaml sgp-app-pod.yaml
 mv example.sgp-db-pod.yaml sgp-db-pod.yaml 
+```
+#### 4. Api key
+en el archivo `sgp-app-pod.yaml` se debe agregar las apis para el acceso de token de mensajes personalizados, si no se agrega no arranca el contenedor podman
 
+#### 5. Creación de los contenedores
+```
 # Levantar base de datos
 podman kube play sgp-db-pod.yaml --network sgp-net
 # Levantar backend + frontend
