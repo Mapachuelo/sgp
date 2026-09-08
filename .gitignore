@@ -5,5 +5,3 @@ logs.txt
 errores.txt
 dist/
 *.log
-sgp-app-pod.yaml
-sgp-db-pod.yaml

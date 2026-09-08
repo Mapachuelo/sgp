@@ -40,8 +40,9 @@ pnpm run lint                         # ESLint en frontend y backend
 podman network create sgp-net                     # Crear red (una sola vez)
 podman build -t localhost/sgp-backend:latest -f Containerfile .
 podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
-podman kube play sgp-db-pod.yaml --network sgp-net
-podman kube play sgp-app-pod.yaml --network sgp-net --configmap sgp-config.yaml
+set -a && source .env && set +a                   # Exportar valores de .env
+envsubst < sgp-db-pod.yaml | podman kube play --network sgp-net -
+envsubst < sgp-app-pod.yaml | podman kube play --network sgp-net -
 ```
 
 ### Pruebas
@@ -233,7 +234,7 @@ sgp/
 - **Helmet** para headers de seguridad HTTP.
 - **CORS** configurado solo para el origen del frontend (`VITE_API_URL`).
 - **SQL injection:** prevenido mediante consultas parametrizadas con `pg` (sin concatenacion de strings).
-- **Credenciales de Brevo** (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`) solo en `.env` (gitignored) o `sgp-config.yaml` (gitignored). En `sgp-app-pod.yaml` se referencian con `configMapKeyRef` (sin valores, seguro para repo publico); se aplican con `podman kube play --configmap sgp-config.yaml`. Nunca en `.env.example` ni en repositorios publicos.
+- **Credenciales de Brevo** (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`) solo en `.env` (gitignored). Los pods `sgp-*-pod.yaml` llevan placeholders `${VARIABLE}` (sin valores, seguros para repo publico) y se inyectan con `envsubst` al ejecutar `podman kube play`. Nunca en `.env.example` ni en repositorios publicos.
 
 ## Base de datos
 
@@ -263,7 +264,7 @@ sgp/
 - Los pods se conectan via la red `sgp-net`.
 - `Containerfile` (backend): Node 22 Alpine, instala pnpm, copia monorepo, ejecuta `pnpm --filter backend start`.
 - `Containerfile.nginx` (frontend): Nginx Alpine, copia `frontend/dist/` tras build, configura proxy reverso a backend en `/api`.
-- Variables de entorno en `.env` y `.env.example`. `sgp-config.yaml` (gitignored) contiene las credenciales de Brevo y se aplica con `--configmap`.
+- Variables de entorno en `.env` (gitignored) y `.env.example` (plantilla). Los pods `sgp-db-pod.yaml` y `sgp-app-pod.yaml` se ejecutan con `envsubst < archivo | podman kube play --network sgp-net -`; no hay archivos de configuracion independientes.
 - Script de prueba de correo: `pnpm --filter backend exec node scripts/enviar-correo-prueba.js [email]` (usa las variables `BREVO_*` del `.env`).
 
 ## Testing

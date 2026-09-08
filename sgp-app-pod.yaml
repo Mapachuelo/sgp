@@ -12,25 +12,25 @@ spec:
       imagePullPolicy: IfNotPresent
       env:
         - name: DATABASE_URL
-          value: postgresql://sgp_user:sgp_password@sgp-db:5432/sgp
+          value: postgresql://${DB_USER}:${DB_PASSWORD}@sgp-db:5432/${DB_NAME}
         - name: JWT_SECRET
-          value: sgp_super_secret_2026
+          value: ${JWT_SECRET}
         - name: JWT_EXPIRES_IN
-          value: 30m
+          value: ${JWT_EXPIRES_IN}
         - name: PORT
           value: "3000"
         - name: NODE_ENV
-          value: development
+          value: ${NODE_ENV}
         - name: BREVO_API_KEY
-          value: PON_AQUI_TU_API_KEY
+          value: ${BREVO_API_KEY}
         - name: BREVO_SENDER_EMAIL
-          value: pon_aqui_tu@correo.com
+          value: ${BREVO_SENDER_EMAIL}
         - name: BREVO_SENDER_NAME
-          value: SGP
+          value: ${BREVO_SENDER_NAME}
 
     - name: frontend
       image: localhost/sgp-frontend:latest
       imagePullPolicy: IfNotPresent
       ports:
         - containerPort: 80
-          hostPort: 8080
+          hostPort: ${FRONTEND_PORT}

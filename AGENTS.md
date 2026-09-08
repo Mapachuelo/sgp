@@ -28,8 +28,9 @@ pnpm --filter backend dev             # Backend en :3000
 pnpm --filter frontend dev            # Frontend en :5173
 pnpm run lint                         # ESLint
 bash tests/api.sh                     # Pruebas de integración
-podman kube play sgp-db-pod.yaml --network sgp-net
-podman kube play sgp-app-pod.yaml --network sgp-net
+set -a && source .env && set +a       # Exportar valores de .env
+envsubst < sgp-db-pod.yaml | podman kube play --network sgp-net -
+envsubst < sgp-app-pod.yaml | podman kube play --network sgp-net -
 ```
 
 ## Más contexto

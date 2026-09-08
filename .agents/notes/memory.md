@@ -293,3 +293,10 @@
 - Envio real verificado: script y flujo completo (registro, reenvio 200) enviaron correos OTP correctamente via API Brevo (MessageId devuelto).
 - `tests/api.sh`: 4/4 PASS en contenedor (registro 201, login 403 sin verificar, reenvio 200, codigo incorrecto 400).
 - Pendiente: rotar la key (se compartio por chat) y verificar remitente oficial en Brevo para produccion.
+
+### Actualizacion: pods parametrizados con .env (eliminado el configmap)
+- Se eliminaron los archivos de configuracion independientes: borrado `example.sgp-config.pod.yaml` y el flujo `--configmap sgp-config.yaml`.
+- `example.sgp-app-pod.yaml` y `example.sgp-db-pod.yaml` se renombraron a `sgp-app-pod.yaml` y `sgp-db-pod.yaml` (git mv, commitables: solo placeholders `${VARIABLE}`, sin secretos) y se quitaron del `.gitignore`.
+- Los pods se ejecutan con `set -a && source .env && set +a; envsubst < sgp-*.yaml | podman kube play --network sgp-net -` (envsubst de gettext; `kube play` y `kube down` aceptan stdin con `-`; `kube play` no expande variables ni acepta `--env-file`).
+- Variables nuevas en `.env`/`example.env`: `DB_USER`, `DB_PASSWORD`, `DB_NAME` (alimentan POSTGRES_* y componen DATABASE_URL hacia `sgp-db`) y `FRONTEND_PORT` (default 8080, hostPort del frontend).
+- Red `sgp-net`: bridge privado con salida a internet (necesario para Brevo API), creada con `podman network create sgp-net`; los pods se hablan por nombre. Backend sin puerto host (nginx proxya a 127.0.0.1:3000 en el mismo pod).
