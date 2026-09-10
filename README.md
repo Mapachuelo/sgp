@@ -62,7 +62,6 @@ sgp/
 
 ### Requisitos
 - Podman
-- `gettext` (provee `envsubst` para inyectar los valores de `.env` en los pods)
 
 ### Arquitectura de pods
 
@@ -71,59 +70,70 @@ Dos pods independientes conectados via red `sgp-net`:
 | Pod | Contenido | Acceso host |
 |-----|-----------|-------------|
 | `sgp-db` | PostgreSQL 17 Alpine + PVC `sgp-pgdata` | Solo interno (`sgp-db:5432`) |
-| `sgp-app` | Backend Node.js (:3000) + Frontend Nginx (:80) | `http://localhost:${FRONTEND_PORT}` |
+| `sgp-app` | Backend Node.js (:3000) + Frontend Nginx (:80) | `http://localhost:8080` |
 
 Al eliminar el pod `sgp-app` para actualizar, la base de datos sigue corriendo en `sgp-db` y los datos persisten en el volumen.
 
-Los pods llevan placeholders `${VARIABLE}` y los valores se inyectan desde `.env` con `envsubst` en el momento de ejecutarlos. No existen archivos de configuracion independientes.
+Los archivos `sgp-app-pod.yaml` y `sgp-db-pod.yaml` (gitignored) se crean a partir de los ejemplos `example.sgp-*-pod.yaml` y se rellenan manualmente con los valores reales. No se usan scripts ni inyeccion automatica.
 
 ### Levantar entorno
 
-#### 1. Configurar `.env`
+#### 1. Crear los archivos reales desde los ejemplos
 ```
-cp example.env .env
+cp example.sgp-app-pod.yaml sgp-app-pod.yaml
+cp example.sgp-db-pod.yaml sgp-db-pod.yaml
 ```
-Rellenar los valores (obligatorios: `DB_PASSWORD`, `JWT_SECRET`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`; `FRONTEND_PORT` para cambiar el puerto del host, por defecto `8080`).
+#### 2. Rellenar valores reales
+- En `sgp-app-pod.yaml`: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET` (y `hostPort` del frontend si el `8080` esta ocupado).
+- En `sgp-db-pod.yaml`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+- Si cambias usuario/contraseña de la BD, ajustar `DATABASE_URL` en `sgp-app-pod.yaml` para que coincida.
+- Sin estos valores el backend arranca pero Brevo falla (no llegan correos de verificacion).
 
-#### 2. Build de imagenes (solo la primera vez o al cambiar codigo)
+#### 3. Build de imagenes (solo la primera vez o al cambiar codigo)
 ```bash
 podman build -t localhost/sgp-backend:latest -f Containerfile .
 podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
 ```
-#### 3. Crear red compartida (una sola vez)
+#### 4. Crear red compartida (una sola vez)
 ```
 podman network create sgp-net
 ```
-#### 4. Creación de los contenedores
-```bash
-set -a && source .env && set +a
-# Levantar base de datos
-envsubst < sgp-db-pod.yaml | podman kube play --network sgp-net -
+#### 5. Creación de los contenedores
+```
+# Levantar PRIMERO la base de datos (el backend falla si sgp-db no resuelve)
+podman kube play sgp-db-pod.yaml --network sgp-net
 # Levantar backend + frontend
-envsubst < sgp-app-pod.yaml | podman kube play --network sgp-net -
+podman kube play sgp-app-pod.yaml --network sgp-net
 ```
 
 ### Acceso
 
-- **Frontend:** `http://localhost:${FRONTEND_PORT}` (por defecto `http://localhost:8080`)
-- **Healthcheck:** `http://localhost:${FRONTEND_PORT}/api/healthcheck`
+- **Frontend:** `http://localhost:8080`
+- **Healthcheck:** `http://localhost:8080/api/healthcheck`
 - **API directa:** no expuesta al host; el frontend la proxya a `127.0.0.1:3000` dentro del pod `sgp-app`
 
-### Actualizar solo la app (sin tocar la base de datos)
+### Actualizar la app tras cambios de imagen (sin tocar la base de datos)
 
 ```bash
-set -a && source .env && set +a
 podman build -t localhost/sgp-backend:latest -f Containerfile .
 podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
-envsubst < sgp-app-pod.yaml | podman kube play --network sgp-net --replace -
+podman kube down sgp-app-pod.yaml
+podman kube play sgp-app-pod.yaml --network sgp-net
 ```
+
+O en un solo paso con `--replace` (reemplaza el pod existente):
+
+```bash
+podman kube play sgp-app-pod.yaml --network sgp-net --replace
+```
+
+Sin reemplazo, el pod sigue corriendo la imagen anterior.
 
 ### Detener
 
 ```bash
-set -a && source .env && set +a
-envsubst < sgp-app-pod.yaml | podman kube down -
-envsubst < sgp-db-pod.yaml | podman kube down -
+podman kube down sgp-app-pod.yaml
+podman kube down sgp-db-pod.yaml
 ```
 
 Para eliminar tambien los datos:

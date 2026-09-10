@@ -24,11 +24,11 @@ spec:
       image: docker.io/library/postgres:17-alpine
       env:
         - name: POSTGRES_USER
-          value: ${DB_USER}
+          value: sgp_user
         - name: POSTGRES_PASSWORD
-          value: ${DB_PASSWORD}
+          value: sgp_password
         - name: POSTGRES_DB
-          value: ${DB_NAME}
+          value: sgp
       volumeMounts:
         - name: pgdata
           mountPath: /var/lib/postgresql/data

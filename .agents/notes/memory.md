@@ -300,3 +300,10 @@
 - Los pods se ejecutan con `set -a && source .env && set +a; envsubst < sgp-*.yaml | podman kube play --network sgp-net -` (envsubst de gettext; `kube play` y `kube down` aceptan stdin con `-`; `kube play` no expande variables ni acepta `--env-file`).
 - Variables nuevas en `.env`/`example.env`: `DB_USER`, `DB_PASSWORD`, `DB_NAME` (alimentan POSTGRES_* y componen DATABASE_URL hacia `sgp-db`) y `FRONTEND_PORT` (default 8080, hostPort del frontend).
 - Red `sgp-net`: bridge privado con salida a internet (necesario para Brevo API), creada con `podman network create sgp-net`; los pods se hablan por nombre. Backend sin puerto host (nginx proxya a 127.0.0.1:3000 en el mismo pod).
+
+### Actualizacion: revertido a flujo 100% manual (sin envsubst, sin configmap)
+- El usuario decidio que todo sea manual: nada de scripts ni `envsubst`; el mismo rellena los valores reales directamente en los archivos `.yaml`.
+- Se restauraron `example.sgp-app-pod.yaml` y `example.sgp-db-pod.yaml` (valores de muestra, commitables) con `cp` desde los actuales + contenido original de `HEAD~1`. Los `sgp-app-pod.yaml`/`sgp-db-pod.yaml` reales quedan en disco pero `git rm --cached` + `.gitignore` (los rellena el usuario).
+- Comandos directos: `podman kube play sgp-db-pod.yaml --network sgp-net` (PRIMERO la BD) y luego `podman kube play sgp-app-pod.yaml --network sgp-net`. Actualizar imagen: build + `kube down` + `kube play` (o `--replace`).
+- `.env`/`example.env`: se quitaron `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `FRONTEND_PORT` (solo dev).
+- CRASH-LOOP CONOCIDO: si `sgp-db` no esta corriendo, el backend muere con `getaddrinfo ENOTFOUND sgp-db` en `initDatabase` (server.js → process.exit(1)). Levantar la BD primero, o el backend se recupera en el siguiente restart del crash-loop.
