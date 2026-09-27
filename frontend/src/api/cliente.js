@@ -90,7 +90,14 @@ const api = {
   logs: {
     actividad: (params) => request(`/logs/actividad?${new URLSearchParams(params)}`),
     errores: (params) => request(`/logs/errores?${new URLSearchParams(params)}`),
-    exportar: (params) => request(`/logs/exportar?${new URLSearchParams(params)}`),
+    exportarTexto: async (params) => {
+      const token = getToken();
+      const res = await fetch(`${API}/logs/exportar?${new URLSearchParams(params)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('No se pudo exportar el archivo de logs');
+      return res.text();
+    },
   },
   preferencias: {
     get: () => request('/preferencias'),

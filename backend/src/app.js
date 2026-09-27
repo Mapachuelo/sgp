@@ -5,9 +5,12 @@ const env = require('./config/env');
 const errorMiddleware = require('./shared/middlewares/error.middleware');
 const notFoundMiddleware = require('./shared/middlewares/notFound.middleware');
 const apiRoutes = require('./routes/api.routes');
+const docsRoutes = require('./docs/docs.routes');
 const logger = require('./shared/logger');
 
 const app = express();
+
+app.use('/api/docs', docsRoutes);
 
 app.use(helmet());
 app.use(

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button, Input, Card, Badge, Sheet, Modal, Toast, Select, Spinner } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
+import { descargarTexto } from '../../lib/descargas.js';
 
 const hoy = () => {
   const d = new Date();
@@ -45,12 +46,19 @@ export default function AdminDashboard() {
 
   // Validar QR
   const [qrToken, setQrToken] = useState('');
+  const [qrMonto, setQrMonto] = useState('0');
   const [qrResult, setQrResult] = useState(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [camaraActiva, setCamaraActiva] = useState(false);
   const [errorCamara, setErrorCamara] = useState('');
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+
+  // Registrar cobro
+  const [cobroToken, setCobroToken] = useState('');
+  const [cobroMonto, setCobroMonto] = useState('');
+  const [cobroResult, setCobroResult] = useState(null);
+  const [cobroLoading, setCobroLoading] = useState(false);
 
   // Empleados
   const [empleados, setEmpleados] = useState([]);
@@ -233,9 +241,14 @@ export default function AdminDashboard() {
         ]);
         setKpi({
           ventas: ventas?.total ?? null,
-          citas: Array.isArray(ocupacion) ? ocupacion.reduce((sum, d) => sum + (d.total || 0), 0) : 0,
+          citas: Array.isArray(ocupacion)
+            ? ocupacion.reduce((sum, d) => sum + (Number(d.total) || 0), 0)
+            : 0,
           ocupacion: Array.isArray(ocupacion) && ocupacion.length > 0
-            ? { porcentaje: ocupacion[0].porcentaje || 0 }
+            ? {
+                porcentaje:
+                  ocupacion.reduce((sum, d) => sum + (Number(d.porcentaje) || 0), 0) / ocupacion.length,
+              }
             : null,
           recurrentes: Array.isArray(recurrentes) ? recurrentes.length : 0,
           loading: false,
@@ -275,7 +288,7 @@ export default function AdminDashboard() {
     setQrLoading(true);
     setQrResult(null);
     try {
-      const data = await api.checkin.validar({ qr_token: qrToken, monto: 0 });
+      const data = await api.checkin.validar({ qr_token: qrToken, monto: parseFloat(qrMonto) || 0 });
       setQrResult(data);
       mostrarToast(setToast, 'Entrada validada correctamente');
     } catch (e) {
@@ -285,6 +298,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleRegistrarCobro = async () => {
+    if (!cobroToken) return mostrarToast(setToast, 'Ingresa el token QR', 'warning');
+    setCobroLoading(true);
+    setCobroResult(null);
+    try {
+      const data = await api.checkin.validar({ qr_token: cobroToken, monto: parseFloat(cobroMonto) || 0 });
+      setCobroResult(data);
+      mostrarToast(setToast, 'Cobro registrado correctamente');
+    } catch (e) {
+      mostrarToast(setToast, e.message, 'error');
+    } finally {
+      setCobroLoading(false);
+    }
+  };
+
+  const cerrarCobro = () => {
+    setActiveSheet(null);
+    setCobroToken('');
+    setCobroMonto('');
+    setCobroResult(null);
+  };
+
   const cerrarQR = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
@@ -292,6 +327,7 @@ export default function AdminDashboard() {
     }
     setActiveSheet(null);
     setQrToken('');
+    setQrMonto('0');
     setQrResult(null);
     setCamaraActiva(false);
     setErrorCamara('');
@@ -795,17 +831,11 @@ export default function AdminDashboard() {
 
   const handleLogsExport = async () => {
     try {
-      const params = { tipo: logsTab };
+      const params = { ...buildLogParams(), tipo: logsTab };
       if (logsExpDesde) params.desde = logsExpDesde;
       if (logsExpHasta) params.hasta = logsExpHasta;
-      const data = await api.logs.exportar(params);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `logs_${logsTab}_${hoy()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const texto = await api.logs.exportarTexto(params);
+      descargarTexto(`logs_${logsTab}_${hoy()}.txt`, texto);
       mostrarToast(setToast, 'Exportado correctamente');
     } catch (e) {
       mostrarToast(setToast, e.message, 'error');
@@ -822,12 +852,12 @@ export default function AdminDashboard() {
   ];
 
   const estadoBadgeVariant = (estado) => {
-    const map = { confirmada: 'success', completada: 'success', cancelada: 'danger', no_show: 'danger', pendiente: 'warning' };
+    const map = { confirmada: 'success', completada: 'success', cobrado: 'success', en_curso: 'info', cancelada: 'danger', no_show: 'danger', pendiente: 'warning' };
     return map[estado] || 'default';
   };
 
   const estadoLabel = (estado) => {
-    const map = { confirmada: 'Confirmada', completada: 'Completada', cancelada: 'Cancelada', no_show: 'No show', pendiente: 'Pendiente' };
+    const map = { confirmada: 'Confirmada', completada: 'Completada', cobrado: 'Completada', en_curso: 'En curso', cancelada: 'Cancelada', no_show: 'No show', pendiente: 'Pendiente' };
     return map[estado] || estado;
   };
 
@@ -861,6 +891,14 @@ export default function AdminDashboard() {
           {errorCamara && <p className="text-error text-sm">{errorCamara}</p>}
 
           <Input label="Token QR (manual)" value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="O ingresa el token QR manualmente" />
+          <Input
+            label="Monto recibido (0 = pago online)"
+            type="number"
+            step="0.01"
+            min="0"
+            value={qrMonto}
+            onChange={(e) => setQrMonto(e.target.value)}
+          />
           <Button variant="primario" className="w-full" onClick={handleValidarQR} disabled={qrLoading}>
             {qrLoading ? <Spinner /> : 'Validar entrada'}
           </Button>
@@ -868,6 +906,36 @@ export default function AdminDashboard() {
             <Card className="mt-4">
               <p className="text-sm text-texto-secundario">Resultado:</p>
               <pre className="text-xs mt-1 overflow-auto">{JSON.stringify(qrResult, null, 2)}</pre>
+            </Card>
+          )}
+        </div>
+      </Modal>
+
+      {/* ---- MODAL: Registrar cobro ---- */}
+      <Modal open={activeSheet === 'cobro'} onClose={cerrarCobro} title="Registrar cobro">
+        <div className="space-y-4">
+          <p className="text-sm text-texto-secundario">
+            Registra el cobro de una reserva por su token QR. Ingresa 0 si el cliente pagó online.
+          </p>
+          <Input label="Token QR" value={cobroToken} onChange={(e) => setCobroToken(e.target.value)} placeholder="Token QR de la reserva" />
+          <Input
+            label="Monto recibido (0 = pago online)"
+            type="number"
+            step="0.01"
+            min="0"
+            value={cobroMonto}
+            onChange={(e) => setCobroMonto(e.target.value)}
+          />
+          <Button variant="primario" className="w-full" onClick={handleRegistrarCobro} disabled={cobroLoading}>
+            {cobroLoading ? <Spinner /> : 'Registrar cobro'}
+          </Button>
+          {cobroResult && (
+            <Card className="mt-4">
+              <p className="text-sm text-exito font-semibold">Cobro registrado</p>
+              <p className="text-xs text-texto-secundario mt-1">
+                Cliente: {cobroResult.cliente_nombre || '—'} · Método: {cobroResult.metodo_pago || cobroResult.metodo || '—'} ·
+                Monto: ${parseFloat(cobroResult.monto || 0).toLocaleString('es-CO')}
+              </p>
             </Card>
           )}
         </div>
@@ -983,7 +1051,7 @@ export default function AdminDashboard() {
                                   className="rounded text-primario border-borde cursor-pointer w-4 h-4"
                                 />
                                 <span className="font-semibold text-texto-principal w-20">{label}</span>
-                                <Badge variant={config.disponible ? 'success' : 'secondary'}>
+                                <Badge variant={config.disponible ? 'success' : 'default'}>
                                   {config.disponible ? 'Disponible' : 'Descanso'}
                                 </Badge>
                               </div>
@@ -1606,7 +1674,17 @@ export default function AdminDashboard() {
               />
             </div>
             <div>
+              <input
+                type="date"
+                aria-label="Filtrar logs por fecha"
+                value={logsFecha}
+                onChange={(e) => setLogsFecha(e.target.value)}
+                className="px-3 py-1.5 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
+              />
+            </div>
+            <div>
               <select
+                aria-label="Filtrar logs por severidad"
                 value={logsSeveridad}
                 onChange={(e) => setLogsSeveridad(e.target.value)}
                 className="px-3 py-1.5 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
@@ -1645,13 +1723,18 @@ export default function AdminDashboard() {
               <div className="text-white/40 italic">[Sin logs de tipo {logsTab} que coincidan]</div>
             ) : (
               logsData.map((log, i) => {
-                const timestamp = log.timestamp || log.fecha || log.created_at || '-';
-                const severidad = log.severidad || log.nivel || 'INFO';
-                const msg = log.mensaje || log.descripcion || JSON.stringify(log);
+                const nombresNivel = { 10: 'TRACE', 20: 'DEBUG', 30: 'INFO', 40: 'WARN', 50: 'ERROR', 60: 'FATAL' };
+                const timestamp = log.time
+                  ? new Date(log.time).toLocaleString('es-CO')
+                  : log.timestamp || log.fecha || log.created_at || '-';
+                const severidad = log.level
+                  ? nombresNivel[log.level] || String(log.level)
+                  : (log.severidad || log.nivel || 'INFO');
+                const msg = log.msg || log.mensaje || log.descripcion || JSON.stringify(log);
 
                 let sevCls = 'text-green-400';
                 if (severidad === 'WARN') sevCls = 'text-amber-400';
-                else if (severidad === 'ERROR') sevCls = 'text-red-400 font-bold';
+                else if (severidad === 'ERROR' || severidad === 'FATAL') sevCls = 'text-red-400 font-bold';
 
                 return (
                   <div key={i} className="mb-1">
@@ -1685,7 +1768,7 @@ export default function AdminDashboard() {
               onClick={handleLogsExport}
               className="px-3 py-1.5 bg-fondo border border-borde hover:bg-superficie text-texto-principal rounded-lg text-[10px] font-bold transition cursor-pointer"
             >
-              Exportar JSON
+              Exportar .txt
             </button>
           </div>
         </div>
@@ -1698,6 +1781,8 @@ export default function AdminDashboard() {
             Gestión:
           </span>
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => { setQrToken(''); setQrMonto('0'); setQrResult(null); setActiveSheet('qr'); }} className="px-4 py-2 bg-primario text-white hover:bg-primario-hover rounded-xl text-xs font-semibold transition cursor-pointer">Validar QR</button>
+            <button onClick={() => { setCobroToken(''); setCobroMonto(''); setCobroResult(null); setActiveSheet('cobro'); }} className="px-4 py-2 bg-primario text-white hover:bg-primario-hover rounded-xl text-xs font-semibold transition cursor-pointer">Cobro</button>
             <button onClick={() => setActiveSheet('empleados')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Empleados</button>
             <button onClick={() => setActiveSheet('servicios')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Servicios</button>
             <button onClick={() => setActiveSheet('sedes')} className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition cursor-pointer">Sedes</button>
@@ -1720,7 +1805,7 @@ export default function AdminDashboard() {
               $ {Number(kpi.ventas ?? 0).toLocaleString('es-CO')}
             </p>
           )}
-          <span className="text-[10px] text-exito font-bold">+15% vs semana anterior</span>
+          <span className="text-[10px] text-texto-secundario font-semibold">cobros registrados hoy</span>
         </div>
 
         <div className="bg-superficie border border-borde rounded-2xl p-5 shadow-premium">
@@ -1759,7 +1844,7 @@ export default function AdminDashboard() {
           ) : (
             <p className="font-display text-3xl font-bold text-texto-principal mt-1">{kpi.recurrentes}</p>
           )}
-          <span className="text-[10px] text-exito font-bold">+4 nuevos registrados hoy</span>
+          <span className="text-[10px] text-texto-secundario font-semibold">con reservas recurrentes</span>
         </div>
       </div>
 

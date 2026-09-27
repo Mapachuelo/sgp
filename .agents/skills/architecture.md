@@ -14,6 +14,8 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 | BD driver | pg (raw SQL, sin ORM) | latest |
 | Auth | JWT (jsonwebtoken) + bcryptjs + AES-256 (crypto) + helmet | latest |
 | Correo | Brevo API v3 REST (`fetch` nativo, sin SMTP) | latest |
+| Docs API | Swagger UI (CDN) + spec OpenAPI 3 (`src/docs/`) en `/api/docs` | latest |
+| i18n | modulo propio ES/EN (`frontend/src/i18n/`) | - |
 | QR | qrcode | latest |
 | Realtime | WebSocket (ws) | latest |
 | Logs | Pino (logs.txt + errores.txt) | latest |
@@ -224,7 +226,7 @@ sgp/
 ## Seguridad
 
 - Contrasenas hasheadas con **bcryptjs** (12 rounds).
-- Datos sensibles encriptados con **AES-256-CBC** via `crypto` nativo de Node.js. El modulo `shared/utils/encriptacion.js` expone `encriptar(texto)` y `desencriptar(iv, encrypted)`.
+- Datos sensibles encriptados con **AES-256-CBC** via `crypto` nativo de Node.js. El modulo `shared/utils/encriptacion.js` expone `encriptar(texto)` y `desencriptar(iv, encrypted)`; `shared/utils/telefono.js` los aplica al telefono de `app_user` (se guarda como `iv:hex` y se descifra en las lecturas). Llave en `AES_SECRET` (fallback a `JWT_SECRET`); `database-init.js` migra telefonos en claro al arrancar.
 - **HTTPS** obligatorio en produccion (Nginx reverse proxy + Let's Encrypt). Desarrollo local en HTTP.
 - Tokens **JWT** con expiracion configurable (`JWT_EXPIRES_IN`, default 30m). Middleware `auth.middleware.js` exporta `authenticate` (verifica token) y `authorize(...roles)` (verifica rol).
 - **RBAC** con tres roles: `admin`, `empleado`, `cliente`.
@@ -268,6 +270,6 @@ sgp/
 
 ## Testing
 
-- `tests/api.sh`: script bash que prueba los endpoints principales con `curl`, incluido el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
+- `tests/api.sh`: script bash que prueba con `curl` salud/docs, RBAC, validaciones de check-in, reportes/logs y el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
 - Pruebas manuales con el demo (`demo.html`) como referencia visual.
 - No hay tests unitarios en el MVP inicial. Se agregaran en fase 10.

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -u
 
-BASE_URL="${BASE_URL:-http://localhost:3000/api}"
+BASE_URL="${BASE_URL:-http://localhost:8080/api}"
+ROOT_URL="${BASE_URL%/api}"
 EMAIL="test.$(date +%s)@correo.com"
 PASSWORD="clave123"
 PASS=0
@@ -20,23 +21,35 @@ verificar() {
   fi
 }
 
-echo "== Flujo de verificacion de cuenta =="
+token_de() {
+  grep -o '"token":"[^"]*"' /tmp/sgp_resp.json | head -1 | cut -d'"' -f4
+}
 
-echo "-- Registro de nuevo cliente"
+echo "== Salud y frontend =="
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/healthcheck")
+verificar "Healthcheck responde 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$ROOT_URL/")
+verificar "Frontend responde 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/docs/openapi.json")
+verificar "OpenAPI (Swagger) responde 200" "200" "$RESP"
+
+echo ""
+echo "== Flujo de verificacion de cuenta (RF13) =="
+
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/register" \
   -H "Content-Type: application/json" \
   -d "{\"nombre\":\"Prueba\",\"apellido\":\"Verificacion\",\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"telefono\":\"+573003334455\"}")
 verificar "Registro devuelve 201" "201" "$RESP"
 grep -q '"correoEnviado"' /tmp/sgp_resp.json && echo "INFO: el backend intento enviar el correo de verificacion"
 
-echo "-- Login antes de verificar debe fallar"
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
 verificar "Login sin verificar devuelve 403" "403" "$RESP"
 grep -q "no verificada" /tmp/sgp_resp.json && echo "INFO: mensaje de cuenta no verificada"
 
-echo "-- Reenvio de codigo"
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/reenviar-codigo" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$EMAIL\"}")
@@ -44,16 +57,97 @@ if [ "$RESP" = "200" ]; then
   verificar "Reenvio de codigo devuelve 200" "200" "$RESP"
 else
   echo "INFO: reenvio fallo (codigo $RESP): $(cat /tmp/sgp_resp.json)"
-  echo "      El paso final (verificar con codigo) se hace manualmente con el codigo del correo."
 fi
 
-echo "-- Codigo incorrecto"
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/verificar" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$EMAIL\",\"codigo\":\"000000\"}")
 verificar "Verificacion con codigo incorrecto devuelve 400" "400" "$RESP"
 
 echo ""
+echo "== RBAC y autenticacion =="
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@sgp.local","password":"admin123"}')
+verificar "Login admin devuelve 200" "200" "$RESP"
+TOKEN_ADMIN=$(token_de)
+[ -n "$TOKEN_ADMIN" ] && echo "INFO: token de admin emitido"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/auth/me" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /auth/me con admin devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"empleado@sgp.local","password":"empleado123"}')
+verificar "Login empleado devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/empleados")
+verificar "GET /auth/empleados sin token devuelve 401" "401" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/empleados" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /auth/empleados con admin devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/reservas" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"empleado_id":2,"servicio_id":1,"ubicacion_id":1,"inicia_en":"2026-12-01T15:00:00.000Z"}')
+verificar "POST /reservas con rol admin devuelve 403" "403" "$RESP"
+
+echo ""
+echo "== Validaciones RF3 (checkin) =="
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/checkin/validar" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"qr_token":"no-es-uuid","monto":0}')
+verificar "Checkin con token no UUID devuelve 400" "400" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/checkin/validar" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"qr_token":"00000000-0000-4000-8000-000000000000","monto":-5}')
+verificar "Checkin con monto negativo devuelve 400" "400" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/checkin/validar" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"qr_token":"00000000-0000-4000-8000-000000000000","monto":0}')
+verificar "Checkin con UUID inexistente devuelve 404" "404" "$RESP"
+
+echo ""
+echo "== Reportes y logs (admin) =="
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reportes/ocupacion" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /reportes/ocupacion con admin devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/logs/actividad" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /logs/actividad con admin devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/logs/actividad")
+verificar "GET /logs/actividad sin token devuelve 401" "401" "$RESP"
+
+CONTENT_TYPE=$(curl -s -o /tmp/sgp_logs.txt -w "%{content_type}" "$BASE_URL/logs/exportar?tipo=actividad&desde=0&hasta=5" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+case "$CONTENT_TYPE" in
+  text/plain*) verificar "Export de logs devuelve text/plain" "ok" "ok" ;;
+  *) verificar "Export de logs devuelve text/plain" "text/plain" "$CONTENT_TYPE" ;;
+esac
+
+echo ""
+echo "== Catalogos publicos =="
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/ubicaciones")
+verificar "GET /ubicaciones publico devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/servicios")
+verificar "GET /reservas/servicios publico devuelve 200" "200" "$RESP"
+
+echo ""
 echo "Resultados: $PASS pasadas, $FAIL fallidas"
-echo "Nota: el codigo real llega por correo; verificar la cuenta manualmente con el codigo recibido."
+echo "Nota: el codigo OTP real llega por correo; verificar la cuenta manualmente con el codigo recibido."
 exit $FAIL

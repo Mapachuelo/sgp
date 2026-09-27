@@ -7,7 +7,9 @@
     "start": "pnpm --filter backend start",
     "lint": "pnpm --filter backend lint",
     "test": "bash tests/api.sh",
+    "test:datos": "bash tests/datos.sh",
     "seed:saturacion": "pnpm --filter backend exec node src/utils/semillar-saturacion.js",
+    "seed:demo": "pnpm --filter backend exec node src/utils/semillar-demo.js",
     "install:all": "pnpm install"
   }
 }

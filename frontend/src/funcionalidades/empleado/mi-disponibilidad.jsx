@@ -66,11 +66,12 @@ export default function EmpleadoDisponibilidad() {
   const cargarDatos = useCallback(async () => {
     setCargando(true);
     try {
-      const [dispData, ubiData, prefData, servData] = await Promise.all([
+      const [dispData, ubiData, prefData, servData, misTiempos] = await Promise.all([
         api.disponibilidad.get(),
         api.ubicaciones.list().catch(() => []),
         api.preferencias.get().catch(() => null),
         api.reservas.servicios().catch(() => []),
+        api.reservas.empleadoTiempos.get('').catch(() => []),
       ]);
 
       setUbicaciones(Array.isArray(ubiData) ? ubiData : []);
@@ -132,7 +133,12 @@ export default function EmpleadoDisponibilidad() {
       setSedesPorDia(sedesIniciales);
       setSedesMultiples(sedesMultiIniciales);
 
-      setMisServicios(dispData?.mis_servicios || []);
+      setMisServicios(
+        (Array.isArray(misTiempos) ? misTiempos : []).map((t) => ({
+          servicio_id: t.servicio_id,
+          duracion_minutos: t.duracion_minutos || t.tiempo_minutos || 30,
+        }))
+      );
     } catch (err) {
       mostrarToast(err.message || 'Error al cargar', 'error');
     } finally {
@@ -211,6 +217,14 @@ export default function EmpleadoDisponibilidad() {
   };
 
   const handleSedeChange = (dia, sedeId) => {
+    const sedeAnterior = sedesPorDia[dia];
+    if (sedeAnterior && String(sedeAnterior) !== String(sedeId)) {
+      const nombreAnterior = ubicaciones.find((u) => u.id === sedeAnterior)?.nombre || 'la sede anterior';
+      const continuar = window.confirm(
+        `Cambiar el ${DIAS[dia]} a otra sede cancelara las reservas futuras de ese dia en ${nombreAnterior}. ¿Deseas continuar?`
+      );
+      if (!continuar) return;
+    }
     setSedesPorDia((prev) => ({ ...prev, [dia]: sedeId }));
     if (sedeId) {
       setSlots((prev) => {
@@ -292,8 +306,15 @@ export default function EmpleadoDisponibilidad() {
         setGuardando(false);
         return;
       }
-      await api.disponibilidad.update(payload);
-      mostrarToast('Disponibilidad guardada correctamente');
+      const respuesta = await api.disponibilidad.update(payload);
+      if (respuesta?.reservas_canceladas?.length > 0) {
+        mostrarToast(
+          `Disponibilidad guardada. ${respuesta.reservas_canceladas.length} reserva(s) cancelada(s) por cambio de sede.`,
+          'warning'
+        );
+      } else {
+        mostrarToast('Disponibilidad guardada correctamente');
+      }
       cargarDatos();
     } catch (err) {
       mostrarToast(err.message || 'Error al guardar', 'error');

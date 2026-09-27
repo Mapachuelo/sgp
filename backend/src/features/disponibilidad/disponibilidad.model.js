@@ -28,14 +28,6 @@ const disponibilidadModel = {
       );
     }
   },
-
-  async getUbicacionesAnteriores(empleado_id) {
-    const { rows } = await pool.query(
-      'SELECT DISTINCT ubicacion_id FROM empleado_disponibilidad WHERE empleado_id = $1',
-      [empleado_id]
-    );
-    return rows.map((r) => r.ubicacion_id);
-  },
 };
 
 module.exports = disponibilidadModel;

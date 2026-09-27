@@ -307,3 +307,82 @@
 - Comandos directos: `podman kube play sgp-db-pod.yaml --network sgp-net` (PRIMERO la BD) y luego `podman kube play sgp-app-pod.yaml --network sgp-net`. Actualizar imagen: build + `kube down` + `kube play` (o `--replace`).
 - `.env`/`example.env`: se quitaron `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `FRONTEND_PORT` (solo dev).
 - CRASH-LOOP CONOCIDO: si `sgp-db` no esta corriendo, el backend muere con `getaddrinfo ENOTFOUND sgp-db` en `initDatabase` (server.js → process.exit(1)). Levantar la BD primero, o el backend se recupera en el siguiente restart del crash-loop.
+
+---
+
+## Sesion — 26 Septiembre 2026
+
+### Verificacion completa contra IEEE 830 (docs/formato_ieee830.md) y correcciones
+
+#### Backend
+- **RF3 check-in:** `POST /api/checkin/validar` ahora es transaccional (`withTransaction` + `SELECT ... FOR UPDATE`), valida `qr_token` UUID y `monto` numerico >= 0, registra cobro y deja la reserva en `cobrado`; doble cobro responde 409. `en_curso` queda como estado transitorio no usado.
+- **RF2 reservas:** creacion con transaccion + `pg_advisory_xact_lock(empleado, dia)`; valida entidades existentes, que el empleado ofrezca el servicio (`empleado_tiempo_servicio`), disponibilidad semanal en la sede (`estaDentroDeDisponibilidad`, TZ America/Bogota) y calcula `termina_en` con la duracion del servicio (se ignora el `termina_en` del cliente).
+- **RF9:** el diff de disponibilidad detecta dias cambiados de sede y cancela solo las reservas futuras de ese dia en la sede anterior, con motivo literal `"El empleado cambió de sede"`; controller emite `reserva.actualizada` por cada cancelada.
+- **RF12 logs:** filtro por fecha convertida a dia Bogota (Pino emite epoch ms), severidad exacta INFO/WARN/ERROR (`level` numerico), export aplica filtros y responde `.txt`.
+- **RF7:** `GET/PUT /api/clientes/me` incluye y actualiza `identificacion` (join/upsert en `empleado_perfil`).
+- **RNF2:** telefono cifrado en reposo con AES-256-CBC (`shared/utils/telefono.js`, llave `AES_SECRET` con fallback a `JWT_SECRET`); `database-init.js` migra telefonos en claro al iniciar.
+- **RNF5:** Swagger UI en `/api/docs` + spec OpenAPI 3 en `/api/docs/openapi.json` (`src/docs/`), montado antes de Helmet para que la CSP no bloquee el CDN de swagger-ui.
+- **Hardening:** `error.middleware` mapea 23505→409, 23503→400, 23514/22P02→400; validacion de lat/lng; `updateEmpleado` filtra `rol='empleado'`; reportes sin fecha usan hoy (Bogota) y ocupacion calcula `total` + `porcentaje`; filtros de fecha de reservas/reportes/slots en TZ Bogota.
+- **Seed:** `empleado_tiempo_servicio` para el empleado semilla (los 4 servicios) — sin esto el calendario de reserva quedaba vacio en volumen nuevo.
+
+#### Frontend
+- **RF8:** dashboard cliente convertido a kanban real (pendiente/confirmada/en_curso/completada/cancelada) con panel lateral sticky, mapa Leaflet de la sede y descarga de QR.
+- **RF2:** paso 4 ahora es `Modal` flotante con duracion estimada `entrada → salida`, personas 1-5 y total; ante 409 por solape vuelve al calendario, refresca y sugiere otro horario; calendario movil con paginacion de 2 dias.
+- **RF10/RF11:** empleado con botones `[Validar QR]` y `[Registrar cobro]` y selector explicito online($0)/efectivo; admin mantiene el bloque inline (decision del usuario) ahora con los 9 accesos, incluidos modales centrados de `[Validar QR]` y `[Cobro]`; KPIs reales (sin textos falsos), badges `en_curso/cobrado`, timeline con montos.
+- **RF9 frontend:** advertencia/confirmacion al cambiar sede y toast con reservas canceladas; arreglo de "Mis Servicios Asignados" (antes siempre vacio).
+- **RF12 frontend:** input de fecha + export `.txt` via `api.logs.exportarTexto`.
+- **UI2:** `Modal`/`Sheet` con `role="dialog"`, `aria-modal`, Escape, focus trap y retorno de foco; `Input`/`Select` con `useId`+`htmlFor`; aria-labels en iconos; `aria-live` en Toast; skip-link; contraste de tokens ajustado; foco visible.
+- **C7 i18n:** proveedor propio (`i18n/`) con diccionario ES→EN (~200 frases), traduccion de nodos de texto/atributos por `MutationObserver` y toggle ES/EN en el navbar; persiste en `preferencia_usuario.idioma` + localStorage.
+- **Bugs encontrados en verificacion web:** los `children` del `Modal` se evaluaban aunque estuviera cerrado (crash en `/cliente/reservar` al leer `diaSeleccionado.fecha`) → guard con render condicional; `findAllReservas` no traia `cobro.monto` (Total del dia del empleado mostraba $0) → LEFT JOIN cobro.
+
+#### Infra y datos
+- Volumen `sgp-pgdata` recreado (init.sql limpio); `app_user.telefono` pasa a TEXT sin CHECK y `preferencia_usuario.idioma` agregado con ALTER idempotente.
+- Nuevo `.env.example` con placeholders (incluye `AES_SECRET`); `example.sgp-app-pod.yaml` con `AES_SECRET`.
+- `tests/api.sh` reescrito (21 pruebas: healthcheck, docs, RF13, RBAC, validaciones RF3, reportes/logs, catalogos).
+
+#### Verificacion
+- `bash tests/api.sh` → 21 PASS, 0 FAIL.
+- E2E API (`/tmp/opencode/e2e.py`) → 23 PASS, 0 FAIL (RF2 reserva/solape, RF3 check-in/cobro/doble cobro, RF9 cambio de sede con motivo exacto, reportes con ocupacion y ventas del dia).
+- 12 capturas Chromium headless vía CDP de todas las pantallas (login, registro, verificar, kanban cliente, reserva, perfil, empleado citas, disponibilidad, admin, ingles, movil, Swagger): todas correctas.
+- Lint backend limpio; build de frontend OK; imagenes `localhost/sgp-backend` y `localhost/sgp-frontend` reconstruidas y pod `sgp-app` redesplegado.
+
+#### Pendientes / riesgos
+- **Brevo:** la `BREVO_API_KEY` actual responde 535/502; el OTP real no se envia. Los clientes de prueba se verifican por SQL. Rotar la key (se compartio por chat) y verificar remitente.
+- **HW1 camara:** el usuario probara el escaneo real; el modal ya soporta entrada manual y vista de camara.
+- `sgp-app-pod.yaml` (gitignored) contiene la API key real; rotar tambien `JWT_SECRET`/`AES_SECRET` antes de produccion.
+- i18n: traduccion por diccionario DOM; cadenas dinamicas con datos (fechas `toLocaleString`) permanecen en espanol.
+
+---
+
+## Sesion — 26 Septiembre 2026 (segunda parte)
+
+### Plan de entrada/salida de datos masivos + fix del calendario
+
+#### Fase 0: calendario y estilistas
+- `irAPaso2` en `nueva-reserva.jsx` ahora consulta la disponibilidad de los **6 dias** que muestra el calendario y une estilistas por id (antes solo consultaba hoy: los domingos no aparecia nadie aunque trabajaran el lunes).
+- El paso 3 del calendario quedo verificado en navegador (grid, estados, modal del paso 4).
+
+#### Seed masivo `backend/src/utils/semillar-demo.js`
+- Parametrizable por CLI (`--reset`/`--append`, `--sedes`, `--empleados`, `--clientes`, `--reservas`, `--diasPasados`, `--diasFuturos`, `--sin-export`, `--sin-api`) y RNG determinista.
+- Volumen por defecto "Grande": 6 sedes, 10 servicios, 15 empleados `estilistaXX@demo.sgp`, 80 clientes `clienteXX@demo.sgp` (password `demo1234`, verificados, telefono cifrado AES), ~1270 reservas y ~725 cobros en -30..+30 dias, 366 jornadas.
+- **Dinamica multi-sede:** cada empleado tiene 1-3 sedes y 4-6 dias de trabajo; cada dia laboral se asigna una unica sede (rotacion) garantizando **una sola sede por dia**; turnos variados (manana/tarde/completo/late). Se guardo el patron ejemplo estilista01 -> Lun Suba, Mie Kennedy, Jue Suba...; estilista05 -> solo Kennedy.
+- Reservas con estados por fecha (pasadas cobrado/cancelada con motivos `Cancelada por el cliente`, `no-show`, `El empleado cambió de sede`; futuras pendiente/confirmada; 2 forzadas `en_curso` para los colores), QR para activas, `cobro` unico por reserva (70% fisico con monto, 30% online en 0) y maximo 4 activas por cliente para dejar cupo.
+- **Flujo hibrido por API** al final: elige empleado con turno y ranura libre, login de cliente/empleado demo, crea reserva y hace check-in si la ventana +-120 min lo permite (si no, crea para el dia siguiente) para generar `logs.txt` y eventos WS reales.
+- **Salida de datos:** `backend/exports/{reservas,cobros,disponibilidad}.csv` + `resumen.json` (ruta gitignored con `exports/`), resumen en consola y validaciones SQL automaticas.
+- Scripts: `pnpm run seed:demo` (raiz y backend) y `pnpm run test:datos`; `tests/datos.sh` valida doble sede/dia, solapes, >5 activas, cobros duplicados, cobrado sin cobro y citas fuera de disponibilidad.
+
+#### Bugs corregidos durante el desarrollo del seed
+- Reset: `cobro.registrado_por` no tiene ON DELETE, ahora se borran primero los cobros de empleados demo (`cobro_registrado_por_fkey`).
+- `minutosBogota()`: el calculo previo sumaba 300 min al UTC y fallaba en la madrugada (UTC ya es el dia siguiente); ahora se desplaza el instante -5h y se usan horas UTC.
+- Cobro mapeado por `id` devuelto del INSERT de reservas (antes por orden fragil).
+
+#### Bugs extra encontrados en la verificacion web (corregidos)
+- KPI "Reservas del dia" mostraba `0557542`: `COUNT` de pg llega como string y el `reduce` concatenaba; se usa `Number(d.total)`.
+- Elegir estilista no avanzaba al calendario: `irAPaso3`/`cargarCalendario` leian el estado `empleadoSeleccionado` (aun `null` en el closure del `setTimeout`); ahora se pasa el empleado por parametro (`irAPaso3(emp)`, `cargarCalendario(base, emp)`).
+- Captura CDP: setear `localStorage` en `about:blank` no persiste; navegar primero a `/login`.
+
+#### Verificacion final
+- Imagenes reconstruidas y pod redesplegado; `bash tests/api.sh` 21/21 y `bash tests/datos.sh` 6/6 (estado final: 95 usuarios demo, 6 sedes, 10 servicios, 85 bloques de disponibilidad, 1274 reservas, 725 cobros).
+- Capturas Chromium: empleado hoy (Natalia, Demo Sede Suba, Cancelada + Cobrado online $0), disponibilidad multi-sede (rotacion), kanban cliente (4 activas con mapa y QR), admin KPIs (33 citas hoy, $2.933.000, 27.5% ocupacion, 20 clientes), reportes con desglose por servicio, logs con actividad real, calendario paso 3 con "Disponible" (lunes 15:00-21:00) y modal paso 4 con duracion `15:00 → 15:45`.
+- RF9 dinamico: mover el lunes de `estilista01` de la sede 47 a la sede 1 cancelo 4 reservas futuras con motivo exacto `El empleado cambió de sede` (respuesta API + BD) y se restauro la disponibilidad.
+- Exports del seed en `backend/exports/` (gitignored): `reservas.csv` (~1270 filas), `cobros.csv`, `disponibilidad.csv`, `resumen.json`; copiados a `/tmp/opencode/exports` para inspeccion.

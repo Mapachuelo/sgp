@@ -18,14 +18,23 @@ const logsController = {
     const { tipo, desde, hasta } = req.query;
     const archivo = tipo === 'errores' ? 'errores.txt' : 'logs.txt';
     const lineas = logsService.leerArchivo(archivo);
-    const exportadas = logsService.exportarLineas(lineas, desde, hasta);
+    const filtradas = logsService.filtrarLogs(lineas, req.query);
+    const exportadas = logsService.exportarLineas(filtradas, desde, hasta);
 
-    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${tipo || 'actividad'}-export.txt"`
     );
-    res.send(exportadas.map((l) => JSON.stringify(l)).join('\n'));
+    res.send(
+      exportadas
+        .map((l) => {
+          const copia = { ...l };
+          delete copia._linea;
+          return JSON.stringify(copia);
+        })
+        .join('\n')
+    );
   }),
 };
 

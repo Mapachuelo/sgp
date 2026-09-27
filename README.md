@@ -42,6 +42,7 @@ sgp/
 │       ├── integrations/realtime/ws-hub.js
 │       ├── routes/api.routes.js
 │       └── shared/           # logger, async-handler, http-error, middlewares, utils
+│   └── src/utils/semillar-demo.js   # Seed masivo de demostracion
 ├── frontend/
 │   └── src/
 │       ├── main.jsx / app.jsx
@@ -51,11 +52,12 @@ sgp/
 │       ├── componentes/             # Layout, RutaProtegida, ui/ (Button, Input, Card, Badge, Sheet, Modal, Select, Toast)
 │       └── funcionalidades/
 │           ├── auth/                # login-page, registro-page
-│           ├── cliente/             # dashboard, nueva-reserva (stepper 5 pasos), mi-perfil
+│           ├── cliente/             # dashboard kanban + mapa, nueva-reserva (stepper 5 pasos), mi-perfil
 │           ├── empleado/            # dashboard, validar-qr, mi-disponibilidad, mi-perfil
 │           └── admin/               # dashboard + 9 sheets modales
 └── tests/
-    └── api.sh                # 38 pruebas de integracion curl
+    ├── api.sh                # 21 pruebas de integracion curl
+    └── datos.sh              # Validaciones SQL del dataset demo
 ```
 
 ## Ejecucion con Podman
@@ -84,7 +86,7 @@ cp example.sgp-app-pod.yaml sgp-app-pod.yaml
 cp example.sgp-db-pod.yaml sgp-db-pod.yaml
 ```
 #### 2. Rellenar valores reales
-- En `sgp-app-pod.yaml`: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET` (y `hostPort` del frontend si el `8080` esta ocupado).
+- En `sgp-app-pod.yaml`: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET`, `AES_SECRET` (opcional; si se omite usa `JWT_SECRET`) (y `hostPort` del frontend si el `8080` esta ocupado).
 - En `sgp-db-pod.yaml`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
 - Si cambias usuario/contraseña de la BD, ajustar `DATABASE_URL` en `sgp-app-pod.yaml` para que coincida.
 - Sin estos valores el backend arranca pero Brevo falla (no llegan correos de verificacion).
@@ -164,15 +166,40 @@ podman volume rm sgp-pgdata
 | `cobro` | Pagos con metodo fisico/online |
 | `preferencia_usuario` | Rango horario, granularidad, tema por usuario |
 
-Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14.
+Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S.
+`app_user.telefono` se almacena cifrado con AES-256 (TEXT); `preferencia_usuario.idioma` guarda ES/EN.
+
+## Datos de demostracion (seed masivo)
+
+Genera un dataset grande y reproducible para demos y pruebas de carga:
+
+```bash
+# dentro del contenedor del backend (la BD no esta expuesta al host)
+podman exec -w /app/backend sgp-app-backend node src/utils/semillar-demo.js --reset
+# o via npm/pnpm
+pnpm run seed:demo -- --reset
+```
+
+Crea por defecto **6 sedes, 10 servicios, 15 empleados, 80 clientes, ~1270 reservas y ~725 cobros** en un rango de -30 a +30 dias:
+
+- Empleados `estilista01..15@demo.sgp` con 1-3 sedes asignadas y rotacion semanal: **nunca dos sedes el mismo dia**, turnos de manana/tarde/completo. El cambio de sede de un dia lo puede hacer el admin y dispara la cancelacion de reservas futuras de ese dia (RF9).
+- Clientes `cliente01..80@demo.sgp` (password `demo1234`, verificados, telefono cifrado), con maximo 4 reservas activas por cliente.
+- Reservas pasadas con su `cobro` (fisico/online) para reportes, algunas canceladas con motivo (`Cancelada por el cliente`, `no-show`, `El empleado cambió de sede`) y futuras `pendiente/confirmada` con QR.
+- Al final ejecuta un flujo real por API (login + reserva + check-in) para generar `logs.txt` y eventos WebSocket.
+
+Salida de datos: `backend/exports/` con `reservas.csv`, `cobros.csv`, `disponibilidad.csv` y `resumen.json` (copiable con `podman cp`). Validaciones automaticas con `bash tests/datos.sh` (sin doble sede/dia, sin solapes, maximo 5 activas, un cobro por reserva, citas dentro de disponibilidad).
+
+Opciones: `--append` (no borra), `--sin-export`, `--sin-api`, `--reservas=2000`, `--empleados=20`, `--clientes=100`, `--diasPasados=60`, `--diasFuturos=60`.
 
 ## API — Endpoints completos
 
 ### Auth (RF0, RF1)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| POST | `/api/auth/register` | Publico |
-| POST | `/api/auth/login` | Publico |
+| POST | `/api/auth/register` | Publico (crea cuenta y envia OTP, sin JWT) |
+| POST | `/api/auth/login` | Publico (403 si la cuenta no esta verificada) |
+| POST | `/api/auth/verificar` | Publico (`{ email, codigo }` → JWT) |
+| POST | `/api/auth/reenviar-codigo` | Publico (max 3 cada 15 min) |
 | GET | `/api/auth/me` | Autenticado |
 | GET | `/api/auth/empleados` | Admin |
 | POST | `/api/auth/empleados` | Admin |
@@ -220,6 +247,14 @@ Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barb
 |--------|------|-----|
 | POST | `/api/checkin/validar` | Empleado/Admin |
 
+`POST /api/checkin/validar` recibe `{ qr_token, monto }` y registra check-in + cobro en una sola transaccion (`SELECT ... FOR UPDATE`): valida estado activo, ventana ±120 min y monto numerico ≥ 0; `monto = 0` ⇒ `metodo='online'`, `monto > 0` ⇒ `metodo='fisico'`; la reserva queda en estado `cobrado` y un segundo intento responde 409.
+
+### Documentacion API (RNF5)
+| Metodo | Ruta | Rol |
+|--------|------|-----|
+| GET | `/api/docs` | Publico (Swagger UI) |
+| GET | `/api/docs/openapi.json` | Publico (spec OpenAPI 3) |
+
 ### Reportes (RF5)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
@@ -258,10 +293,14 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Maximo 5 reservas activas por cliente
 - Anticipacion minima: 60 minutos
 - Ventana validacion QR: +-120 minutos
+- Check-in y cobro son atomicos; al validar la reserva queda `cobrado`
+- Un solo cobro por reserva (restriccion UNIQUE + transaccion)
+- La reserva valida que el empleado ofrezca el servicio y este dentro de su disponibilidad semanal en esa sede; la duracion se toma de `empleado_tiempo_servicio`
+- Creacion de reserva con advisory lock por empleado/dia (evita carreras de horario)
 - Cantidad de personas: 1 a 5
 - Cliente bloqueado no inicia sesion ni reserva
 - Un solo cobro por reserva
-- Cambio de sede cancela reservas futuras en sede anterior
+- Cambio de sede cancela las reservas futuras del dia cambiado en la sede anterior, con motivo `"El empleado cambió de sede"` y notificacion WebSocket `reserva.actualizada`
 - Eliminar cliente solo con 3+ no-shows
 - Eliminar empleado solo sin cobros asociados
 - Metodos de cobro: `fisico` (efectivo) o `online`
@@ -271,15 +310,17 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 ## Seguridad
 
 - Contrasenas: bcryptjs 12 rounds
-- Datos sensibles: AES-256-CBC via crypto nativo
+- Datos sensibles: telefono cifrado en reposo con AES-256-CBC via crypto nativo (`AES_SECRET`, fallback a `JWT_SECRET`); migracion automatica de telefonos en claro al iniciar el backend
 - JWT con expiracion 30 minutos
 - RBAC: admin, empleado, cliente
-- Rate limiting: 10 intentos/15 min en auth
+- Rate limiting: 10 intentos/15 min en auth; 3 reenvios de OTP/15 min
 - Helmet para headers HTTP
 - CORS configurado para origen del frontend
 - SQL injection prevenido con consultas parametrizadas (pg)
+- Documentacion API en `/api/docs` (Swagger UI + OpenAPI 3)
+- Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
 
-Cubre: healthcheck, auth (register/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad, reservas (crear/listar/cancelar), checkin, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs, preferencias, rate limiting.
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad, reservas (crear/listar/cancelar/solape), checkin+cobro atomico, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
 
 ## Desarrollo local
 

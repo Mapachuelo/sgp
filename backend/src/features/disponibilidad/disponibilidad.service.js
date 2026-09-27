@@ -2,6 +2,8 @@ const disponibilidadModel = require('./disponibilidad.model');
 const reservasModel = require('../reservas/reservas.model');
 const HttpError = require('../../shared/http-error');
 
+const MOTIVO_CAMBIO_SEDE = 'El empleado cambió de sede';
+
 const disponibilidadService = {
   async getDisponibilidad(empleado_id) {
     return disponibilidadModel.findDisponibilidadByEmpleado(empleado_id);
@@ -20,31 +22,42 @@ const disponibilidadService = {
       diasAsignados.add(item.dia_semana);
     }
 
-    const ubicacionesAnteriores = await disponibilidadModel.getUbicacionesAnteriores(empleado_id);
+    const anteriores = await disponibilidadModel.findDisponibilidadByEmpleado(empleado_id);
+    const mapaAnterior = new Map(anteriores.map((r) => [r.dia_semana, r.ubicacion_id]));
+    const mapaNuevo = new Map(items.map((i) => [i.dia_semana, i.ubicacion_id]));
+
+    const diasCambiados = [];
+    for (const [dia, sedeAnterior] of mapaAnterior) {
+      if (mapaNuevo.get(dia) !== sedeAnterior) {
+        diasCambiados.push({ dia_semana: dia, ubicacion_id: sedeAnterior });
+      }
+    }
 
     await disponibilidadModel.deleteDisponibilidadEmpleado(empleado_id);
     if (items.length > 0) {
       await disponibilidadModel.insertDisponibilidad(empleado_id, items);
     }
 
-    const nuevasUbicaciones = [...new Set(items.map((i) => i.ubicacion_id))];
-    const sedesCambiadas = ubicacionesAnteriores.filter(
-      (uid) => !nuevasUbicaciones.includes(uid)
-    );
-
-    for (const ubicacion_id of sedesCambiadas) {
-      const reservasFuturas =
-        await reservasModel.findReservasFuturasByEmpleadoAndUbicacion(
-          empleado_id,
-          ubicacion_id
-        );
+    const reservasCanceladas = [];
+    for (const cambio of diasCambiados) {
+      const reservasFuturas = await reservasModel.findReservasFuturasByEmpleadoUbicacionYDia(
+        empleado_id,
+        cambio.ubicacion_id,
+        cambio.dia_semana
+      );
       if (reservasFuturas.length > 0) {
         const ids = reservasFuturas.map((r) => r.id);
-        await reservasModel.cancelReservasFuturas(ids, 'Empleado cambio de sede');
+        const canceladas = await reservasModel.cancelReservasFuturas(ids, MOTIVO_CAMBIO_SEDE);
+        reservasCanceladas.push(...canceladas);
       }
     }
 
-    return { actualizado: true, sedes_cambiadas: sedesCambiadas };
+    return {
+      actualizado: true,
+      dias_cambiados: diasCambiados.map((d) => d.dia_semana),
+      reservas_canceladas: reservasCanceladas,
+      motivo_cancelacion: MOTIVO_CAMBIO_SEDE,
+    };
   },
 };
 

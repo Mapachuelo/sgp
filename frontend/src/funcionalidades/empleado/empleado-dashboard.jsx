@@ -61,9 +61,10 @@ function MapRecenter({ lat, lng }) {
   return null;
 }
 
-function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
+function ValidarQRModal({ open, onClose, onSuccess, citaPrevia, modoCobro = false }) {
   const [qrToken, setQrToken] = useState('');
   const [monto, setMonto] = useState('');
+  const [metodoCobro, setMetodoCobro] = useState('fisico');
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [error, setError] = useState('');
@@ -93,12 +94,17 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
     if (open && citaPrevia) {
       setQrToken(citaPrevia.qr_token || '');
       const precio = parseFloat(citaPrevia.precio_base || citaPrevia.precio || 0);
-      setMonto(citaPrevia.estado === 'confirmada' ? '0' : String(precio));
-    } else if (!open) {
+      setMetodoCobro('fisico');
+      setMonto(precio ? String(precio) : '');
+    } else if (open) {
+      setMetodoCobro('fisico');
+      if (!qrToken) setMonto('');
+    } else {
       setQrToken('');
       setMonto('');
     }
-  }, [open, citaPrevia]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, citaPrevia, modoCobro]);
 
   const activarCamara = async () => {
     setErrorCamara('');
@@ -131,7 +137,8 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
     setResultado(null);
     setCargando(true);
     try {
-      const data = await api.checkin.validar({ qr_token: qrToken, monto: parseFloat(monto) || 0 });
+      const montoFinal = metodoCobro === 'online' ? 0 : parseFloat(monto) || 0;
+      const data = await api.checkin.validar({ qr_token: qrToken, monto: montoFinal });
       setResultado(data);
       onSuccess?.(data);
     } catch (err) {
@@ -151,7 +158,7 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Validar ingreso y cobro">
+    <Modal open={open} onClose={handleClose} title={modoCobro ? 'Registrar cobro' : 'Validar ingreso y cobro'}>
       {resultado ? (
         <div className="text-center py-6 space-y-4">
           <div className="w-16 h-16 mx-auto rounded-full bg-green-50 flex items-center justify-center text-exito">
@@ -160,12 +167,15 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
             </svg>
           </div>
           <div>
-            <p className="font-semibold text-exito text-lg">Check-in validado</p>
+            <p className="font-semibold text-exito text-lg">{modoCobro ? 'Cobro registrado' : 'Check-in validado'}</p>
             <p className="text-texto-secundario text-xs mt-1">
               Cliente: <strong className="text-texto-principal">{resultado.cliente_nombre || '—'}</strong>
             </p>
             <p className="text-texto-secundario text-xs">
-              Método: <strong className="text-texto-principal">{resultado.metodo_pago || '—'}</strong>
+              Método: <strong className="text-texto-principal">{resultado.metodo_pago || resultado.metodo || '—'}</strong>
+            </p>
+            <p className="text-texto-secundario text-xs">
+              Monto: <strong className="text-texto-principal">${parseFloat(resultado.monto || 0).toLocaleString('es-CO')}</strong>
             </p>
           </div>
           <Button variant="outline" className="mt-4 w-full" onClick={handleClose}>Cerrar Ventana</Button>
@@ -241,8 +251,39 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
           </div>
 
           <div>
+            <span className="block text-xs font-semibold text-texto-principal uppercase tracking-wider mb-1.5">Metodo de cobro</span>
+            <div className="grid grid-cols-2 gap-2 mb-3" role="group" aria-label="Metodo de cobro">
+              <button
+                type="button"
+                aria-pressed={metodoCobro === 'online'}
+                onClick={() => { setMetodoCobro('online'); setMonto('0'); }}
+                className={`px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                  metodoCobro === 'online'
+                    ? 'border-info bg-info/10 text-info'
+                    : 'border-borde bg-superficie text-texto-secundario hover:border-info'
+                }`}
+              >
+                Pago online ($0)
+              </button>
+              <button
+                type="button"
+                aria-pressed={metodoCobro === 'fisico'}
+                onClick={() => {
+                  setMetodoCobro('fisico');
+                  const precio = parseFloat(citaPrevia?.precio_base || citaPrevia?.precio || 0);
+                  if ((!monto || monto === '0') && precio) setMonto(String(precio));
+                }}
+                className={`px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                  metodoCobro === 'fisico'
+                    ? 'border-primario bg-primario/10 text-primario'
+                    : 'border-borde bg-superficie text-texto-secundario hover:border-primario'
+                }`}
+              >
+                Efectivo en local
+              </button>
+            </div>
             <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-semibold text-texto-principal uppercase tracking-wider">Cobro en efectivo</label>
+              <label htmlFor="monto-cobro" className="block text-xs font-semibold text-texto-principal uppercase tracking-wider">Monto recibido</label>
               {citaPrevia && (
                 <span className="text-[10px] text-texto-secundario">
                   Precio del servicio: ${parseFloat(citaPrevia.precio_base || citaPrevia.precio || 0).toLocaleString()}
@@ -250,13 +291,15 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia }) {
               )}
             </div>
             <input
+              id="monto-cobro"
               type="number"
-              value={monto}
+              value={metodoCobro === 'online' ? '0' : monto}
               onChange={(e) => setMonto(e.target.value)}
               placeholder="Monto"
               step="0.01"
               min="0"
-              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
+              disabled={metodoCobro === 'online'}
+              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition disabled:opacity-60"
             />
           </div>
 
@@ -277,6 +320,7 @@ export default function EmpleadoDashboard() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [modalQR, setModalQR] = useState(false);
+  const [modoCobro, setModoCobro] = useState(false);
   const [citaPrevia, setCitaPrevia] = useState(null);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
   const [fecha, setFecha] = useState(formatearFechaLocal(new Date()));
@@ -372,6 +416,7 @@ export default function EmpleadoDashboard() {
 
   const handleValidarClick = (cita) => {
     setCitaPrevia(cita);
+    setModoCobro(false);
     setModalQR(true);
   };
 
@@ -487,8 +532,11 @@ export default function EmpleadoDashboard() {
           >
             →
           </button>
-          <Button onClick={() => setModalQR(true)}>
+          <Button onClick={() => { setCitaPrevia(null); setModoCobro(false); setModalQR(true); }}>
             Validar QR
+          </Button>
+          <Button variant="secundario" onClick={() => { setCitaPrevia(null); setModoCobro(true); setModalQR(true); }}>
+            Registrar cobro
           </Button>
         </div>
       </div>
@@ -672,8 +720,10 @@ export default function EmpleadoDashboard() {
 
       <ValidarQRModal
         open={modalQR}
+        modoCobro={modoCobro}
         onClose={() => {
           setModalQR(false);
+          setModoCobro(false);
           setCitaPrevia(null);
         }}
         onSuccess={handleValidarQrSuccess}
