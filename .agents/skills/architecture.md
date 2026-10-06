@@ -125,14 +125,20 @@ sgp/
 │       │   │   ├── mi-disponibilidad.jsx
 │       │   │   └── mi-perfil.jsx
 │       │   └── admin/
-│       │       ├── admin-dashboard.jsx
-│       │       ├── gestion-empleados.jsx
-│       │       ├── gestion-servicios.jsx
-│       │       ├── gestion-ubicaciones.jsx
-│       │       ├── configurar-horarios.jsx
-│       │       ├── reportes-page.jsx
-│       │       ├── moderar-clientes.jsx
-│       │       └── gestor-logs.jsx
+│       │       ├── admin-dashboard.jsx      # Shell: acciones, gestion, KPIs, timeline
+│       │       ├── utils.js                 # Helpers de estado/fechas/colores admin
+│       │       └── secciones/
+│       │           ├── validar-qr-modal.jsx
+│       │           ├── cobro-modal.jsx
+│       │           ├── empleados-seccion.jsx
+│       │           ├── servicios-seccion.jsx
+│       │           ├── sedes-seccion.jsx
+│       │           ├── horarios-seccion.jsx     # Tabs planificador/jornada
+│       │           ├── planificador-horarios.jsx
+│       │           ├── jornada-sede.jsx
+│       │           ├── reportes-seccion.jsx
+│       │           ├── clientes-seccion.jsx
+│       │           └── logs-seccion.jsx
 │       └── lib/
 │           └── utils.js
 ├── backend/
@@ -270,6 +276,8 @@ sgp/
 
 ## Testing
 
-- `tests/api.sh`: script bash que prueba con `curl` salud/docs, RBAC, validaciones de check-in, reportes/logs y el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
+- `tests/api.sh`: script bash que prueba con `curl` salud/docs, RBAC, validaciones de check-in, agenda/planificador, reportes/logs y el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
+- `tests/datos.sh`: validaciones SQL del dataset demo (una sede por dia, sin solapes, maximo 5 activas, cobro unico, citas activas dentro de disponibilidad).
+- `backend/src/utils/semillar-demo.js`: seed masivo parametrizable (ver README, seccion Datos de demostracion).
 - Pruebas manuales con el demo (`demo.html`) como referencia visual.
 - No hay tests unitarios en el MVP inicial. Se agregaran en fase 10.

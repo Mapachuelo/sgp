@@ -118,6 +118,26 @@ RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/checki
 verificar "Checkin con UUID inexistente devuelve 404" "404" "$RESP"
 
 echo ""
+echo "== Planificador (admin) =="
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/empleados/disponibilidad/todas" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /empleados/disponibilidad/todas con admin devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/empleados/disponibilidad/todas")
+verificar "GET /empleados/disponibilidad/todas sin token devuelve 401" "401" "$RESP"
+
+DESDE=$(date +%Y-%m-%d)
+HASTA=$(date -d "+7 days" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/agenda?desde=$DESDE&hasta=$HASTA" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /reservas/agenda con admin devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/reservas/agenda?desde=mal&hasta=$HASTA" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /reservas/agenda con fecha invalida devuelve 400" "400" "$RESP"
+
+echo ""
 echo "== Reportes y logs (admin) =="
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reportes/ocupacion" \

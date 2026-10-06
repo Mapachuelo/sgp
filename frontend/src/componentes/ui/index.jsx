@@ -119,12 +119,13 @@ export function Badge({ children, variant = 'default', className = '' }) {
   );
 }
 
-export function Sheet({ open, onClose, children, title, side = 'right' }) {
+export function Sheet({ open, onClose, children, title, side = 'right', size = 'normal' }) {
   const ref = useRef(null);
   const tituloId = useId();
   useDialogo(open, onClose, ref);
   if (!open) return null;
-  const posicion = side === 'right' ? 'right-0 h-full w-[640px] max-w-[100vw]' : 'left-0 right-0';
+  const ancho = size === 'wide' ? 'w-[95vw] max-w-[1500px]' : 'w-[640px] max-w-[100vw]';
+  const posicion = side === 'right' ? `right-0 h-full ${ancho}` : 'left-0 right-0';
   return (
     <>
       <div className="fixed inset-0 z-50 overlay" onClick={onClose} role="presentation" />

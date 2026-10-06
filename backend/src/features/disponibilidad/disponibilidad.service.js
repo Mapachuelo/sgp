@@ -9,6 +9,10 @@ const disponibilidadService = {
     return disponibilidadModel.findDisponibilidadByEmpleado(empleado_id);
   },
 
+  async getAllDisponibilidad() {
+    return disponibilidadModel.findAllDisponibilidad();
+  },
+
   async updateDisponibilidad(empleado_id, items) {
     if (!Array.isArray(items)) {
       throw new HttpError(400, 'Los items de disponibilidad deben ser un arreglo');

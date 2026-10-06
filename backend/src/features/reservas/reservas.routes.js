@@ -23,6 +23,8 @@ router.post('/', authenticate, authorize('cliente'), reservasController.crearRes
 router.get('/me', authenticate, authorize('cliente'), reservasController.misReservas);
 router.delete('/me/:id', authenticate, authorize('cliente'), reservasController.cancelarMiReserva);
 
+router.get('/agenda', authenticate, authorize('admin'), reservasController.agenda);
+
 router.get('/', authenticate, authorize('empleado', 'admin'), reservasController.listarReservas);
 
 module.exports = router;

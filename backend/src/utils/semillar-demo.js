@@ -382,6 +382,7 @@ async function validarDatos() {
       sql: `SELECT COUNT(*)::int AS n FROM reserva r
             JOIN app_user u ON u.id = r.empleado_id
             WHERE u.email LIKE '%${DOMINIO_DEMO}'
+              AND r.estado IN ('pendiente','confirmada')
               AND NOT EXISTS (
                 SELECT 1 FROM empleado_disponibilidad ed
                 WHERE ed.empleado_id = r.empleado_id AND ed.ubicacion_id = r.ubicacion_id

@@ -72,6 +72,7 @@ const api = {
     misReservas: () => request('/reservas/me'),
     cancelar: (id) => request(`/reservas/me/${id}`, { method: 'DELETE' }),
     list: (params) => request(`/reservas?${new URLSearchParams(params)}`),
+    agenda: (params) => request(`/reservas/agenda?${new URLSearchParams(params)}`),
   },
   checkin: {
     validar: (body) => request('/checkin/validar', { method: 'POST', body: JSON.stringify(body) }),
@@ -86,6 +87,7 @@ const api = {
     update: (body) => request('/empleados/disponibilidad', { method: 'PUT', body: JSON.stringify(body) }),
     getByAdmin: (empleadoId) => request(`/empleados/${empleadoId}/disponibilidad`),
     updateByAdmin: (empleadoId, body) => request(`/empleados/${empleadoId}/disponibilidad`, { method: 'PUT', body: JSON.stringify(body) }),
+    todas: () => request('/empleados/disponibilidad/todas'),
   },
   logs: {
     actividad: (params) => request(`/logs/actividad?${new URLSearchParams(params)}`),

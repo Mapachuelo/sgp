@@ -35,6 +35,11 @@ const disponibilidadController = {
     res.json({ ok: true, data: disponibilidad });
   }),
 
+  getAll: asyncHandler(async (_req, res) => {
+    const disponibilidad = await disponibilidadService.getAllDisponibilidad();
+    res.json({ ok: true, data: disponibilidad });
+  }),
+
   updateByAdmin: asyncHandler(async (req, res) => {
     const empleadoId = parseInt(req.params.empleadoId, 10);
     const result = await disponibilidadService.updateDisponibilidad(

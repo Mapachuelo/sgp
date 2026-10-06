@@ -95,6 +95,31 @@ const reservasModel = {
     return rows[0] || null;
   },
 
+  async findAgenda(desde, hasta, empleado_id) {
+    const values = [desde, hasta];
+    let filtroEmpleado = '';
+    if (empleado_id) {
+      values.push(empleado_id);
+      filtroEmpleado = ` AND r.empleado_id = $${values.length}`;
+    }
+    const { rows } = await pool.query(
+      `SELECT r.id, r.empleado_id, r.ubicacion_id, r.servicio_id, r.inicia_en, r.termina_en,
+              r.cantidad_personas, r.estado, r.qr_token,
+              u.nombre as ubicacion_nombre, s.nombre as servicio_nombre,
+              cli.nombre as cliente_nombre, cli.apellido as cliente_apellido,
+              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido
+       FROM reserva r
+       JOIN ubicacion u ON r.ubicacion_id = u.id
+       JOIN servicio_catalogo s ON r.servicio_id = s.id
+       JOIN app_user cli ON r.cliente_id = cli.id
+       JOIN app_user emp ON r.empleado_id = emp.id
+       WHERE (r.inicia_en AT TIME ZONE 'America/Bogota')::date BETWEEN $1::date AND $2::date${filtroEmpleado}
+       ORDER BY r.inicia_en`,
+      values
+    );
+    return rows;
+  },
+
   async findAllReservas(filtros = {}) {
     let query = `
       SELECT r.*, u.nombre as ubicacion_nombre, u.latitud as ubicacion_latitud, u.longitud as ubicacion_longitud,

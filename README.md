@@ -54,9 +54,10 @@ sgp/
 │           ├── auth/                # login-page, registro-page
 │           ├── cliente/             # dashboard kanban + mapa, nueva-reserva (stepper 5 pasos), mi-perfil
 │           ├── empleado/            # dashboard, validar-qr, mi-disponibilidad, mi-perfil
-│           └── admin/               # dashboard + 9 sheets modales
+│           ├── admin/               # dashboard + secciones/ (empleados, servicios, sedes,
+│           │                        #   horarios con planificador, reportes, clientes, logs) + modales QR/Cobro
 └── tests/
-    ├── api.sh                # 21 pruebas de integracion curl
+    ├── api.sh                # 25 pruebas de integracion curl
     └── datos.sh              # Validaciones SQL del dataset demo
 ```
 
@@ -191,6 +192,16 @@ Salida de datos: `backend/exports/` con `reservas.csv`, `cobros.csv`, `disponibi
 
 Opciones: `--append` (no borra), `--sin-export`, `--sin-api`, `--reservas=2000`, `--empleados=20`, `--clientes=100`, `--diasPasados=60`, `--diasFuturos=60`.
 
+## Panel de administracion
+
+El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidades/admin/`:
+
+- **Dashboard:** acciones rapidas (Validar QR, Registrar cobro, actualizar), tarjeta de **Gestion** con los 9 accesos, 4 KPIs (recaudacion, reservas del dia, ocupacion promedio por sede, clientes activos) y timeline de reservas con filtros por fecha y sede.
+- **Secciones (ventanas flotantes, RF11 intacto):** empleados, servicios, sedes, reportes, moderacion de clientes y logs; modales centrados de Validar QR y Cobro.
+- **Planificador de horarios** (sheet ancho, pestaña por defecto): matriz **empleados x LUN-DOM** con una sede por dia (colores por sede), **citas superpuestas** por estado (clic en una cita pendiente/confirmada abre el modal de validacion), filtros por empleado/sede, navegacion por semanas y editor lateral por celda.
+- Al cambiar la sede de un dia se advierte y, al guardar, se cancelan las reservas futuras de ese dia con el motivo `"El empleado cambió de sede"` (RF9) mostrando el conteo en un toast. La pestaña **Jornada por sede** conserva la edicion de `jornada` (horario de la sede).
+- Interfaz con iconos (lucide-react), i18n ES/EN ampliado y accesibilidad mantenida (dialogos, foco, Escape, labels).
+
 ## API — Endpoints completos
 
 ### Auth (RF0, RF1)
@@ -240,6 +251,7 @@ Opciones: `--append` (no borra), `--sin-export`, `--sin-api`, `--reservas=2000`,
 | POST | `/api/reservas` | Cliente |
 | GET | `/api/reservas/me` | Cliente |
 | DELETE | `/api/reservas/me/:id` | Cliente |
+| GET | `/api/reservas/agenda?desde&hasta` | Admin (rango de citas para el planificador) |
 | GET | `/api/reservas` | Empleado/Admin |
 
 ### Checkin (RF3)
@@ -267,6 +279,9 @@ Opciones: `--append` (no borra), `--sin-export`, `--sin-api`, `--reservas=2000`,
 |--------|------|-----|
 | GET | `/api/empleados/disponibilidad` | Empleado |
 | PUT | `/api/empleados/disponibilidad` | Empleado |
+| GET | `/api/empleados/disponibilidad/todas` | Admin |
+| GET | `/api/empleados/:empleadoId/disponibilidad` | Admin |
+| PUT | `/api/empleados/:empleadoId/disponibilidad` | Admin |
 
 ### Logs (RF12)
 | Metodo | Ruta | Rol |
@@ -320,7 +335,7 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Documentacion API en `/api/docs` (Swagger UI + OpenAPI 3)
 - Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
 
-Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad, reservas (crear/listar/cancelar/solape), checkin+cobro atomico, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin+cobro atomico, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
 
 ## Desarrollo local
 

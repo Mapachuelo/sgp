@@ -386,3 +386,33 @@
 - Capturas Chromium: empleado hoy (Natalia, Demo Sede Suba, Cancelada + Cobrado online $0), disponibilidad multi-sede (rotacion), kanban cliente (4 activas con mapa y QR), admin KPIs (33 citas hoy, $2.933.000, 27.5% ocupacion, 20 clientes), reportes con desglose por servicio, logs con actividad real, calendario paso 3 con "Disponible" (lunes 15:00-21:00) y modal paso 4 con duracion `15:00 → 15:45`.
 - RF9 dinamico: mover el lunes de `estilista01` de la sede 47 a la sede 1 cancelo 4 reservas futuras con motivo exacto `El empleado cambió de sede` (respuesta API + BD) y se restauro la disponibilidad.
 - Exports del seed en `backend/exports/` (gitignored): `reservas.csv` (~1270 filas), `cobros.csv`, `disponibilidad.csv`, `resumen.json`; copiados a `/tmp/opencode/exports` para inspeccion.
+
+---
+
+## Sesion — 26 Septiembre 2026 (tercera parte)
+
+### Rediseño del panel admin + Planificador de Horarios
+
+#### Backend (endpoints batch para el planificador)
+- `GET /api/empleados/disponibilidad/todas` (admin): disponibilidad semanal de todos los empleados con nombre de empleado y sede.
+- `GET /api/reservas/agenda?desde&hasta[&empleado_id]` (admin): citas del rango en TZ Bogota con cliente/servicio/sede/estado/qr_token; valida formato de fechas.
+- OpenAPI actualizado y `tests/api.sh` ampliado a **25 pruebas** (nuevas: disponibilidad/todas 200 y 401, agenda 200, agenda con fecha invalida 400).
+
+#### Frontend (rediseño desde 0 conservando funcionalidad)
+- `admin-dashboard.jsx` reescrito (1971 → ~330 lineas) y modularizado (alineado con `architecture.md`):
+  - `admin/utils.js` (estados, fechas Bogota, paleta de sedes, colores de cita).
+  - `admin/secciones/`: `validar-qr-modal`, `cobro-modal`, `empleados-seccion`, `servicios-seccion`, `sedes-seccion`, `horarios-seccion` (tabs), `planificador-horarios`, `jornada-sede`, `reportes-seccion`, `clientes-seccion`, `logs-seccion`.
+  - Cada seccion carga sus propios datos y es self-contained; los sheets se cierran recargando KPIs/timeline.
+- **Planificador de horarios** (pestaña por defecto del sheet Horarios, `size="wide"` 95vw):
+  - Matriz empleados x LUN-DOM con una sede por dia (colores por sede), filtros (busqueda, sede, solo con horario) y navegacion de semanas (Hoy/±7 dias).
+  - **Citas superpuestas** por dia/empleado (chips por estado); clic en pendiente/confirmada abre el modal de validacion con su token (RF11: una ventana flotante a la vez).
+  - Editor lateral por celda (sede, hora inicio/fin o descanso) con confirmacion RF9 al cambiar sede y toast con `reservas_canceladas`; guarda la semana completa del empleado via `PUT /empleados/:id/disponibilidad`.
+  - Pestaña "Jornada por sede": CRUD de jornadas por fecha con agregar/quitar.
+- Dashboard: acciones rapidas, tarjeta de Gestion con 9 accesos con iconos (lucide-react), KPIs con iconos y barra, timeline con cabecera sticky.
+- `Sheet` acepta `size="wide"`; i18n ampliado (~80 cadenas nuevas); accesibilidad mantenida (role dialog, Escape, foco, labels, aria-pressed).
+
+#### Verificacion
+- `tests/api.sh` **25/25**, `tests/datos.sh` **6/6**, e2e **23/23**; lint backend limpio; build de frontend OK; imagenes reconstruidas y pod redesplegado.
+- Capturas Chromium: dashboard redisenado, planificador con 207 citas de la semana, editor de celda, jornada por sede, empleados, reportes, logs y **RF9 desde el planificador** (cambio de sede de un dia con cita pendiente → toast "5 reserva(s) cancelada(s) por cambio de sede" y `reservas_canceladas` en API).
+- Fixes de la verificacion: la pestaña de Horarios se resetea al reabrir (`useEffect` sobre `open`); las validaciones de datos exigen disponibilidad solo a citas activas (`pendiente/confirmada`), porque RF9 deja historicas y `en_curso` fuera de la nueva disponibilidad; rutas relativas de `admin/secciones/` (un nivel mas).
+- Dataset demo regenerado limpio tras la demo RF9 (`semillar-demo.js --reset`).

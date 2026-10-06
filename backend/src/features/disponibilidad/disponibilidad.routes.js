@@ -4,6 +4,8 @@ const { authenticate, authorize } = require('../../shared/middlewares/auth.middl
 
 const router = Router();
 
+router.get('/disponibilidad/todas', authenticate, authorize('admin'), disponibilidadController.getAll);
+
 router.get('/disponibilidad', authenticate, authorize('empleado'), disponibilidadController.get);
 router.put('/disponibilidad', authenticate, authorize('empleado'), disponibilidadController.update);
 

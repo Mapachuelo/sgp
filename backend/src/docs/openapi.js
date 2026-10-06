@@ -257,6 +257,18 @@ const openapi = {
     '/reservas/empleados-disponibles': {
       get: { tags: ['Reservas'], summary: 'Empleados disponibles por sede/fecha (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'fecha', in: 'query', required: true, schema: { type: 'string', format: 'date' } }], responses: { 200: { description: 'Empleados' } } },
     },
+    '/reservas/agenda': {
+      get: {
+        tags: ['Reservas'],
+        summary: 'Agenda de citas por rango de fechas (admin)',
+        parameters: [
+          { name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date' } },
+          { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date' } },
+          { name: 'empleado_id', in: 'query', schema: { type: 'integer' } },
+        ],
+        responses: { 200: { description: 'Citas del rango' }, 400: { description: 'Fechas invalidas' } },
+      },
+    },
     '/reservas': {
       post: {
         tags: ['Reservas'],
@@ -331,6 +343,9 @@ const openapi = {
     '/empleados/{empleadoId}/disponibilidad': {
       get: { tags: ['Disponibilidad'], summary: 'Disponibilidad de un empleado (admin)', parameters: [{ name: 'empleadoId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Bloques' } } },
       put: { tags: ['Disponibilidad'], summary: 'Actualiza disponibilidad de un empleado (admin)', parameters: [{ name: 'empleadoId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Disponibilidad actualizada' } } },
+    },
+    '/empleados/disponibilidad/todas': {
+      get: { tags: ['Disponibilidad'], summary: 'Disponibilidad semanal de todos los empleados (admin)', responses: { 200: { description: 'Bloques con empleado y sede' } } },
     },
     '/logs/actividad': {
       get: { tags: ['Logs'], summary: 'logs.txt con filtros (admin)', parameters: [{ name: 'filtro', in: 'query', schema: { type: 'string' } }, { name: 'fecha', in: 'query', schema: { type: 'string', format: 'date' } }, { name: 'severidad', in: 'query', schema: { type: 'string', enum: ['info', 'warn', 'error'] } }], responses: { 200: { description: 'Lineas de log' } } },

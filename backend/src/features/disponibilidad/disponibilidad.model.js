@@ -13,6 +13,19 @@ const disponibilidadModel = {
     return rows;
   },
 
+  async findAllDisponibilidad() {
+    const { rows } = await pool.query(
+      `SELECT ed.*, u.nombre as ubicacion_nombre,
+              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido
+       FROM empleado_disponibilidad ed
+       JOIN ubicacion u ON ed.ubicacion_id = u.id
+       JOIN app_user emp ON ed.empleado_id = emp.id
+       WHERE emp.rol = 'empleado'
+       ORDER BY emp.nombre, emp.apellido, ed.dia_semana, ed.hora_inicio`
+    );
+    return rows;
+  },
+
   async deleteDisponibilidadEmpleado(empleado_id) {
     await pool.query('DELETE FROM empleado_disponibilidad WHERE empleado_id = $1', [empleado_id]);
   },

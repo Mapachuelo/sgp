@@ -99,6 +99,11 @@ const reservasController = {
     const reservas = await reservasService.getAllReservas(req.query);
     res.json({ ok: true, data: reservas });
   }),
+
+  agenda: asyncHandler(async (req, res) => {
+    const reservas = await reservasService.getAgenda(req.query);
+    res.json({ ok: true, data: reservas });
+  }),
 };
 
 module.exports = reservasController;

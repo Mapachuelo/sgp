@@ -184,6 +184,17 @@ const reservasService = {
   async getAllReservas(filtros) {
     return reservasModel.findAllReservas(filtros);
   },
+
+  async getAgenda({ desde, hasta, empleado_id }) {
+    const fechaValida = (valor) => typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor);
+    if (!fechaValida(desde) || !fechaValida(hasta)) {
+      throw new HttpError(400, 'desde y hasta son requeridos con formato YYYY-MM-DD');
+    }
+    if (desde > hasta) {
+      throw new HttpError(400, 'desde no puede ser mayor que hasta');
+    }
+    return reservasModel.findAgenda(desde, hasta, empleado_id ? parseInt(empleado_id, 10) : null);
+  },
 };
 
 module.exports = reservasService;
