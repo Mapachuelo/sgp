@@ -8,7 +8,7 @@ const { enviarCorreoVerificacion } = require('../../integrations/email/mailer');
 const logger = require('../../shared/logger');
 const { validarTelefono } = require('../../shared/utils/telefono');
 
-const EXPIRACION_TOKEN_MINUTOS = 15;
+const EXPIRACION_TOKEN_MINUTOS = env.registroTtlMinutos;
 
 function validarEmail(email) {
   return typeof email === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
@@ -45,7 +45,11 @@ const authService = {
 
     const existente = await authModel.findByEmail(email);
     if (existente) {
-      throw new HttpError(409, 'El correo ya esta registrado');
+      if (existente.verificado || existente.rol !== 'cliente') {
+        throw new HttpError(409, 'El correo ya esta registrado');
+      }
+      await authModel.deleteUsuario(existente.id);
+      logger.info({ email }, 'Registro sin verificar reemplazado por uno nuevo');
     }
 
     const password_hash = await bcrypt.hash(password, 12);
@@ -82,6 +86,8 @@ const authService = {
         rol: usuario.rol,
       },
       correoEnviado,
+      expiraEn: expiracion.toISOString(),
+      ttlMinutos: EXPIRACION_TOKEN_MINUTOS,
     };
   },
 
@@ -130,7 +136,6 @@ const authService = {
 
     const codigo = generarCodigo();
     const expiracion = new Date(Date.now() + EXPIRACION_TOKEN_MINUTOS * 60 * 1000);
-    await authModel.saveVerificationToken(usuario.id, hashCodigo(codigo), expiracion);
 
     try {
       await enviarCorreoVerificacion({ email, nombre: usuario.nombre, codigo });
@@ -139,7 +144,13 @@ const authService = {
       throw new HttpError(502, 'No se pudo enviar el correo. Intenta nuevamente.');
     }
 
-    return { reenviado: true };
+    await authModel.saveVerificationToken(usuario.id, hashCodigo(codigo), expiracion);
+
+    return {
+      reenviado: true,
+      expiraEn: expiracion.toISOString(),
+      ttlMinutos: EXPIRACION_TOKEN_MINUTOS,
+    };
   },
 
   async login(email, password) {

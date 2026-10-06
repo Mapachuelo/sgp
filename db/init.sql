@@ -164,6 +164,13 @@ BEGIN
     SELECT id, '1234567890', sede_id FROM app_user WHERE email = 'empleado@sgp.local'
     ON CONFLICT (usuario_id) DO NOTHING;
   END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM app_user WHERE email = 'cliente@sgp.local') THEN
+    INSERT INTO app_user (email, password_hash, rol, nombre, apellido, telefono, verificado)
+    VALUES ('cliente@sgp.local',
+            '$2a$12$ui.KdbhGZ3GGyrO/m2VIc.uo6D.RwC.F/3N2vvUcQSyo6AbyYIPDe',
+            'cliente', 'Cliente', 'Prueba', '+573003334455', TRUE);
+  END IF;
 END $$;
 
 DO $$

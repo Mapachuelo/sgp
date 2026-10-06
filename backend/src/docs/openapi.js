@@ -53,6 +53,8 @@ const openapi = {
       post: {
         tags: ['Auth'],
         summary: 'Registro de cliente (envia OTP por correo, no emite JWT)',
+        description:
+          'Si el correo ya existe sin verificar (rol cliente) se reemplaza por el nuevo registro. La cuenta se conserva hasta que se verifique o hasta que expire el tiempo de registro (REGISTRO_TTL_MINUTOS, 5 por defecto); al expirar se elimina y el correo queda libre. Si el envio del OTP falla, correoEnviado queda en false y se puede reintentar con /auth/reenviar-codigo.',
         security: [],
         requestBody: {
           required: true,
@@ -132,7 +134,7 @@ const openapi = {
     '/auth/reenviar-codigo': {
       post: {
         tags: ['Auth'],
-        summary: 'Reenvia el codigo OTP (max 3 cada 15 min)',
+        summary: 'Reenvia el codigo OTP (max 3 cada 15 min); reinicia el tiempo de registro',
         security: [],
         requestBody: {
           required: true,

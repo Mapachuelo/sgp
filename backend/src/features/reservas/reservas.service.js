@@ -186,7 +186,11 @@ const reservasService = {
   },
 
   async getAgenda({ desde, hasta, empleado_id }) {
-    const fechaValida = (valor) => typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor);
+    const fechaValida = (valor) =>
+      typeof valor === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
+      !Number.isNaN(Date.parse(`${valor}T00:00:00Z`)) &&
+      new Date(`${valor}T00:00:00Z`).toISOString().slice(0, 10) === valor;
     if (!fechaValida(desde) || !fechaValida(hasta)) {
       throw new HttpError(400, 'desde y hasta son requeridos con formato YYYY-MM-DD');
     }

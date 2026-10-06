@@ -4,17 +4,40 @@ import { useAuth } from '../../hooks/use-auth';
 import api from '../../api/cliente';
 import { Button, Input } from '../../componentes/ui';
 
+function formatearTiempo(segundos) {
+  const m = String(Math.floor(segundos / 60)).padStart(2, '0');
+  const s = String(segundos % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
 export default function VerificarPage() {
   const { verificarCuenta } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const ttlMinutos = location.state?.ttlMinutos || 5;
   const [email, setEmail] = useState(location.state?.email || '');
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [cargando, setCargando] = useState(false);
   const [contador, setContador] = useState(0);
+  const [expiraEn, setExpiraEn] = useState(
+    location.state?.expiraEn || new Date(Date.now() + ttlMinutos * 60000).toISOString()
+  );
+  const [restante, setRestante] = useState(() =>
+    Math.max(0, Math.floor((new Date(location.state?.expiraEn || Date.now() + ttlMinutos * 60000).getTime() - Date.now()) / 1000))
+  );
+  const [correoEnviado] = useState(location.state?.correoEnviado !== false);
+
+  const expirado = restante <= 0;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRestante(Math.max(0, Math.floor((new Date(expiraEn).getTime() - Date.now()) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [expiraEn]);
 
   useEffect(() => {
     if (contador <= 0) return;
@@ -31,10 +54,17 @@ export default function VerificarPage() {
     setCodigo(value);
   }
 
+  function marcarExpirado(mensaje) {
+    setExpiraEn(new Date(0).toISOString());
+    setRestante(0);
+    setError(mensaje || 'Tu registro expiro y el correo quedo libre.');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setInfo('');
+    if (expirado) return;
     if (!email.trim()) {
       setError('Ingresa tu correo electronico.');
       return;
@@ -51,7 +81,9 @@ export default function VerificarPage() {
       else if (data.usuario?.rol === 'admin') navigate('/admin', { replace: true });
       else navigate('/login', { replace: true });
     } catch (err) {
-      setError(err.message || 'No se pudo verificar la cuenta');
+      const mensaje = err.message || 'No se pudo verificar la cuenta';
+      if (/no encontrado|expiro|expirado/i.test(mensaje)) marcarExpirado(mensaje);
+      else setError(mensaje);
     } finally {
       setCargando(false);
     }
@@ -66,11 +98,16 @@ export default function VerificarPage() {
     }
     setCargando(true);
     try {
-      await api.auth.reenviarCodigo({ email: email.trim() });
+      const data = await api.auth.reenviarCodigo({ email: email.trim() });
+      const nuevoExpira = data?.expiraEn || new Date(Date.now() + ttlMinutos * 60000).toISOString();
+      setExpiraEn(nuevoExpira);
+      setRestante(Math.max(0, Math.floor((new Date(nuevoExpira).getTime() - Date.now()) / 1000)));
       setInfo('Codigo reenviado. Revisa tu correo.');
       setContador(60);
     } catch (err) {
-      setError(err.message || 'No se pudo reenviar el codigo');
+      const mensaje = err.message || 'No se pudo reenviar el codigo';
+      if (/no encontrado|expiro|expirado/i.test(mensaje)) marcarExpirado(mensaje);
+      else setError(mensaje);
     } finally {
       setCargando(false);
     }
@@ -98,9 +135,39 @@ export default function VerificarPage() {
 
           <div className="bg-superficie rounded-2xl border border-borde shadow-sm p-8">
             <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">Verificar cuenta</h2>
-            <p className="text-sm text-texto-secundario mb-6 font-body">
-              Enviamos un codigo de 6 digitos a tu correo. Ingresalo para activar tu cuenta.
-            </p>
+
+            {expirado ? (
+              <div className="mb-5 p-4 bg-advertencia/10 border border-advertencia/30 rounded-lg">
+                <p className="font-semibold text-advertencia text-sm">Tu registro expiro y el correo quedo libre.</p>
+                <p className="text-texto-secundario text-xs mt-1">
+                  Registrate de nuevo para recibir un nuevo codigo de verificacion.
+                </p>
+                <Button className="mt-3 w-full" onClick={() => navigate('/register')}>
+                  Registrarme de nuevo
+                </Button>
+              </div>
+            ) : (
+              <div className="mb-5 space-y-2">
+                <p className="text-sm text-texto-secundario font-body">
+                  Enviamos un codigo de 6 digitos a tu correo. Ingresalo para activar tu cuenta.
+                </p>
+                <p
+                  className={`text-sm font-semibold ${restante <= 60 ? 'text-error' : 'text-texto-principal'}`}
+                  aria-live="polite"
+                >
+                  Tiempo para verificar: {formatearTiempo(restante)}
+                </p>
+                <p className="text-xs text-texto-secundario">
+                  Si no verificas en este tiempo, el registro se elimina y el correo queda libre.
+                </p>
+              </div>
+            )}
+
+            {!correoEnviado && !expirado && (
+              <div className="mb-4 p-3 bg-advertencia/10 border border-advertencia/20 rounded-lg text-advertencia text-sm font-medium">
+                No se pudo enviar el codigo a tu correo. Usa &quot;Reenviar codigo&quot; para intentarlo de nuevo.
+              </div>
+            )}
 
             {error && (
               <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-lg text-error text-sm font-medium">
@@ -123,6 +190,7 @@ export default function VerificarPage() {
                 placeholder="tu@correo.com"
                 required
                 autoComplete="email"
+                disabled={expirado}
               />
               <Input
                 label="Código de verificación"
@@ -135,8 +203,9 @@ export default function VerificarPage() {
                 required
                 autoComplete="one-time-code"
                 maxLength={6}
+                disabled={expirado}
               />
-              <Button type="submit" variant="primario" className="w-full" size="lg" disabled={cargando}>
+              <Button type="submit" variant="primario" className="w-full" size="lg" disabled={cargando || expirado}>
                 {cargando ? 'Verificando…' : 'Verificar cuenta'}
               </Button>
             </form>
@@ -147,7 +216,7 @@ export default function VerificarPage() {
                 variant="secundario"
                 className="w-full"
                 onClick={handleReenviar}
-                disabled={cargando || contador > 0}
+                disabled={cargando || contador > 0 || expirado}
               >
                 {contador > 0 ? `Reenviar codigo en ${contador}s` : 'Reenviar codigo'}
               </Button>

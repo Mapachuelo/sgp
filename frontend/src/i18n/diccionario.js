@@ -353,4 +353,11 @@ export const TRADUCCIONES_EN = {
   'No hay servicios registrados': 'No services registered',
   'No hay sedes registradas': 'No venues registered',
   'No hay clientes registrados': 'No customers registered',
+  'Tu registro expiro y el correo quedo libre.': 'Your registration expired and the email is available again.',
+  'Registrate de nuevo para recibir un nuevo codigo de verificacion.': 'Register again to receive a new verification code.',
+  'Registrarme de nuevo': 'Register again',
+  'Tiempo para verificar:': 'Time to verify:',
+  'Si no verificas en este tiempo, el registro se elimina y el correo queda libre.': 'If you do not verify within this time, the registration is deleted and the email becomes available.',
+  'No se pudo enviar el codigo a tu correo. Usa "Reenviar codigo" para intentarlo de nuevo.': 'The code could not be sent to your email. Use "Resend code" to try again.',
+  'Recibiras un codigo por correo. Si no verificas en pocos minutos, el registro se elimina y el correo queda libre.': 'You will receive a code by email. If you do not verify within a few minutes, the registration is deleted and the email becomes available.',
 };

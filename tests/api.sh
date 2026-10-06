@@ -25,9 +25,15 @@ token_de() {
   grep -o '"token":"[^"]*"' /tmp/sgp_resp.json | head -1 | cut -d'"' -f4
 }
 
+sql() {
+  podman exec sgp-db-db psql -U sgp_user -d sgp -t -A -c "$1" 2>/dev/null | tr -d ' '
+}
+
 echo "== Salud y frontend =="
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/healthcheck")
 verificar "Healthcheck responde 200" "200" "$RESP"
+BREVO_ESTADO=$(grep -o '"brevo":"[^"]*"' /tmp/sgp_resp.json | cut -d'"' -f4)
+echo "INFO: estado de Brevo reportado por el healthcheck: ${BREVO_ESTADO:-no reportado}"
 
 RESP=$(curl -s -o /dev/null -w "%{http_code}" "$ROOT_URL/")
 verificar "Frontend responde 200" "200" "$RESP"
@@ -43,6 +49,16 @@ RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/r
   -d "{\"nombre\":\"Prueba\",\"apellido\":\"Verificacion\",\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"telefono\":\"+573003334455\"}")
 verificar "Registro devuelve 201" "201" "$RESP"
 grep -q '"correoEnviado"' /tmp/sgp_resp.json && echo "INFO: el backend intento enviar el correo de verificacion"
+grep -q '"expiraEn"' /tmp/sgp_resp.json && echo "INFO: la respuesta incluye el tiempo de registro"
+
+echo "-- Re-registro del mismo correo sin verificar (reemplaza, no bloquea)"
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/register" \
+  -H "Content-Type: application/json" \
+  -d "{\"nombre\":\"Prueba\",\"apellido\":\"Verificacion\",\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"telefono\":\"+573003334455\"}")
+verificar "Re-registro sin verificar devuelve 201" "201" "$RESP"
+
+FILAS=$(sql "SELECT COUNT(*) FROM app_user WHERE email = '$EMAIL'")
+verificar "Queda una sola fila del correo sin verificar" "1" "$FILAS"
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \

@@ -416,3 +416,76 @@
 - Capturas Chromium: dashboard redisenado, planificador con 207 citas de la semana, editor de celda, jornada por sede, empleados, reportes, logs y **RF9 desde el planificador** (cambio de sede de un dia con cita pendiente → toast "5 reserva(s) cancelada(s) por cambio de sede" y `reservas_canceladas` en API).
 - Fixes de la verificacion: la pestaña de Horarios se resetea al reabrir (`useEffect` sobre `open`); las validaciones de datos exigen disponibilidad solo a citas activas (`pendiente/confirmada`), porque RF9 deja historicas y `en_curso` fuera de la nueva disponibilidad; rutas relativas de `admin/secciones/` (un nivel mas).
 - Dataset demo regenerado limpio tras la demo RF9 (`semillar-demo.js --reset`).
+
+---
+
+## Sesion — 5 Octubre 2026 — Entregables documentales y verificacion
+
+### Auditoria y actualizacion de documentacion
+- `docs/formato_ieee830.md` reescrito (v2.0): estructura formal, se agrego **RF4** (cobro), RF11 refleja el acceso real (tarjeta Gestion + 2 modales + 7 sheets + planificador), RF2/RF3/RF9/RF10/RF12 alineados con la implementacion, RNF2 (AES telefono), RNF5 (Swagger, pruebas y cobertura), Apendice A glosario, Apendice B diagramas y Apendice C con matriz **RF ↔ F ↔ modulo ↔ prueba**.
+- `docs/modelos-uml.drawio` (nuevo, 7 paginas): casos de uso, clases/dominio, secuencia Reserva→QR, secuencia Validacion→Cobro, estados de reserva, despliegue y modelo ER. Se generan con `node scripts/generar-drawio.js` (idempotente).
+- `docs/diagrama.drawio`: se agrego la pagina **"Flujo actual"** (cliente/empleado/admin) sin tocar la original.
+- `docs/diseno-tecnico.md`, `docs/mockups.md` + **20 capturas reales** en `docs/img/` (Chromium headless/CDP: login, registro, verificacion, cliente kanban/calendario/modal/perfil/EN/movil, empleado citas/disponibilidad, admin dashboard/planificador/editor/jornada/empleados/reportes/logs y Swagger).
+- `docs/modelo-datos.md` (ER + diccionario de las 10 tablas) y `docs/despliegue.md` (Podman, seed, tests, troubleshooting). `plan.md` creado en la raiz (el README lo enlazaba y no existia).
+- `docs/manual-tecnico.{es,en}.md` y `docs/manual-usuario.{es,en}.md` (con capturas). README actualizado con indice completo de documentacion; `architecture.md` con el arbol real de `docs/` y seccion de testing; `AGENTS.md` con los comandos nuevos.
+
+### Pruebas y calidad
+- E2E movido al repo: `tests/e2e.py` (26 checks; BASE_URL y contenedor de BD configurables por env).
+- `tests/esquema.sh` (32 validaciones de tablas/columnas/constraints/indices contra `docs/modelo-datos.md`).
+- Unitarias `backend/tests/unit/*.test.js` con `node:test` y fixtures propios (helpers.js): 31 pruebas, cobertura **93.65 % lineas / 78.77 % ramas / 95.24 % funciones** con `--experimental-test-coverage` (excluye config/docs/integrations/server/utils de seeds).
+- Scripts nuevos: `test:unit`, `test:coverage`, `test:esquema`, `test:e2e` (raiz y backend).
+- Fix detectado por las unitarias: la validacion de fechas aceptaba `2026-99-99` y reventaba en Postgres; ahora `resolverFecha` (reportes.service) y `getAgenda` (reservas.service) validan fecha de calendario real.
+
+### Verificacion final (5 Oct 2026)
+- `tests/api.sh` 25/25 · `tests/datos.sh` 6/6 · `tests/esquema.sh` 32/32 · unitarias 31/31 · cobertura 93.65 % · `tests/e2e.py` 26/26 · lint backend limpio.
+- Imagen backend reconstruida (incluye tests y fix) y pod `sgp-app` redesplegado. Los pods se relanzaron tras reinicio del equipo; los datos del volumen persistieron (1274 reservas, 95 usuarios demo).
+
+### Pendientes
+- Credenciales Brevo validas (OTP real), rotar `BREVO_API_KEY`/`JWT_SECRET`/`AES_SECRET`, probar camara en equipo con webcam y desplegar tras HTTPS para produccion.
+
+---
+
+## Sesion — 6 Octubre 2026 — Registro con TTL, purga y cliente de prueba
+
+### Problema corregido
+- Un correo sin verificar quedaba permanente y bloqueaba el re-registro (409). Ahora:
+  - Si el correo ya existe **sin verificar** (rol cliente), `register` lo **reemplaza** (borra y crea de nuevo); si esta verificado responde 409.
+  - La cuenta sin verificar se conserva para permitir **Reenviar codigo**; si el usuario se sale, se elimina a los **5 minutos** (`REGISTRO_TTL_MINUTOS`, configurable) y el correo queda libre.
+  - Purga periodica cada 60 s y al arrancar el backend (`features/auth/purga.service.js` + `auth.model.deleteNoVerificadosAntiguos`, borra cobros residuales por FK). Reenviar codigo exitoso reinicia el tiempo y guarda el token solo tras el envio correcto.
+
+### Usuario de prueba
+- `db/init.sql`: cliente verificado `cliente@sgp.local` / `cliente123` (hash bcrypt en el seed), documentado en README (Usuarios semilla), `docs/despliegue.md` y manuales ES/EN.
+
+### Frontend
+- `registro-page.jsx` envia `correoEnviado`/`expiraEn`/`ttlMinutos` a `/verificar`; aviso del tiempo limite.
+- `verificar-page.jsx`: cuenta regresiva "Tiempo para verificar: mm:ss", aviso si el correo no se pudo enviar, estado expirado con "Tu registro expiro y el correo quedo libre" + boton "Registrarme de nuevo"; 404 de verificar/reenviar marca expirado; reenvio reinicia el contador. i18n ampliado.
+
+### Documentacion
+- IEEE RF13 actualizado (TTL 5 min, reemplazo, purga, reenviar reinicia); README (usuarios + reglas), `.env.example` (`REGISTRO_TTL_MINUTOS`), `architecture.md`, manuales ES/EN, `docs/despliegue.md`, `docs/mockups.md` (nuevas capturas verificar con contador y expirado), `docs/plan-pruebas.md` y `plan.md` con los conteos nuevos.
+
+### Verificacion (6 Oct 2026)
+- `tests/api.sh` **27/27** (nuevos: re-registro 201 y una sola fila del correo), `tests/datos.sh` 6/6, `tests/esquema.sh` 32/32, unitarias **32/32** con cobertura **93.84 % lineas / 79.04 % ramas / 95.33 % funciones** (auth.model 95.3 %, auth.service 91.4 %, purga 100 %), `tests/e2e.py` **29/29**.
+- Purga en vivo: usuario con token expirado insertado por SQL desaparecio en el siguiente ciclo (<=60 s).
+- Navegador (CDP): registro con Brevo invalido muestra contador `04:58` + aviso de correo; el mismo correo se puede re-registrar (reemplazo); estado expirado verificado con `history.replaceState` + reload.
+- Imagenes backend/frontend reconstruidas y pods redesplegados; login con `cliente@sgp.local` OK.
+
+---
+
+## Sesion — 6 Octubre 2026 (segunda parte) — Validacion de Brevo al arrancar
+
+### Diagnostico de credenciales
+- La key en `sgp-app-pod.yaml` (la que usa el pod) es una **SMTP key** (`xsmtpsib-`, 90 chars): la API v3 responde `401 Key not found`. `.env` y `sgp-config.yaml` (legado) conservan una API key antigua tambien con 401. El usuario decidio **no cambiar la key** por ahora; los OTP no se enviaran (`correoEnviado: false` + aviso en `/verificar`; la cuenta se mantiene y la purga de 5 min libera el correo).
+- Para probar sin Brevo sigue disponible `cliente@sgp.local / cliente123`.
+
+### Cambios implementados (sin tocar la key)
+- `integrations/email/mailer.js`: `verificarCredencialesBrevo()` consulta `GET /v3/account` (timeout 5 s) y cachea `{ estado: ok|error|no-configurado, detalle, verificadoEn }` (TTL 5 min); `estadoBrevo()` expone el estado.
+- `server.js`: valida credenciales al arrancar y loguea `Brevo OK` o `Brevo no disponible: los correos OTP no se enviaran` (nivel warn en `errores.txt`).
+- `routes/api.routes.js`: `/api/healthcheck` agrega `brevo` al payload (sin llamada de red por request).
+- `backend/tests/unit/mailer.test.js`: 4 pruebas con `fetch` simulado (sin key, 200, 401, error de red).
+- `tests/api.sh`: INFO con el estado de Brevo del healthcheck (27/27 se mantiene).
+- Docs: README (healthcheck), `docs/despliegue.md` y manuales ES/EN (si `brevo: error`, la key debe ser API v3 `xkeysib-`, no SMTP), `docs/plan-pruebas.md`, `plan.md` y `AGENTS.md` con los conteos nuevos.
+
+### Verificacion (6 Oct 2026)
+- Healthcheck en vivo: `{"ok":true,"uptime":...,"brevo":"error"}` (esperado con la SMTP key actual) y log de arranque `Brevo no disponible ... HTTP 401`.
+- Unitarias **36/36**, cobertura **93.84 % lineas / 79.04 % ramas / 95.33 % funciones**, `tests/api.sh` **27/27** con INFO del estado de Brevo.
+- Cuando se pegue una API key v3 valida (`xkeysib-...`) en `sgp-app-pod.yaml` y se reinicie el pod, el healthcheck pasara a `"brevo":"ok"` sin cambios de codigo; el envio real de prueba a `ajulianc47@gmail.com` queda pendiente de esa key.

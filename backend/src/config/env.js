@@ -7,6 +7,7 @@ const env = {
   jwtSecret: process.env.JWT_SECRET || 'sgp_super_secret_2026',
   aesSecret: process.env.AES_SECRET || process.env.JWT_SECRET || 'sgp_super_secret_2026',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30m',
+  registroTtlMinutos: parseInt(process.env.REGISTRO_TTL_MINUTOS || '5', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   viteApiUrl: process.env.VITE_API_URL || 'http://localhost:3000',
   brevoApiKey: process.env.BREVO_API_KEY || '',

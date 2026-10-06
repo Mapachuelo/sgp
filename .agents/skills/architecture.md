@@ -75,17 +75,21 @@ sgp/
 │   └── skills/
 │       ├── architecture.md   # Este archivo
 │       └── contexto.md
-├── docs/
-│   ├── ieee830/
-│   │   └── formato_ieee830.md
-│   ├── requisitos/
-│   │   └── historias_usuario.md
-│   ├── tecnicos/
-│   │   ├── ficha_tecnica.md
-│   │   ├── manual_tecnico.md
-│   │   └── despliegue.md
-│   └── usuario/
-│       └── manual_usuario.md
+├── docs/                     # Documentacion plana (un tema por archivo)
+│   ├── formato_ieee830.md    # Requisitos + apendices A/B/C
+│   ├── diseno-tecnico.md     # Arquitectura y decisiones
+│   ├── diagrama.drawio       # Flujo de trabajo (pagina "Flujo actual")
+│   ├── modelos-uml.drawio    # Casos de uso, clases, secuencias, estados, despliegue, ER
+│   ├── mockups.md            # Capturas reales por rol (ES/EN, movil)
+│   ├── modelo-datos.md       # ER + diccionario de datos
+│   ├── plan-pruebas.md       # Estrategia, matriz y cobertura
+│   ├── despliegue.md         # Guia Podman y operacion
+│   ├── manual-tecnico.es.md / manual-tecnico.en.md
+│   ├── manual-usuario.es.md / manual-usuario.en.md
+│   ├── prompts.md / tiempo.md
+│   └── img/                  # Capturas usadas por los manuales y mockups
+├── scripts/
+│   └── generar-drawio.js     # Genera los diagramas draw.io
 ├── db/
 │   └── init.sql
 ├── frontend/
@@ -236,7 +240,7 @@ sgp/
 - **HTTPS** obligatorio en produccion (Nginx reverse proxy + Let's Encrypt). Desarrollo local en HTTP.
 - Tokens **JWT** con expiracion configurable (`JWT_EXPIRES_IN`, default 30m). Middleware `auth.middleware.js` exporta `authenticate` (verifica token) y `authorize(...roles)` (verifica rol).
 - **RBAC** con tres roles: `admin`, `empleado`, `cliente`.
-- **Verificacion de cuenta por OTP:** al registrarse, el backend genera un codigo de 6 digitos (hash SHA-256 en BD), lo envia por correo via Brevo API v3 (`integrations/email/mailer.js`) y no emite JWT hasta `POST /api/auth/verificar`. Expiracion de 15 min (`token_verificacion_expiracion`). Reenvio limitado a 3 cada 15 min (`verificacionLimiter`). Usuarios creados antes del sistema quedan verificados por backfill en `db/init.sql`. Empleados creados por admin nacen verificados.
+- **Verificacion de cuenta por OTP:** al registrarse, el backend genera un codigo de 6 digitos (hash SHA-256 en BD), lo envia por correo via Brevo API v3 (`integrations/email/mailer.js`) y no emite JWT hasta `POST /api/auth/verificar`. Tiempo de registro configurable (`REGISTRO_TTL_MINUTOS`, 5 min): un correo sin verificar se reemplaza si el cliente vuelve a registrarse y, al expirar, la cuenta se elimina con la purga periodica (`features/auth/purga.service.js`, cada 60 s y al arrancar), liberando el correo. Reenvio limitado a 3 cada 15 min (`verificacionLimiter`) y reinicia el tiempo. Usuarios creados antes del sistema quedan verificados por backfill en `db/init.sql`. Empleados creados por admin nacen verificados.
 - **Rate limiting** con `express-rate-limit` en endpoints de auth (`authLimiter` max 10 intentos por IP cada 15 min; `verificacionLimiter` max 3 reenvios cada 15 min).
 - **Helmet** para headers de seguridad HTTP.
 - **CORS** configurado solo para el origen del frontend (`VITE_API_URL`).
@@ -278,6 +282,9 @@ sgp/
 
 - `tests/api.sh`: script bash que prueba con `curl` salud/docs, RBAC, validaciones de check-in, agenda/planificador, reportes/logs y el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
 - `tests/datos.sh`: validaciones SQL del dataset demo (una sede por dia, sin solapes, maximo 5 activas, cobro unico, citas activas dentro de disponibilidad).
+- `tests/esquema.sh`: valida tablas, columnas, constraints e indices contra `docs/modelo-datos.md`.
+- `tests/e2e.py`: flujo completo reserva → QR → check-in/cobro → RF9 → reportes → agenda (Python + psql).
+- `backend/tests/unit/*.test.js`: unitarias con `node:test` ejecutadas dentro del contenedor backend; cobertura con `pnpm run test:coverage` (excluye config/docs/integrations/server/seeds). Objetivo RNF5: >= 80 % de lineas.
 - `backend/src/utils/semillar-demo.js`: seed masivo parametrizable (ver README, seccion Datos de demostracion).
 - Pruebas manuales con el demo (`demo.html`) como referencia visual.
 - No hay tests unitarios en el MVP inicial. Se agregaran en fase 10.

@@ -12,7 +12,11 @@ function fechaHoyBogota() {
 
 function resolverFecha(fecha) {
   if (fecha === undefined || fecha === '') return fechaHoyBogota();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+  const valida =
+    /^\d{4}-\d{2}-\d{2}$/.test(fecha) &&
+    !Number.isNaN(Date.parse(`${fecha}T00:00:00Z`)) &&
+    new Date(`${fecha}T00:00:00Z`).toISOString().slice(0, 10) === fecha;
+  if (!valida) {
     throw new HttpError(400, 'fecha debe tener formato YYYY-MM-DD');
   }
   return fecha;

@@ -27,15 +27,30 @@ pnpm install                          # Instalar dependencias
 pnpm --filter backend dev             # Backend en :3000
 pnpm --filter frontend dev            # Frontend en :5173
 pnpm run lint                         # ESLint
-bash tests/api.sh                     # Pruebas de integración
+bash tests/api.sh                     # Pruebas de integración (27)
+bash tests/datos.sh                   # Integridad del dataset (6)
+bash tests/esquema.sh                 # Esquema vs modelo de datos (32)
+pnpm run test:unit                    # Unitarias en el contenedor backend (36)
+pnpm run test:coverage                # Cobertura (>= 80%)
+python3 tests/e2e.py                  # Extremo a extremo (29)
+pnpm run seed:demo -- --reset         # Datos de demostración
+node scripts/generar-drawio.js        # Regenerar diagramas draw.io
 podman kube play sgp-db-pod.yaml --network sgp-net
 podman kube play sgp-app-pod.yaml --network sgp-net
 ```
 
 ## Más contexto
 
-Leer las carpetas `.agents/` y `docs/` para entender el proyecto a fondo:
+Leer las carpetas `.agents/`, `docs/` y `plan.md` para entender el proyecto a fondo:
 
+- `plan.md` — plan de desarrollo y estado por fases.
+- `docs/formato_ieee830.md` — requisitos, apéndices A/B/C y matriz de trazabilidad.
+- `docs/diseno-tecnico.md` y `docs/modelos-uml.drawio` — arquitectura, UML y ER.
+- `docs/mockups.md` y `docs/img/` — interfaz por rol (ES/EN, móvil).
+- `docs/modelo-datos.md` — diccionario de datos y correspondencia con UML.
+- `docs/plan-pruebas.md` — estrategia, matriz RF↔prueba y cobertura.
+- `docs/despliegue.md` — guía Podman y operación.
+- `docs/manual-tecnico.{es,en}.md` y `docs/manual-usuario.{es,en}.md` — manuales ES/EN.
 - `.agents/skills/architecture.md` — arquitectura completa, estructura, seguridad y despliegue.
 - `.agents/skills/contexto.md` — reglas de documentación y comportamiento del agente.
 - `.agents/notes/memory.md` — memoria de sesiones, decisiones y estado actual.

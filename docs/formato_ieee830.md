@@ -1,193 +1,259 @@
+# Especificación de Requisitos de Software (IEEE 830)
+
+**Sistema de Gestión de Peluquería (SGP)**
+
+| Campo | Valor |
+|-------|-------|
+| Estándar | IEEE Std 830-1998, *Software Requirements Specification* |
+| Versión | 2.0 |
+| Estado | Aprobado para implementación y verificación |
+| Documentos relacionados | `docs/diseno-tecnico.md`, `docs/modelos-uml.drawio`, `docs/modelo-datos.md`, `docs/plan-pruebas.md`, `README.md` |
+
+---
+
 ## 1. Introducción
 
-### 1.1 Propósito  
-Este documento describe los requisitos funcionales y no‑funcionales del **Sistema de Gestión de Peluquería** (SGP). Su objetivo es proporcionar una referencia única para el diseño, la implementación y las pruebas del software.
+### 1.1 Propósito
 
-### 1.2 Alcance  
-El SGP permitirá:
+Este documento especifica los requisitos funcionales y no funcionales del **Sistema de Gestión de Peluquería (SGP)**. Es la referencia única para el diseño, la implementación, las pruebas y la verificación del software entregado.
 
-- Registro y gestión de clientes.
-- Gestión de ubicaciones (sedes físicas).
-- Reserva de citas vía web con calendario interactivo y programación automática.
-- Generación de códigos QR únicos por cita para validación en la entrada.
-- Registro de pagos en local (fisico) o al reservar (online). Sin integracion con pasarela de pagos externa.
-- Emisión de reportes administrativos.
-- Gestión de logs del sistema (actividad y errores).
+### 1.2 Alcance
 
-### 1.3 Definiciones, Acrónimos y Abreviaturas  
+El SGP es una aplicación web fullstack desplegable con Podman que permite:
+
+- Registro y gestión de clientes con verificación de cuenta por OTP.
+- Gestión de sedes físicas con coordenadas geográficas.
+- Reserva de citas en línea con calendario interactivo, selección de sede, estilista, servicio y cantidad de personas, con generación de código QR único.
+- Validación de ingreso por QR y registro de cobro en un solo paso atómico.
+- Registro de pagos en local (efectivo) o marcados como pagados en línea; sin pasarela de pago externa.
+- Paneles diferenciados para cliente, empleado y administrador, incluido un planificador de horarios multi-sede.
+- Reportes administrativos de ventas, ocupación y clientes recurrentes.
+- Gestión de logs del sistema (`logs.txt` y `errores.txt`).
+- Interfaz multilingüe español/inglés.
+
+### 1.3 Definiciones, acrónimos y abreviaturas
 
 | Sigla | Significado |
 |-------|-------------|
-| SGP   | Sistema de Gestión de Peluquería |
-| QR    | Quick‑Response (código QR) |
-| UI    | User Interface (interfaz de usuario) |
-| API   | Application Programming Interface |
-| DB    | Base de Datos |
+| SGP | Sistema de Gestión de Peluquería |
+| QR | Quick-Response (código QR) |
+| UI | User Interface (interfaz de usuario) |
+| API | Application Programming Interface |
+| BD | Base de Datos |
+| JWT | JSON Web Token |
+| OTP | One-Time Password (código de verificación) |
+| RBAC | Role-Based Access Control |
+| RF | Requisito Funcional |
+| RNF | Requisito No Funcional |
 
-### 1.4 Referencias  
-- IEEE Std 830‑1998, *Software Requirements Specification*.
-- Documentos internos: "Plan de Proyecto – Peluquería" (v1.2), "Requisitos de Seguridad Web" (v0.9).
+El glosario ampliado está en el Apéndice A.
 
-### 1.5 Visión General del Documento  
-El SGP se compone de tres capas principales: **Web Front‑End**, **API Back‑End** y **Base de Datos**. El documento está estructurado en:
+### 1.4 Referencias
 
-- Sección de descripción general para contextualizar el producto.
-- Requisitos específicos (interfaces, funcionales y no‑funcionales).
+- IEEE Std 830-1998, *Software Requirements Specification*.
+- ISO/IEC 18004 (estándar de códigos QR).
+- `README.md` — documentación de despliegue, API y reglas de negocio.
+- `docs/diseno-tecnico.md` — diseño técnico y modelos UML.
+- `docs/modelo-datos.md` — modelo entidad-relación y diccionario de datos.
+- `docs/plan-pruebas.md` — estrategia y matriz de pruebas.
+
+### 1.5 Visión general del documento
+
+El documento se estructura en: descripción general del producto (sección 2), requisitos específicos (sección 3) y apéndices (sección 4+). Cada requisito funcional tiene código `RF#` y trazabilidad hacia las funcionalidades `F#` del producto, los módulos del código y las pruebas que lo verifican (Apéndice C).
 
 ---
 
-## 2. Descripción General
+## 2. Descripción general
 
-### 2.1 Perspectiva del Producto  
-El SGP es un **producto independiente** desplegable con Podman (app + PostgreSQL) y sin integraciones externas obligatorias en el MVP. La verificacion de cuentas se realiza mediante correo electronico OTP a traves de Brevo (API REST v3). Otras integraciones (pasarelas de pago, WhatsApp) quedan como mejoras futuras.
+### 2.1 Perspectiva del producto
+
+El SGP es un producto independiente desplegable con Podman (aplicación + PostgreSQL 17) y sin integraciones externas obligatorias salvo el envío de correo de verificación (Brevo API v3). La arquitectura es de tres capas:
 
 ```
-┌───────────────────────┐
-│    Frontend Web UI    │
-├───────────────────────┤
-│   API Node.js/Express │
-├───────────────────────┤
-│   PostgreSQL (última LTS) │
-└───────────────────────┘
+┌───────────────────────────────┐
+│ Frontend Web (React + Vite)   │  Nginx sirve la SPA y proxya /api
+├───────────────────────────────┤
+│ API Node.js/Express (REST+WS) │  JWT + RBAC + Pino + WebSocket
+├───────────────────────────────┤
+│ PostgreSQL 17 (SQL directo)   │  10 tablas, sin ORM
+└───────────────────────────────┘
 ```
 
-> *Diagrama completo a incluir en la entrega final.*
+### 2.2 Funcionalidades del producto
 
-### 2.2 Funcionalidades del Producto  
 | ID | Función | Descripción |
 |----|---------|-------------|
-| **F1** | Gestión de Clientes | Registro, actualización y borrado de datos personales. |
-| **F2** | Reservas Online | Selección de ubicación, empleado, servicio, fecha/hora mediante calendario interactivo y generación de QR. |
-| **F3** | Validación en Entrada | Escaneo del QR con control de horarios. |
-| **F4** | Cobro | El empleado registra el cobro en el mismo paso de validacion QR: elige metodo (`fisico` = efectivo, `online` = pagado por el cliente al reservar) e ingresa el monto. No se permite doble cobro. |
-| **F5** | Reportes Administrativos | Ventas, ocupación y métricas de uso (exclusivo administrador). |
-| **F6** | Login Unificado | Inicio de sesion unico en `/login` y redireccion por rol segun respuesta del backend. |
-| **F7** | Gestión de Ubicaciones | CRUD de sedes físicas con nombre, dirección y coordenadas (lat/lng) para alimentar el mapa interactivo. |
-| **F8** | Panel de Reservas | Vista kanban de reservas del cliente por columnas de estado + mapa lateral con ubicación de la sede. |
-| **F9** | Gestión de Disponibilidad | El empleado autogestiona su calendario semanal: asigna qué sede y horario cubre cada día de la semana. Al cambiar de sede, las reservas futuras en la sede anterior se cancelan automáticamente. |
-| **F10** | Panel del Empleado | Dashboard del empleado con timeline de citas del día, mapa de la sede donde trabaja hoy, botones de validación QR y cobro. |
-| **F11** | Panel del Administrador | Dashboard con KPIs, timeline de citas de todas las sedes, y barra de botones que abren ventanas flotantes (modales/sheets) para cada sección: validar QR, cobro, empleados, servicios, sedes, horarios, reportes, moderar clientes y logs. |
-| **F12** | Gestión de Logs | El administrador accede a dos archivos desde el panel: `logs.txt` (actividad general del sistema) y `errores.txt` (errores y excepciones). Permite buscar, filtrar por fecha/severidad y exportar. |
-| **F13** | Verificación de Cuenta | Al registrarse, el cliente recibe un código OTP de 6 dígitos por correo (Brevo API REST v3). El sistema valida el código con expiración de 15 minutos; el login queda bloqueado (403) hasta completar la verificación. Permite reenviar el código (máx. 3 cada 15 min). |
+| **F1** | Gestión de Clientes | Registro, verificación OTP, actualización, bloqueo/desbloqueo y borrado. |
+| **F2** | Reservas en Línea | Selección de sede, estilista, servicio, fecha/hora y personas; generación de QR. |
+| **F3** | Validación en Entrada | Escaneo/ingreso del token QR con control de estado y ventana horaria. |
+| **F4** | Cobro | Registro del cobro en el mismo paso de validación; método `fisico` u `online`; sin doble cobro. |
+| **F5** | Reportes Administrativos | Ventas por día, ocupación por sede y clientes recurrentes (solo admin). |
+| **F6** | Login Unificado | Formulario único en `/login` con redirección según rol. |
+| **F7** | Gestión de Ubicaciones | CRUD de sedes con nombre, dirección y coordenadas lat/lng. |
+| **F8** | Panel de Reservas | Kanban del cliente por estado + mapa lateral de la sede + descarga de QR. |
+| **F9** | Gestión de Disponibilidad | Disponibilidad semanal del empleado por sede (una sede por día) con cancelación y notificación al cambiar de sede. |
+| **F10** | Panel del Empleado | Timeline de citas del día, colores por estado, mapa de la sede y acciones rápidas de validación y cobro. |
+| **F11** | Panel del Administrador | KPIs, timeline general, planificador de horarios por empleado y ventanas flotantes de gestión. |
+| **F12** | Gestión de Logs | `logs.txt` y `errores.txt` con búsqueda, filtros y exportación `.txt`. |
+| **F13** | Verificación de Cuenta | OTP de 6 dígitos enviado por correo; login bloqueado hasta verificar. |
 
-### 2.3 Características de los Usuarios  
-| Tipo de Usuario | Habilidades | Acciones Principales |
-|-----------------|-------------|----------------------|
-| Cliente         | Básica (navegador web) | Registrarse, seleccionar ubicación y empleado, reservar cita en calendario, recibir/descargar QR, ver panel kanban de sus reservas con mapa de la sede, gestionar sus reservas (hasta 5 activas), cancelar reservas. |
-| Empleado        | Media (uso de terminales) | Ver panel de citas del día, validar entrada por QR (cámara + manual), registrar cobro (físico o digital), ver mapa de la sede donde trabaja hoy, autogestionar su disponibilidad semanal por sede, editar su perfil. |
-| Administrador   | Alta (gestión del sistema) | Dashboard con KPIs y citas de todas las sedes. Barra de botones que abren ventanas flotantes (no navegación entre páginas): validar QR, cobro, CRUD de empleados, CRUD de servicios, CRUD de ubicaciones, horarios globales, reportes, moderar clientes. Acceso al gestor de logs (`logs.txt` y `errores.txt`) con búsqueda, filtro y exportación. |
+### 2.3 Características de los usuarios
 
-### 2.4 Restricciones  
-- Navegadores soportados: Chrome ≥ 80, Firefox ≥ 75.
-- Sistema operativo de backend: Linux Ubuntu 24.04 LTS.
-- API debe ser RESTful con JSON.
-- Generación del QR debe cumplir el estándar **ISO/IEC 18004**.
+| Tipo | Habilidades | Acciones principales |
+|------|-------------|----------------------|
+| Cliente | Básicas de navegador | Registrarse, reservar (hasta 5 activas), ver kanban+mapa, descargar QR, cancelar y editar perfil. |
+| Empleado | Medias | Ver citas del día, validar QR, registrar cobro, gestionar su disponibilidad semanal por sede y editar su perfil. |
+| Administrador | Altas | KPIs, timeline de todas las sedes, planificador de horarios multi-sede, CRUD de empleados/servicios/sedes, jornadas, reportes, moderación de clientes y logs. |
 
-### 2.5 Suposiciones y Dependencias  
-- Se dispone de infraestructura web (servidor, dominio).
-- El cliente dispone de cámara de lectura de códigos QR en la entrada.
-- *(Pago online registrado desde el formulario de reserva; pago fisico registrado por el empleado en check-in. Sin integracion con pasarela externa.)*
+### 2.4 Restricciones
 
-### 2.6 Evolución Previsible  
-1. Módulo móvil nativo para iOS/Android.
-2. Módulo de pago online.
-3. Módulo de descripción de bloqueo de cuenta.
-4. Restricciones de módulos a empleados especificos.
-5. Mejorar una busqueda de empleados y clientes (Cuando hay muchos clientes y empleados).
-6. Mensaje a whatsapp para los clientes con sus reservas.
+- Navegadores soportados: Chrome ≥ 80, Firefox ≥ 75.
+- Backend sobre Linux (contenedor Node 22 Alpine); base PostgreSQL 17.
+- API RESTful con JSON; autenticación JWT (expiración 30 minutos).
+- QR conforme a ISO/IEC 18004 (librería `qrcode`).
+- Despliegue exclusivamente con Podman (`kube play`), sin Docker.
+- Sin ORM: SQL directo con `pg`.
+- Sin TypeScript: JavaScript (React) y CommonJS (Express).
 
----
+### 2.5 Suposiciones y dependencias
 
-## 3. Requisitos Específicos
+- El establecimiento dispone de conexión a internet para el envío de OTP (Brevo).
+- El cliente presenta el QR (imagen o token) al llegar; el empleado puede ingresarlo manualmente.
+- El pago en línea se registra como dato (monto 0), sin pasarela externa.
+- Zona horaria de operación: `America/Bogota`.
 
-> **Nota:** Cada requisito se identifica con un código (`RF#`) y tiene trazabilidad hacia la descripción general.
+### 2.6 Evolución previsible
 
-### 3.1 Requisitos de Interfaz Externa
-
-#### 3.1.1 Interfaz de Usuario (UI)  
-| ID | Requisito | Descripción |
-|----|-----------|-------------|
-| UI1 | Responsividad | La web debe ser usable en dispositivos móviles y escritorio. |
-| UI2 | Accesibilidad | Cumplir WCAG 2.1 AA (contraste, navegación por teclado). |
-
-#### 3.1.2 Interfaz de Hardware  
-| ID | Requisito | Descripción |
-|----|-----------|-------------|
-| HW1 | Lectura QR | El lector debe soportar códigos generados por el sistema y procesarlos en < 0.5 s. |
-
-#### 3.1.3 Interfaz de Software (API)  
-| ID | Requisito | Descripción |
-|----|-----------|-------------|
-| API1 | Endpoints REST | `/api/auth/*`, `/api/clientes/*`, `/api/reservas/*`, `/api/checkin/validar`, `/api/reportes/*`, `/api/ubicaciones/*`, `/api/empleados/disponibilidad/*`, `/api/logs/*`, `/api/preferencias/*`. Auth incluye `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/verificar`, `POST /api/auth/reenviar-codigo`. |
-| API2 | Autenticación JWT | Tokens con expiración 30 minutos. |
-
-#### 3.1.4 Interfaz de Comunicación  
-| ID | Requisito | Descripción |
-|----|-----------|-------------|
-| COM1 | WebSocket | Notificaciones en tiempo real de disponibilidad de citas. |
-
-### 3.2 Requisitos Funcionales
-
-| RF# | Nombre | Prioridad | Descripción |
-|-----|--------|-----------|-------------|
-| **RF0** | Login Unificado | Alta | El sistema ofrece un unico formulario de inicio de sesion en `/login` (correo y password) y redirige segun rol (`cliente`, `empleado`, `admin`). |
-| **RF1** | Registro de Cliente | Alta | El cliente crea cuenta con nombre, apellido, numero celular colombiano (+57), correo y password. |
-| **RF2** | Reserva de Cita | Alta | Flujo completo: (1) el cliente elige ubicación (sede), (2) selecciona empleado disponible, (3) el calendario marca visualmente la disponibilidad del empleado, (4) al hacer clic en un horario disponible se abre ventana flotante con: tipo de servicio a elegir, duración estimada (hora entrada → hora salida), cantidad de personas (1-5). Al confirmar se crea la reserva y se genera QR único. Si el horario se ocupa mientras el cliente decide, el sistema muestra mensaje de error y sugiere elegir otro horario. Máximo 5 reservas activas por cliente. |
-| **RF3** | Validacion en Entrada y Cobro | Alta | El empleado/admin escanea el QR; el sistema valida estado activo y ventana horaria (±120 min respecto a la cita). En un solo paso atómico se registra el check-in y el cobro: si el cliente pago online `metodo='online'` y `monto=0`, si paga en efectivo `metodo='fisico'` y `monto>0`. El endpoint recibe `{ qr_token, monto }`. |
-| **RF5** | Generación de Reportes | Media | El administrador visualiza ventas por día, ocupación y clientes recurrentes. Acceso restringido a rol admin. |
-| **RF6** | Gestión de Ubicaciones | Alta | El administrador puede crear, editar y eliminar sedes físicas con nombre, dirección y coordenadas geográficas (latitud/longitud). Las coordenadas alimentan el mapa interactivo visible para empleados y clientes. Las ubicaciones son requeridas al crear una reserva. |
-| **RF7** | Perfil de Empleado | Media | El empleado puede ver y editar sus datos de perfil (nombre, identificación). El administrador puede gestionar todos los empleados (CRUD). |
-| **RF8** | Panel de Reservas (Kanban + Mapa) | Media | El cliente visualiza sus reservas activas en columnas por estado (`pendiente`, `confirmada`, `en curso`, `completada`, `cancelada`). Al seleccionar una reserva, en el panel lateral se muestra un mapa interactivo con la ubicación exacta de la sede asignada, usando las coordenadas configuradas por el administrador. Desde este panel el cliente también puede cancelar reservas y descargar el QR. |
-| **RF9** | Disponibilidad del Empleado | Alta | El empleado autogestiona su calendario semanal: por cada día de la semana (L-V, S, D) asigna en qué sede trabaja y en qué horario (ej. L-M en Sede A de 09:00 a 18:00, X-V en Sede B de 10:00 a 19:00). Al cambiar un día de sede, el sistema advierte que las reservas futuras en la sede anterior para ese día serán canceladas y notifica a los clientes afectados. Las reservas canceladas quedan con motivo "El empleado cambió de sede". |
-| **RF10** | Dashboard del Empleado | Alta | El empleado, al iniciar sesión, ve el panel de citas del día de la(s) sede(s) donde trabaja hoy. Cada cita se muestra como tarjeta con: hora, cliente, servicio, estado y sede. El estado se distingue por color (`pendiente` gris, `en curso` azul, `cobrado` verde, `cancelada` rojo). Incluye botones de acción rápida: `[Validar QR]` y `[Registrar cobro]`. En el panel lateral se muestra el mapa Leaflet con la ubicación de la sede del día. |
-| **RF11** | Dashboard del Administrador | Alta | El administrador ve una pantalla fija con: (a) 4 tarjetas KPI (ventas del día, citas del día, % ocupación, clientes activos del mes), (b) timeline de todas las citas de hoy filtrable por sede, (c) barra inferior con 9 botones que abren ventanas flotantes (una sola a la vez): `[Validar QR]` y `[Cobro]` como modales chicos centrados; `[Empleados]`, `[Servicios]`, `[Sedes]`, `[Horarios]`, `[Reportes]`, `[Moderar clientes]` y `[Logs]` como sheets laterales que se deslizan desde la derecha. El dashboard siempre permanece visible de fondo. |
-| **RF12** | Gestión de Logs | Media | El administrador accede al gestor de logs desde el botón `[Logs]` del dashboard. Visualiza dos archivos: `logs.txt` (actividad general: inicios de sesión, reservas creadas, check-ins, cobros) y `errores.txt` (excepciones, fallos de conexión, validaciones fallidas). Funcionalidades: (a) buscar por palabra clave, (b) filtrar por fecha, (c) filtrar por severidad (`INFO`, `WARN`, `ERROR`), (d) exportar rango de líneas a `.txt`. Acceso restringido a rol admin. El backend registra automáticamente eventos en ambos archivos mediante el logger Pino. |
-| **RF13** | Verificación de Cuenta | Alta | Al registrarse (`POST /api/auth/register`), el sistema crea la cuenta, genera un código OTP de 6 dígitos (almacenado como hash SHA-256 con expiración de 15 min) y lo envía por correo electrónico (Brevo API REST v3). El registro **no** emite token de sesión: el cliente debe confirmar en `POST /api/auth/verificar` con `{ email, codigo }` para obtener su JWT. `POST /api/auth/reenviar-codigo` genera un nuevo código (máx. 3 cada 15 min por IP). El login de una cuenta no verificada responde 403 "Cuenta no verificada". Los usuarios creados antes de esta funcionalidad quedan marcados como verificados automáticamente; los empleados creados por el admin nacen verificados. |
-
-> *Para cada RF se debe crear una tabla de trazabilidad (RF ↔ F) en el documento final.*
-
-### 3.3 Requisitos No Funcionales
-
-| RNF# | Área | Descripción |
-|------|------|-------------|
-| **RNF1** | Rendimiento | El sistema debe procesar hasta 200 solicitudes concurrentes sin degradación > 5 s. |
-| **RNF2** | Seguridad | Todos los endpoints deben requerir HTTPS; datos sensibles cifrados en reposo (AES‑256). |
-| **RNF3** | Fiabilidad | Tiempo medio entre fallos (MTBF) ≥ 99.9 % durante operación normal. |
-| **RNF4** | Disponibilidad | Sistema disponible 24/7 con un plan de contingencia que garantice < 1 h de downtime anual. |
-| **RNF5** | Mantenibilidad | Código modular, pruebas unitarias > 80 % cobertura; documentación API auto‑generada (Swagger). |
-| **RNF6** | Portabilidad | Backend basado en Node.js/Express, compatible con Podman y Kubernetes. |
-
-### 3.4 Otros Requisitos
-
-- **Legales:** Cumplir la normativa GDPR para datos personales de clientes europeos *(Verificar aplicabilidad según ubicación del negocio)*.
-- **Culturales:** Interfaz multilingüe (español e inglés).
+1. Aplicación móvil nativa.
+2. Pasarela de pago en línea real.
+3. Notificaciones por WhatsApp.
+4. Búsqueda avanzada de clientes/empleados.
+5. Bloqueo automático de cuentas por mal uso.
 
 ---
 
-## 4. Apéndices
+## 3. Requisitos específicos
 
-| Apéndice | Contenido |
-|----------|-----------|
-| A | Glosario de términos técnicos. |
-| B | Diagramas UML: Caso de uso, secuencia y entidad‑relación *(Incluir flujo Reserva→QR y Validación→Cobro)*. |
-| C | Matriz de trazabilidad (RF ↔ F) *(Ver Apéndice C a continuación)*. |
+### 3.1 Requisitos de interfaces externas
+
+#### 3.1.1 Interfaz de usuario (UI)
+
+| ID | Requisito | Descripción |
+|----|-----------|-------------|
+| UI1 | Responsividad | Usable en móvil (≥320 px), tablet y escritorio; menú hamburguesa, tablas con scroll interno y planificador con scroll horizontal. |
+| UI2 | Accesibilidad | Diálogos con `role="dialog"`, `aria-modal`, cierre con Escape, foco atrapado y retorno; labels asociados, aria-labels en iconos, `aria-live` en avisos y contraste AA. |
+| UI3 | Idioma | Conmutador ES/EN en la barra de navegación; preferencia persistida por usuario (`preferencia_usuario.idioma`). |
+
+#### 3.1.2 Interfaz de hardware
+
+| ID | Requisito | Descripción |
+|----|-----------|-------------|
+| HW1 | Lectura QR | Entrada manual del token y vista de cámara con solicitud de permisos; procesamiento de validación en menos de 0.5 s (consulta indexada por `qr_token`). |
+
+#### 3.1.3 Interfaz de software (API)
+
+| ID | Requisito | Descripción |
+|----|-----------|-------------|
+| API1 | Endpoints REST | `/api/auth/*`, `/api/clientes/*`, `/api/ubicaciones/*`, `/api/reservas/*` (incluye `/agenda`), `/api/checkin/validar`, `/api/reportes/*`, `/api/empleados/disponibilidad` (incluye `/todas`), `/api/logs/*`, `/api/preferencias`. Documentados en `/api/docs` (OpenAPI 3). |
+| API2 | Autenticación JWT | Tokens con expiración de 30 minutos (`JWT_EXPIRES_IN=30m`). |
+| API3 | Contrato de respuesta | `{ "ok": true, "data": {...} }` o `{ "ok": false, "error": "mensaje" }`. |
+
+#### 3.1.4 Interfaz de comunicación
+
+| ID | Requisito | Descripción |
+|----|-----------|-------------|
+| COM1 | WebSocket | Canal `/ws` con eventos `conexion`, `disponibilidad.actualizada` y `reserva.actualizada` para refrescar paneles y notificar cancelaciones. |
+
+### 3.2 Requisitos funcionales
+
+| RF | Nombre | Prioridad | Descripción |
+|----|--------|-----------|-------------|
+| **RF0** | Login Unificado | Alta | Formulario único en `/login` (correo y contraseña); el backend responde `rol` y el frontend redirige a `/cliente`, `/empleado` o `/admin`. |
+| **RF1** | Registro de Cliente | Alta | El cliente se registra con nombre, apellido, celular colombiano (`+57` + 10 dígitos), correo y contraseña. Validación de formato de correo y teléfono en backend; teléfono cifrado en reposo. |
+| **RF2** | Reserva de Cita | Alta | Flujo: (1) sede, (2) estilista disponible en los próximos 6 días, (3) calendario con slots disponible/ocupado/no disponible/pasado/antelación, (4) ventana flotante con servicio, **duración estimada entrada→salida** y **personas (1–5)** que se abre al hacer clic en un horario libre, (5) confirmación con QR. Validaciones de servidor: máximo 5 activas, anticipación ≥60 min, disponibilidad semanal del empleado, duración desde `empleado_tiempo_servicio`, solape con bloqueo por `pg_advisory_xact_lock` (409 con sugerencia de otro horario) y cálculo de `termina_en`. |
+| **RF3** | Validación en Entrada | Alta | `POST /api/checkin/validar` recibe `{ qr_token, monto }`; valida token UUID, estado activo y ventana ±120 min; en una transacción con `SELECT ... FOR UPDATE` registra el cobro y deja la reserva en estado `cobrado`; `monto=0` ⇒ `online`, `monto>0` ⇒ `fisico`; un segundo intento responde 409. |
+| **RF4** | Registro de Cobro | Alta | El cobro se registra en el mismo paso atómico del RF3 (`cobro` con `UNIQUE(reserva_id)`), con monto numérico ≥0 y `registrado_por`. El administrador y el empleado disponen de modal de cobro con selector de método. |
+| **RF5** | Generación de Reportes | Media | El administrador visualiza ventas por día (total y desglose por servicio), ocupación con porcentaje por sede y clientes recurrentes. Acceso restringido a rol `admin`. |
+| **RF6** | Gestión de Ubicaciones | Alta | CRUD de sedes con nombre, dirección y lat/lng (validación de rangos); las coordenadas alimentan los mapas Leaflet de cliente y empleado; la sede es obligatoria al reservar. |
+| **RF7** | Perfil de Empleado | Media | El empleado ve y edita nombre, apellido, teléfono, correo e **identificación**; el administrador gestiona todos los empleados (CRUD, sedes, horarios y servicios con duración). |
+| **RF8** | Panel de Reservas (Kanban + Mapa) | Media | El cliente ve sus reservas en columnas por estado (`pendiente`, `confirmada`, `en_curso`, `completada`=`cobrado`, `cancelada`); al seleccionar una reserva, el panel lateral muestra el mapa Leaflet de la sede, el detalle, el QR y la descarga; permite cancelar. |
+| **RF9** | Disponibilidad del Empleado | Alta | El empleado autogestiona su semana: por cada día asigna **una sola sede** y un horario. Al cambiar la sede de un día, el sistema advierte y cancela las reservas futuras de ese día en la sede anterior con motivo `"El empleado cambió de sede"`, notificando por WebSocket; el administrador puede reasignar sedes/días desde el planificador. |
+| **RF10** | Dashboard del Empleado | Alta | El empleado ve las citas del día de la(s) sede(s) donde trabaja, en timeline con color por estado (`pendiente` gris, `en curso` azul, `cobrado` verde, `cancelada` rojo), botones rápidos `[Validar QR]` y `[Registrar cobro]`, resumen del día y mapa Leaflet de la sede. |
+| **RF11** | Dashboard del Administrador | Alta | Pantalla fija con: (a) 4 KPIs (recaudación del día, reservas del día, tasa de ocupación promedio por sede, clientes recurrentes), (b) timeline de todas las citas del día filtrable por sede y fecha, (c) tarjeta **Gestión** con 9 accesos que abren ventanas flotantes (una a la vez): `[Validar QR]` y `[Cobro]` como modales centrados; `[Empleados]`, `[Servicios]`, `[Sedes]`, `[Horarios]`, `[Reportes]`, `[Moderar clientes]` y `[Logs]` como sheets laterales. El sheet **Horarios** integra el **Planificador por empleado** (matriz empleados × LUN–DOM con una sede por día, citas superpuestas y editor por celda) y la pestaña **Jornada por sede**. El dashboard permanece visible de fondo. |
+| **RF12** | Gestión de Logs | Media | El administrador accede a `logs.txt` (actividad) y `errores.txt` (fallos) con: búsqueda por palabra clave, filtro por fecha (día Bogotá), filtro por severidad exacta (`INFO`, `WARN`, `ERROR`), visor con nivel/formato y exportación `.txt` por rango de líneas. El logger Pino escribe ambos archivos automáticamente. |
+| **RF13** | Verificación de Cuenta | Alta | Al registrarse se crea la cuenta, se genera un OTP de 6 dígitos (hash SHA-256) y se envía por correo (Brevo API v3). El registro **no** emite JWT: `POST /api/auth/verificar` con `{ email, codigo }` emite el token. El tiempo de registro es **5 minutos** (`REGISTRO_TTL_MINUTOS`, reiniciable con `POST /api/auth/reenviar-codigo`, máx. 3 cada 15 min); al expirar, la cuenta sin verificar se **elimina** (purga periódica cada 60 s y al arrancar) y el correo queda libre para un nuevo registro. Si el correo ya existe **sin verificar**, un nuevo registro lo reemplaza (no responde 409); si está verificado, responde 409. Si el envío del OTP falla, la cuenta se conserva para reintentar con reenvío. El login de una cuenta sin verificar responde 403. Empleados creados por el admin nacen verificados. |
+
+### 3.3 Requisitos no funcionales
+
+| RNF | Área | Descripción |
+|-----|------|-------------|
+| **RNF1** | Rendimiento | Consultas indexadas (`qr_token`, `inicia_en`, `empleado_id`, etc.) y paginación implícita por fecha; validación QR en menos de 0.5 s. |
+| **RNF2** | Seguridad | Contraseñas con bcrypt (12 rounds); teléfono cifrado en reposo con AES-256-CBC (`AES_SECRET`); JWT 30 min; RBAC; rate limiting (10 intentos/15 min en auth, 3 reenvíos OTP/15 min); Helmet; CORS restringido; SQL parametrizado. HTTPS obligatorio en producción (la demo local usa HTTP y `localhost` para la cámara). |
+| **RNF3** | Fiabilidad | Transacciones (`withTransaction`) y locks por empleado/día evitan dobles cobros y solapes; manejo centralizado de errores PostgreSQL (23505/23503/23514/22P02). |
+| **RNF4** | Disponibilidad | Despliegue por pods independientes (`sgp-db`, `sgp-app`) con volumen persistente; reinicio del backend sin perder datos. |
+| **RNF5** | Mantenibilidad | Arquitectura feature-based (`routes → controller → service → model`), frontend modular por funcionalidad y secciones; ESLint limpio; pruebas de integración, datos, unitarias con cobertura y E2E; documentación API auto-generada (Swagger en `/api/docs`). |
+| **RNF6** | Portabilidad | Backend Node.js/Express compatible con Podman y Kubernetes (manifiestos YAML de pods). |
+
+### 3.4 Otros requisitos
+
+- **Legales:** tratamiento de datos personales acorde a prácticas GDPR (minimización y cifrado del teléfono); aplicabilidad sujeta a la ubicación del negocio.
+- **Culturales:** interfaz bilingüe español/inglés implementada (conmutador y preferencia por usuario).
 
 ---
 
-## 5. Apéndice C: Matriz de Trazabilidad (RF ↔ F)
+## 4. Apéndice A — Glosario
 
-| Código RF | Requisito Funcional | Código F | Función Asociada | Estado Trazabilidad |
-|------------|---------------------|----------|------------------|---------------------|
-| **RF0** | Login Unificado | F6 | Login Unificado | ✅ Vinculado |
-| **RF1** | Registro de Cliente | F1 | Gestión de Clientes | ✅ Vinculado |
-| **RF2** | Reserva de Cita | F2 | Reservas Online | ✅ Vinculado |
-| **RF3** | Validación en Entrada y Cobro | F3, F4 | Validación + Cobro | ✅ Vinculado |
-| **RF5** | Generación de Reportes | F5 | Reportes Administrativos | ✅ Vinculado |
-| **RF6** | Gestión de Ubicaciones | F7 | Gestión de Ubicaciones | ✅ Vinculado |
-| **RF7** | Perfil de Empleado | F6, F1 | Auth + Clientes | ✅ Vinculado |
-| **RF8** | Panel de Reservas (Kanban + Mapa) | F8 | Panel de Reservas | ✅ Vinculado |
-| **RF9** | Disponibilidad del Empleado | F9 | Gestión de Disponibilidad | ✅ Vinculado |
-| **RF10** | Dashboard del Empleado | F10 | Panel del Empleado | ✅ Vinculado |
-| **RF11** | Dashboard del Administrador | F11 | Panel del Administrador | ✅ Vinculado |
-| **RF12** | Gestión de Logs | F12 | Gestión de Logs | ✅ Vinculado |
-| **RF13** | Verificación de Cuenta | F13 | Verificación de Cuenta | ✅ Vinculado |
+| Término | Definición |
+|---------|------------|
+| Activas (reservas) | Reservas en estado `pendiente`, `confirmada` o `en_curso`. |
+| Cobro | Registro de pago asociado 1:1 a una reserva (`fisico` u `online`). |
+| Disponibilidad | Bloques semanales `(empleado, sede, día, hora_inicio, hora_fin)`; una sede por día por empleado. |
+| Jornada | Horario de atención de una sede en una fecha (`jornada`). |
+| Kanban | Tablero del cliente con columnas por estado de reserva. |
+| Planificador | Matriz administrador empleados × días con sede, turno y citas. |
+| QR token | UUID único por reserva usado para validar el ingreso. |
+| Seed demo | Dataset masivo reproducible (`semillar-demo.js`) con sedes, empleados, clientes, reservas y cobros. |
+| Ventana de validación | Intervalo ±120 minutos alrededor de la hora de la cita. |
+
+## 5. Apéndice B — Modelos UML y diagramas
+
+Los diagramas se encuentran en formato draw.io (editables) y describen el diseño del sistema:
+
+| Diagrama | Archivo | Página |
+|----------|---------|--------|
+| Flujo de trabajo (actualizado) | `docs/diagrama.drawio` | Flujo actual |
+| Casos de uso | `docs/modelos-uml.drawio` | Casos de uso |
+| Clases / dominio | `docs/modelos-uml.drawio` | Clases |
+| Secuencia Reserva → QR | `docs/modelos-uml.drawio` | Secuencia reserva |
+| Secuencia Validación → Cobro | `docs/modelos-uml.drawio` | Secuencia check-in |
+| Estados de la reserva | `docs/modelos-uml.drawio` | Estados |
+| Despliegue (pods) | `docs/modelos-uml.drawio` | Despliegue |
+| Modelo entidad-relación | `docs/modelos-uml.drawio` | Modelo ER |
+
+La correspondencia entre el modelo ER y el esquema real se documenta en `docs/modelo-datos.md` y se verifica con `tests/esquema.sh`.
+
+## 6. Apéndice C — Matriz de trazabilidad (RF ↔ F ↔ módulo ↔ prueba)
+
+| RF | F | Módulo backend | Módulo frontend | Prueba |
+|----|---|----------------|-----------------|--------|
+| RF0 | F6 | `features/auth/*` | `funcionalidades/auth/login-page.jsx` | `tests/api.sh` (login admin/empleado), `tests/e2e.py` |
+| RF1 | F1 | `features/auth/*`, `shared/utils/telefono.js` | `auth/registro-page.jsx` | `tests/api.sh` (registro 201), E2E |
+| RF2 | F2 | `features/reservas/*` | `cliente/nueva-reserva.jsx` | E2E (reserva, duración, solape 409) |
+| RF3 | F3 | `features/checkin/*` | `empleado/empleado-dashboard.jsx` | `tests/api.sh` (UUID/monto/404), E2E (cobrado y doble cobro) |
+| RF4 | F4 | `features/checkin/*` | `admin/secciones/cobro-modal.jsx` | E2E (método físico, monto) |
+| RF5 | F5 | `features/reportes/*` | `admin/secciones/reportes-seccion.jsx` | `tests/api.sh` (ocupación admin), E2E (ventas/ocupación) |
+| RF6 | F7 | `features/ubicaciones/*` | `admin/secciones/sedes-seccion.jsx` | `tests/api.sh` (catálogo público), E2E (crear/eliminar sede) |
+| RF7 | F6, F1 | `features/clientes/*`, `features/auth/*` | `empleado/mi-perfil.jsx` | Unitarias (`clientes.service`), manual |
+| RF8 | F8 | `features/reservas/*` (me) | `cliente/cliente-dashboard.jsx` | Capturas (`docs/mockups.md`), E2E (`/reservas/me`) |
+| RF9 | F9 | `features/disponibilidad/*` | `admin/secciones/planificador-horarios.jsx`, `empleado/mi-disponibilidad.jsx` | E2E (cancelación con motivo exacto), `tests/datos.sh` |
+| RF10 | F10 | `features/reservas/*` | `empleado/empleado-dashboard.jsx` | Capturas, E2E |
+| RF11 | F11 | `features/*` | `admin/admin-dashboard.jsx` + `admin/secciones/*` | Capturas (planificador/dashboard), `tests/api.sh` (agenda) |
+| RF12 | F12 | `features/logs/*` | `admin/secciones/logs-seccion.jsx` | `tests/api.sh` (actividad 200/401, export text/plain) |
+| RF13 | F13 | `features/auth/*`, `integrations/email/mailer.js` | `auth/verificar-page.jsx` | `tests/api.sh` (registro, re-registro sin verificar, 403, código incorrecto), unitarias (reemplazo y purga de expirados) |
+| UI1/UI2/UI3 | F1–F13 | — | `componentes/*`, `i18n/*` | Capturas ES/EN y móvil (`docs/mockups.md`) |
+| API1/API2 | — | `routes/api.routes.js`, `docs/openapi.js` | — | `tests/api.sh` (docs/openapi 200, RBAC) |
+| COM1 | — | `integrations/realtime/ws-hub.js` | `hooks/use-websocket.js` | E2E (RF9 emite `reserva.actualizada`) |
+| RNF2 | — | `shared/utils/*`, middlewares | — | `tests/unit/*` (encriptación/telefono), revisión de cabeceras |
+| RNF5 | — | — | — | `tests/unit/*` con cobertura, `tests/api.sh`, `tests/datos.sh`, `tests/esquema.sh` |
+
+> Estado general: todos los RF de la tabla están implementados y verificados por al menos un tipo de prueba. Ver `docs/plan-pruebas.md` para la estrategia y el reporte de cobertura.

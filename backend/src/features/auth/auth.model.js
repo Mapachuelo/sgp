@@ -156,6 +156,36 @@ const authModel = {
       [usuario_id]
     );
   },
+
+  async deleteUsuario(id) {
+    await pool.query('DELETE FROM cobro WHERE registrado_por = $1', [id]);
+    const { rows } = await pool.query('DELETE FROM app_user WHERE id = $1 RETURNING id', [id]);
+    return rows[0] || null;
+  },
+
+  async deleteNoVerificadosAntiguos(ttlMinutos) {
+    await pool.query(
+      `DELETE FROM cobro WHERE registrado_por IN (
+         SELECT id FROM app_user
+         WHERE rol = 'cliente' AND verificado = FALSE AND token_verificacion_expiracion < NOW()
+       )`
+    );
+    const { rows } = await pool.query(
+      `DELETE FROM app_user
+       WHERE id IN (
+         SELECT id FROM app_user
+         WHERE rol = 'cliente'
+           AND verificado = FALSE
+           AND (
+             token_verificacion_expiracion < NOW()
+             OR (token_verificacion_expiracion IS NULL AND creado_en < NOW() - ($1 || ' minutes')::interval)
+           )
+       )
+       RETURNING id`,
+      [String(ttlMinutos)]
+    );
+    return rows.length;
+  },
 };
 
 module.exports = authModel;

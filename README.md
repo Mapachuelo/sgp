@@ -57,8 +57,10 @@ sgp/
 │           ├── admin/               # dashboard + secciones/ (empleados, servicios, sedes,
 │           │                        #   horarios con planificador, reportes, clientes, logs) + modales QR/Cobro
 └── tests/
-    ├── api.sh                # 25 pruebas de integracion curl
-    └── datos.sh              # Validaciones SQL del dataset demo
+    ├── api.sh                # 27 pruebas de integracion curl
+    ├── datos.sh              # Integridad del dataset demo (6)
+    ├── esquema.sh            # Esquema vs modelo de datos (32)
+    └── e2e.py                # Extremo a extremo (29)
 ```
 
 ## Ejecucion con Podman
@@ -112,7 +114,7 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 ### Acceso
 
 - **Frontend:** `http://localhost:8080`
-- **Healthcheck:** `http://localhost:8080/api/healthcheck`
+- **Healthcheck:** `http://localhost:8080/api/healthcheck` (incluye el estado de Brevo: `ok`, `error` o `no-configurado`)
 - **API directa:** no expuesta al host; el frontend la proxya a `127.0.0.1:3000` dentro del pod `sgp-app`
 
 ### Actualizar la app tras cambios de imagen (sin tocar la base de datos)
@@ -151,6 +153,7 @@ podman volume rm sgp-pgdata
 |-----|-------|----------|
 | Admin | admin@sgp.local | admin123 |
 | Empleado | empleado@sgp.local | empleado123 |
+| Cliente (pruebas) | cliente@sgp.local | cliente123 |
 
 ## Base de datos (10 tablas)
 
@@ -321,6 +324,7 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Metodos de cobro: `fisico` (efectivo) o `online`
 - Estados BD: pendiente → confirmada → en_curso → cobrado (cancelada)
 - Rango horario default: 06:00-22:00, granularidad default: 30 min
+- Registro: un correo sin verificar se reemplaza si el cliente vuelve a registrarse; la cuenta sin verificar se elimina a los **5 minutos** (configurable con `REGISTRO_TTL_MINUTOS`) y el correo queda libre; si el envio del OTP falla se puede usar `Reenviar codigo` (reinicia el tiempo de registro)
 
 ## Seguridad
 
@@ -336,6 +340,7 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
 
 Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin+cobro atomico, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
+Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura) y `tests/e2e.py` (flujo completo).
 
 ## Desarrollo local
 
@@ -348,8 +353,20 @@ pnpm run lint                  # ESLint
 
 ## Documentacion
 
+### Proyecto
 - [Plan de desarrollo](plan.md)
-- [Requisitos IEEE 830](docs/formato_ieee830.md)
+- [Requisitos IEEE 830](docs/formato_ieee830.md) — funcionalidades, RF/RNF, apendices y matriz RF↔F↔modulo↔prueba
+- [Diseno tecnico](docs/diseno-tecnico.md) — arquitectura, decisiones y estructura del codigo
+- [Modelos UML](docs/modelos-uml.drawio) — casos de uso, clases, secuencias, estados, despliegue y ER (+ [flujo actual](docs/diagrama.drawio))
+- [Mockups e interfaz](docs/mockups.md) — capturas reales por rol (ES/EN, movil)
+- [Modelo de datos](docs/modelo-datos.md) — ER y diccionario de las 10 tablas
+- [Plan de pruebas](docs/plan-pruebas.md) — estrategia, matriz y cobertura (93.84 %)
+- [Guia de despliegue](docs/despliegue.md) — Podman, datos demo, operacion y problemas conocidos
+- [Manual tecnico (ES)](docs/manual-tecnico.es.md) | [Manual tecnico (EN)](docs/manual-tecnico.en.md)
+- [Manual de usuario (ES)](docs/manual-usuario.es.md) | [Manual de usuario (EN)](docs/manual-usuario.en.md)
+- [Swagger UI](http://localhost:8080/api/docs) — API en ejecucion
+
+### Agentes
 - [Arquitectura y convenciones](.agents/skills/architecture.md)
 - [Reglas de comportamiento](.agents/skills/contexto.md)
 - [Memoria de sesiones](.agents/notes/memory.md)
