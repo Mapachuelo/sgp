@@ -12,8 +12,8 @@ Despliegue del SGP con Podman (`kube play`), dos pods sobre una red privada y vo
 
 | Archivo | Propósito |
 |---------|-----------|
-| `Containerfile` | Imagen backend (Node 22 Alpine + pnpm). |
-| `Containerfile.nginx` | Imagen frontend (build Vite + Nginx Alpine). |
+| `backend/Containerfile` | Imagen backend (Node 22 Alpine + pnpm). |
+| `frontend/Containerfile` | Imagen frontend (build Vite + Nginx Alpine). |
 | `sgp-db-pod.yaml` | Pod PostgreSQL 17 + PVC `sgp-pgdata`. |
 | `sgp-app-pod.yaml` | Pod backend + Nginx (hostPort 8080). |
 | `example.sgp-db-pod.yaml` / `example.sgp-app-pod.yaml` | Plantillas seguras (placeholders). |
@@ -30,8 +30,8 @@ cp example.sgp-app-pod.yaml sgp-app-pod.yaml
 ## 3. Construcción de imágenes
 
 ```bash
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
 ```
 
 ## 4. Levantar el entorno
@@ -51,8 +51,8 @@ Acceso: `http://localhost:8080` · Healthcheck: `http://localhost:8080/api/healt
 ## 5. Actualizar tras cambios de código
 
 ```bash
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
 podman kube down sgp-app-pod.yaml
 podman kube play sgp-app-pod.yaml --network sgp-net
 # o en un paso:

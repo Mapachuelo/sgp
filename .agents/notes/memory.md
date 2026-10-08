@@ -496,3 +496,18 @@
 - **Envio real** con `node scripts/enviar-correo-prueba.js ajulianc47@gmail.com`: `MessageId <202610080156.42669437377@smtp-relay.mailin.fr>`.
 - `tests/api.sh` ahora **28/28** (el caso de reenvio de codigo devuelve 200 al estar Brevo operativo); conteos actualizados en README, AGENTS, plan.md, `docs/despliegue.md` y `docs/plan-pruebas.md`.
 - Pendiente recomendado: rotar la API key (se compartio por chat) y confirmar recepcion del OTP en la bandeja del usuario.
+
+---
+
+## Sesion — 7 Octubre 2026 — Reorganizacion de archivos de build
+
+- `Containerfile` → `backend/Containerfile`, `Containerfile.nginx` → `frontend/Containerfile` y `nginx.conf` → `frontend/nginx.conf` (git mv, historial conservado). `.eslintrc.cjs` → `backend/.eslintrc.cjs`.
+- **Restriccion clave:** ambos Containerfiles requieren contexto de build = raiz del repo (copian `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `package.json`, `backend/`, `frontend/`, `db/`). Comandos: `podman build -t localhost/sgp-backend:latest -f backend/Containerfile .` y `podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .` (desde la raiz).
+- `frontend/Containerfile`: `COPY nginx.conf` → `COPY frontend/nginx.conf`; encabezados con el comando de build en ambos.
+- Los pods (`sgp-*-pod.yaml`, `example.sgp-*-pod.yaml`) y `.containerignore` se quedan en la raiz por decision del usuario; `sgp-config.yaml` y `example.env` no se borraron.
+- Docs actualizados: README (arbol y builds), `docs/despliegue.md` (tabla y builds), `.agents/skills/architecture.md` (comandos, arbol, prosa).
+
+### Verificacion (7 Oct 2026)
+- Builds con las rutas nuevas (`-f backend/Containerfile .`, `-f frontend/Containerfile .`) OK; stack redesplegado; healthcheck `{"ok":true,"brevo":"ok"}`.
+- Suites: `tests/api.sh` 28/28, `tests/datos.sh` 6/6, `tests/esquema.sh` 32/32, unitarias 36/36, `tests/e2e.py` 29/29.
+- `api.sh` y `e2e.py` comparten el rate limit de auth (10/15 min): al correrlos seguidos aparecen 429; reiniciar el pod de la app entre corridas (ya documentado en problemas conocidos).

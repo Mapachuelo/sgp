@@ -40,8 +40,8 @@ pnpm run lint                         # ESLint en frontend y backend
 
 ```bash
 podman network create sgp-net                     # Crear red (una sola vez)
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
 podman kube play sgp-db-pod.yaml --network sgp-net # PRIMERO la BD
 podman kube play sgp-app-pod.yaml --network sgp-net
 ```
@@ -60,12 +60,9 @@ sgp/
 ├── package.json              # Root: scripts dev, build, start, test
 ├── sgp-db-pod.yaml           # Pod PostgreSQL + PVC persistente
 ├── sgp-app-pod.yaml          # Pod backend + frontend
-├── Containerfile             # Backend (Node 22 Alpine + pnpm)
-├── Containerfile.nginx       # Frontend (Nginx Alpine)
 ├── .env.example
 ├── .gitignore
 ├── .containerignore
-├── .eslintrc.cjs
 ├── .prettierrc
 ├── plan.md
 ├── README.md
@@ -93,6 +90,8 @@ sgp/
 ├── db/
 │   └── init.sql
 ├── frontend/
+│   ├── Containerfile         # Frontend (build Vite + Nginx Alpine)
+│   ├── nginx.conf            # Proxy reverso /api → backend, SPA fallback
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── tailwind.config.js
@@ -146,6 +145,8 @@ sgp/
 │       └── lib/
 │           └── utils.js
 ├── backend/
+│   ├── Containerfile         # Backend (Node 22 Alpine + pnpm)
+│   ├── .eslintrc.cjs
 │   ├── package.json
 │   └── src/
 │       ├── server.js
@@ -273,8 +274,8 @@ sgp/
 - `sgp-db-pod.yaml` define el pod de PostgreSQL 17 Alpine con PVC persistente (`sgp-pgdata`).
 - `sgp-app-pod.yaml` define el pod de aplicacion con backend Node.js + frontend Nginx.
 - Los pods se conectan via la red `sgp-net`.
-- `Containerfile` (backend): Node 22 Alpine, instala pnpm, copia monorepo, ejecuta `pnpm --filter backend start`.
-- `Containerfile.nginx` (frontend): Nginx Alpine, copia `frontend/dist/` tras build, configura proxy reverso a backend en `/api`.
+- `backend/Containerfile` (backend): Node 22 Alpine, instala pnpm, copia monorepo, ejecuta `pnpm --filter backend start`. Contexto de build: raíz del repo.
+- `frontend/Containerfile` (frontend): Nginx Alpine, copia `frontend/dist/` tras build, configura proxy reverso a backend en `/api` con `frontend/nginx.conf`. Contexto de build: raíz del repo.
 - Variables de entorno en `.env` (desarrollo) y directamente en los pods `sgp-db-pod.yaml` / `sgp-app-pod.yaml` (gitignored, creados a partir de `example.sgp-*-pod.yaml`). No hay scripts de inyeccion: el usuario rellena los valores a mano.
 - Script de prueba de correo: `pnpm --filter backend exec node scripts/enviar-correo-prueba.js [email]` (usa las variables `BREVO_*` del `.env`).
 

@@ -25,15 +25,13 @@ Aplicacion web fullstack para la gestion operativa de peluquerias: reservas onli
 sgp/
 ├── pnpm-workspace.yaml
 ├── package.json              # Root: scripts dev, lint, start, test
-├── Containerfile             # Backend (Node 22 Alpine + pnpm)
-├── Containerfile.nginx       # Frontend (Nginx Alpine)
-├── nginx.conf                # Proxy reverso /api → backend, SPA fallback
 ├── sgp-db-pod.yaml           # Pod PostgreSQL + PVC persistente
 ├── sgp-app-pod.yaml          # Pod backend + frontend
 ├── .env / .env.example
 ├── db/
 │   └── init.sql              # 10 tablas + seed data
 ├── backend/
+│   ├── Containerfile         # Backend (Node 22 Alpine + pnpm)
 │   └── src/
 │       ├── server.js / app.js
 │       ├── config/           # env, db, database-init
@@ -44,6 +42,8 @@ sgp/
 │       └── shared/           # logger, async-handler, http-error, middlewares, utils
 │   └── src/utils/semillar-demo.js   # Seed masivo de demostracion
 ├── frontend/
+│   ├── Containerfile         # Frontend (build Vite + Nginx Alpine)
+│   ├── nginx.conf            # Proxy reverso /api → backend, SPA fallback
 │   └── src/
 │       ├── main.jsx / app.jsx
 │       ├── api/cliente.js           # Fetch wrapper con JWT
@@ -96,8 +96,8 @@ cp example.sgp-db-pod.yaml sgp-db-pod.yaml
 
 #### 3. Build de imagenes (solo la primera vez o al cambiar codigo)
 ```bash
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
 ```
 #### 4. Crear red compartida (una sola vez)
 ```
@@ -120,8 +120,8 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 ### Actualizar la app tras cambios de imagen (sin tocar la base de datos)
 
 ```bash
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
 podman kube down sgp-app-pod.yaml
 podman kube play sgp-app-pod.yaml --network sgp-net
 ```
