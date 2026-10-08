@@ -89,10 +89,11 @@ cp example.sgp-app-pod.yaml sgp-app-pod.yaml
 cp example.sgp-db-pod.yaml sgp-db-pod.yaml
 ```
 #### 2. Rellenar valores reales
-- En `sgp-app-pod.yaml`: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET`, `AES_SECRET` (opcional; si se omite usa `JWT_SECRET`) (y `hostPort` del frontend si el `8080` esta ocupado).
+- En `sgp-app-pod.yaml`: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET`, `AES_SECRET` (opcional; si se omite usa `JWT_SECRET`), `WOMPI_BASE_URL`, `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET` (llaves sandbox `pub_test_`/`test_integrity_`/`test_events_` para pruebas; `pub_prod_`/`prod_*` para dinero real) (y `hostPort` del frontend si el `8080` esta ocupado).
 - En `sgp-db-pod.yaml`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
 - Si cambias usuario/contraseña de la BD, ajustar `DATABASE_URL` en `sgp-app-pod.yaml` para que coincida.
-- Sin estos valores el backend arranca pero Brevo falla (no llegan correos de verificacion).
+- Sin estos valores el backend arranca pero Brevo falla (no llegan correos de verificacion) y Wompi queda `no-configurado` (los pagos en linea no se procesan).
+- Para recibir webhooks de Wompi configura la URL de eventos en el dashboard de comercios (`https://<tu-dominio>/api/pagos/webhook`); en local el pago se sincroniza con `POST /api/pagos/{id}/verificar`.
 
 #### 3. Build de imagenes (solo la primera vez o al cambiar codigo)
 ```bash
@@ -114,7 +115,7 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 ### Acceso
 
 - **Frontend:** `http://localhost:8080`
-- **Healthcheck:** `http://localhost:8080/api/healthcheck` (incluye el estado de Brevo: `ok`, `error` o `no-configurado`)
+- **Healthcheck:** `http://localhost:8080/api/healthcheck` (incluye el estado de Brevo y Wompi: `ok`, `error` o `no-configurado`)
 - **API directa:** no expuesta al host; el frontend la proxya a `127.0.0.1:3000` dentro del pod `sgp-app`
 
 ### Actualizar la app tras cambios de imagen (sin tocar la base de datos)
@@ -262,7 +263,17 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 |--------|------|-----|
 | POST | `/api/checkin/validar` | Empleado/Admin |
 
-`POST /api/checkin/validar` recibe `{ qr_token, monto }` y registra check-in + cobro en una sola transaccion (`SELECT ... FOR UPDATE`): valida estado activo, ventana ±120 min y monto numerico ≥ 0; `monto = 0` ⇒ `metodo='online'`, `monto > 0` ⇒ `metodo='fisico'`; la reserva queda en estado `cobrado` y un segundo intento responde 409.
+`POST /api/checkin/validar` recibe `{ qr_token, monto }` y registra check-in + cobro en una sola transaccion (`SELECT ... FOR UPDATE`): valida estado activo, ventana ±120 min y monto numerico ≥ 0; `monto = 0` ⇒ `metodo='online'`, `monto > 0` ⇒ `metodo='fisico'`; la reserva queda en estado `cobrado` y un segundo intento responde 409. Si la reserva tiene un pago Wompi `aprobado`, el cobro se registra como `online` con el monto real del pago (ignora el monto recibido).
+
+### Pagos digitales (Wompi)
+| Metodo | Ruta | Rol |
+|--------|------|-----|
+| POST | `/api/pagos/intencion` | Cliente |
+| GET | `/api/pagos/:id` | Cliente (dueno) / Empleado / Admin |
+| POST | `/api/pagos/:id/verificar` | Cliente (dueno) / Admin |
+| POST | `/api/pagos/webhook` | Publico (firma Wompi) |
+
+Flujo: el cliente elige "Pago en linea" en el paso 5 y el frontend abre el **Widget de Wompi** (`checkout.wompi.co/widget.js`) con la configuracion que devuelve `POST /api/pagos/intencion` (referencia unica, monto en centavos recalculado en el servidor y firma SHA256 de integridad). El checkout procesa tarjeta, PSE, Nequi y Boton Bancolombia. Al aprobarse, `POST /api/pagos/:id/verificar` (o el webhook con checksum SHA256 del secreto de eventos) marca el pago `aprobado` y la reserva `confirmada`; un pago `declinado`/`error` deja la reserva `pendiente` para reintentar o pagar en local. El webhook es idempotente y responde 200 a eventos autenticos; `POST /api/pagos/webhook` con firma invalida responde 401. Las claves privada/secreta nunca se exponen al frontend; el monto siempre se recalcula en el backend (`precio_base × cantidad_personas`).
 
 ### Documentacion API (RNF5)
 | Metodo | Ruta | Rol |
@@ -339,7 +350,7 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Documentacion API en `/api/docs` (Swagger UI + OpenAPI 3)
 - Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
 
-Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin+cobro atomico, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin+cobro atomico, pagos Wompi (intencion RBAC, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
 Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura) y `tests/e2e.py` (flujo completo).
 
 ## Desarrollo local

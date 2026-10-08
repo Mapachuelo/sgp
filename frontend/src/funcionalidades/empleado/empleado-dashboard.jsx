@@ -696,6 +696,7 @@ export default function EmpleadoDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 ml-auto">
+                      {cita.pago_estado === 'aprobado' && <Badge variant="success">Pagado</Badge>}
                       <Badge variant={ESTADO_COLOR[cita.estado] || 'default'}>
                         {ESTADO_LABEL[cita.estado] || cita.estado}
                       </Badge>

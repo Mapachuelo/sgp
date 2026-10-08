@@ -18,6 +18,7 @@ app_user 1───N empleado_tiempo_servicio
 servicio_catalogo 1───N empleado_tiempo_servicio
 servicio_catalogo 1───N reserva
 reserva 1───0..1 cobro
+reserva 1───N pago
 app_user 1───N cobro (registrado_por)
 ```
 
@@ -128,7 +129,26 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 
 Índice: `idx_cobro_cobrado_en`. El UNIQUE garantiza un solo cobro por reserva.
 
-### 2.10 `preferencia_usuario`
+### 2.10 `pago`
+Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede tener varios intentos; solo un pago `aprobado` confirma la reserva.
+
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| reserva_id | integer | NOT NULL, FK `reserva(id)` CASCADE |
+| proveedor | varchar(20) | NOT NULL, DEFAULT `wompi` |
+| referencia | varchar(100) | **UNIQUE**, NOT NULL (referencia propia `SGP-<reserva>-<aleatorio>`) |
+| transaction_id | varchar(100) | **UNIQUE** (id de la transacción en Wompi) |
+| monto | decimal(10,2) | NOT NULL (calculado en el servidor: `precio_base × cantidad_personas`) |
+| moneda | varchar(3) | NOT NULL, DEFAULT `COP` |
+| metodo | varchar(30) | `CARD`, `NEQUI`, `PSE`, `BANCOLOMBIA_TRANSFER`, ... (lo reporta Wompi) |
+| estado | varchar(20) | NOT NULL, CHECK `pendiente|aprobado|declinado|error|anulado` |
+| payload | jsonb | Objeto completo de la transacción de Wompi |
+| creado_en / actualizado_en | timestamptz | DEFAULT now() |
+
+Índices: `idx_pago_reserva_id`, `idx_pago_estado`, `idx_pago_referencia`.
+
+### 2.11 `preferencia_usuario`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -141,9 +161,10 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 ## 3. Reglas de integridad
 
 - Un cobro por reserva (UNIQUE + transacción del check-in).
+- Un pago aprobado mueve la reserva a `confirmada`; al validar el QR, el check-in registra el `cobro` con `metodo='online'` y el monto real del pago (sin pedir monto adicional). Referencias de pago únicas; webhook idempotente por `transaction_id`/estado final.
 - Estados válidos de reserva restringidos por CHECK.
 - Cantidad de personas entre 1 y 5.
-- Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro.
+- Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro y sus pagos.
 - Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `idioma` y `telefono` a TEXT; el teléfono en claro se cifra al arrancar (`database-init.js`).
 
 ## 4. Seeds

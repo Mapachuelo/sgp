@@ -19,12 +19,14 @@ Estrategia de verificación del SGP. Relaciona cada requisito (RF/RNF) con prueb
 
 | Suite | Resultado | Fecha |
 |-------|-----------|-------|
-| `tests/api.sh` | 28/28 | 2026-10-06 |
-| `tests/datos.sh` | 6/6 | 2026-10-06 |
-| `tests/esquema.sh` | 32/32 | 2026-10-06 |
-| `tests/unit/*.test.js` | 36/36 | 2026-10-06 |
-| `tests/e2e.py` | 29/29 | 2026-10-06 |
-| Cobertura (líneas) | **93.84 %** (ramas 79.04 %, funciones 95.33 %) | 2026-10-06 |
+| `tests/api.sh` | 33/33 | 2026-10-08 |
+| `tests/datos.sh` | 6/6 | 2026-10-08 |
+| `tests/esquema.sh` | 40/40 | 2026-10-08 |
+| `tests/unit/*.test.js` | 46/46 | 2026-10-08 |
+| `tests/e2e.py` | 41/41 | 2026-10-08 |
+| Cobertura (líneas) | **>= 80 %** (RNF5) | 2026-10-08 |
+
+Ampliaciones 2026-10-08: `pago` en esquema (tabla, UNIQUEs, CHECK, FK e índices), RBAC de `POST /pagos/intencion` y webhook con firma inválida en `api.sh`, unitarias `wompi.test.js` (firma de integridad, checksum, consulta) y `pagos.test.js` (monto server-side, aprobado/declinado, idempotencia), y flujo e2e con webhook firmado (aprobado/declinado) + check-in de reserva pagada con monto real.
 
 Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` (red), `src/server.js` y `src/utils/semillar-*.js` (seeds), por ser infraestructura o utilidades de datos, no lógica de negocio.
 
@@ -54,7 +56,8 @@ Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` 
 | RF0 Login | `api.sh` (login admin/empleado), unitarias auth |
 | RF1 Registro | `api.sh` (201), unitarias auth (validaciones, duplicado) |
 | RF2 Reserva | `e2e.py` (crear, duración, solape), unitarias reservas (validaciones) |
-| RF3/RF4 Check-in y cobro | `e2e.py` (cobrado, doble cobro), unitarias checkin |
+| RF3/RF4 Check-in y cobro | `e2e.py` (cobrado, doble cobro, cobro online con monto real de pago Wompi), unitarias checkin |
+| Cobro digital Wompi | `api.sh` (RBAC, webhook firma inválida), unitarias `wompi`/`pagos` (firma, checksum, monto server-side, aprobado→confirmada, declinado, idempotencia), `e2e.py` (webhook firmado), prueba manual en sandbox con tarjeta `4242`/`4111`, Nequi `3991111111`/`3992222222` y PSE (banco que aprueba/rechaza) |
 | RF5 Reportes | `api.sh`, `e2e.py`, unitarias reportes |
 | RF6 Ubicaciones | `api.sh` (público), unitarias ubicaciones (rangos) |
 | RF7 Perfil empleado | unitarias clientes/auth (identificación) |

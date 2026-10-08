@@ -251,9 +251,13 @@ export default function ClienteDashboard() {
                           {reserva.ubicacion_nombre || 'Sede'}
                         </p>
                         <div className="flex items-center justify-between gap-2">
-                          <Badge variant={estadoAVariante(reserva.estado)}>
-                            {etiquetaEstado(reserva.estado)}
-                          </Badge>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <Badge variant={estadoAVariante(reserva.estado)}>
+                              {etiquetaEstado(reserva.estado)}
+                            </Badge>
+                            {reserva.pago_estado === 'aprobado' && <Badge variant="success">Pagado</Badge>}
+                            {reserva.pago_estado === 'pendiente' && <Badge variant="warning">Pago pendiente</Badge>}
+                          </div>
                           <div className="flex items-center gap-1">
                             {reserva.qr_data_url && (
                               <button

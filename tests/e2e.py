@@ -8,6 +8,7 @@ Requiere el stack desplegado (pod sgp-db y sgp-app). Variables opcionales:
   DB_NOMBRE     (default sgp)
 """
 import json
+import hashlib
 import os
 import subprocess
 import time
@@ -57,6 +58,27 @@ def sql(consulta):
         capture_output=True, text=True,
     )
     return resultado.stdout
+
+
+def env_backend(nombre):
+    resultado = subprocess.run(
+        ['podman', 'exec', 'sgp-app-backend', 'printenv', nombre],
+        capture_output=True, text=True,
+    )
+    return resultado.stdout.strip()
+
+
+def evento_wompi(transaccion, secreto):
+    timestamp = int(time.time())
+    propiedades = ['transaction.id', 'transaction.status', 'transaction.reference']
+    valores = ''.join(str(transaccion[prop.split('.')[-1]]) for prop in propiedades)
+    checksum = hashlib.sha256(f'{valores}{timestamp}{secreto}'.encode()).hexdigest()
+    return {
+        'event': 'transaction.updated',
+        'data': {'transaction': transaccion},
+        'signature': {'properties': propiedades, 'checksum': checksum},
+        'timestamp': timestamp,
+    }
 
 
 email = f'e2e.{int(time.time())}@correo.com'
@@ -138,6 +160,52 @@ check('Nombre de cliente en respuesta', bool(resultado.get('cliente_nombre')), r
 
 status, data = req('POST', '/checkin/validar', {'qr_token': qr, 'monto': 25000}, token_emp)
 check('Doble cobro rechazado (409)', status == 409, f'{status} {data}')
+
+inicio3_local = datetime(lunes.year, lunes.month, lunes.day, 12, 0, tzinfo=BOGOTA)
+inicia3 = inicio3_local.astimezone(ZoneInfo('UTC')).isoformat().replace('+00:00', 'Z')
+status, data = req('POST', '/reservas', {
+    'empleado_id': 2, 'servicio_id': 1, 'ubicacion_id': 1,
+    'inicia_en': inicia3, 'cantidad_personas': 2,
+}, token_cli)
+reserva3 = data.get('data') or {}
+check('Tercera reserva para pago digital', status == 201 and bool(reserva3.get('id')), f'{status} {data}')
+
+status, data = req('POST', '/pagos/intencion', {'reserva_id': reserva3.get('id')}, token_cli)
+intencion = data.get('data') or {}
+check('Intencion de pago Wompi creada (201)', status == 201 and intencion.get('monto_en_centavos') == 5000000, f'{status} {data}')
+check('Firma de integridad SHA256 de 64 hex', len(intencion.get('firma_integridad', '')) == 64, intencion.get('firma_integridad'))
+
+pago_id = intencion.get('pago_id')
+referencia = intencion.get('referencia')
+estado_db = sql(f'SELECT estado FROM pago WHERE id = {pago_id}').strip()
+check('Pago pendiente en BD', estado_db == 'pendiente', estado_db)
+
+secreto = env_backend('WOMPI_EVENTS_SECRET')
+check('Secreto de eventos disponible en el backend', bool(secreto), '')
+
+evento = evento_wompi({'id': 'TX-E2E-APROBADA', 'status': 'APPROVED', 'reference': referencia}, secreto)
+status, data = req('POST', '/pagos/webhook', evento)
+resultado = data.get('data') or {}
+check('Webhook aprobado sincroniza el pago', status == 200 and resultado.get('estado') == 'aprobado', f'{status} {data}')
+estado_reserva = sql(f"SELECT estado FROM reserva WHERE id = {reserva3.get('id')}").strip()
+check('Reserva confirmada tras el pago', estado_reserva == 'confirmada', estado_reserva)
+
+status, data = req('POST', '/pagos/webhook', evento)
+check('Webhook idempotente', status == 200 and (data.get('data') or {}).get('idempotente') is True, f'{status} {data}')
+
+status, data = req('POST', '/pagos/intencion', {'reserva_id': reserva2.get('id')}, token_cli)
+intencion2 = data.get('data') or {}
+evento2 = evento_wompi({'id': 'TX-E2E-DECLINADA', 'status': 'DECLINED', 'reference': intencion2.get('referencia')}, secreto)
+status, data = req('POST', '/pagos/webhook', evento2)
+check('Webhook declinado registra el pago', status == 200 and (data.get('data') or {}).get('estado') == 'declinado', f'{status} {data}')
+estado_db = sql(f"SELECT estado FROM pago WHERE id = {intencion2.get('pago_id')}").strip()
+check('Pago declinado en BD', estado_db == 'declinado', estado_db)
+
+sql(f"UPDATE reserva SET inicia_en = NOW() - INTERVAL '10 minutes', termina_en = NOW() + INTERVAL '20 minutes' WHERE id = {reserva3.get('id')}")
+status, data = req('POST', '/checkin/validar', {'qr_token': reserva3.get('qr_token'), 'monto': 0}, token_emp)
+resultado = data.get('data') or {}
+check('Check-in de reserva pagada por Wompi', status == 200 and resultado.get('metodo') == 'online', f'{status} {data}')
+check('Cobro online registra el monto real del pago', resultado.get('monto') == 50000 and resultado.get('pagado_online') is True, resultado)
 
 status, data = req('POST', '/ubicaciones', {
     'nombre': f'Sede E2E {int(time.time())}', 'direccion': 'Calle 1 #2-3, Bogota',

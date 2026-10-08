@@ -31,7 +31,7 @@ esperar_tabla() {
 
 echo "== Validacion del esquema (docs/modelo-datos.md) =="
 
-for tabla in ubicacion app_user empleado_perfil servicio_catalogo empleado_tiempo_servicio jornada empleado_disponibilidad reserva cobro preferencia_usuario; do
+for tabla in ubicacion app_user empleado_perfil servicio_catalogo empleado_tiempo_servicio jornada empleado_disponibilidad reserva cobro pago preferencia_usuario; do
   validar "Tabla $tabla existe" "SELECT to_regclass('public.$tabla') IS NOT NULL"
 done
 
@@ -59,6 +59,18 @@ validar "cobro.reserva_id es UNIQUE (un cobro por reserva)" \
 validar "cobro.metodo restringido por CHECK" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='cobro'::regclass AND contype='c' AND pg_get_constraintdef(oid) LIKE '%metodo%')"
 
+validar "pago.referencia es UNIQUE" \
+  "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='pago' AND indexdef LIKE '%UNIQUE%referencia%')"
+
+validar "pago.transaction_id es UNIQUE" \
+  "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='pago' AND indexdef LIKE '%UNIQUE%transaction_id%')"
+
+validar "pago.estado restringido por CHECK" \
+  "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='pago'::regclass AND contype='c' AND pg_get_constraintdef(oid) LIKE '%estado%')"
+
+validar "FK pago.reserva_id -> reserva ON DELETE CASCADE" \
+  "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='pago'::regclass AND contype='f' AND confrelid='reserva'::regclass AND confdeltype='c')"
+
 validar "empleado_disponibilidad UNIQUE (empleado, ubicacion, dia)" \
   "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='empleado_disponibilidad' AND indexdef LIKE '%UNIQUE%empleado_id%ubicacion_id%dia_semana%')"
 
@@ -80,7 +92,7 @@ validar "FK empleado_perfil.usuario_id -> app_user ON DELETE CASCADE" \
 validar "FK reserva.servicio_id -> servicio_catalogo" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='reserva'::regclass AND contype='f' AND confrelid='servicio_catalogo'::regclass)"
 
-for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_cobro_cobrado_en idx_app_user_rol_bloqueado; do
+for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_cobro_cobrado_en idx_pago_reserva_id idx_pago_estado idx_pago_referencia idx_app_user_rol_bloqueado; do
   validar "Indice $indice existe" "SELECT to_regclass('public.$indice') IS NOT NULL"
 done
 

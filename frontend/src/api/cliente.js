@@ -77,6 +77,11 @@ const api = {
   checkin: {
     validar: (body) => request('/checkin/validar', { method: 'POST', body: JSON.stringify(body) }),
   },
+  pagos: {
+    intencion: (reserva_id) => request('/pagos/intencion', { method: 'POST', body: JSON.stringify({ reserva_id }) }),
+    estado: (id) => request(`/pagos/${id}`),
+    verificar: (id, transaction_id) => request(`/pagos/${id}/verificar`, { method: 'POST', body: JSON.stringify({ transaction_id }) }),
+  },
   reportes: {
     ventasDiarias: (fecha) => request(`/reportes/ventas-diarias?fecha=${fecha}`),
     ocupacion: (fecha) => request(`/reportes/ocupacion?fecha=${fecha}`),

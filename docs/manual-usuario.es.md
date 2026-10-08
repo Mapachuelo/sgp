@@ -36,7 +36,7 @@ Guía de uso del Sistema de Gestión de Peluquería para clientes, empleados y a
 2. **Paso 2 — Estilista:** se listan los disponibles en esa sede en los próximos 6 días.
 3. **Paso 3 — Calendario:** elegir día y hora. Colores: verde disponible, rojo ocupado, gris pasado, azul no disponible, ámbar con menos de 60 minutos de anticipación.
 4. **Paso 4 — Confirmar:** se abre una ventana flotante con servicio, **duración estimada (hora de entrada → hora de salida)**, personas (1–5) y total.
-5. **Paso 5 — Pago y QR:** se genera el código QR de ingreso y el botón **Descargar QR**. El pago en efectivo se registra al llegar; "Pago online" deja el monto en 0.
+5. **Paso 5 — Pago y QR:** se genera el código QR de ingreso y el botón **Descargar QR**. Elige **Efectivo en Local** (pagas al llegar) o **Pago en línea**, que abre el checkout seguro de **Wompi** con tarjeta crédito/débito, PSE, Nequi o Botón Bancolombia; al aprobarse, la reserva queda **Confirmada** con la insignia "Pagado". Si el pago se rechaza puedes reintentar o pagar en el local.
 
 Si el horario se ocupa mientras decides, verás un error y el calendario se actualizará para elegir otro horario. Límite: 5 reservas activas.
 
@@ -142,7 +142,7 @@ La interfaz es responsiva (menú hamburguesa, tablas con scroll y planificador c
 |----------|-----------|
 | ¿Por qué no puedo reservar en menos de 60 minutos? | Es la anticipación mínima para preparar el servicio. |
 | ¿Qué pasa si el estilista cambia de sede? | Las reservas futuras de ese día en la sede anterior se cancelan y lo verás en tu kanban con el motivo. |
-| ¿Cómo pago en línea? | Al reservar elige el método; el ingreso se valida con monto 0 y el cobro se registra como `online`. |
+| ¿Cómo pago en línea? | Al reservar elige **Pago en línea** y completa el checkout de Wompi (tarjeta, PSE, Nequi o Bancolombia). Si se aprueba, la reserva queda confirmada y pagada; si se rechaza, puedes reintentar o pagar en el local. |
 | ¿No me llegó el código? | Usa "Reenviar código" (máx. 3 cada 15 min) o revisa spam. |
 | ¿Por qué desapareció mi registro? | Los registros sin verificar se eliminan a los 5 minutos; el correo queda libre para registrarte otra vez. |
 | ¿Puedo tener muchas reservas? | Máximo 5 activas por cliente. |

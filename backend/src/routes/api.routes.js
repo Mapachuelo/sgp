@@ -8,12 +8,19 @@ const reportesRoutes = require('../features/reportes/reportes.routes');
 const disponibilidadRoutes = require('../features/disponibilidad/disponibilidad.routes');
 const logsRoutes = require('../features/logs/logs.routes');
 const preferenciasRoutes = require('../features/preferencias/preferencias.routes');
+const pagosRoutes = require('../features/pagos/pagos.routes');
 const { estadoBrevo } = require('../integrations/email/mailer');
+const { estadoWompi } = require('../integrations/pagos/wompi');
 
 const router = Router();
 
 router.get('/healthcheck', (_req, res) => {
-  res.json({ ok: true, uptime: process.uptime(), brevo: estadoBrevo().estado });
+  res.json({
+    ok: true,
+    uptime: process.uptime(),
+    brevo: estadoBrevo().estado,
+    wompi: estadoWompi().estado,
+  });
 });
 
 router.use('/auth', authRoutes);
@@ -25,5 +32,6 @@ router.use('/reportes', reportesRoutes);
 router.use('/empleados', disponibilidadRoutes);
 router.use('/logs', logsRoutes);
 router.use('/preferencias', preferenciasRoutes);
+router.use('/pagos', pagosRoutes);
 
 module.exports = router;
