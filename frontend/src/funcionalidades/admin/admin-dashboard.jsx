@@ -289,7 +289,10 @@ export default function AdminDashboard() {
                       <td className="py-3 px-3 text-center text-texto-secundario hidden md:table-cell">{reserva.cantidad_personas || 1}</td>
                       <td className="py-3 px-3 text-right font-bold text-exito">${monto.toLocaleString('es-CO')}</td>
                       <td className="py-3 px-3 text-center">
-                        <Badge variant={estadoBadgeVariant(reserva.estado)}>{estadoLabel(reserva.estado)}</Badge>
+                        <div className="flex flex-col items-center gap-1">
+                          <Badge variant={estadoBadgeVariant(reserva.estado)}>{estadoLabel(reserva.estado)}</Badge>
+                          {reserva.pago_estado === 'aprobado' && <Badge variant="success">Pagado</Badge>}
+                        </div>
                       </td>
                       <td className="sticky right-0 bg-superficie py-3 px-4 text-center">
                         {['pendiente', 'confirmada'].includes(reserva.estado) && (

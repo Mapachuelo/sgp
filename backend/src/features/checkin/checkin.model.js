@@ -15,6 +15,14 @@ const checkinModel = {
     return rows[0] || null;
   },
 
+  async findPagoAprobado(reserva_id, db = pool) {
+    const { rows } = await db.query(
+      "SELECT id, monto, metodo FROM pago WHERE reserva_id = $1 AND estado = 'aprobado' ORDER BY creado_en DESC LIMIT 1",
+      [reserva_id]
+    );
+    return rows[0] || null;
+  },
+
   async registrarCobro(reserva_id, monto, metodo, registrado_por, db = pool) {
     const { rows } = await db.query(
       `INSERT INTO cobro (reserva_id, monto, metodo, registrado_por)

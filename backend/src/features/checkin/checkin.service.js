@@ -47,10 +47,12 @@ const checkinService = {
         throw new HttpError(400, 'Fuera de la ventana de validacion (+-120 minutos)');
       }
 
-      const metodo = monto > 0 ? 'fisico' : 'online';
+      const pagoAprobado = await checkinModel.findPagoAprobado(reserva.id, client);
+      const montoFinal = pagoAprobado ? Number(pagoAprobado.monto) : monto;
+      const metodo = pagoAprobado ? 'online' : monto > 0 ? 'fisico' : 'online';
       const cobro = await checkinModel.registrarCobro(
         reserva.id,
-        monto,
+        montoFinal,
         metodo,
         usuarioId,
         client
@@ -66,7 +68,9 @@ const checkinService = {
         estado: 'cobrado',
         metodo,
         metodo_pago: metodo,
-        monto,
+        monto: montoFinal,
+        pago_id: pagoAprobado ? pagoAprobado.id : null,
+        pagado_online: Boolean(pagoAprobado),
         cliente_nombre: `${reserva.cliente_nombre} ${reserva.cliente_apellido || ''}`.trim(),
         servicio_nombre: reserva.servicio_nombre,
         inicia_en: reserva.inicia_en,

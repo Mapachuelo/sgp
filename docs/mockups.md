@@ -57,11 +57,16 @@ Servicio, duración estimada `entrada → salida`, cantidad de personas (1–5) 
 
 ![Modal paso 4](img/cliente-modal-paso4.png)
 
-### 2.5 Perfil (`/cliente/perfil`)
+### 2.5 Reserva paso 5 — pago y QR
+QR de ingreso, elección entre **Efectivo en Local** y **Pago en línea**, guía de medios aceptados (Tarjeta, PSE, Nequi, Botón Bancolombia) y apertura del **Widget de Wompi** embebido. Al aprobarse el pago, la reserva queda confirmada con pantalla de éxito y QR; el kanban muestra la insignia "Pagado".
+
+![Pago paso 5](img/cliente-pago-wompi.png)
+
+### 2.6 Perfil (`/cliente/perfil`)
 
 ![Perfil cliente](img/cliente-perfil.png)
 
-### 2.6 Interfaz en inglés y móvil
+### 2.7 Interfaz en inglés y móvil
 Conmutador ES/EN en la barra de navegación; menú hamburguesa y layout apilado en móvil.
 
 ![Kanban en inglés](img/cliente-kanban-en.png)

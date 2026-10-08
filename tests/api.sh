@@ -34,6 +34,8 @@ RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/healthcheck")
 verificar "Healthcheck responde 200" "200" "$RESP"
 BREVO_ESTADO=$(grep -o '"brevo":"[^"]*"' /tmp/sgp_resp.json | cut -d'"' -f4)
 echo "INFO: estado de Brevo reportado por el healthcheck: ${BREVO_ESTADO:-no reportado}"
+WOMPI_ESTADO=$(grep -o '"wompi":"[^"]*"' /tmp/sgp_resp.json | cut -d'"' -f4)
+echo "INFO: estado de Wompi reportado por el healthcheck: ${WOMPI_ESTADO:-no reportado}"
 
 RESP=$(curl -s -o /dev/null -w "%{http_code}" "$ROOT_URL/")
 verificar "Frontend responde 200" "200" "$RESP"
@@ -132,6 +134,32 @@ RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/checki
   -H "Authorization: Bearer $TOKEN_ADMIN" \
   -d '{"qr_token":"00000000-0000-4000-8000-000000000000","monto":0}')
 verificar "Checkin con UUID inexistente devuelve 404" "404" "$RESP"
+
+echo ""
+echo "== Pagos digitales (Wompi) =="
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/pagos/intencion" \
+  -H "Content-Type: application/json" \
+  -d '{"reserva_id":1}')
+verificar "POST /pagos/intencion sin token devuelve 401" "401" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/pagos/intencion" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"reserva_id":1}')
+verificar "POST /pagos/intencion con admin devuelve 403" "403" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/pagos/webhook" \
+  -H "Content-Type: application/json" \
+  -d '{"event":"transaction.updated","data":{"transaction":{"id":"TX-FALSA","status":"APPROVED","reference":"SGP-FALSA"}},"signature":{"properties":["transaction.id"],"checksum":"00"},"timestamp":1700000000}')
+verificar "Webhook Wompi con firma invalida devuelve 401" "401" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/pagos/1")
+verificar "GET /pagos/1 sin token devuelve 401" "401" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/pagos/999999" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /pagos/999999 con admin devuelve 404" "404" "$RESP"
 
 echo ""
 echo "== Planificador (admin) =="

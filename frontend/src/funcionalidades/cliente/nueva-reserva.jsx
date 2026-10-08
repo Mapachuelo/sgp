@@ -105,8 +105,12 @@ export default function NuevaReserva() {
 
   const [reservaCreada, setReservaCreada] = useState(null);
   const [metodoPago, setMetodoPago] = useState('efectivo');
-  const [formPago, setFormPago] = useState({ titular: '', numero: '', expiracion: '', cvv: '' });
+  const [pagoEstado, setPagoEstado] = useState('inicial');
+  const [pagoMensaje, setPagoMensaje] = useState('');
+  const [intencionPago, setIntencionPago] = useState(null);
   const [pagoCompletado, setPagoCompletado] = useState(false);
+  const [transaccionManual, setTransaccionManual] = useState('');
+  const intentosPagoRef = useRef(0);
 
   useEffect(() => { fechaBaseRef.current = fechaBase; }, [fechaBase]);
   useEffect(() => { empleadoSeleccionadoRef.current = empleadoSeleccionado; }, [empleadoSeleccionado]);
@@ -277,6 +281,11 @@ export default function NuevaReserva() {
         cantidad_personas: cantidad,
       });
       setReservaCreada(data);
+      setPagoEstado('inicial');
+      setPagoMensaje('');
+      setIntencionPago(null);
+      setTransaccionManual('');
+      setMetodoPago('efectivo');
       setPaso(5);
       mostrarToast('Reserva creada con exito', 'success');
     } catch (err) {
@@ -292,42 +301,131 @@ export default function NuevaReserva() {
     finally { setCargando(false); }
   };
 
-  const handleExpiracionChange = (e) => {
-    const input = e.target.value;
-    const previousValue = formPago.expiracion;
-    
-    // If user is deleting, just let them delete
-    if (input.length < previousValue.length) {
-      setFormPago({ ...formPago, expiracion: input });
-      return;
-    }
-    
-    let clean = input.replace(/\D/g, '');
-    if (clean.length > 4) {
-      clean = clean.slice(0, 4);
-    }
-    
-    let formatted = clean;
-    if (clean.length > 2) {
-      formatted = `${clean.slice(0, 2)}/${clean.slice(2)}`;
-    } else if (clean.length === 2) {
-      formatted = `${clean}/`;
-    }
-    
-    setFormPago({ ...formPago, expiracion: formatted });
-  };
-
-  const handlePagoSubmit = (e) => {
-    if (e) e.preventDefault();
-    if (metodoPago === 'online') {
-      if (!formPago.titular.trim() || !formPago.numero.trim() || !formPago.expiracion.trim() || !formPago.cvv.trim()) {
-        mostrarToast('Completa todos los campos de pago', 'warning');
+  const cargarScriptWompi = () =>
+    new Promise((resolve, reject) => {
+      if (window.WidgetCheckout) {
+        resolve();
         return;
       }
+      const existente = document.querySelector('script[data-wompi-widget]');
+      if (existente) {
+        existente.addEventListener('load', () => resolve());
+        existente.addEventListener('error', () => reject(new Error('No se pudo cargar el checkout de Wompi')));
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.wompi.co/widget.js';
+      script.async = true;
+      script.dataset.wompiWidget = 'true';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('No se pudo cargar el checkout de Wompi'));
+      document.head.appendChild(script);
+    });
+
+  const aplicarEstadoPago = (pago) => {
+    if (!pago) return;
+    if (pago.estado === 'aprobado') {
+      setPagoEstado('aprobado');
+      setPagoMensaje('Pago aprobado. Tu reserva quedo confirmada.');
+      setPagoCompletado(true);
+      mostrarToast('Pago aprobado correctamente');
+    } else if (pago.estado === 'declinado' || pago.estado === 'error') {
+      setPagoEstado(pago.estado);
+      setPagoMensaje(
+        pago.estado === 'declinado'
+          ? 'El pago fue rechazado. Puedes intentar con otro medio o pagar en el local.'
+          : 'Ocurrio un error procesando el pago. Intenta de nuevo.'
+      );
+    } else {
+      setPagoEstado('pendiente');
+      setPagoMensaje('El pago aun no aparece aprobado. Si ya pagaste, verifica el estado.');
     }
-    setPagoCompletado(true);
-    mostrarToast('Reserva activada correctamente');
   };
+
+  const consultarEstadoPago = async () => {
+    if (!intencionPago) return;
+    try {
+      const pago = await api.pagos.estado(intencionPago.pago_id);
+      aplicarEstadoPago(pago);
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
+  };
+
+  const verificarPago = async (transactionId) => {
+    if (!intencionPago) return;
+    try {
+      const pago = await api.pagos.verificar(intencionPago.pago_id, transactionId);
+      aplicarEstadoPago(pago);
+    } catch (err) {
+      setPagoEstado('error');
+      setPagoMensaje(err.message);
+      mostrarToast(err.message, 'error');
+    }
+  };
+
+  const pagarConWompi = async () => {
+    if (!reservaCreada) return;
+    setPagoEstado('procesando');
+    setPagoMensaje('');
+    try {
+      const intencion = await api.pagos.intencion(reservaCreada.id);
+      setIntencionPago(intencion);
+      setTransaccionManual('');
+      await cargarScriptWompi();
+      const checkout = new window.WidgetCheckout({
+        currency: intencion.moneda,
+        amountInCents: intencion.monto_en_centavos,
+        reference: intencion.referencia,
+        publicKey: intencion.llave_publica,
+        signature: { integrity: intencion.firma_integridad },
+        customerData: {
+          email: intencion.customer_data?.email,
+          fullName: intencion.customer_data?.full_name,
+        },
+      });
+      checkout.open(async (resultado) => {
+        const transaccion = resultado?.transaction;
+        if (transaccion?.id) {
+          await verificarPago(transaccion.id);
+        } else {
+          await consultarEstadoPago();
+        }
+      });
+      setPagoEstado('esperando');
+      setPagoMensaje('Completa el pago en la ventana segura de Wompi.');
+    } catch (err) {
+      setPagoEstado('error');
+      setPagoMensaje(err.message);
+      mostrarToast(err.message, 'error');
+    }
+  };
+
+  const confirmarPagoEfectivo = () => {
+    setPagoCompletado(true);
+    mostrarToast('Reserva activada. Paga en el local al llegar.');
+  };
+
+  useEffect(() => {
+    if (!intencionPago || pagoEstado !== 'esperando') return undefined;
+    intentosPagoRef.current = 0;
+    const intervalo = setInterval(async () => {
+      intentosPagoRef.current += 1;
+      if (intentosPagoRef.current > 6) {
+        clearInterval(intervalo);
+        setPagoEstado('pendiente');
+        setPagoMensaje('No detectamos el pago aun. Usa "Verificar estado" si ya pagaste.');
+        return;
+      }
+      try {
+        const pago = await api.pagos.estado(intencionPago.pago_id);
+        if (pago.estado !== 'pendiente') aplicarEstadoPago(pago);
+      } catch {
+        /* reintenta en el siguiente ciclo */
+      }
+    }, 5000);
+    return () => clearInterval(intervalo);
+  }, [intencionPago, pagoEstado]);
 
   const getPasoVariant = (num) => { if (num < paso) return 'success'; if (num === paso) return 'info'; return 'default'; };
 
@@ -423,8 +521,14 @@ export default function NuevaReserva() {
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
             </svg>
           </div>
-          <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">¡Tu Cita ha sido Confirmada!</h2>
-          <p className="text-texto-secundario mb-6">Tu reserva se encuentra activa. Muestra el código QR al ingresar.</p>
+          <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">
+            {pagoEstado === 'aprobado' ? '¡Tu Cita ha sido Confirmada!' : '¡Tu Reserva ha sido Registrada!'}
+          </h2>
+          <p className="text-texto-secundario mb-6">
+            {pagoEstado === 'aprobado'
+              ? 'Pago aprobado con Wompi. Muestra el código QR al ingresar.'
+              : 'Tu reserva quedo activa. Muestra el código QR al ingresar y paga en el local.'}
+          </p>
           {reservaCreada?.qr_data_url && (
             <div className="border border-borde p-4 rounded-3xl bg-white shadow-sm inline-block mb-6 max-w-full w-48">
               <img src={reservaCreada.qr_data_url} alt="QR" className="w-40 h-40 mx-auto" />
@@ -916,7 +1020,7 @@ export default function NuevaReserva() {
               <Button variant="secundario" size="sm" onClick={descargarQR}>Descargar QR</Button>
             </div>
 
-            {/* Formularios de Pago */}
+            {/* Pago */}
             <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
               <h3 className="font-semibold text-sm text-texto-principal uppercase tracking-wider">Selecciona la forma de pago</h3>
               <div className="grid grid-cols-2 gap-3">
@@ -942,64 +1046,117 @@ export default function NuevaReserva() {
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={metodoPago === 'online' ? '#8B5E3C' : '#8C7B70'} strokeWidth="1.5">
                     <rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>
                   </svg>
-                  <span className={`text-xs font-bold ${metodoPago === 'online' ? 'text-primario' : 'text-texto-secundario'}`}>Pago con Tarjeta</span>
+                  <span className={`text-xs font-bold ${metodoPago === 'online' ? 'text-primario' : 'text-texto-secundario'}`}>Pago en linea</span>
                 </button>
               </div>
 
-              {metodoPago === 'online' && (
-                <div className="space-y-3 animate-fade-in">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Nombre del Tarjetahabiente</label>
-                    <input
-                      type="text"
-                      placeholder="Juan Pérez"
-                      value={formPago.titular}
-                      onChange={(e) => setFormPago({ ...formPago, titular: e.target.value })}
-                      className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Número de Tarjeta</label>
-                    <input
-                      type="text"
-                      placeholder="4242 4242 4242 4242"
-                      value={formPago.numero}
-                      onChange={(e) => setFormPago({ ...formPago, numero: e.target.value })}
-                      className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">Expiración</label>
-                      <input
-                        type="text"
-                        placeholder="MM/AA"
-                        value={formPago.expiracion}
-                        onChange={handleExpiracionChange}
-                        maxLength="5"
-                        className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
-                      />
+              {metodoPago === 'efectivo' ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-texto-secundario">
+                    Reserva ahora y paga en el local al presentar tu codigo QR.
+                  </p>
+                  <Button
+                    onClick={confirmarPagoEfectivo}
+                    className="w-full py-3 bg-exito hover:bg-green-700 text-white rounded-xl font-semibold transition shadow-md"
+                  >
+                    Confirmar reserva y pagar en local
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-borde bg-fondo/40 p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-texto-secundario mb-2">
+                      Medios de pago en el checkout seguro de Wompi
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
+                          <rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                        Tarjeta credito/debito
+                      </span>
+                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
+                          <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"></path>
+                        </svg>
+                        PSE
+                      </span>
+                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
+                          <rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="11" y1="18" x2="13" y2="18"></line>
+                        </svg>
+                        Nequi
+                      </span>
+                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
+                          <path d="M4 10h16M6 10V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3M5 10h14v9H5z"></path>
+                        </svg>
+                        Boton Bancolombia
+                      </span>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-texto-principal uppercase mb-1">CVV</label>
-                      <input
-                        type="password"
-                        placeholder="***"
-                        value={formPago.cvv}
-                        onChange={(e) => setFormPago({ ...formPago, cvv: e.target.value })}
-                        className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none"
-                      />
-                    </div>
                   </div>
+                  <p className="text-xs text-texto-secundario">
+                    Total a pagar: <strong className="text-texto-principal">${totalPrecio.toLocaleString('es-CO')}</strong>. El cobro lo
+                    procesa Wompi; el SGP no almacena los datos de tu tarjeta.
+                  </p>
+                  {pagoMensaje && (
+                    <p
+                      className={`text-xs font-medium ${
+                        pagoEstado === 'aprobado'
+                          ? 'text-exito'
+                          : pagoEstado === 'declinado' || pagoEstado === 'error'
+                            ? 'text-error'
+                            : 'text-advertencia'
+                      }`}
+                    >
+                      {pagoMensaje}
+                    </p>
+                  )}
+                  <Button
+                    onClick={pagarConWompi}
+                    disabled={pagoEstado === 'procesando' || pagoEstado === 'aprobado'}
+                    className="w-full py-3 bg-exito hover:bg-green-700 text-white rounded-xl font-semibold transition shadow-md"
+                  >
+                    {pagoEstado === 'procesando' ? (
+                      <Spinner />
+                    ) : pagoEstado === 'declinado' || pagoEstado === 'error' ? (
+                      'Reintentar pago en linea'
+                    ) : (
+                      'Pagar en linea con Wompi'
+                    )}
+                  </Button>
+                  {(pagoEstado === 'esperando' || pagoEstado === 'pendiente') && (
+                    <div className="space-y-2 rounded-xl border border-borde bg-fondo/30 p-3">
+                      <label className="block text-[10px] font-semibold text-texto-principal uppercase">
+                        Numero de transaccion (aparece en el comprobante de Wompi)
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          value={transaccionManual}
+                          onChange={(e) => setTransaccionManual(e.target.value)}
+                          placeholder="01-1531231271-19365"
+                          className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => verificarPago(transaccionManual.trim())}
+                          disabled={!transaccionManual.trim()}
+                        >
+                          Verificar pago
+                        </Button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={consultarEstadoPago}
+                        className="text-[11px] text-primario hover:underline cursor-pointer"
+                      >
+                        Ya pague, actualizar estado
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
-
-              <Button
-                onClick={handlePagoSubmit}
-                className="w-full py-3 bg-exito hover:bg-green-700 text-white rounded-xl font-semibold transition shadow-md"
-              >
-                Confirmar y Activar Reserva
-              </Button>
             </div>
           </div>
           <div className="flex justify-center mt-4">

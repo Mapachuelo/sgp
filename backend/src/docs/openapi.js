@@ -17,6 +17,7 @@ const openapi = {
     { name: 'Disponibilidad' },
     { name: 'Logs' },
     { name: 'Preferencias' },
+    { name: 'Pagos' },
   ],
   components: {
     securitySchemes: {
@@ -361,6 +362,102 @@ const openapi = {
     '/preferencias': {
       get: { tags: ['Preferencias'], summary: 'Preferencias del usuario (rango horario, granularidad, tema, idioma)', responses: { 200: { description: 'Preferencias' } } },
       put: { tags: ['Preferencias'], summary: 'Actualiza preferencias', responses: { 200: { description: 'Preferencias actualizadas' } } },
+    },
+    '/pagos/intencion': {
+      post: {
+        tags: ['Pagos'],
+        summary: 'Crea una intencion de pago Wompi para una reserva del cliente',
+        description:
+          'Recalcula el monto en el servidor (precio_base x cantidad_personas), genera una referencia unica y devuelve la configuracion del widget de Wompi (llave publica, monto en centavos, firma de integridad y datos del pagador). El cobro digital se procesa en el checkout de Wompi (tarjeta, PSE, Nequi, Bancolombia).',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['reserva_id'],
+                properties: { reserva_id: { type: 'integer', example: 42 } },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: 'Intencion creada' },
+          400: { description: 'Datos invalidos' },
+          403: { description: 'La reserva pertenece a otro cliente' },
+          404: { description: 'Reserva no encontrada' },
+          409: { description: 'Reserva cancelada, cobrada o ya pagada' },
+        },
+      },
+    },
+    '/pagos/{id}': {
+      get: {
+        tags: ['Pagos'],
+        summary: 'Estado de un pago (dueno, empleado o admin)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: { 200: { description: 'Pago' }, 404: { description: 'Pago no encontrado' } },
+      },
+    },
+    '/pagos/{id}/verificar': {
+      post: {
+        tags: ['Pagos'],
+        summary: 'Verifica una transaccion contra la API de Wompi y sincroniza el pago',
+        description:
+          'Recibe el id de transaccion devuelto por el widget, lo consulta en Wompi (sandbox o produccion segun configuracion) y actualiza el pago y la reserva. Si el pago ya es final es idempotente.',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['transaction_id'],
+                properties: { transaction_id: { type: 'string', example: '01-1531231271-19365' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Pago sincronizado' },
+          400: { description: 'Transaccion o monto no coinciden' },
+          404: { description: 'Pago o transaccion no encontrados' },
+        },
+      },
+    },
+    '/pagos/webhook': {
+      post: {
+        tags: ['Pagos'],
+        summary: 'Webhook de eventos de Wompi (transaction.updated)',
+        description:
+          'Recibe los eventos de Wompi, valida el checksum SHA256 con el secreto de eventos y actualiza el pago y la reserva de forma idempotente. Responde 200 a eventos autenticos para evitar reintentos.',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  event: { type: 'string', example: 'transaction.updated' },
+                  data: { type: 'object' },
+                  signature: {
+                    type: 'object',
+                    properties: {
+                      properties: { type: 'array', items: { type: 'string' } },
+                      checksum: { type: 'string' },
+                    },
+                  },
+                  timestamp: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Evento procesado o ignorado' },
+          401: { description: 'Firma del evento invalida' },
+        },
+      },
     },
   },
 };

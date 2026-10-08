@@ -29,6 +29,16 @@ spec:
           value: pon_aqui_tu@correo.com
         - name: BREVO_SENDER_NAME
           value: SGP
+        - name: WOMPI_BASE_URL
+          value: https://sandbox.wompi.co/v1
+        - name: WOMPI_PUBLIC_KEY
+          value: pon_aqui_tu_pub_test
+        - name: WOMPI_INTEGRITY_SECRET
+          value: pon_aqui_tu_test_integrity
+        - name: WOMPI_EVENTS_SECRET
+          value: pon_aqui_tu_test_events
+        - name: WOMPI_REDIRECT_URL
+          value: http://localhost:8080/cliente/reservar
 
     - name: frontend
       image: localhost/sgp-frontend:latest

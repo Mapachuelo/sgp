@@ -36,7 +36,7 @@ Hair Salon Management System user guide for customers, employees and administrat
 2. **Step 2 — Stylist:** available stylists for that venue in the next 6 days are listed.
 3. **Step 3 — Calendar:** pick day and time. Colors: green available, red busy, grey past, blue unavailable, amber less than 60 minutes ahead.
 4. **Step 4 — Confirm:** a floating window shows service, **estimated duration (start → end time)**, people (1–5) and total.
-5. **Step 5 — Payment and QR:** the entry QR code is generated with a **Download QR** button. Cash is recorded on arrival; "Online payment" keeps the amount at 0.
+5. **Step 5 — Payment and QR:** the entry QR code is generated with a **Download QR** button. Choose **Cash at venue** (pay on arrival) or **Online payment**, which opens the secure **Wompi** checkout with credit/debit card, PSE, Nequi or Bancolombia Button; once approved, the booking is **Confirmed** with a "Paid" badge. If the payment is declined you can retry or pay at the venue.
 
 If the slot is taken while you decide, you get an error and the calendar refreshes to pick another time. Limit: 5 active bookings.
 
@@ -142,7 +142,7 @@ The UI is responsive (hamburger menu, scrollable tables, horizontally scrollable
 |----------|--------|
 | Why can't I book less than 60 minutes ahead? | It is the minimum lead time to prepare the service. |
 | What happens if the stylist changes venue? | Future bookings of that day at the previous venue are cancelled; you will see them in your kanban with the reason. |
-| How do I pay online? | Choose the method when booking; check-in is validated with amount 0 and the payment is recorded as `online`. |
+| How do I pay online? | When booking, choose **Online payment** and complete the Wompi checkout (card, PSE, Nequi or Bancolombia). If approved, the booking is confirmed and paid; if declined, you can retry or pay at the venue. |
 | I did not receive the code | Use "Resend code" (max 3 every 15 min) or check spam. |
 | Why did my registration disappear? | Unverified registrations are deleted after 5 minutes; the email becomes available to register again. |
 | Can I have many bookings? | Up to 5 active bookings per customer. |

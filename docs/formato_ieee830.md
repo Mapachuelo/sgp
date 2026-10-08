@@ -25,7 +25,7 @@ El SGP es una aplicación web fullstack desplegable con Podman que permite:
 - Gestión de sedes físicas con coordenadas geográficas.
 - Reserva de citas en línea con calendario interactivo, selección de sede, estilista, servicio y cantidad de personas, con generación de código QR único.
 - Validación de ingreso por QR y registro de cobro en un solo paso atómico.
-- Registro de pagos en local (efectivo) o marcados como pagados en línea; sin pasarela de pago externa.
+- Cobro digital con pasarela **Wompi** (tarjeta credito/debito, PSE, Nequi, Boton Bancolombia) mediante widget embebido; pago fisico (efectivo) registrado en el local. El monto se recalcula en el servidor y el webhook valida firma SHA256.
 - Paneles diferenciados para cliente, empleado y administrador, incluido un planificador de horarios multi-sede.
 - Reportes administrativos de ventas, ocupación y clientes recurrentes.
 - Gestión de logs del sistema (`logs.txt` y `errores.txt`).
@@ -119,13 +119,13 @@ El SGP es un producto independiente desplegable con Podman (aplicación + Postgr
 
 - El establecimiento dispone de conexión a internet para el envío de OTP (Brevo).
 - El cliente presenta el QR (imagen o token) al llegar; el empleado puede ingresarlo manualmente.
-- El pago en línea se registra como dato (monto 0), sin pasarela externa.
+- El cobro digital depende de Wompi (sandbox o produccion segun las llaves configuradas) y de que el comercio tenga habilitados los metodos de pago en su cuenta.
 - Zona horaria de operación: `America/Bogota`.
 
 ### 2.6 Evolución previsible
 
 1. Aplicación móvil nativa.
-2. Pasarela de pago en línea real.
+2. Reembolsos/anulación automática de pagos Wompi al cancelar una reserva pagada (hoy se gestiona manualmente desde el dashboard de Wompi).
 3. Notificaciones por WhatsApp.
 4. Búsqueda avanzada de clientes/empleados.
 5. Bloqueo automático de cuentas por mal uso.

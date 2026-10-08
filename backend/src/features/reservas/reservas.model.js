@@ -70,11 +70,17 @@ const reservasModel = {
       `SELECT r.*, u.nombre as ubicacion_nombre, u.direccion as ubicacion_direccion,
               u.latitud as ubicacion_latitud, u.longitud as ubicacion_longitud,
               s.nombre as servicio_nombre, s.precio_base,
-              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido
+              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido,
+              p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto
        FROM reserva r
        JOIN ubicacion u ON r.ubicacion_id = u.id
        JOIN servicio_catalogo s ON r.servicio_id = s.id
        JOIN app_user emp ON r.empleado_id = emp.id
+       LEFT JOIN LATERAL (
+         SELECT estado, metodo, monto FROM pago
+         WHERE reserva_id = r.id
+         ORDER BY creado_en DESC LIMIT 1
+       ) p ON true
        WHERE r.cliente_id = $1
        ORDER BY r.inicia_en DESC`,
       [cliente_id]
@@ -107,12 +113,18 @@ const reservasModel = {
               r.cantidad_personas, r.estado, r.qr_token,
               u.nombre as ubicacion_nombre, s.nombre as servicio_nombre,
               cli.nombre as cliente_nombre, cli.apellido as cliente_apellido,
-              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido
+              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido,
+              p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto
        FROM reserva r
        JOIN ubicacion u ON r.ubicacion_id = u.id
        JOIN servicio_catalogo s ON r.servicio_id = s.id
        JOIN app_user cli ON r.cliente_id = cli.id
        JOIN app_user emp ON r.empleado_id = emp.id
+       LEFT JOIN LATERAL (
+         SELECT estado, metodo, monto FROM pago
+         WHERE reserva_id = r.id
+         ORDER BY creado_en DESC LIMIT 1
+       ) p ON true
        WHERE (r.inicia_en AT TIME ZONE 'America/Bogota')::date BETWEEN $1::date AND $2::date${filtroEmpleado}
        ORDER BY r.inicia_en`,
       values
@@ -125,13 +137,19 @@ const reservasModel = {
       SELECT r.*, u.nombre as ubicacion_nombre, u.latitud as ubicacion_latitud, u.longitud as ubicacion_longitud,
              s.nombre as servicio_nombre, s.precio_base, c.monto as monto,
              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido,
-             cli.nombre as cliente_nombre, cli.apellido as cliente_apellido
+             cli.nombre as cliente_nombre, cli.apellido as cliente_apellido,
+             p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto
       FROM reserva r
       JOIN ubicacion u ON r.ubicacion_id = u.id
       JOIN servicio_catalogo s ON r.servicio_id = s.id
       JOIN app_user emp ON r.empleado_id = emp.id
       JOIN app_user cli ON r.cliente_id = cli.id
       LEFT JOIN cobro c ON c.reserva_id = r.id
+      LEFT JOIN LATERAL (
+        SELECT estado, metodo, monto FROM pago
+        WHERE reserva_id = r.id
+        ORDER BY creado_en DESC LIMIT 1
+      ) p ON true
       WHERE 1=1`;
     const values = [];
     let idx = 1;

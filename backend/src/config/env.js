@@ -13,6 +13,12 @@ const env = {
   brevoApiKey: process.env.BREVO_API_KEY || '',
   brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || '',
   brevoSenderName: process.env.BREVO_SENDER_NAME || 'SGP',
+  wompiBaseUrl: process.env.WOMPI_BASE_URL || 'https://sandbox.wompi.co/v1',
+  wompiPublicKey: process.env.WOMPI_PUBLIC_KEY || '',
+  wompiPrivateKey: process.env.WOMPI_PRIVATE_KEY || '',
+  wompiIntegritySecret: process.env.WOMPI_INTEGRITY_SECRET || '',
+  wompiEventsSecret: process.env.WOMPI_EVENTS_SECRET || '',
+  wompiRedirectUrl: process.env.WOMPI_REDIRECT_URL || '',
 };
 
 module.exports = env;

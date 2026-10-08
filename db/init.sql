@@ -98,6 +98,21 @@ CREATE TABLE IF NOT EXISTS cobro (
   registrado_por INTEGER REFERENCES app_user(id)
 );
 
+CREATE TABLE IF NOT EXISTS pago (
+  id SERIAL PRIMARY KEY,
+  reserva_id INTEGER NOT NULL REFERENCES reserva(id) ON DELETE CASCADE,
+  proveedor VARCHAR(20) NOT NULL DEFAULT 'wompi',
+  referencia VARCHAR(100) UNIQUE NOT NULL,
+  transaction_id VARCHAR(100) UNIQUE,
+  monto DECIMAL(10, 2) NOT NULL,
+  moneda VARCHAR(3) NOT NULL DEFAULT 'COP',
+  metodo VARCHAR(30),
+  estado VARCHAR(20) NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'aprobado', 'declinado', 'error', 'anulado')),
+  payload JSONB,
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS preferencia_usuario (
   id SERIAL PRIMARY KEY,
   usuario_id INTEGER UNIQUE NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
@@ -116,6 +131,9 @@ CREATE INDEX IF NOT EXISTS idx_reserva_empleado_id ON reserva(empleado_id);
 CREATE INDEX IF NOT EXISTS idx_reserva_estado ON reserva(estado);
 CREATE INDEX IF NOT EXISTS idx_reserva_ubicacion_id ON reserva(ubicacion_id);
 CREATE INDEX IF NOT EXISTS idx_cobro_cobrado_en ON cobro(cobrado_en);
+CREATE INDEX IF NOT EXISTS idx_pago_reserva_id ON pago(reserva_id);
+CREATE INDEX IF NOT EXISTS idx_pago_estado ON pago(estado);
+CREATE INDEX IF NOT EXISTS idx_pago_referencia ON pago(referencia);
 CREATE INDEX IF NOT EXISTS idx_app_user_rol_bloqueado ON app_user(rol, esta_bloqueado);
 
 -- Seed data
