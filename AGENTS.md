@@ -27,7 +27,7 @@ pnpm install                          # Instalar dependencias
 pnpm --filter backend dev             # Backend en :3000
 pnpm --filter frontend dev            # Frontend en :5173
 pnpm run lint                         # ESLint
-bash tests/api.sh                     # Pruebas de integración (27)
+bash tests/api.sh                     # Pruebas de integración (28)
 bash tests/datos.sh                   # Integridad del dataset (6)
 bash tests/esquema.sh                 # Esquema vs modelo de datos (32)
 pnpm run test:unit                    # Unitarias en el contenedor backend (36)

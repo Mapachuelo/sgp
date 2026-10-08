@@ -57,7 +57,7 @@ sgp/
 │           ├── admin/               # dashboard + secciones/ (empleados, servicios, sedes,
 │           │                        #   horarios con planificador, reportes, clientes, logs) + modales QR/Cobro
 └── tests/
-    ├── api.sh                # 27 pruebas de integracion curl
+    ├── api.sh                # 28 pruebas de integracion curl
     ├── datos.sh              # Integridad del dataset demo (6)
     ├── esquema.sh            # Esquema vs modelo de datos (32)
     └── e2e.py                # Extremo a extremo (29)

@@ -76,7 +76,7 @@ El registro de clientes usa verificación por OTP con una ventana de 5 minutos c
 ## 7. Pruebas
 
 ```bash
-bash tests/api.sh          # integración API (27)
+bash tests/api.sh          # integración API (28)
 bash tests/datos.sh        # integridad del dataset (6)
 bash tests/esquema.sh      # esquema vs modelo de datos (32)
 pnpm run test:unit         # unitarias en el contenedor backend (36)

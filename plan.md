@@ -47,7 +47,7 @@ Construir un sistema web de gestión de peluquería (reservas en línea, validac
 
 | Suite | Resultado |
 |-------|-----------|
-| API (`tests/api.sh`) | 27/27 |
+| API (`tests/api.sh`) | 28/28 |
 | Datos (`tests/datos.sh`) | 6/6 |
 | Esquema (`tests/esquema.sh`) | 32/32 |
 | Unitarias (`backend/tests/unit`) | 36/36 |

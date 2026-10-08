@@ -489,3 +489,10 @@
 - Healthcheck en vivo: `{"ok":true,"uptime":...,"brevo":"error"}` (esperado con la SMTP key actual) y log de arranque `Brevo no disponible ... HTTP 401`.
 - Unitarias **36/36**, cobertura **93.84 % lineas / 79.04 % ramas / 95.33 % funciones**, `tests/api.sh` **27/27** con INFO del estado de Brevo.
 - Cuando se pegue una API key v3 valida (`xkeysib-...`) en `sgp-app-pod.yaml` y se reinicie el pod, el healthcheck pasara a `"brevo":"ok"` sin cambios de codigo; el envio real de prueba a `ajulianc47@gmail.com` queda pendiente de esa key.
+
+### Actualizacion: Brevo funcionando (envio real verificado)
+- Causa final: la key del yaml era **SMTP** (`xsmtpsib-`) y ademas Brevo tenia **Authorized IPs** activo. El usuario creo una **API key v3** (`xkeysib-...`) y autorizo la IP publica `181.51.91.28` en Settings → Security → Authorized IPs.
+- Verificacion: `GET /v3/account` 200, `GET /v3/senders` con `ajulianc47@gmail.com` activo, healthcheck `{"ok":true,...,"brevo":"ok"}` y log de arranque `Brevo OK: credenciales de correo validas`.
+- **Envio real** con `node scripts/enviar-correo-prueba.js ajulianc47@gmail.com`: `MessageId <202610080156.42669437377@smtp-relay.mailin.fr>`.
+- `tests/api.sh` ahora **28/28** (el caso de reenvio de codigo devuelve 200 al estar Brevo operativo); conteos actualizados en README, AGENTS, plan.md, `docs/despliegue.md` y `docs/plan-pruebas.md`.
+- Pendiente recomendado: rotar la API key (se compartio por chat) y confirmar recepcion del OTP en la bandeja del usuario.

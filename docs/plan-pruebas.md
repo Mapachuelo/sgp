@@ -19,7 +19,7 @@ Estrategia de verificación del SGP. Relaciona cada requisito (RF/RNF) con prueb
 
 | Suite | Resultado | Fecha |
 |-------|-----------|-------|
-| `tests/api.sh` | 27/27 | 2026-10-06 |
+| `tests/api.sh` | 28/28 | 2026-10-06 |
 | `tests/datos.sh` | 6/6 | 2026-10-06 |
 | `tests/esquema.sh` | 32/32 | 2026-10-06 |
 | `tests/unit/*.test.js` | 36/36 | 2026-10-06 |
