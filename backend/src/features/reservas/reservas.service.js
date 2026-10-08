@@ -55,7 +55,12 @@ const reservasService = {
   },
 
   async updateJornada(ubicacion_id, items) {
-    await reservasModel.upsertJornada(ubicacion_id, items);
+    if (!Array.isArray(items)) {
+      throw new HttpError(400, 'items debe ser un arreglo de jornadas');
+    }
+    await withTransaction(async (client) => {
+      await reservasModel.replaceJornadas(ubicacion_id, items, client);
+    });
     return { actualizado: true };
   },
 

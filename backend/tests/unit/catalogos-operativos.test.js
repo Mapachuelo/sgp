@@ -52,6 +52,13 @@ test('reservas: jornada por sede', async () => {
   ]);
   const jornadas = await reservasService.getJornada(sede.id);
   assert.equal(jornadas.length, 2);
+
+  await reservasService.updateJornada(sede.id, [
+    { fecha: '2026-11-02', hora_inicio: '09:00', hora_fin: '18:00' },
+  ]);
+  const restantes = await reservasService.getJornada(sede.id);
+  assert.equal(restantes.length, 1);
+  assert.equal(restantes[0].fecha.toISOString().slice(0, 10), '2026-11-02');
 });
 
 test('reservas: tiempos de servicio por empleado', async () => {

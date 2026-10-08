@@ -214,13 +214,12 @@ const reservasModel = {
     return rows;
   },
 
-  async upsertJornada(ubicacion_id, items) {
+  async replaceJornadas(ubicacion_id, items, client = pool) {
+    await client.query('DELETE FROM jornada WHERE ubicacion_id = $1', [ubicacion_id]);
     for (const item of items) {
-      await pool.query(
+      await client.query(
         `INSERT INTO jornada (ubicacion_id, fecha, hora_inicio, hora_fin)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (ubicacion_id, fecha) DO UPDATE
-         SET hora_inicio = EXCLUDED.hora_inicio, hora_fin = EXCLUDED.hora_fin`,
+         VALUES ($1, $2, $3, $4)`,
         [ubicacion_id, item.fecha, item.hora_inicio, item.hora_fin]
       );
     }

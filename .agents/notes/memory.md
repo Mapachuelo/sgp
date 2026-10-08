@@ -511,3 +511,19 @@
 - Builds con las rutas nuevas (`-f backend/Containerfile .`, `-f frontend/Containerfile .`) OK; stack redesplegado; healthcheck `{"ok":true,"brevo":"ok"}`.
 - Suites: `tests/api.sh` 28/28, `tests/datos.sh` 6/6, `tests/esquema.sh` 32/32, unitarias 36/36, `tests/e2e.py` 29/29.
 - `api.sh` y `e2e.py` comparten el rate limit de auth (10/15 min): al correrlos seguidos aparecen 429; reiniciar el pod de la app entre corridas (ya documentado en problemas conocidos).
+
+---
+
+## Sesion — 7-8 Octubre 2026 — Verificacion funcional en Chromium + fix de jornada
+
+- Verificacion entrada/salida de datos por UI (Chromium/Playwright) con reset total + `seed:demo --reset`:
+  - Auth: registro con validaciones (telefono +57, confirmacion), OTP inyectando SHA-256 de `123456` en `app_user.token_verificacion` (el codigo real solo llega por correo y esta hasheado), verificacion, login por rol, ruta protegida, reenvio.
+  - Cliente: kanban, reserva 5 pasos, descarga QR PNG (token coincide con BD), cancelacion con motivo, perfil (telefono cifrado AES en BD), idioma ES/EN persistente.
+  - Empleado: check-in fisico ($25.000) y online, segundo intento 409 "La reserva ya fue cobrada", token invalido 400, disponibilidad semanal (quitar/restaurar sabado persistente).
+  - Admin: KPIs y timeline, CRUD servicios/sedes/empleados, planificador RF9 (toast "9 reserva(s) cancelada(s) por cambio de sede", motivo en BD), jornada por sede, reportes con datos demo, moderacion clientes (bloqueo → login 403, desbloqueo, guard 3+ no-shows → 409), logs y export .txt.
+- BUG corregido: "Quitar jornada" en admin no persistia (el PUT `/api/reservas/jornada` solo hacia upsert). Ahora `reservasModel.replaceJornadas` reemplaza en transaccion (DELETE + INSERT) y `updateJornada` valida que `items` sea arreglo. Test de regresion en `backend/tests/unit/catalogos-operativos.test.js`. Verificado por UI y API (61 → 2 → quitar → 0).
+- Observaciones:
+  - Las FK `reserva.servicio_id` y `reserva.ubicacion_id` son `ON DELETE CASCADE` (documentado en `docs/modelo-datos.md`): borrar un servicio/sede con reservas elimina reservas y cobros en cascada; la UI solo pide confirmacion simple. Riesgo aceptado por diseno actual.
+  - Tooling: la sesion MCP de Chromium pierde el input de raton/teclado en `/empleado` tras ciertos eventos (se uso `el.click()` programatico, que dispara los handlers reales); el export de logs `.txt` tumbo la sesion MCP al final (endpoint verificado por curl: `text/plain`, `actividad-export.txt`).
+- Suites finales tras reset + seed: `tests/api.sh` 28/28, `tests/datos.sh` 6/6, `tests/esquema.sh` 32/32, unitarias 36/36, `tests/e2e.py` 29/29. Healthcheck `{"ok":true,"brevo":"ok"}`.
+- Realtime verificado por logs: `Servidor WebSocket iniciado en /ws`, `Disponibilidad actualizada`, `Disponibilidad de empleado actualizada por admin`.
