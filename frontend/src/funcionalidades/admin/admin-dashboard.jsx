@@ -1,25 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   BadgeDollarSign,
-  BarChart3,
-  CalendarCog,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  MapPin,
   Percent,
   QrCode,
   RefreshCw,
-  Scissors,
-  ShieldAlert,
   TrendingUp,
   UserRoundCheck,
-  Users,
 } from 'lucide-react';
 import { Badge, Button, Card, Spinner, Toast } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
+import { ACCESOS_ADMIN, AdminNavContext } from './secciones/navegacion.jsx';
 import ValidarQrModal from './secciones/validar-qr-modal.jsx';
 import CobroModal from './secciones/cobro-modal.jsx';
 import EmpleadosSeccion from './secciones/empleados-seccion.jsx';
@@ -121,17 +115,19 @@ export default function AdminDashboard() {
     setActiveSheet('qr');
   };
 
-  const accesos = [
-    { clave: 'qr', etiqueta: 'Validar QR', icono: QrCode, accion: () => abrirQr(''), rapido: true },
-    { clave: 'cobro', etiqueta: 'Cobro', icono: BadgeDollarSign, accion: () => setActiveSheet('cobro'), rapido: true },
-    { clave: 'empleados', etiqueta: 'Empleados', icono: Users, accion: () => setActiveSheet('empleados') },
-    { clave: 'servicios', etiqueta: 'Servicios', icono: Scissors, accion: () => setActiveSheet('servicios') },
-    { clave: 'sedes', etiqueta: 'Sedes', icono: MapPin, accion: () => setActiveSheet('sedes') },
-    { clave: 'horarios', etiqueta: 'Horarios', icono: CalendarCog, accion: () => setActiveSheet('horarios') },
-    { clave: 'reportes', etiqueta: 'Reportes', icono: BarChart3, accion: () => setActiveSheet('reportes') },
-    { clave: 'clientes', etiqueta: 'Moderacion clientes', icono: ShieldAlert, accion: () => setActiveSheet('clientes') },
-    { clave: 'logs', etiqueta: 'Logs', icono: FileText, accion: () => setActiveSheet('logs') },
-  ];
+  const irSeccion = useCallback((clave) => {
+    if (clave === 'qr') {
+      setTokenQr('');
+      setActiveSheet('qr');
+    } else {
+      setActiveSheet(clave);
+    }
+  }, []);
+
+  const accesos = ACCESOS_ADMIN.map((acceso) => ({
+    ...acceso,
+    accion: acceso.clave === 'qr' ? () => abrirQr('') : () => setActiveSheet(acceso.clave),
+  }));
 
   const kpis = [
     { etiqueta: 'Recaudacion hoy', valor: `$ ${Number(kpi.ventas ?? 0).toLocaleString('es-CO')}`, icono: TrendingUp, pista: 'cobros registrados hoy' },
@@ -147,6 +143,7 @@ export default function AdminDashboard() {
   ];
 
   return (
+    <AdminNavContext.Provider value={{ activa: activeSheet, ir: irSeccion }}>
     <div className="max-w-[1400px] mx-auto px-4 py-6 space-y-6">
       <Toast message={toast.message} type={toast.type} open={toast.open} />
 
@@ -262,18 +259,18 @@ export default function AdminDashboard() {
           </p>
         ) : (
           <div className="overflow-x-auto max-h-[55vh] overflow-y-auto">
-            <table className="w-full text-xs min-w-[900px]">
+            <table className="w-full text-xs min-w-[560px] md:min-w-[900px]">
               <thead className="sticky top-0 bg-superficie z-10">
                 <tr className="text-left font-bold text-texto-secundario uppercase border-b border-borde">
                   <th className="py-3 px-4">Hora</th>
                   <th className="py-3 px-3">Cliente</th>
-                  <th className="py-3 px-3">Servicio</th>
-                  <th className="py-3 px-3">Estilista</th>
-                  <th className="py-3 px-3">Sede</th>
-                  <th className="py-3 px-3 text-center">Personas</th>
+                  <th className="py-3 px-3 hidden md:table-cell">Servicio</th>
+                  <th className="py-3 px-3 hidden md:table-cell">Estilista</th>
+                  <th className="py-3 px-3 hidden md:table-cell">Sede</th>
+                  <th className="py-3 px-3 text-center hidden md:table-cell">Personas</th>
                   <th className="py-3 px-3 text-right">Monto</th>
                   <th className="py-3 px-3 text-center">Estado</th>
-                  <th className="py-3 px-4 text-center">Acciones</th>
+                  <th className="sticky right-0 bg-superficie py-3 px-4 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -284,17 +281,17 @@ export default function AdminDashboard() {
                     <tr key={reserva.id} className="border-b border-borde/40 hover:bg-fondo/30 transition-colors">
                       <td className="py-3 px-4 font-bold text-texto-principal">{horaBogotaDeIso(reserva.inicia_en)}</td>
                       <td className="py-3 px-3 font-semibold text-texto-principal">{cliente}</td>
-                      <td className="py-3 px-3 text-texto-secundario">{reserva.servicio_nombre || '—'}</td>
-                      <td className="py-3 px-3 text-texto-secundario">
+                      <td className="py-3 px-3 text-texto-secundario hidden md:table-cell">{reserva.servicio_nombre || '—'}</td>
+                      <td className="py-3 px-3 text-texto-secundario hidden md:table-cell">
                         {reserva.empleado_nombre} {reserva.empleado_apellido || ''}
                       </td>
-                      <td className="py-3 px-3 text-texto-secundario">{reserva.ubicacion_nombre || `Sede #${reserva.ubicacion_id}`}</td>
-                      <td className="py-3 px-3 text-center text-texto-secundario">{reserva.cantidad_personas || 1}</td>
+                      <td className="py-3 px-3 text-texto-secundario hidden md:table-cell">{reserva.ubicacion_nombre || `Sede #${reserva.ubicacion_id}`}</td>
+                      <td className="py-3 px-3 text-center text-texto-secundario hidden md:table-cell">{reserva.cantidad_personas || 1}</td>
                       <td className="py-3 px-3 text-right font-bold text-exito">${monto.toLocaleString('es-CO')}</td>
                       <td className="py-3 px-3 text-center">
                         <Badge variant={estadoBadgeVariant(reserva.estado)}>{estadoLabel(reserva.estado)}</Badge>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="sticky right-0 bg-superficie py-3 px-4 text-center">
                         {['pendiente', 'confirmada'].includes(reserva.estado) && (
                           <button
                             type="button"
@@ -340,5 +337,6 @@ export default function AdminDashboard() {
       <ClientesSeccion open={activeSheet === 'clientes'} onClose={cerrarYRecargar} onToast={mostrarToast} />
       <LogsSeccion open={activeSheet === 'logs'} onClose={cerrarYRecargar} onToast={mostrarToast} />
     </div>
+    </AdminNavContext.Provider>
   );
 }

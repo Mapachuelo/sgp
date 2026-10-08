@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
-import { Button, Card, Input, Sheet, Spinner } from '../../../componentes/ui/index.jsx';
+import { Button, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
 const FORM_INICIAL = { nombre: '', direccion: '', latitud: '', longitud: '' };
@@ -64,7 +65,7 @@ export default function SedesSeccion({ open, onClose, onToast }) {
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Gestion de sedes" size="wide">
+    <SheetAdmin open={open} onClose={onClose} title="Gestion de sedes">
       <div className="space-y-5">
         <div className="flex justify-end">
           <Button variant="primario" onClick={() => { resetForm(); setMostrarForm(true); }}>
@@ -132,6 +133,6 @@ export default function SedesSeccion({ open, onClose, onToast }) {
           </div>
         )}
       </div>
-    </Sheet>
+    </SheetAdmin>
   );
 }

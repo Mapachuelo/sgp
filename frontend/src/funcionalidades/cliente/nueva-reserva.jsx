@@ -528,7 +528,7 @@ export default function NuevaReserva() {
 
             <div className="lg:w-1/2 bg-superficie rounded-2xl border border-borde p-4 shadow-premium space-y-4">
               <p className="text-xs font-bold uppercase tracking-wider text-texto-secundario">Mapa de Sedes</p>
-              <div className="h-64 rounded-xl border border-borde overflow-hidden relative z-10 bg-fondo">
+              <div className="h-64 rounded-xl border border-borde overflow-hidden relative z-10 isolate bg-fondo">
                 <MapContainer
                   center={ubicacionSeleccionada ? [parseFloat(ubicacionSeleccionada.latitud), parseFloat(ubicacionSeleccionada.longitud)] : [4.60971, -74.08175]}
                   zoom={13}
@@ -628,9 +628,9 @@ export default function NuevaReserva() {
               <h2 className="font-display text-lg font-bold text-texto-principal">Paso 3: Escoge el día y la hora</h2>
               <p className="text-xs text-texto-secundario">Haga clic en una ranura libre para agendar. Debe tener al menos 60m de antelación.</p>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-wrap gap-2 items-center">
               {fechaBase && (
-                <div className="flex gap-1.5 items-center mr-2">
+                <div className="flex flex-wrap gap-1.5 items-center mr-2">
                   <button
                     type="button"
                     onClick={() => {

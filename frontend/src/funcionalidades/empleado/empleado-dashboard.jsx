@@ -509,7 +509,7 @@ export default function EmpleadoDashboard() {
             {esHoy ? 'Mis reservas de hoy' : `Mis reservas del ${fecha}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => cambiarDia(-1)}
@@ -532,10 +532,10 @@ export default function EmpleadoDashboard() {
           >
             →
           </button>
-          <Button onClick={() => { setCitaPrevia(null); setModoCobro(false); setModalQR(true); }}>
+          <Button className="w-full sm:w-auto" onClick={() => { setCitaPrevia(null); setModoCobro(false); setModalQR(true); }}>
             Validar QR
           </Button>
-          <Button variant="secundario" onClick={() => { setCitaPrevia(null); setModoCobro(true); setModalQR(true); }}>
+          <Button className="w-full sm:w-auto" variant="secundario" onClick={() => { setCitaPrevia(null); setModoCobro(true); setModalQR(true); }}>
             Registrar cobro
           </Button>
         </div>
@@ -550,7 +550,7 @@ export default function EmpleadoDashboard() {
           ) : sedeHoy ? (
             <Card padding={true}>
               <p className="text-sm font-semibold text-texto-secundario mb-2">Sede de hoy</p>
-              <div className="h-40 bg-fondo rounded-lg flex items-center justify-center border border-borde overflow-hidden relative mb-3">
+              <div className="h-40 bg-fondo rounded-lg flex items-center justify-center border border-borde overflow-hidden relative z-0 isolate mb-3">
                 <MapContainer
                   center={[parseFloat(sedeHoy.latitud), parseFloat(sedeHoy.longitud)]}
                   zoom={15}
@@ -663,7 +663,7 @@ export default function EmpleadoDashboard() {
                 return (
                   <div
                     key={cita.id}
-                    className={`bg-superficie rounded-xl border p-4 flex items-center gap-4 shadow-sm transition hover:shadow-md ${getBorderColorClass(cita.estado)}`}
+                    className={`bg-superficie rounded-xl border p-4 flex flex-wrap items-center gap-3 sm:gap-4 shadow-sm transition hover:shadow-md ${getBorderColorClass(cita.estado)}`}
                   >
                     <div className="text-center w-16 shrink-0">
                       <p className={`font-bold text-lg ${getHoraTextClass(cita.estado)}`}>
@@ -695,7 +695,7 @@ export default function EmpleadoDashboard() {
                         ) : null}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-3 shrink-0 ml-auto">
                       <Badge variant={ESTADO_COLOR[cita.estado] || 'default'}>
                         {ESTADO_LABEL[cita.estado] || cita.estado}
                       </Badge>
