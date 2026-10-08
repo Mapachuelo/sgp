@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Download, FileWarning, ScrollText, Search } from 'lucide-react';
-import { Button, Card, Sheet, Spinner } from '../../../componentes/ui/index.jsx';
+import { Button, Card, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 import { descargarTexto } from '../../../lib/descargas.js';
 import { hoy } from '../utils.js';
@@ -54,7 +55,7 @@ export default function LogsSeccion({ open, onClose, onToast }) {
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Logs del sistema" size="wide">
+    <SheetAdmin open={open} onClose={onClose} title="Logs del sistema">
       <div className="space-y-4">
         <Card className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <div className="relative lg:col-span-2">
@@ -73,13 +74,13 @@ export default function LogsSeccion({ open, onClose, onToast }) {
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
             aria-label="Filtrar por fecha"
-            className="px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+            className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
           />
           <select
             value={severidad}
             onChange={(e) => setSeveridad(e.target.value)}
             aria-label="Filtrar por severidad"
-            className="px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+            className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
           >
             <option value="">Severidad</option>
             <option value="INFO">INFO</option>
@@ -88,7 +89,7 @@ export default function LogsSeccion({ open, onClose, onToast }) {
           </select>
         </Card>
 
-        <div className="flex gap-1 bg-fondo border border-borde rounded-xl p-1 w-fit">
+        <div className="flex flex-wrap gap-1 bg-fondo border border-borde rounded-xl p-1 max-w-full w-fit">
           <button
             type="button"
             onClick={() => { setTab('actividad'); setDatos([]); }}
@@ -111,7 +112,7 @@ export default function LogsSeccion({ open, onClose, onToast }) {
           </button>
         </div>
 
-        <div className="bg-gray-900 text-green-400 rounded-2xl p-4 font-mono text-[11px] h-96 overflow-y-auto whitespace-pre-wrap leading-relaxed shadow-inner">
+        <div className="bg-gray-900 text-green-400 rounded-2xl p-4 font-mono text-[11px] h-96 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words leading-relaxed shadow-inner">
           {cargando ? (
             <div className="flex justify-center py-10"><Spinner /></div>
           ) : datos.length === 0 ? (
@@ -162,6 +163,6 @@ export default function LogsSeccion({ open, onClose, onToast }) {
           </Button>
         </Card>
       </div>
-    </Sheet>
+    </SheetAdmin>
   );
 }

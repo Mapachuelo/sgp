@@ -409,7 +409,7 @@ export default function EmpleadoDisponibilidad() {
           <h1 className="font-display text-3xl font-bold text-texto-principal">Planificación de Turnos</h1>
           <p className="text-texto-secundario mt-1">Configura tus horarios semanales por sede y gestiona tus servicios asignados.</p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 sm:shrink-0">
           <Select
             label="Intervalo"
             options={GRANULARIDADES}

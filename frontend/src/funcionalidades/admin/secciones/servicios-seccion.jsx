@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Plus, Scissors, Trash2 } from 'lucide-react';
-import { Button, Card, Input, Select, Sheet, Spinner } from '../../../componentes/ui/index.jsx';
+import { Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
 export default function ServiciosSeccion({ open, onClose, onToast }) {
@@ -108,7 +109,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Gestion de servicios" size="wide">
+    <SheetAdmin open={open} onClose={onClose} title="Gestion de servicios">
       <div className="space-y-6">
         <div className="flex justify-end">
           <Button variant="primario" onClick={() => { resetForm(); setMostrarForm(true); }}>
@@ -251,6 +252,6 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
           ) : null}
         </Card>
       </div>
-    </Sheet>
+    </SheetAdmin>
   );
 }

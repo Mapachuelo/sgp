@@ -14,7 +14,7 @@ Capturas reales de la aplicación desplegada (Chromium, 1600×1000 salvo móvil 
 | Texto | `#2D2420` / `#6F6157` | Principal / secundario |
 | Éxito / Alerta / Error | `#4A7C59` / `#8F5E1D` / `#B84C3D` | Estados |
 | Tipografía | Playfair Display (títulos), Inter (texto) | — |
-| Densidad | Tablas con cabecera sticky y scroll interno; sheets de 640 px y planificador de 95 vw | Responsive ≥320 px |
+| Densidad | Tablas con cabecera sticky y scroll interno; sheets de 95 vw con riel de secciones y planificador de 95 vw | Responsive ≥320 px |
 
 ## 1. Autenticación y registro
 
@@ -83,7 +83,7 @@ Grilla semanal por sede, servicios asignados con duración y leyenda; una sede p
 ## 4. Rol administrador
 
 ### 4.1 Dashboard (`/admin`)
-KPIs reales, timeline de todas las sedes y tarjeta de Gestión con los 9 accesos (modales y sheets).
+KPIs reales, timeline de todas las sedes y tarjeta de Gestión con los 9 accesos. Todas las ventanas flotantes (Validar QR, Cobro, Empleados, Servicios, Sedes, Horarios, Reportes, Moderación de clientes y Logs) incluyen un riel lateral con las 9 secciones como guía de uso: permite saltar entre secciones sin cerrar la ventana. En móvil el riel se convierte en chips con scroll horizontal y el sheet ocupa el ancho completo.
 
 ![Dashboard admin](img/admin-dashboard.png)
 
@@ -98,7 +98,7 @@ Selección de sede única por día, horario o descanso, con aviso RF9 al cambiar
 ![Editor planificador](img/admin-planificador-editor.png)
 
 ### 4.4 Jornada por sede
-Edición de horarios de atención por fecha con agregar/quitar.
+Matriz semanal: navegación `◀ semana ▶ Hoy`, filas por semana (2 anteriores y 2 siguientes a la actual) y columnas LUN–DOM con la fecha. Cada celda muestra el horario de atención (`09:00-18:00`) o "Sin jornada"; al hacer clic se abre el editor del día (hora inicio/fin, Guardar, Cerrar día). En móvil los días se muestran como tarjetas apiladas con botón Editar.
 
 ![Jornada sede](img/admin-jornada.png)
 

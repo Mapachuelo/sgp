@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BadgeDollarSign, CheckCircle2 } from 'lucide-react';
-import { Button, Input, Modal, Spinner } from '../../../componentes/ui/index.jsx';
+import { Button, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
 export default function CobroModal({ open, onClose, onToast, onActualizar }) {
@@ -34,7 +35,7 @@ export default function CobroModal({ open, onClose, onToast, onActualizar }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Registrar cobro">
+    <SheetAdmin open={open} onClose={onClose} title="Registrar cobro">
       {resultado ? (
         <div className="text-center py-4 space-y-3">
           <CheckCircle2 className="w-14 h-14 mx-auto text-exito" aria-hidden="true" />
@@ -65,6 +66,6 @@ export default function CobroModal({ open, onClose, onToast, onActualizar }) {
           </Button>
         </div>
       )}
-    </Modal>
+    </SheetAdmin>
   );
 }

@@ -105,7 +105,7 @@ export default function RegistroPage() {
             <p className="text-texto-secundario text-sm mt-1 font-body">Sistema de Gestión de Peluquería</p>
           </div>
 
-          <div className="bg-superficie rounded-2xl border border-borde shadow-sm p-8">
+          <div className="bg-superficie rounded-2xl border border-borde shadow-sm p-6 sm:p-8">
             <h2 className="font-display text-2xl font-bold text-texto-principal mb-6">Crear cuenta</h2>
 
             {error && (

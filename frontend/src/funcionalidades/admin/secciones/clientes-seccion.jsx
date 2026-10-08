@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Search, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
-import { Badge, Button, Card, Sheet, Spinner } from '../../../componentes/ui/index.jsx';
+import { Badge, Button, Card, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
 export default function ClientesSeccion({ open, onClose, onToast }) {
@@ -65,7 +66,7 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
   );
 
   return (
-    <Sheet open={open} onClose={onClose} title="Moderacion de clientes" size="wide">
+    <SheetAdmin open={open} onClose={onClose} title="Moderacion de clientes">
       <div className="space-y-4">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-texto-secundario" aria-hidden="true" />
@@ -145,6 +146,6 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
           Un cliente solo puede eliminarse si acumula 3 o mas no-shows.
         </Card>
       </div>
-    </Sheet>
+    </SheetAdmin>
   );
 }

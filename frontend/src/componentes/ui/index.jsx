@@ -119,12 +119,12 @@ export function Badge({ children, variant = 'default', className = '' }) {
   );
 }
 
-export function Sheet({ open, onClose, children, title, side = 'right', size = 'normal' }) {
+export function Sheet({ open, onClose, children, title, side = 'right', size = 'normal', nav }) {
   const ref = useRef(null);
   const tituloId = useId();
   useDialogo(open, onClose, ref);
   if (!open) return null;
-  const ancho = size === 'wide' ? 'w-[95vw] max-w-[1500px]' : 'w-[640px] max-w-[100vw]';
+  const ancho = size === 'wide' ? 'w-full sm:w-[95vw] sm:max-w-[1500px]' : 'w-full sm:w-[640px] sm:max-w-[100vw]';
   const posicion = side === 'right' ? `right-0 h-full ${ancho}` : 'left-0 right-0';
   return (
     <>
@@ -135,9 +135,9 @@ export function Sheet({ open, onClose, children, title, side = 'right', size = '
         aria-modal="true"
         aria-labelledby={tituloId}
         tabIndex={-1}
-        className={`fixed top-0 ${posicion} z-[60] bg-superficie shadow-2xl overflow-y-auto`}
+        className={`fixed top-0 ${posicion} z-[60] bg-superficie shadow-2xl flex flex-col`}
       >
-        <div className="sticky top-0 bg-superficie border-b border-borde p-6 flex items-center justify-between z-10">
+        <div className="shrink-0 bg-superficie border-b border-borde p-4 sm:p-6 flex items-center justify-between z-10">
           <h2 id={tituloId} className="font-display text-xl font-bold text-texto-principal">{title}</h2>
           <button
             type="button"
@@ -150,7 +150,14 @@ export function Sheet({ open, onClose, children, title, side = 'right', size = '
             </svg>
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        {nav ? (
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+            {nav}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
+        )}
       </div>
     </>
   );
@@ -233,7 +240,7 @@ export function Toast({ message, type = 'success', open }) {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed top-20 left-1/2 -translate-x-1/2 ${colors[type]} text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium z-[70]`}
+      className={`fixed top-20 left-1/2 -translate-x-1/2 ${colors[type]} text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium z-[70] max-w-[90vw] text-center`}
     >
       {message}
     </div>

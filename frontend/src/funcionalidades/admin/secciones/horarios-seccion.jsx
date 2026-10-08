@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CalendarCog, CalendarRange } from 'lucide-react';
-import { Sheet } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import PlanificadorHorarios from './planificador-horarios.jsx';
 import JornadaSede from './jornada-sede.jsx';
 
@@ -17,7 +17,7 @@ export default function HorariosSeccion({ open, onClose, onToast, onValidarCita 
   }, [open]);
 
   return (
-    <Sheet open={open} onClose={onClose} title="Horarios y planificacion" size="wide">
+    <SheetAdmin open={open} onClose={onClose} title="Horarios y planificacion">
       <div className="flex flex-wrap gap-1 bg-fondo border border-borde rounded-xl p-1 mb-5 w-fit">
         {TABS.map(({ clave, etiqueta, icono: Icono }) => (
           <button
@@ -38,6 +38,6 @@ export default function HorariosSeccion({ open, onClose, onToast, onValidarCita 
       ) : (
         <JornadaSede onToast={onToast} />
       )}
-    </Sheet>
+    </SheetAdmin>
   );
 }

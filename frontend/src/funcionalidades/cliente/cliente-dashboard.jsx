@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Badge, Toast, Spinner } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
@@ -86,6 +86,14 @@ export default function ClienteDashboard() {
   const [seleccionada, setSeleccionada] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+  const detalleRef = useRef(null);
+
+  const seleccionar = (reserva) => {
+    setSeleccionada(reserva);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setTimeout(() => detalleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
+  };
 
   const mostrarToast = (message, type = 'success') => {
     setToast({ open: true, message, type });
@@ -202,6 +210,7 @@ export default function ClienteDashboard() {
             {porColumna.map((col) => (
               <section
                 key={col.key}
+                role="listitem"
                 className="min-w-[240px] w-64 shrink-0 bg-fondo/60 rounded-2xl border border-borde p-3"
                 aria-label={`Reservas ${col.label}`}
               >
@@ -221,11 +230,11 @@ export default function ClienteDashboard() {
                         role="button"
                         tabIndex={0}
                         aria-pressed={seleccionada?.id === reserva.id}
-                        onClick={() => setSeleccionada(reserva)}
+                        onClick={() => seleccionar(reserva)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            setSeleccionada(reserva);
+                            seleccionar(reserva);
                           }
                         }}
                         className={`rounded-xl bg-superficie border border-borde p-3 shadow-sm cursor-pointer transition hover:shadow-md ${BORDE_ESTADO[claveColumna(reserva.estado)] || ''} ${
@@ -286,7 +295,7 @@ export default function ClienteDashboard() {
             ))}
           </div>
 
-          <aside className="lg:sticky lg:top-20">
+          <aside ref={detalleRef} className="lg:sticky lg:top-20 scroll-mt-20">
             {seleccionada ? (
               <Card padding={false} className="overflow-hidden">
                 <div className="p-5 border-b border-borde">
@@ -337,7 +346,7 @@ export default function ClienteDashboard() {
                     {seleccionada.ubicacion_nombre}
                     {seleccionada.ubicacion_direccion ? ` — ${seleccionada.ubicacion_direccion}` : ''}
                   </p>
-                  <div className="h-44 rounded-xl border border-borde overflow-hidden relative z-0 bg-fondo">
+                  <div className="h-44 rounded-xl border border-borde overflow-hidden relative z-0 isolate bg-fondo">
                     {tieneMapa ? (
                       <MapContainer
                         center={[lat, lng]}

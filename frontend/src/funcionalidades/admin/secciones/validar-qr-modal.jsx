@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { QrCode, CheckCircle2, Camera, CameraOff } from 'lucide-react';
-import { Button, Input, Modal, Spinner } from '../../../componentes/ui/index.jsx';
+import { Button, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
 export default function ValidarQrModal({ open, onClose, onToast, onActualizar, tokenInicial = '' }) {
@@ -63,7 +64,7 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Validar entrada">
+    <SheetAdmin open={open} onClose={onClose} title="Validar entrada">
       {resultado ? (
         <div className="text-center py-4 space-y-3">
           <CheckCircle2 className="w-14 h-14 mx-auto text-exito" aria-hidden="true" />
@@ -114,6 +115,6 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
           </Button>
         </div>
       )}
-    </Modal>
+    </SheetAdmin>
   );
 }

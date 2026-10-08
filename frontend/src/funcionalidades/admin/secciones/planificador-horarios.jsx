@@ -211,7 +211,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
       <div className="space-y-4 min-w-0">
         <Card padding={false} className="p-4 space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" aria-label="Semana anterior" onClick={() => setSemanaInicio((s) => sumarDias(s, -7))}>
                 <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               </Button>
@@ -229,7 +229,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
               </Button>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-texto-secundario" aria-hidden="true" />
                 <input
                   type="text"
@@ -237,14 +237,14 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                   onChange={(e) => setFiltroNombre(e.target.value)}
                   placeholder="Buscar empleado..."
                   aria-label="Buscar empleado"
-                  className="pl-8 pr-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none focus:ring-2 focus:ring-primario/30"
+                  className="w-full pl-8 pr-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none focus:ring-2 focus:ring-primario/30"
                 />
               </div>
               <select
                 value={filtroSede}
                 onChange={(e) => setFiltroSede(e.target.value)}
                 aria-label="Filtrar por sede"
-                className="px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+                className="w-full sm:w-auto px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
               >
                 <option value="">Todas las sedes</option>
                 {sedes.map((u) => (
@@ -271,10 +271,10 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
         ) : (
           <Card padding={false} className="overflow-hidden">
             <div className="overflow-x-auto max-h-[62vh] overflow-y-auto">
-              <table className="w-full text-xs border-collapse min-w-[1080px]">
+              <table className="w-full text-xs border-collapse min-w-[880px] sm:min-w-[1080px]">
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-fondo/95 backdrop-blur border-b border-borde">
-                    <th className="sticky left-0 z-30 bg-fondo/95 text-left px-4 py-3 font-bold text-texto-secundario uppercase tracking-wider w-56">
+                    <th className="sticky left-0 z-30 bg-fondo/95 text-left px-4 py-3 font-bold text-texto-secundario uppercase tracking-wider w-36 sm:w-56">
                       Empleado
                     </th>
                     {dias.map((dia) => {

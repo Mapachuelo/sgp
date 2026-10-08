@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BarChart3 } from 'lucide-react';
-import { Badge, Card, Input, Sheet, Spinner } from '../../../componentes/ui/index.jsx';
+import { Badge, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 import { hoy } from '../utils.js';
 
@@ -36,7 +37,7 @@ export default function ReportesSeccion({ open, onClose, onToast }) {
   }, [open, cargar]);
 
   return (
-    <Sheet open={open} onClose={onClose} title="Reportes" size="wide">
+    <SheetAdmin open={open} onClose={onClose} title="Reportes">
       <div className="space-y-4">
         <div className="flex flex-wrap gap-1 bg-fondo border border-borde rounded-xl p-1 w-fit">
           {TABS.map((t) => (
@@ -166,6 +167,6 @@ export default function ReportesSeccion({ open, onClose, onToast }) {
           </Card>
         ) : null}
       </div>
-    </Sheet>
+    </SheetAdmin>
   );
 }

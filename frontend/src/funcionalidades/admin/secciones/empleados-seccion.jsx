@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
-import { Badge, Button, Card, Input, Sheet, Spinner } from '../../../componentes/ui/index.jsx';
+import { Badge, Button, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
 const DIAS = [
@@ -243,7 +244,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
   );
 
   return (
-    <Sheet open={open} onClose={onClose} title="Gestion de empleados" size="wide">
+    <SheetAdmin open={open} onClose={onClose} title="Gestion de empleados">
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative">
@@ -433,6 +434,6 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
           </div>
         )}
       </div>
-    </Sheet>
+    </SheetAdmin>
   );
 }
