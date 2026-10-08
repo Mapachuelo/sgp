@@ -1,7 +1,16 @@
 const disponibilidadService = require('./disponibilidad.service');
 const asyncHandler = require('../../shared/async-handler');
-const { emitDisponibilidadActualizada } = require('../../integrations/realtime/ws-hub');
+const {
+  emitDisponibilidadActualizada,
+  emitReservaActualizada,
+} = require('../../integrations/realtime/ws-hub');
 const logger = require('../../shared/logger');
+
+function emitirCancelaciones(result) {
+  if (Array.isArray(result.reservas_canceladas)) {
+    result.reservas_canceladas.forEach((id) => emitReservaActualizada(id, 'cancelada'));
+  }
+}
 
 const disponibilidadController = {
   get: asyncHandler(async (req, res) => {
@@ -16,12 +25,18 @@ const disponibilidadController = {
     );
     logger.info({ empleado_id: req.usuario.id }, 'Disponibilidad actualizada');
     emitDisponibilidadActualizada(req.usuario.id, new Date().toISOString());
+    emitirCancelaciones(result);
     res.json({ ok: true, data: result });
   }),
 
   getByAdmin: asyncHandler(async (req, res) => {
     const empleadoId = parseInt(req.params.empleadoId, 10);
     const disponibilidad = await disponibilidadService.getDisponibilidad(empleadoId);
+    res.json({ ok: true, data: disponibilidad });
+  }),
+
+  getAll: asyncHandler(async (_req, res) => {
+    const disponibilidad = await disponibilidadService.getAllDisponibilidad();
     res.json({ ok: true, data: disponibilidad });
   }),
 
@@ -33,6 +48,7 @@ const disponibilidadController = {
     );
     logger.info({ empleado_id: empleadoId, admin_id: req.usuario.id }, 'Disponibilidad de empleado actualizada por admin');
     emitDisponibilidadActualizada(empleadoId, new Date().toISOString());
+    emitirCancelaciones(result);
     res.json({ ok: true, data: result });
   }),
 };

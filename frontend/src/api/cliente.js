@@ -72,6 +72,7 @@ const api = {
     misReservas: () => request('/reservas/me'),
     cancelar: (id) => request(`/reservas/me/${id}`, { method: 'DELETE' }),
     list: (params) => request(`/reservas?${new URLSearchParams(params)}`),
+    agenda: (params) => request(`/reservas/agenda?${new URLSearchParams(params)}`),
   },
   checkin: {
     validar: (body) => request('/checkin/validar', { method: 'POST', body: JSON.stringify(body) }),
@@ -86,11 +87,19 @@ const api = {
     update: (body) => request('/empleados/disponibilidad', { method: 'PUT', body: JSON.stringify(body) }),
     getByAdmin: (empleadoId) => request(`/empleados/${empleadoId}/disponibilidad`),
     updateByAdmin: (empleadoId, body) => request(`/empleados/${empleadoId}/disponibilidad`, { method: 'PUT', body: JSON.stringify(body) }),
+    todas: () => request('/empleados/disponibilidad/todas'),
   },
   logs: {
     actividad: (params) => request(`/logs/actividad?${new URLSearchParams(params)}`),
     errores: (params) => request(`/logs/errores?${new URLSearchParams(params)}`),
-    exportar: (params) => request(`/logs/exportar?${new URLSearchParams(params)}`),
+    exportarTexto: async (params) => {
+      const token = getToken();
+      const res = await fetch(`${API}/logs/exportar?${new URLSearchParams(params)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('No se pudo exportar el archivo de logs');
+      return res.text();
+    },
   },
   preferencias: {
     get: () => request('/preferencias'),

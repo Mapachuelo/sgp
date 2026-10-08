@@ -1,5 +1,4 @@
 const { Pool } = require('pg');
-const path = require('path');
 
 const env = require('../config/env');
 const pool = new Pool({

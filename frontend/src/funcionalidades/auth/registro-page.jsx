@@ -62,14 +62,22 @@ export default function RegistroPage() {
     if (!validar()) return;
     setCargando(true);
     try {
-      await register({
+      const data = await register({
         nombre: form.nombre,
         apellido: form.apellido,
         telefono: form.telefono,
         email: form.email,
         password: form.password,
       });
-      navigate('/verificar', { state: { email: form.email }, replace: true });
+      navigate('/verificar', {
+        state: {
+          email: form.email,
+          correoEnviado: data?.correoEnviado,
+          expiraEn: data?.expiraEn,
+          ttlMinutos: data?.ttlMinutos,
+        },
+        replace: true,
+      });
     } catch (err) {
       setError(err.message || 'Error al registrarse');
     } finally {
@@ -171,6 +179,10 @@ export default function RegistroPage() {
                 {cargando ? 'Creando cuenta…' : 'Crear cuenta'}
               </Button>
             </form>
+
+            <p className="mt-4 text-xs text-texto-secundario font-body text-center">
+              Recibiras un codigo por correo. Si no verificas en pocos minutos, el registro se elimina y el correo queda libre.
+            </p>
 
             <p className="mt-6 text-center text-sm text-texto-secundario font-body">
               ¿Ya tienes cuenta?{' '}

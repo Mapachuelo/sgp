@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS app_user (
   rol VARCHAR(20) NOT NULL CHECK (rol IN ('cliente', 'empleado', 'admin')),
   nombre VARCHAR(100) NOT NULL,
   apellido VARCHAR(100) NOT NULL,
-  telefono VARCHAR(15) CHECK (telefono ~ '^\+57[0-9]{10}$'),
+  telefono TEXT,
   esta_bloqueado BOOLEAN DEFAULT FALSE,
   motivo_bloqueo TEXT,
   bloqueado_por INTEGER REFERENCES app_user(id),
@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS app_user (
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS verificado BOOLEAN DEFAULT FALSE;
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS token_verificacion TEXT;
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS token_verificacion_expiracion TIMESTAMPTZ;
+ALTER TABLE app_user ALTER COLUMN telefono TYPE TEXT;
+ALTER TABLE app_user DROP CONSTRAINT IF EXISTS app_user_telefono_check;
 
 CREATE TABLE IF NOT EXISTS empleado_perfil (
   usuario_id INTEGER PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
@@ -102,8 +104,11 @@ CREATE TABLE IF NOT EXISTS preferencia_usuario (
   rango_hora_desde TIME DEFAULT '06:00',
   rango_hora_hasta TIME DEFAULT '22:00',
   granularidad_calendario INTEGER DEFAULT 30,
-  tema VARCHAR(10) DEFAULT 'claro'
+  tema VARCHAR(10) DEFAULT 'claro',
+  idioma VARCHAR(5) DEFAULT 'es'
 );
+
+ALTER TABLE preferencia_usuario ADD COLUMN IF NOT EXISTS idioma VARCHAR(5) DEFAULT 'es';
 
 CREATE INDEX IF NOT EXISTS idx_reserva_inicia_en ON reserva(inicia_en);
 CREATE INDEX IF NOT EXISTS idx_reserva_cliente_id ON reserva(cliente_id);
@@ -158,6 +163,13 @@ BEGIN
     INSERT INTO empleado_perfil (usuario_id, identificacion, ubicacion_base_id)
     SELECT id, '1234567890', sede_id FROM app_user WHERE email = 'empleado@sgp.local'
     ON CONFLICT (usuario_id) DO NOTHING;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM app_user WHERE email = 'cliente@sgp.local') THEN
+    INSERT INTO app_user (email, password_hash, rol, nombre, apellido, telefono, verificado)
+    VALUES ('cliente@sgp.local',
+            '$2a$12$ui.KdbhGZ3GGyrO/m2VIc.uo6D.RwC.F/3N2vvUcQSyo6AbyYIPDe',
+            'cliente', 'Cliente', 'Prueba', '+573003334455', TRUE);
   END IF;
 END $$;
 
@@ -263,6 +275,17 @@ BEGIN
     END LOOP;
   END IF;
 END $$;
+
+-- Seed empleado_tiempo_servicio (servicios y duraciones del empleado semilla)
+INSERT INTO empleado_tiempo_servicio (empleado_id, servicio_id, duracion_minutos)
+SELECT u.id, s.id, s.duracion_base_minutos
+FROM app_user u
+CROSS JOIN servicio_catalogo s
+WHERE u.email = 'empleado@sgp.local'
+  AND NOT EXISTS (
+    SELECT 1 FROM empleado_tiempo_servicio etp
+    WHERE etp.empleado_id = u.id AND etp.servicio_id = s.id
+  );
 
 -- Backfill: usuarios creados antes del sistema de verificacion quedan verificados
 UPDATE app_user SET verificado = TRUE

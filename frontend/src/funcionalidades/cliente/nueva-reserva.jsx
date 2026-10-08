@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Card, Badge, Modal, Toast, Input, Spinner, Select } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import useWebSocket from '../../hooks/use-websocket.js';
+import { descargarQrReserva } from '../../lib/descargas.js';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -118,12 +119,12 @@ export default function NuevaReserva() {
       const emp = empleadoSeleccionadoRef.current;
       const base = fechaBaseRef.current;
       if (emp) {
-        cargarCalendario(base || new Date()).catch(() => {});
+        cargarCalendario(base || new Date(), emp).catch(() => {});
       }
     }
     if (ultimoEvento.tipo === 'reserva.actualizada' && pasoRef.current === 3) {
       const base = fechaBaseRef.current;
-      cargarCalendario(base || new Date()).catch(() => {});
+      cargarCalendario(base || new Date(), empleadoSeleccionadoRef.current).catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ultimoEvento]);
@@ -153,18 +154,40 @@ export default function NuevaReserva() {
     setPaso(2);
     setCargando(true);
     try {
-      const hoy = formatearFechaLocal(new Date());
-      setEmpleados(await api.reservas.empleadosDisponibles({ ubicacion_id: ubicacionSeleccionada.id, fecha: hoy }) || []);
+      const base = new Date();
+      base.setHours(0, 0, 0, 0);
+      const fechas = [];
+      for (let i = 0; i < 6; i++) {
+        const f = new Date(base);
+        f.setDate(base.getDate() + i);
+        fechas.push(formatearFechaLocal(f));
+      }
+      const listas = await Promise.all(
+        fechas.map((fecha) =>
+          api.reservas
+            .empleadosDisponibles({ ubicacion_id: ubicacionSeleccionada.id, fecha })
+            .catch(() => [])
+        )
+      );
+      const porId = new Map();
+      listas.flat().forEach((emp) => {
+        if (emp?.id != null) porId.set(emp.id, emp);
+      });
+      const ordenados = [...porId.values()].sort((a, b) =>
+        `${a.nombre} ${a.apellido || ''}`.localeCompare(`${b.nombre} ${b.apellido || ''}`)
+      );
+      setEmpleados(ordenados);
     } catch (err) { mostrarToast(err.message, 'error'); }
     finally { setCargando(false); }
   };
 
-  const cargarCalendario = async (baseDate) => {
-    if (!empleadoSeleccionado) return;
+  const cargarCalendario = async (baseDate, empleadoParam) => {
+    const emp = empleadoParam || empleadoSeleccionado;
+    if (!emp) return;
     setCargando(true);
     try {
       const [empServs, prefs] = await Promise.all([
-        api.reservas.empleadoTiempos.get(empleadoSeleccionado.id),
+        api.reservas.empleadoTiempos.get(emp.id),
         api.preferencias.get()
       ]);
       const mappedServs = (empServs || []).map(s => ({
@@ -203,7 +226,7 @@ export default function NuevaReserva() {
 
       // Cargar disponibilidad en paralelo para los 6 días
       const promesas = dias.map(d =>
-        api.reservas.disponibilidad({ empleado_id: empleadoSeleccionado.id, ubicacion_id: ubicacionSeleccionada.id, fecha: d.fecha })
+        api.reservas.disponibilidad({ empleado_id: emp.id, ubicacion_id: ubicacionSeleccionada.id, fecha: d.fecha })
           .then(res => ({ fecha: d.fecha, data: res || { slots_ocupados: [] } }))
           .catch(() => ({ fecha: d.fecha, data: { slots_ocupados: [] } }))
       );
@@ -217,10 +240,11 @@ export default function NuevaReserva() {
     finally { setCargando(false); }
   };
 
-  const irAPaso3 = async () => {
-    if (!empleadoSeleccionado) return;
+  const irAPaso3 = async (empleadoParam) => {
+    const emp = empleadoParam || empleadoSeleccionado;
+    if (!emp) return;
     setPaso(3);
-    await cargarCalendario(new Date());
+    await cargarCalendario(new Date(), emp);
   };
 
   const handleSlotClick = (dia, hora) => {
@@ -243,28 +267,28 @@ export default function NuevaReserva() {
     try {
       const serv = servicios.find((s) => String(s.id) === String(servicioSeleccionado));
       if (!serv) { mostrarToast('Selecciona un servicio', 'error'); setCargando(false); return; }
-      const duracion = serv.duracion_base_minutos || 30;
-      const [h, m] = slotSeleccionado.split(':');
-      const totalMin = parseInt(h) * 60 + parseInt(m) + duracion;
-      const hFin = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
-      const mFin = String(totalMin % 60).padStart(2, '0');
       const localInicio = new Date(`${diaSeleccionado.fecha}T${slotSeleccionado}:00`);
-      const localFin = new Date(`${diaSeleccionado.fecha}T${hFin}:${mFin}:00`);
-      const fechaInicio = localInicio.toISOString();
-      const fechaFin = localFin.toISOString();
 
       const data = await api.reservas.create({
         empleado_id: empleadoSeleccionado.id,
         servicio_id: parseInt(servicioSeleccionado),
         ubicacion_id: ubicacionSeleccionada.id,
-        inicia_en: fechaInicio,
-        termina_en: fechaFin,
+        inicia_en: localInicio.toISOString(),
         cantidad_personas: cantidad,
       });
       setReservaCreada(data);
       setPaso(5);
-      mostrarToast('Reserva pre-registrada con exito', 'success');
-    } catch (err) { mostrarToast(err.message, 'error'); }
+      mostrarToast('Reserva creada con exito', 'success');
+    } catch (err) {
+      if (/superpone|fuera de la disponibilidad/i.test(err.message)) {
+        mostrarToast(`${err.message}. Te sugerimos elegir otro horario.`, 'error');
+        setSlotSeleccionado(null);
+        setPaso(3);
+        cargarCalendario(fechaBase || new Date());
+      } else {
+        mostrarToast(err.message, 'error');
+      }
+    }
     finally { setCargando(false); }
   };
 
@@ -336,12 +360,12 @@ export default function NuevaReserva() {
     const slotsDia = slots?.[fecha]?.slots_ocupados;
     if (!slotsDia) return false;
     const slotDate = new Date(fecha + 'T' + hora + ':00');
-    const slotMin = slotDate.getUTCHours() * 60 + slotDate.getUTCMinutes();
+    const slotMin = slotDate.getHours() * 60 + slotDate.getMinutes();
     return slotsDia.some((s) => {
       const ini = new Date(s.inicia_en);
       const fin = new Date(s.termina_en);
-      const iniMin = ini.getUTCHours() * 60 + ini.getUTCMinutes();
-      const finMin = fin.getUTCHours() * 60 + fin.getUTCMinutes();
+      const iniMin = ini.getHours() * 60 + ini.getMinutes();
+      const finMin = fin.getHours() * 60 + fin.getMinutes();
       return slotMin >= iniMin && slotMin < finMin;
     });
   };
@@ -376,15 +400,18 @@ export default function NuevaReserva() {
   };
 
   const descargarQR = () => {
-    if (!reservaCreada?.qr_data_url) return;
-    const a = document.createElement('a');
-    a.href = reservaCreada.qr_data_url;
-    a.download = `reserva-${reservaCreada.id || 'qr'}.png`;
-    a.click();
+    descargarQrReserva(reservaCreada);
   };
 
   const selectedServ = servicios.find((s) => String(s.id) === String(servicioSeleccionado));
   const totalPrecio = selectedServ ? parseFloat(selectedServ.precio_base || selectedServ.precio || 0) * cantidad : 0;
+  const duracionSeleccionada = selectedServ?.duracion_base_minutos || selectedServ?.duracion || 30;
+  const calcularHoraFin = () => {
+    if (!slotSeleccionado) return '';
+    const [hh, mm] = slotSeleccionado.split(':').map(Number);
+    const totalMin = hh * 60 + mm + duracionSeleccionada;
+    return `${String(Math.floor(totalMin / 60) % 24).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
+  };
 
   if (pagoCompletado) {
     return (
@@ -553,7 +580,7 @@ export default function NuevaReserva() {
           {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : empleados.length === 0 ? (
-            <Card><p className="text-texto-secundario text-center py-8">No hay estilistas registrados en esta sede en este momento.</p></Card>
+            <Card><p className="text-texto-secundario text-center py-8">No hay estilistas disponibles en esta sede durante los proximos 6 dias.</p></Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {empleados.map((emp) => {
@@ -564,7 +591,7 @@ export default function NuevaReserva() {
                     onClick={() => {
                       setEmpleadoSeleccionado(emp);
                       setTimeout(() => {
-                        irAPaso3();
+                        irAPaso3(emp);
                       }, 300);
                     }}
                     className={`p-5 rounded-2xl border-2 cursor-pointer text-center transition flex flex-col items-center gap-3 bg-superficie ${
@@ -668,7 +695,9 @@ export default function NuevaReserva() {
           {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : (() => {
-            const diasVisibles = isMobile ? semana.slice(0, 2) : semana;
+            const maxInicio = Math.max(0, semana.length - 2);
+            const inicio = Math.min(diaInicioMovil, maxInicio);
+            const diasVisibles = isMobile ? semana.slice(inicio, inicio + 2) : semana;
             
             return (
               <>
@@ -732,6 +761,31 @@ export default function NuevaReserva() {
                     </table>
                   </div>
                 </Card>
+                {isMobile && (
+                  <div className="flex items-center justify-center gap-3 max-w-4xl mx-auto">
+                    <button
+                      type="button"
+                      onClick={() => setDiaInicioMovil(Math.max(0, inicio - 1))}
+                      disabled={inicio <= 0}
+                      aria-label="Ver dias anteriores"
+                      className="px-3 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
+                    >
+                      ←
+                    </button>
+                    <span className="text-xs text-texto-secundario font-semibold">
+                      Dias {inicio + 1}–{inicio + diasVisibles.length} de {semana.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDiaInicioMovil(Math.min(maxInicio, inicio + 1))}
+                      disabled={inicio >= maxInicio}
+                      aria-label="Ver dias siguientes"
+                      className="px-3 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
+                    >
+                      →
+                    </button>
+                  </div>
+                )}
               </>
             );
           })()}
@@ -751,73 +805,85 @@ export default function NuevaReserva() {
       )}
 
       {/* STEP 4 */}
-      {paso === 4 && diaSeleccionado && slotSeleccionado && (
+      <Modal
+        open={paso === 4 && !!diaSeleccionado && !!slotSeleccionado}
+        onClose={volverAtras}
+        title="Paso 4: Confirma los detalles de tu cita"
+      >
+        {diaSeleccionado && slotSeleccionado && (
         <div className="space-y-6">
-          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 4: Confirma los detalles de tu cita</h2>
-          <div className="bg-superficie border border-borde rounded-2xl shadow-premium max-w-xl mx-auto p-6 space-y-6">
-            <div className="space-y-3">
-              <h3 className="font-display text-xl font-bold text-texto-principal border-b border-borde/50 pb-2">Resumen</h3>
-              <div className="grid grid-cols-2 gap-y-2 text-sm">
-                <span className="text-texto-secundario">Sede</span>
-                <span className="font-semibold text-right">{ubicacionSeleccionada?.nombre}</span>
-                <span className="text-texto-secundario">Estilista</span>
-                <span className="font-semibold text-right">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</span>
-                <span className="text-texto-secundario">Fecha y Hora</span>
-                <span className="font-semibold text-right text-primario">{diaSeleccionado.fecha} · {slotSeleccionado}</span>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Selecciona el Servicio</label>
-                <select
-                  value={servicioSeleccionado}
-                  onChange={(e) => setServicioSeleccionado(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
-                >
-                  {servicios.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre} ({s.duracion_base_minutos || s.duracion || 30} min · ${parseFloat(s.precio_base || s.precio || 0).toLocaleString()})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Personas</label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setCantidad(c => Math.max(1, c - 1))}
-                      className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
-                    >
-                      -
-                    </button>
-                    <span className="font-semibold w-8 text-center text-sm">{cantidad}</span>
-                    <button
-                      onClick={() => setCantidad(c => Math.min(5, c + 1))}
-                      className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-                <div className="text-right flex flex-col justify-end">
-                  <span className="text-xs text-texto-secundario">Total a pagar:</span>
-                  <span className="text-2xl font-bold text-primario">${totalPrecio.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-4 border-t border-borde/50">
-              <Button variant="secundario" className="flex-1" onClick={volverAtras}>Atrás</Button>
-              <Button className="flex-grow flex-1" onClick={handleCrearReserva} disabled={cargando}>
-                {cargando ? <Spinner /> : 'Confirmar Reserva'}
-              </Button>
+          <div className="space-y-3">
+            <h3 className="font-display text-xl font-bold text-texto-principal border-b border-borde/50 pb-2">Resumen</h3>
+            <div className="grid grid-cols-2 gap-y-2 text-sm">
+              <span className="text-texto-secundario">Sede</span>
+              <span className="font-semibold text-right">{ubicacionSeleccionada?.nombre}</span>
+              <span className="text-texto-secundario">Estilista</span>
+              <span className="font-semibold text-right">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</span>
+              <span className="text-texto-secundario">Fecha</span>
+              <span className="font-semibold text-right text-primario">{diaSeleccionado.fecha}</span>
+              <span className="text-texto-secundario">Duracion estimada</span>
+              <span className="font-semibold text-right text-primario">
+                {slotSeleccionado} → {calcularHoraFin()} ({duracionSeleccionada} min)
+              </span>
             </div>
           </div>
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="servicio-reserva" className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Selecciona el Servicio</label>
+              <select
+                id="servicio-reserva"
+                value={servicioSeleccionado}
+                onChange={(e) => setServicioSeleccionado(e.target.value)}
+                className="w-full px-3 py-2.5 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
+              >
+                {servicios.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre} ({s.duracion_base_minutos || s.duracion || 30} min · ${parseFloat(s.precio_base || s.precio || 0).toLocaleString()})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Personas</span>
+                <div className="flex items-center gap-2" role="group" aria-label="Cantidad de personas">
+                  <button
+                    type="button"
+                    aria-label="Quitar una persona"
+                    onClick={() => setCantidad(c => Math.max(1, c - 1))}
+                    className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
+                  >
+                    -
+                  </button>
+                  <span className="font-semibold w-8 text-center text-sm" aria-live="polite">{cantidad}</span>
+                  <button
+                    type="button"
+                    aria-label="Agregar una persona"
+                    onClick={() => setCantidad(c => Math.min(5, c + 1))}
+                    className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="text-right flex flex-col justify-end">
+                <span className="text-xs text-texto-secundario">Total a pagar:</span>
+                <span className="text-2xl font-bold text-primario">${totalPrecio.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-borde/50">
+            <Button variant="secundario" className="flex-1" onClick={volverAtras}>Atrás</Button>
+            <Button className="flex-grow flex-1" onClick={handleCrearReserva} disabled={cargando}>
+              {cargando ? <Spinner /> : 'Confirmar Reserva'}
+            </Button>
+          </div>
         </div>
-      )}
+        )}
+      </Modal>
 
       {/* STEP 5 */}
       {paso === 5 && reservaCreada && (

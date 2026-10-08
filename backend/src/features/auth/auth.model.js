@@ -1,4 +1,10 @@
 const pool = require('../../config/db');
+const { cifrarTelefono, descifrarTelefono } = require('../../shared/utils/telefono');
+
+function conTelefonoDescifrado(usuario) {
+  if (!usuario) return usuario;
+  return { ...usuario, telefono: descifrarTelefono(usuario.telefono) };
+}
 
 const authModel = {
   async findByEmail(email) {
@@ -6,7 +12,7 @@ const authModel = {
       'SELECT * FROM app_user WHERE email = $1',
       [email]
     );
-    return rows[0] || null;
+    return conTelefonoDescifrado(rows[0] || null);
   },
 
   async findById(id) {
@@ -14,7 +20,7 @@ const authModel = {
       'SELECT id, email, rol, nombre, apellido, telefono, esta_bloqueado, verificado, creado_en, actualizado_en FROM app_user WHERE id = $1',
       [id]
     );
-    return rows[0] || null;
+    return conTelefonoDescifrado(rows[0] || null);
   },
 
   async create({ email, password_hash, rol, nombre, apellido, telefono, verificado = false }) {
@@ -22,10 +28,10 @@ const authModel = {
     const { rows } = await pool.query(
       `INSERT INTO app_user (email, password_hash, rol, nombre, apellido, telefono, verificado)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, email, rol, nombre, apellido, telefono, esta_bloqueado, verificado, creado_en, actualizado_en`,
-      [email, password_hash, rol, nombre, apellido, tel, verificado]
+       RETURNING id, email, rol, nombre, apellido, esta_bloqueado, verificado, creado_en, actualizado_en`,
+      [email, password_hash, rol, nombre, apellido, cifrarTelefono(tel), verificado]
     );
-    return rows[0];
+    return { ...rows[0], telefono: tel };
   },
 
   async saveVerificationToken(id, tokenHash, expiracion) {
@@ -52,7 +58,7 @@ const authModel = {
        RETURNING id, email, rol, nombre, apellido, telefono, verificado`,
       [id]
     );
-    return rows[0] || null;
+    return conTelefonoDescifrado(rows[0] || null);
   },
 
   async createEmpleadoPerfil(usuario_id, data) {
@@ -79,7 +85,7 @@ const authModel = {
        WHERE u.rol = 'empleado'
        ORDER BY u.creado_en DESC`
     );
-    return rows;
+    return rows.map(conTelefonoDescifrado);
   },
 
   async findEmpleadoById(id) {
@@ -91,7 +97,7 @@ const authModel = {
        WHERE u.id = $1 AND u.rol = 'empleado'`,
       [id]
     );
-    return rows[0] || null;
+    return conTelefonoDescifrado(rows[0] || null);
   },
 
   async updateEmpleado(id, data) {
@@ -102,14 +108,14 @@ const authModel = {
     if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email); }
     if (data.nombre !== undefined) { fields.push(`nombre = $${idx++}`); values.push(data.nombre); }
     if (data.apellido !== undefined) { fields.push(`apellido = $${idx++}`); values.push(data.apellido); }
-    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(data.telefono); }
+    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(cifrarTelefono(data.telefono)); }
     if (data.password_hash !== undefined) { fields.push(`password_hash = $${idx++}`); values.push(data.password_hash); }
 
     if (fields.length > 0) {
       fields.push(`actualizado_en = NOW()`);
       values.push(id);
       await pool.query(
-        `UPDATE app_user SET ${fields.join(', ')} WHERE id = $${idx}`,
+        `UPDATE app_user SET ${fields.join(', ')} WHERE id = $${idx} AND rol = 'empleado'`,
         values
       );
     }
@@ -149,6 +155,36 @@ const authModel = {
       `INSERT INTO preferencia_usuario (usuario_id) VALUES ($1) ON CONFLICT (usuario_id) DO NOTHING`,
       [usuario_id]
     );
+  },
+
+  async deleteUsuario(id) {
+    await pool.query('DELETE FROM cobro WHERE registrado_por = $1', [id]);
+    const { rows } = await pool.query('DELETE FROM app_user WHERE id = $1 RETURNING id', [id]);
+    return rows[0] || null;
+  },
+
+  async deleteNoVerificadosAntiguos(ttlMinutos) {
+    await pool.query(
+      `DELETE FROM cobro WHERE registrado_por IN (
+         SELECT id FROM app_user
+         WHERE rol = 'cliente' AND verificado = FALSE AND token_verificacion_expiracion < NOW()
+       )`
+    );
+    const { rows } = await pool.query(
+      `DELETE FROM app_user
+       WHERE id IN (
+         SELECT id FROM app_user
+         WHERE rol = 'cliente'
+           AND verificado = FALSE
+           AND (
+             token_verificacion_expiracion < NOW()
+             OR (token_verificacion_expiracion IS NULL AND creado_en < NOW() - ($1 || ' minutes')::interval)
+           )
+       )
+       RETURNING id`,
+      [String(ttlMinutos)]
+    );
+    return rows.length;
   },
 };
 

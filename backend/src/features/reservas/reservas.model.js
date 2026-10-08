@@ -46,17 +46,17 @@ const reservasModel = {
     return rows[0] || null;
   },
 
-  async findReservasActivasPorCliente(cliente_id) {
-    const { rows } = await pool.query(
+  async findReservasActivasPorCliente(cliente_id, db = pool) {
+    const { rows } = await db.query(
       "SELECT COUNT(*) as count FROM reserva WHERE cliente_id = $1 AND estado IN ('pendiente', 'confirmada', 'en_curso')",
       [cliente_id]
     );
     return parseInt(rows[0].count, 10);
   },
 
-  async createReserva(data) {
+  async createReserva(data, db = pool) {
     const { cliente_id, empleado_id, servicio_id, ubicacion_id, inicia_en, termina_en, cantidad_personas, qr_data_url } = data;
-    const { rows } = await pool.query(
+    const { rows } = await db.query(
       `INSERT INTO reserva (cliente_id, empleado_id, servicio_id, ubicacion_id, inicia_en, termina_en, cantidad_personas, estado, qr_data_url)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pendiente', $8)
        RETURNING *`,
@@ -67,7 +67,9 @@ const reservasModel = {
 
   async findReservasByCliente(cliente_id) {
     const { rows } = await pool.query(
-      `SELECT r.*, u.nombre as ubicacion_nombre, s.nombre as servicio_nombre, s.precio_base,
+      `SELECT r.*, u.nombre as ubicacion_nombre, u.direccion as ubicacion_direccion,
+              u.latitud as ubicacion_latitud, u.longitud as ubicacion_longitud,
+              s.nombre as servicio_nombre, s.precio_base,
               emp.nombre as empleado_nombre, emp.apellido as empleado_apellido
        FROM reserva r
        JOIN ubicacion u ON r.ubicacion_id = u.id
@@ -93,9 +95,35 @@ const reservasModel = {
     return rows[0] || null;
   },
 
+  async findAgenda(desde, hasta, empleado_id) {
+    const values = [desde, hasta];
+    let filtroEmpleado = '';
+    if (empleado_id) {
+      values.push(empleado_id);
+      filtroEmpleado = ` AND r.empleado_id = $${values.length}`;
+    }
+    const { rows } = await pool.query(
+      `SELECT r.id, r.empleado_id, r.ubicacion_id, r.servicio_id, r.inicia_en, r.termina_en,
+              r.cantidad_personas, r.estado, r.qr_token,
+              u.nombre as ubicacion_nombre, s.nombre as servicio_nombre,
+              cli.nombre as cliente_nombre, cli.apellido as cliente_apellido,
+              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido
+       FROM reserva r
+       JOIN ubicacion u ON r.ubicacion_id = u.id
+       JOIN servicio_catalogo s ON r.servicio_id = s.id
+       JOIN app_user cli ON r.cliente_id = cli.id
+       JOIN app_user emp ON r.empleado_id = emp.id
+       WHERE (r.inicia_en AT TIME ZONE 'America/Bogota')::date BETWEEN $1::date AND $2::date${filtroEmpleado}
+       ORDER BY r.inicia_en`,
+      values
+    );
+    return rows;
+  },
+
   async findAllReservas(filtros = {}) {
     let query = `
-      SELECT r.*, u.nombre as ubicacion_nombre, s.nombre as servicio_nombre, s.precio_base,
+      SELECT r.*, u.nombre as ubicacion_nombre, u.latitud as ubicacion_latitud, u.longitud as ubicacion_longitud,
+             s.nombre as servicio_nombre, s.precio_base, c.monto as monto,
              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido,
              cli.nombre as cliente_nombre, cli.apellido as cliente_apellido
       FROM reserva r
@@ -103,13 +131,14 @@ const reservasModel = {
       JOIN servicio_catalogo s ON r.servicio_id = s.id
       JOIN app_user emp ON r.empleado_id = emp.id
       JOIN app_user cli ON r.cliente_id = cli.id
+      LEFT JOIN cobro c ON c.reserva_id = r.id
       WHERE 1=1`;
     const values = [];
     let idx = 1;
 
     if (filtros.fecha) {
       values.push(filtros.fecha);
-      query += ` AND r.inicia_en::date = $${idx++}`;
+      query += ` AND (r.inicia_en AT TIME ZONE 'America/Bogota')::date = $${idx++}`;
     }
     if (filtros.ubicacion_id) {
       values.push(filtros.ubicacion_id);
@@ -151,7 +180,7 @@ const reservasModel = {
     const { rows } = await pool.query(
       `SELECT inicia_en, termina_en, estado FROM reserva
        WHERE empleado_id = $1
-         AND inicia_en::date = $2::date
+         AND (inicia_en AT TIME ZONE 'America/Bogota')::date = $2::date
          AND estado IN ('pendiente', 'confirmada', 'en_curso')
        ORDER BY inicia_en`,
       [empleado_id, fecha]
@@ -185,13 +214,12 @@ const reservasModel = {
     return rows;
   },
 
-  async upsertJornada(ubicacion_id, items) {
+  async replaceJornadas(ubicacion_id, items, client = pool) {
+    await client.query('DELETE FROM jornada WHERE ubicacion_id = $1', [ubicacion_id]);
     for (const item of items) {
-      await pool.query(
+      await client.query(
         `INSERT INTO jornada (ubicacion_id, fecha, hora_inicio, hora_fin)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (ubicacion_id, fecha) DO UPDATE
-         SET hora_inicio = EXCLUDED.hora_inicio, hora_fin = EXCLUDED.hora_fin`,
+         VALUES ($1, $2, $3, $4)`,
         [ubicacion_id, item.fecha, item.hora_inicio, item.hora_fin]
       );
     }
@@ -230,39 +258,105 @@ const reservasModel = {
     }
   },
 
-  async updateReservaQr(id, qr_data_url) {
-    await pool.query(
+async updateReservaQr(id, qr_data_url, db = pool) {
+    await db.query(
       'UPDATE reserva SET qr_data_url = $2 WHERE id = $1',
       [id, qr_data_url]
     );
   },
 
-  async updateReservaEstado(id, estado) {
-    const { rows } = await pool.query(
+  async updateReservaEstado(id, estado, db = pool) {
+    const { rows } = await db.query(
       'UPDATE reserva SET estado = $2 WHERE id = $1 RETURNING *',
       [id, estado]
     );
     return rows[0] || null;
   },
 
-  async findReservasFuturasByEmpleadoAndUbicacion(empleado_id, ubicacion_id) {
+  async findEmpleadoById(id) {
+    const { rows } = await pool.query(
+      "SELECT id, nombre, apellido, esta_bloqueado FROM app_user WHERE id = $1 AND rol = 'empleado'",
+      [id]
+    );
+    return rows[0] || null;
+  },
+
+  async findUbicacionById(id) {
+    const { rows } = await pool.query('SELECT * FROM ubicacion WHERE id = $1', [id]);
+    return rows[0] || null;
+  },
+
+  async findDuracionServicioEmpleado(empleado_id, servicio_id) {
+    const { rows } = await pool.query(
+      `SELECT etp.duracion_minutos, sc.nombre AS servicio_nombre, sc.precio_base
+       FROM empleado_tiempo_servicio etp
+       JOIN servicio_catalogo sc ON sc.id = etp.servicio_id
+       WHERE etp.empleado_id = $1 AND etp.servicio_id = $2`,
+      [empleado_id, servicio_id]
+    );
+    return rows[0] || null;
+  },
+
+  async estaDentroDeDisponibilidad(empleado_id, ubicacion_id, inicia_en, termina_en, db = pool) {
+    const { rows } = await db.query(
+      `SELECT 1
+       FROM empleado_disponibilidad ed
+       WHERE ed.empleado_id = $1
+         AND ed.ubicacion_id = $2
+         AND ed.dia_semana = EXTRACT(ISODOW FROM ($3::timestamptz AT TIME ZONE 'America/Bogota'))::int
+         AND ($3::timestamptz AT TIME ZONE 'America/Bogota')::time >= ed.hora_inicio
+         AND ($4::timestamptz AT TIME ZONE 'America/Bogota')::time <= ed.hora_fin`,
+      [empleado_id, ubicacion_id, inicia_en, termina_en]
+    );
+    return rows.length > 0;
+  },
+
+  async findReservasSolapadas(empleado_id, inicia_en, termina_en, db = pool) {
+    const { rows } = await db.query(
+      `SELECT id, inicia_en, termina_en
+       FROM reserva
+       WHERE empleado_id = $1
+         AND estado IN ('pendiente', 'confirmada', 'en_curso')
+         AND inicia_en < $3::timestamptz
+         AND termina_en > $2::timestamptz`,
+      [empleado_id, inicia_en, termina_en]
+    );
+    return rows;
+  },
+
+  async acquireLock(empleado_id, inicia_en, db = pool) {
+    await db.query(
+      `SELECT pg_advisory_xact_lock(
+         $1,
+         (EXTRACT(YEAR FROM ($2::timestamptz AT TIME ZONE 'America/Bogota'))::int * 10000
+          + EXTRACT(MONTH FROM ($2::timestamptz AT TIME ZONE 'America/Bogota'))::int * 100
+          + EXTRACT(DAY FROM ($2::timestamptz AT TIME ZONE 'America/Bogota'))::int)
+       )`,
+      [empleado_id, inicia_en]
+    );
+  },
+
+  async findReservasFuturasByEmpleadoUbicacionYDia(empleado_id, ubicacion_id, dia_semana) {
     const { rows } = await pool.query(
       `SELECT id FROM reserva
        WHERE empleado_id = $1 AND ubicacion_id = $2
          AND inicia_en > NOW()
-         AND estado IN ('pendiente', 'confirmada')`,
-      [empleado_id, ubicacion_id]
+         AND estado IN ('pendiente', 'confirmada')
+         AND EXTRACT(ISODOW FROM (inicia_en AT TIME ZONE 'America/Bogota'))::int = $3`,
+      [empleado_id, ubicacion_id, dia_semana]
     );
     return rows;
   },
 
   async cancelReservasFuturas(ids, motivo) {
-    if (ids.length === 0) return;
-    await pool.query(
+    if (ids.length === 0) return [];
+    const { rows } = await pool.query(
       `UPDATE reserva SET estado = 'cancelada', motivo_cancelacion = $2
-       WHERE id = ANY($1)`,
+       WHERE id = ANY($1)
+       RETURNING id`,
       [ids, motivo]
     );
+    return rows.map((r) => r.id);
   },
 };
 

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/use-auth';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Layout() {
   const { usuario, logout } = useAuth();
+  const { idioma, setIdioma } = useI18n();
   const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
@@ -57,6 +59,14 @@ export default function Layout() {
               {usuario?.nombre} ({usuario?.rol})
             </span>
             <button
+              type="button"
+              onClick={() => setIdioma(idioma === 'es' ? 'en' : 'es')}
+              aria-label={idioma === 'es' ? 'Switch to English' : 'Cambiar a español'}
+              className="text-xs font-bold px-2 py-1 rounded-lg border border-borde text-texto-secundario hover:text-texto-principal hover:bg-fondo cursor-pointer"
+            >
+              {idioma === 'es' ? 'EN' : 'ES'}
+            </button>
+            <button
               onClick={logout}
               className="text-xs text-error hover:underline cursor-pointer"
             >
@@ -67,8 +77,10 @@ export default function Layout() {
           {/* Botón menú Hamburguesa (Móvil) */}
           <button
             onClick={() => setMenuAbierto(!menuAbierto)}
-            className="md:hidden p-2 rounded-lg hover:bg-fondo text-texto-principal transition focus:outline-none cursor-pointer"
             aria-label="Abrir menú de navegación"
+            aria-expanded={menuAbierto}
+            aria-controls="menu-movil"
+            className="md:hidden p-2 rounded-lg hover:bg-fondo text-texto-principal transition focus:outline-none cursor-pointer"
           >
             <svg
               className="w-6 h-6"
@@ -88,7 +100,7 @@ export default function Layout() {
 
         {/* Panel Desplegable Móvil */}
         {menuAbierto && (
-          <div className="md:hidden border-t border-borde/60 bg-superficie px-4 py-3 space-y-3 shadow-md animate-fade-in">
+          <div id="menu-movil" className="md:hidden border-t border-borde/60 bg-superficie px-4 py-3 space-y-3 shadow-md animate-fade-in">
             <div className="flex flex-col gap-1">
               {items.map((item) => (
                 <Link
@@ -110,20 +122,30 @@ export default function Layout() {
               <span className="text-xs text-texto-secundario font-medium">
                 {usuario?.nombre} ({usuario?.rol})
               </span>
-              <button
-                onClick={() => {
-                  setMenuAbierto(false);
-                  logout();
-                }}
-                className="text-xs text-error hover:underline cursor-pointer font-bold"
-              >
-                Salir
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIdioma(idioma === 'es' ? 'en' : 'es')}
+                  aria-label={idioma === 'es' ? 'Switch to English' : 'Cambiar a español'}
+                  className="text-xs font-bold px-2 py-1 rounded-lg border border-borde text-texto-secundario cursor-pointer"
+                >
+                  {idioma === 'es' ? 'EN' : 'ES'}
+                </button>
+                <button
+                  onClick={() => {
+                    setMenuAbierto(false);
+                    logout();
+                  }}
+                  className="text-xs text-error hover:underline cursor-pointer font-bold"
+                >
+                  Salir
+                </button>
+              </div>
             </div>
           </div>
         )}
       </nav>
-      <main>
+      <main id="contenido-principal">
         <Outlet />
       </main>
     </div>

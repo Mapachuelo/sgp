@@ -7,7 +7,13 @@
     "start": "pnpm --filter backend start",
     "lint": "pnpm --filter backend lint",
     "test": "bash tests/api.sh",
+    "test:datos": "bash tests/datos.sh",
+    "test:esquema": "bash tests/esquema.sh",
+    "test:e2e": "python3 tests/e2e.py",
+    "test:unit": "podman exec -w /app/backend sgp-app-backend node --test 'tests/unit/*.test.js'",
+    "test:coverage": "podman exec -w /app/backend sgp-app-backend node --test --experimental-test-coverage --test-coverage-exclude='src/config/**' --test-coverage-exclude='src/docs/**' --test-coverage-exclude='src/integrations/**' --test-coverage-exclude='src/server.js' --test-coverage-exclude='src/utils/**' --test-coverage-exclude='tests/**' 'tests/unit/*.test.js'",
     "seed:saturacion": "pnpm --filter backend exec node src/utils/semillar-saturacion.js",
+    "seed:demo": "pnpm --filter backend exec node src/utils/semillar-demo.js",
     "install:all": "pnpm install"
   }
 }

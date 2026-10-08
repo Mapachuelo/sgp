@@ -1,4 +1,10 @@
 const pool = require('../../config/db');
+const { cifrarTelefono, descifrarTelefono } = require('../../shared/utils/telefono');
+
+function conTelefonoDescifrado(usuario) {
+  if (!usuario) return usuario;
+  return { ...usuario, telefono: descifrarTelefono(usuario.telefono) };
+}
 
 const clientesModel = {
   async findById(id) {
@@ -6,15 +12,19 @@ const clientesModel = {
       'SELECT id, email, rol, nombre, apellido, telefono, esta_bloqueado, motivo_bloqueo, creado_en, actualizado_en FROM app_user WHERE id = $1 AND rol = $2',
       [id, 'cliente']
     );
-    return rows[0] || null;
+    return conTelefonoDescifrado(rows[0] || null);
   },
 
   async findUserById(id) {
     const { rows } = await pool.query(
-      'SELECT id, email, rol, nombre, apellido, telefono, esta_bloqueado, motivo_bloqueo, creado_en, actualizado_en FROM app_user WHERE id = $1',
+      `SELECT u.id, u.email, u.rol, u.nombre, u.apellido, u.telefono, u.esta_bloqueado,
+              u.motivo_bloqueo, u.creado_en, u.actualizado_en, ep.identificacion
+       FROM app_user u
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
+       WHERE u.id = $1`,
       [id]
     );
-    return rows[0] || null;
+    return conTelefonoDescifrado(rows[0] || null);
   },
 
   async update(id, data) {
@@ -24,7 +34,7 @@ const clientesModel = {
 
     if (data.nombre !== undefined) { fields.push(`nombre = $${idx++}`); values.push(data.nombre); }
     if (data.apellido !== undefined) { fields.push(`apellido = $${idx++}`); values.push(data.apellido); }
-    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(data.telefono); }
+    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(cifrarTelefono(data.telefono)); }
     if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email); }
 
     if (fields.length === 0) return clientesModel.findById(id);
@@ -47,18 +57,28 @@ const clientesModel = {
 
     if (data.nombre !== undefined) { fields.push(`nombre = $${idx++}`); values.push(data.nombre); }
     if (data.apellido !== undefined) { fields.push(`apellido = $${idx++}`); values.push(data.apellido); }
-    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(data.telefono); }
+    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(cifrarTelefono(data.telefono)); }
     if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email); }
 
-    if (fields.length === 0) return clientesModel.findUserById(id);
+    if (fields.length > 0) {
+      fields.push(`actualizado_en = NOW()`);
+      values.push(id);
+      await pool.query(
+        `UPDATE app_user SET ${fields.join(', ')} WHERE id = $${idx}`,
+        values
+      );
+    }
 
-    fields.push(`actualizado_en = NOW()`);
-    values.push(id);
-
-    await pool.query(
-      `UPDATE app_user SET ${fields.join(', ')} WHERE id = $${idx}`,
-      values
-    );
+    if (data.identificacion !== undefined) {
+      await pool.query(
+        `INSERT INTO empleado_perfil (usuario_id, identificacion)
+         SELECT $1, $2
+         WHERE EXISTS (SELECT 1 FROM app_user WHERE id = $1 AND rol = 'empleado')
+         ON CONFLICT (usuario_id) DO UPDATE
+         SET identificacion = EXCLUDED.identificacion`,
+        [id, data.identificacion]
+      );
+    }
 
     return clientesModel.findUserById(id);
   },
@@ -77,7 +97,7 @@ const clientesModel = {
        FROM app_user WHERE rol = 'cliente'
        ORDER BY creado_en DESC`
     );
-    return rows;
+    return rows.map(conTelefonoDescifrado);
   },
 
   async bloquear(id, motivo, bloqueado_por) {

@@ -8,11 +8,12 @@ const reportesRoutes = require('../features/reportes/reportes.routes');
 const disponibilidadRoutes = require('../features/disponibilidad/disponibilidad.routes');
 const logsRoutes = require('../features/logs/logs.routes');
 const preferenciasRoutes = require('../features/preferencias/preferencias.routes');
+const { estadoBrevo } = require('../integrations/email/mailer');
 
 const router = Router();
 
 router.get('/healthcheck', (_req, res) => {
-  res.json({ ok: true, uptime: process.uptime() });
+  res.json({ ok: true, uptime: process.uptime(), brevo: estadoBrevo().estado });
 });
 
 router.use('/auth', authRoutes);

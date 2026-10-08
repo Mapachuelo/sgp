@@ -1,5 +1,17 @@
 const clientesModel = require('./clientes.model');
 const HttpError = require('../../shared/http-error');
+const { validarTelefono } = require('../../shared/utils/telefono');
+
+function validarDatosPerfil(data) {
+  if (data.telefono !== undefined && data.telefono !== null && data.telefono !== '') {
+    if (!validarTelefono(data.telefono)) {
+      throw new HttpError(400, 'El telefono debe tener formato colombiano: +57 seguido de 10 digitos');
+    }
+  }
+  if (data.email !== undefined && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) {
+    throw new HttpError(400, 'El correo no tiene un formato valido');
+  }
+}
 
 const clientesService = {
   async getMe(usuarioId) {
@@ -11,6 +23,8 @@ const clientesService = {
   },
 
   async updateMe(usuarioId, data) {
+    validarDatosPerfil(data);
+    if (data.telefono === '') data.telefono = null;
     const user = await clientesModel.updateUser(usuarioId, data);
     if (!user) {
       throw new HttpError(404, 'Usuario no encontrado');

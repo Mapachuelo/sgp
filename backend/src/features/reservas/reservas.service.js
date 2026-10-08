@@ -1,6 +1,7 @@
 const QRCode = require('qrcode');
 const reservasModel = require('./reservas.model');
 const HttpError = require('../../shared/http-error');
+const { withTransaction } = require('../../config/db');
 
 const reservasService = {
   async getServicios() {
@@ -54,7 +55,12 @@ const reservasService = {
   },
 
   async updateJornada(ubicacion_id, items) {
-    await reservasModel.upsertJornada(ubicacion_id, items);
+    if (!Array.isArray(items)) {
+      throw new HttpError(400, 'items debe ser un arreglo de jornadas');
+    }
+    await withTransaction(async (client) => {
+      await reservasModel.replaceJornadas(ubicacion_id, items, client);
+    });
     return { actualizado: true };
   },
 
@@ -71,68 +77,99 @@ const reservasService = {
   },
 
   async createReserva(cliente_id, data) {
-    const { empleado_id, servicio_id, ubicacion_id, inicia_en, termina_en, cantidad_personas } = data;
+    const { empleado_id, servicio_id, ubicacion_id, inicia_en, cantidad_personas } = data;
 
-    if (!empleado_id || !servicio_id || !ubicacion_id || !inicia_en || !termina_en) {
-      throw new HttpError(400, 'empleado_id, servicio_id, ubicacion_id, inicia_en y termina_en son requeridos');
+    if (!empleado_id || !servicio_id || !ubicacion_id || !inicia_en) {
+      throw new HttpError(400, 'empleado_id, servicio_id, ubicacion_id e inicia_en son requeridos');
     }
 
-    const ahora = new Date();
-    const fechaReserva = new Date(inicia_en);
-    const diffMin = (fechaReserva - ahora) / (1000 * 60);
+    const inicio = new Date(inicia_en);
+    if (Number.isNaN(inicio.getTime())) {
+      throw new HttpError(400, 'inicia_en no es una fecha valida');
+    }
 
+    const diffMin = (inicio - new Date()) / (1000 * 60);
     if (diffMin < 60) {
       throw new HttpError(400, 'La reserva debe hacerse con al menos 60 minutos de anticipacion');
     }
 
-    const activas = await reservasModel.findReservasActivasPorCliente(cliente_id);
-    if (activas >= 5) {
-      throw new HttpError(409, 'Maximo 5 reservas activas por cliente');
-    }
-
-    const qty = cantidad_personas || 1;
-    if (qty < 1 || qty > 5) {
+    const qty = Number(cantidad_personas || 1);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 5) {
       throw new HttpError(400, 'cantidad_personas debe estar entre 1 y 5');
     }
 
-    const slotsOcupados = await reservasModel.findSlotsOcupados(inicia_en.split('T')[0], empleado_id);
-    const inicioMs = new Date(inicia_en).getTime();
-    const terminoMs = new Date(termina_en).getTime();
-    const conflicto = slotsOcupados.some((slot) => {
-      const slotInicio = new Date(slot.inicia_en).getTime();
-      const slotTermino = new Date(slot.termina_en).getTime();
-      return inicioMs < slotTermino && terminoMs > slotInicio;
-    });
-    if (conflicto) {
-      throw new HttpError(409, 'El horario seleccionado se superpone con otra reserva activa');
+    const [empleado, ubicacion, duracion] = await Promise.all([
+      reservasModel.findEmpleadoById(empleado_id),
+      reservasModel.findUbicacionById(ubicacion_id),
+      reservasModel.findDuracionServicioEmpleado(empleado_id, servicio_id),
+    ]);
+
+    if (!empleado) throw new HttpError(404, 'Empleado no encontrado');
+    if (empleado.esta_bloqueado) throw new HttpError(409, 'El empleado no esta disponible');
+    if (!ubicacion) throw new HttpError(404, 'Ubicacion no encontrada');
+    if (!duracion) {
+      throw new HttpError(400, 'El empleado no ofrece el servicio seleccionado');
     }
 
-    const reserva = await reservasModel.createReserva({
-      cliente_id,
+    const fin = new Date(inicio.getTime() + duracion.duracion_minutos * 60 * 1000);
+    const inicioIso = inicio.toISOString();
+    const finIso = fin.toISOString();
+
+    const dentroDisponibilidad = await reservasModel.estaDentroDeDisponibilidad(
       empleado_id,
-      servicio_id,
       ubicacion_id,
-      inicia_en,
-      termina_en,
-      cantidad_personas: qty,
-      qr_data_url: null,
+      inicioIso,
+      finIso
+    );
+    if (!dentroDisponibilidad) {
+      throw new HttpError(400, 'El horario esta fuera de la disponibilidad del empleado en esa sede');
+    }
+
+    const reserva = await withTransaction(async (client) => {
+      await reservasModel.acquireLock(empleado_id, inicioIso, client);
+
+      const activas = await reservasModel.findReservasActivasPorCliente(cliente_id, client);
+      if (activas >= 5) {
+        throw new HttpError(409, 'Maximo 5 reservas activas por cliente');
+      }
+
+      const solapadas = await reservasModel.findReservasSolapadas(
+        empleado_id,
+        inicioIso,
+        finIso,
+        client
+      );
+      if (solapadas.length > 0) {
+        throw new HttpError(409, 'El horario seleccionado se superpone con otra reserva activa');
+      }
+
+      const nueva = await reservasModel.createReserva(
+        {
+          cliente_id,
+          empleado_id,
+          servicio_id,
+          ubicacion_id,
+          inicia_en: inicioIso,
+          termina_en: finIso,
+          cantidad_personas: qty,
+          qr_data_url: null,
+        },
+        client
+      );
+
+      const qrPayload = JSON.stringify({
+        id: nueva.id,
+        qr_token: nueva.qr_token,
+        cliente_id,
+        inicia_en: inicioIso,
+      });
+      const qr_data_url = await QRCode.toDataURL(qrPayload);
+      await reservasModel.updateReservaQr(nueva.id, qr_data_url, client);
+
+      return { ...nueva, qr_data_url };
     });
 
-    const qrPayload = JSON.stringify({
-      id: reserva.id,
-      qr_token: reserva.qr_token,
-      cliente_id,
-      inicia_en,
-    });
-
-    const qr_data_url = await QRCode.toDataURL(qrPayload);
-
-    await reservasModel.updateReservaQr(reserva.id, qr_data_url);
-    await reservasModel.updateReservaEstado(reserva.id, 'pendiente');
-
-    const updated = await reservasModel.findReservaById(reserva.id);
-
-    return updated;
+    return reservasModel.findReservaById(reserva.id);
   },
 
   async getReservasByCliente(cliente_id) {
@@ -151,6 +188,21 @@ const reservasService = {
 
   async getAllReservas(filtros) {
     return reservasModel.findAllReservas(filtros);
+  },
+
+  async getAgenda({ desde, hasta, empleado_id }) {
+    const fechaValida = (valor) =>
+      typeof valor === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
+      !Number.isNaN(Date.parse(`${valor}T00:00:00Z`)) &&
+      new Date(`${valor}T00:00:00Z`).toISOString().slice(0, 10) === valor;
+    if (!fechaValida(desde) || !fechaValida(hasta)) {
+      throw new HttpError(400, 'desde y hasta son requeridos con formato YYYY-MM-DD');
+    }
+    if (desde > hasta) {
+      throw new HttpError(400, 'desde no puede ser mayor que hasta');
+    }
+    return reservasModel.findAgenda(desde, hasta, empleado_id ? parseInt(empleado_id, 10) : null);
   },
 };
 

@@ -25,15 +25,13 @@ Aplicacion web fullstack para la gestion operativa de peluquerias: reservas onli
 sgp/
 ├── pnpm-workspace.yaml
 ├── package.json              # Root: scripts dev, lint, start, test
-├── Containerfile             # Backend (Node 22 Alpine + pnpm)
-├── Containerfile.nginx       # Frontend (Nginx Alpine)
-├── nginx.conf                # Proxy reverso /api → backend, SPA fallback
 ├── sgp-db-pod.yaml           # Pod PostgreSQL + PVC persistente
 ├── sgp-app-pod.yaml          # Pod backend + frontend
 ├── .env / .env.example
 ├── db/
 │   └── init.sql              # 10 tablas + seed data
 ├── backend/
+│   ├── Containerfile         # Backend (Node 22 Alpine + pnpm)
 │   └── src/
 │       ├── server.js / app.js
 │       ├── config/           # env, db, database-init
@@ -42,7 +40,10 @@ sgp/
 │       ├── integrations/realtime/ws-hub.js
 │       ├── routes/api.routes.js
 │       └── shared/           # logger, async-handler, http-error, middlewares, utils
+│   └── src/utils/semillar-demo.js   # Seed masivo de demostracion
 ├── frontend/
+│   ├── Containerfile         # Frontend (build Vite + Nginx Alpine)
+│   ├── nginx.conf            # Proxy reverso /api → backend, SPA fallback
 │   └── src/
 │       ├── main.jsx / app.jsx
 │       ├── api/cliente.js           # Fetch wrapper con JWT
@@ -51,11 +52,15 @@ sgp/
 │       ├── componentes/             # Layout, RutaProtegida, ui/ (Button, Input, Card, Badge, Sheet, Modal, Select, Toast)
 │       └── funcionalidades/
 │           ├── auth/                # login-page, registro-page
-│           ├── cliente/             # dashboard, nueva-reserva (stepper 5 pasos), mi-perfil
+│           ├── cliente/             # dashboard kanban + mapa, nueva-reserva (stepper 5 pasos), mi-perfil
 │           ├── empleado/            # dashboard, validar-qr, mi-disponibilidad, mi-perfil
-│           └── admin/               # dashboard + 9 sheets modales
+│           ├── admin/               # dashboard + secciones/ (empleados, servicios, sedes,
+│           │                        #   horarios con planificador, reportes, clientes, logs) + modales QR/Cobro
 └── tests/
-    └── api.sh                # 38 pruebas de integracion curl
+    ├── api.sh                # 28 pruebas de integracion curl
+    ├── datos.sh              # Integridad del dataset demo (6)
+    ├── esquema.sh            # Esquema vs modelo de datos (32)
+    └── e2e.py                # Extremo a extremo (29)
 ```
 
 ## Ejecucion con Podman
@@ -74,28 +79,33 @@ Dos pods independientes conectados via red `sgp-net`:
 
 Al eliminar el pod `sgp-app` para actualizar, la base de datos sigue corriendo en `sgp-db` y los datos persisten en el volumen.
 
+Los archivos `sgp-app-pod.yaml` y `sgp-db-pod.yaml` (gitignored) se crean a partir de los ejemplos `example.sgp-*-pod.yaml` y se rellenan manualmente con los valores reales. No se usan scripts ni inyeccion automatica.
+
 ### Levantar entorno
 
-#### 1. Build de imagenes (solo la primera vez o al cambiar codigo)
-```bash
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+#### 1. Crear los archivos reales desde los ejemplos
 ```
-#### 2. Crear red compartida (una sola vez)
+cp example.sgp-app-pod.yaml sgp-app-pod.yaml
+cp example.sgp-db-pod.yaml sgp-db-pod.yaml
+```
+#### 2. Rellenar valores reales
+- En `sgp-app-pod.yaml`: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET`, `AES_SECRET` (opcional; si se omite usa `JWT_SECRET`) (y `hostPort` del frontend si el `8080` esta ocupado).
+- En `sgp-db-pod.yaml`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
+- Si cambias usuario/contraseña de la BD, ajustar `DATABASE_URL` en `sgp-app-pod.yaml` para que coincida.
+- Sin estos valores el backend arranca pero Brevo falla (no llegan correos de verificacion).
+
+#### 3. Build de imagenes (solo la primera vez o al cambiar codigo)
+```bash
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
+```
+#### 4. Crear red compartida (una sola vez)
 ```
 podman network create sgp-net
 ```
-#### 3. Cambiar el nombre del archivo
-```
-cp example.sgp-app-pod.yaml sgp-app-pod.yaml
-cp example.sgp-db-pod.yaml sgp-db-pod.yaml 
-```
-#### 4. Api key
-en el archivo `sgp-app-pod.yaml` se debe agregar las apis para el acceso de token de mensajes personalizados, si no se agrega no arranca el contenedor podman
-
 #### 5. Creación de los contenedores
 ```
-# Levantar base de datos
+# Levantar PRIMERO la base de datos (el backend falla si sgp-db no resuelve)
 podman kube play sgp-db-pod.yaml --network sgp-net
 # Levantar backend + frontend
 podman kube play sgp-app-pod.yaml --network sgp-net
@@ -104,23 +114,31 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 ### Acceso
 
 - **Frontend:** `http://localhost:8080`
-- **API directa:** `http://localhost:3000/api`
-- **Healthcheck:** `http://localhost:3000/api/healthcheck`
+- **Healthcheck:** `http://localhost:8080/api/healthcheck` (incluye el estado de Brevo: `ok`, `error` o `no-configurado`)
+- **API directa:** no expuesta al host; el frontend la proxya a `127.0.0.1:3000` dentro del pod `sgp-app`
 
-### Actualizar solo la app (sin tocar la base de datos)
+### Actualizar la app tras cambios de imagen (sin tocar la base de datos)
 
 ```bash
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
 podman kube down sgp-app-pod.yaml
 podman kube play sgp-app-pod.yaml --network sgp-net
 ```
+
+O en un solo paso con `--replace` (reemplaza el pod existente):
+
+```bash
+podman kube play sgp-app-pod.yaml --network sgp-net --replace
+```
+
+Sin reemplazo, el pod sigue corriendo la imagen anterior.
 
 ### Detener
 
 ```bash
 podman kube down sgp-app-pod.yaml
-podman kube down sgp-db-pod.yaml  
+podman kube down sgp-db-pod.yaml
 ```
 
 Para eliminar tambien los datos:
@@ -135,6 +153,7 @@ podman volume rm sgp-pgdata
 |-----|-------|----------|
 | Admin | admin@sgp.local | admin123 |
 | Empleado | empleado@sgp.local | empleado123 |
+| Cliente (pruebas) | cliente@sgp.local | cliente123 |
 
 ## Base de datos (10 tablas)
 
@@ -151,15 +170,50 @@ podman volume rm sgp-pgdata
 | `cobro` | Pagos con metodo fisico/online |
 | `preferencia_usuario` | Rango horario, granularidad, tema por usuario |
 
-Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14.
+Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S.
+`app_user.telefono` se almacena cifrado con AES-256 (TEXT); `preferencia_usuario.idioma` guarda ES/EN.
+
+## Datos de demostracion (seed masivo)
+
+Genera un dataset grande y reproducible para demos y pruebas de carga:
+
+```bash
+# dentro del contenedor del backend (la BD no esta expuesta al host)
+podman exec -w /app/backend sgp-app-backend node src/utils/semillar-demo.js --reset
+# o via npm/pnpm
+pnpm run seed:demo -- --reset
+```
+
+Crea por defecto **6 sedes, 10 servicios, 15 empleados, 80 clientes, ~1270 reservas y ~725 cobros** en un rango de -30 a +30 dias:
+
+- Empleados `estilista01..15@demo.sgp` con 1-3 sedes asignadas y rotacion semanal: **nunca dos sedes el mismo dia**, turnos de manana/tarde/completo. El cambio de sede de un dia lo puede hacer el admin y dispara la cancelacion de reservas futuras de ese dia (RF9).
+- Clientes `cliente01..80@demo.sgp` (password `demo1234`, verificados, telefono cifrado), con maximo 4 reservas activas por cliente.
+- Reservas pasadas con su `cobro` (fisico/online) para reportes, algunas canceladas con motivo (`Cancelada por el cliente`, `no-show`, `El empleado cambió de sede`) y futuras `pendiente/confirmada` con QR.
+- Al final ejecuta un flujo real por API (login + reserva + check-in) para generar `logs.txt` y eventos WebSocket.
+
+Salida de datos: `backend/exports/` con `reservas.csv`, `cobros.csv`, `disponibilidad.csv` y `resumen.json` (copiable con `podman cp`). Validaciones automaticas con `bash tests/datos.sh` (sin doble sede/dia, sin solapes, maximo 5 activas, un cobro por reserva, citas dentro de disponibilidad).
+
+Opciones: `--append` (no borra), `--sin-export`, `--sin-api`, `--reservas=2000`, `--empleados=20`, `--clientes=100`, `--diasPasados=60`, `--diasFuturos=60`.
+
+## Panel de administracion
+
+El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidades/admin/`:
+
+- **Dashboard:** acciones rapidas (Validar QR, Registrar cobro, actualizar), tarjeta de **Gestion** con los 9 accesos, 4 KPIs (recaudacion, reservas del dia, ocupacion promedio por sede, clientes activos) y timeline de reservas con filtros por fecha y sede.
+- **Secciones (ventanas flotantes, RF11 intacto):** empleados, servicios, sedes, reportes, moderacion de clientes y logs; modales centrados de Validar QR y Cobro.
+- **Planificador de horarios** (sheet ancho, pestaña por defecto): matriz **empleados x LUN-DOM** con una sede por dia (colores por sede), **citas superpuestas** por estado (clic en una cita pendiente/confirmada abre el modal de validacion), filtros por empleado/sede, navegacion por semanas y editor lateral por celda.
+- Al cambiar la sede de un dia se advierte y, al guardar, se cancelan las reservas futuras de ese dia con el motivo `"El empleado cambió de sede"` (RF9) mostrando el conteo en un toast. La pestaña **Jornada por sede** conserva la edicion de `jornada` (horario de la sede).
+- Interfaz con iconos (lucide-react), i18n ES/EN ampliado y accesibilidad mantenida (dialogos, foco, Escape, labels).
 
 ## API — Endpoints completos
 
 ### Auth (RF0, RF1)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| POST | `/api/auth/register` | Publico |
-| POST | `/api/auth/login` | Publico |
+| POST | `/api/auth/register` | Publico (crea cuenta y envia OTP, sin JWT) |
+| POST | `/api/auth/login` | Publico (403 si la cuenta no esta verificada) |
+| POST | `/api/auth/verificar` | Publico (`{ email, codigo }` → JWT) |
+| POST | `/api/auth/reenviar-codigo` | Publico (max 3 cada 15 min) |
 | GET | `/api/auth/me` | Autenticado |
 | GET | `/api/auth/empleados` | Admin |
 | POST | `/api/auth/empleados` | Admin |
@@ -200,12 +254,21 @@ Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barb
 | POST | `/api/reservas` | Cliente |
 | GET | `/api/reservas/me` | Cliente |
 | DELETE | `/api/reservas/me/:id` | Cliente |
+| GET | `/api/reservas/agenda?desde&hasta` | Admin (rango de citas para el planificador) |
 | GET | `/api/reservas` | Empleado/Admin |
 
 ### Checkin (RF3)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
 | POST | `/api/checkin/validar` | Empleado/Admin |
+
+`POST /api/checkin/validar` recibe `{ qr_token, monto }` y registra check-in + cobro en una sola transaccion (`SELECT ... FOR UPDATE`): valida estado activo, ventana ±120 min y monto numerico ≥ 0; `monto = 0` ⇒ `metodo='online'`, `monto > 0` ⇒ `metodo='fisico'`; la reserva queda en estado `cobrado` y un segundo intento responde 409.
+
+### Documentacion API (RNF5)
+| Metodo | Ruta | Rol |
+|--------|------|-----|
+| GET | `/api/docs` | Publico (Swagger UI) |
+| GET | `/api/docs/openapi.json` | Publico (spec OpenAPI 3) |
 
 ### Reportes (RF5)
 | Metodo | Ruta | Rol |
@@ -219,6 +282,9 @@ Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barb
 |--------|------|-----|
 | GET | `/api/empleados/disponibilidad` | Empleado |
 | PUT | `/api/empleados/disponibilidad` | Empleado |
+| GET | `/api/empleados/disponibilidad/todas` | Admin |
+| GET | `/api/empleados/:empleadoId/disponibilidad` | Admin |
+| PUT | `/api/empleados/:empleadoId/disponibilidad` | Admin |
 
 ### Logs (RF12)
 | Metodo | Ruta | Rol |
@@ -245,28 +311,36 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Maximo 5 reservas activas por cliente
 - Anticipacion minima: 60 minutos
 - Ventana validacion QR: +-120 minutos
+- Check-in y cobro son atomicos; al validar la reserva queda `cobrado`
+- Un solo cobro por reserva (restriccion UNIQUE + transaccion)
+- La reserva valida que el empleado ofrezca el servicio y este dentro de su disponibilidad semanal en esa sede; la duracion se toma de `empleado_tiempo_servicio`
+- Creacion de reserva con advisory lock por empleado/dia (evita carreras de horario)
 - Cantidad de personas: 1 a 5
 - Cliente bloqueado no inicia sesion ni reserva
 - Un solo cobro por reserva
-- Cambio de sede cancela reservas futuras en sede anterior
+- Cambio de sede cancela las reservas futuras del dia cambiado en la sede anterior, con motivo `"El empleado cambió de sede"` y notificacion WebSocket `reserva.actualizada`
 - Eliminar cliente solo con 3+ no-shows
 - Eliminar empleado solo sin cobros asociados
 - Metodos de cobro: `fisico` (efectivo) o `online`
 - Estados BD: pendiente → confirmada → en_curso → cobrado (cancelada)
 - Rango horario default: 06:00-22:00, granularidad default: 30 min
+- Registro: un correo sin verificar se reemplaza si el cliente vuelve a registrarse; la cuenta sin verificar se elimina a los **5 minutos** (configurable con `REGISTRO_TTL_MINUTOS`) y el correo queda libre; si el envio del OTP falla se puede usar `Reenviar codigo` (reinicia el tiempo de registro)
 
 ## Seguridad
 
 - Contrasenas: bcryptjs 12 rounds
-- Datos sensibles: AES-256-CBC via crypto nativo
+- Datos sensibles: telefono cifrado en reposo con AES-256-CBC via crypto nativo (`AES_SECRET`, fallback a `JWT_SECRET`); migracion automatica de telefonos en claro al iniciar el backend
 - JWT con expiracion 30 minutos
 - RBAC: admin, empleado, cliente
-- Rate limiting: 10 intentos/15 min en auth
+- Rate limiting: 10 intentos/15 min en auth; 3 reenvios de OTP/15 min
 - Helmet para headers HTTP
 - CORS configurado para origen del frontend
 - SQL injection prevenido con consultas parametrizadas (pg)
+- Documentacion API en `/api/docs` (Swagger UI + OpenAPI 3)
+- Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
 
-Cubre: healthcheck, auth (register/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad, reservas (crear/listar/cancelar), checkin, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs, preferencias, rate limiting.
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin+cobro atomico, reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
+Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura) y `tests/e2e.py` (flujo completo).
 
 ## Desarrollo local
 
@@ -279,8 +353,20 @@ pnpm run lint                  # ESLint
 
 ## Documentacion
 
+### Proyecto
 - [Plan de desarrollo](plan.md)
-- [Requisitos IEEE 830](docs/formato_ieee830.md)
+- [Requisitos IEEE 830](docs/formato_ieee830.md) — funcionalidades, RF/RNF, apendices y matriz RF↔F↔modulo↔prueba
+- [Diseno tecnico](docs/diseno-tecnico.md) — arquitectura, decisiones y estructura del codigo
+- [Modelos UML](docs/modelos-uml.drawio) — casos de uso, clases, secuencias, estados, despliegue y ER (+ [flujo actual](docs/diagrama.drawio))
+- [Mockups e interfaz](docs/mockups.md) — capturas reales por rol (ES/EN, movil)
+- [Modelo de datos](docs/modelo-datos.md) — ER y diccionario de las 10 tablas
+- [Plan de pruebas](docs/plan-pruebas.md) — estrategia, matriz y cobertura (93.84 %)
+- [Guia de despliegue](docs/despliegue.md) — Podman, datos demo, operacion y problemas conocidos
+- [Manual tecnico (ES)](docs/manual-tecnico.es.md) | [Manual tecnico (EN)](docs/manual-tecnico.en.md)
+- [Manual de usuario (ES)](docs/manual-usuario.es.md) | [Manual de usuario (EN)](docs/manual-usuario.en.md)
+- [Swagger UI](http://localhost:8080/api/docs) — API en ejecucion
+
+### Agentes
 - [Arquitectura y convenciones](.agents/skills/architecture.md)
 - [Reglas de comportamiento](.agents/skills/contexto.md)
 - [Memoria de sesiones](.agents/notes/memory.md)

@@ -1,5 +1,42 @@
 const env = require('../../config/env');
 
+const TTL_ESTADO_MS = 5 * 60 * 1000;
+let estadoCache = { estado: 'no-configurado', detalle: null, verificadoEn: 0 };
+
+async function verificarCredencialesBrevo() {
+  if (!env.brevoApiKey) {
+    estadoCache = { estado: 'no-configurado', detalle: null, verificadoEn: Date.now() };
+    return estadoCache;
+  }
+
+  const controlador = new AbortController();
+  const temporizador = setTimeout(() => controlador.abort(), 5000);
+  try {
+    const respuesta = await fetch('https://api.brevo.com/v3/account', {
+      headers: { accept: 'application/json', 'api-key': env.brevoApiKey },
+      signal: controlador.signal,
+    });
+    if (respuesta.ok) {
+      estadoCache = { estado: 'ok', detalle: null, verificadoEn: Date.now() };
+    } else {
+      estadoCache = { estado: 'error', detalle: `HTTP ${respuesta.status}`, verificadoEn: Date.now() };
+    }
+  } catch (err) {
+    estadoCache = {
+      estado: 'error',
+      detalle: err.name === 'AbortError' ? 'timeout' : err.message,
+      verificadoEn: Date.now(),
+    };
+  } finally {
+    clearTimeout(temporizador);
+  }
+  return estadoCache;
+}
+
+function estadoBrevo() {
+  return estadoCache;
+}
+
 function plantillaVerificacion({ nombre, codigo, expiracionMinutos }) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
@@ -48,4 +85,4 @@ async function enviarCorreoVerificacion({ email, nombre, codigo, expiracionMinut
   return { messageId: datos.messageId };
 }
 
-module.exports = { enviarCorreoVerificacion };
+module.exports = { enviarCorreoVerificacion, verificarCredencialesBrevo, estadoBrevo, TTL_ESTADO_MS };

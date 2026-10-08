@@ -7,3 +7,5 @@ dist/
 *.log
 sgp-app-pod.yaml
 sgp-db-pod.yaml
+exports/
+.playwright-mcp

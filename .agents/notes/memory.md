@@ -293,3 +293,237 @@
 - Envio real verificado: script y flujo completo (registro, reenvio 200) enviaron correos OTP correctamente via API Brevo (MessageId devuelto).
 - `tests/api.sh`: 4/4 PASS en contenedor (registro 201, login 403 sin verificar, reenvio 200, codigo incorrecto 400).
 - Pendiente: rotar la key (se compartio por chat) y verificar remitente oficial en Brevo para produccion.
+
+### Actualizacion: pods parametrizados con .env (eliminado el configmap)
+- Se eliminaron los archivos de configuracion independientes: borrado `example.sgp-config.pod.yaml` y el flujo `--configmap sgp-config.yaml`.
+- `example.sgp-app-pod.yaml` y `example.sgp-db-pod.yaml` se renombraron a `sgp-app-pod.yaml` y `sgp-db-pod.yaml` (git mv, commitables: solo placeholders `${VARIABLE}`, sin secretos) y se quitaron del `.gitignore`.
+- Los pods se ejecutan con `set -a && source .env && set +a; envsubst < sgp-*.yaml | podman kube play --network sgp-net -` (envsubst de gettext; `kube play` y `kube down` aceptan stdin con `-`; `kube play` no expande variables ni acepta `--env-file`).
+- Variables nuevas en `.env`/`example.env`: `DB_USER`, `DB_PASSWORD`, `DB_NAME` (alimentan POSTGRES_* y componen DATABASE_URL hacia `sgp-db`) y `FRONTEND_PORT` (default 8080, hostPort del frontend).
+- Red `sgp-net`: bridge privado con salida a internet (necesario para Brevo API), creada con `podman network create sgp-net`; los pods se hablan por nombre. Backend sin puerto host (nginx proxya a 127.0.0.1:3000 en el mismo pod).
+
+### Actualizacion: revertido a flujo 100% manual (sin envsubst, sin configmap)
+- El usuario decidio que todo sea manual: nada de scripts ni `envsubst`; el mismo rellena los valores reales directamente en los archivos `.yaml`.
+- Se restauraron `example.sgp-app-pod.yaml` y `example.sgp-db-pod.yaml` (valores de muestra, commitables) con `cp` desde los actuales + contenido original de `HEAD~1`. Los `sgp-app-pod.yaml`/`sgp-db-pod.yaml` reales quedan en disco pero `git rm --cached` + `.gitignore` (los rellena el usuario).
+- Comandos directos: `podman kube play sgp-db-pod.yaml --network sgp-net` (PRIMERO la BD) y luego `podman kube play sgp-app-pod.yaml --network sgp-net`. Actualizar imagen: build + `kube down` + `kube play` (o `--replace`).
+- `.env`/`example.env`: se quitaron `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `FRONTEND_PORT` (solo dev).
+- CRASH-LOOP CONOCIDO: si `sgp-db` no esta corriendo, el backend muere con `getaddrinfo ENOTFOUND sgp-db` en `initDatabase` (server.js → process.exit(1)). Levantar la BD primero, o el backend se recupera en el siguiente restart del crash-loop.
+
+---
+
+## Sesion — 26 Septiembre 2026
+
+### Verificacion completa contra IEEE 830 (docs/formato_ieee830.md) y correcciones
+
+#### Backend
+- **RF3 check-in:** `POST /api/checkin/validar` ahora es transaccional (`withTransaction` + `SELECT ... FOR UPDATE`), valida `qr_token` UUID y `monto` numerico >= 0, registra cobro y deja la reserva en `cobrado`; doble cobro responde 409. `en_curso` queda como estado transitorio no usado.
+- **RF2 reservas:** creacion con transaccion + `pg_advisory_xact_lock(empleado, dia)`; valida entidades existentes, que el empleado ofrezca el servicio (`empleado_tiempo_servicio`), disponibilidad semanal en la sede (`estaDentroDeDisponibilidad`, TZ America/Bogota) y calcula `termina_en` con la duracion del servicio (se ignora el `termina_en` del cliente).
+- **RF9:** el diff de disponibilidad detecta dias cambiados de sede y cancela solo las reservas futuras de ese dia en la sede anterior, con motivo literal `"El empleado cambió de sede"`; controller emite `reserva.actualizada` por cada cancelada.
+- **RF12 logs:** filtro por fecha convertida a dia Bogota (Pino emite epoch ms), severidad exacta INFO/WARN/ERROR (`level` numerico), export aplica filtros y responde `.txt`.
+- **RF7:** `GET/PUT /api/clientes/me` incluye y actualiza `identificacion` (join/upsert en `empleado_perfil`).
+- **RNF2:** telefono cifrado en reposo con AES-256-CBC (`shared/utils/telefono.js`, llave `AES_SECRET` con fallback a `JWT_SECRET`); `database-init.js` migra telefonos en claro al iniciar.
+- **RNF5:** Swagger UI en `/api/docs` + spec OpenAPI 3 en `/api/docs/openapi.json` (`src/docs/`), montado antes de Helmet para que la CSP no bloquee el CDN de swagger-ui.
+- **Hardening:** `error.middleware` mapea 23505→409, 23503→400, 23514/22P02→400; validacion de lat/lng; `updateEmpleado` filtra `rol='empleado'`; reportes sin fecha usan hoy (Bogota) y ocupacion calcula `total` + `porcentaje`; filtros de fecha de reservas/reportes/slots en TZ Bogota.
+- **Seed:** `empleado_tiempo_servicio` para el empleado semilla (los 4 servicios) — sin esto el calendario de reserva quedaba vacio en volumen nuevo.
+
+#### Frontend
+- **RF8:** dashboard cliente convertido a kanban real (pendiente/confirmada/en_curso/completada/cancelada) con panel lateral sticky, mapa Leaflet de la sede y descarga de QR.
+- **RF2:** paso 4 ahora es `Modal` flotante con duracion estimada `entrada → salida`, personas 1-5 y total; ante 409 por solape vuelve al calendario, refresca y sugiere otro horario; calendario movil con paginacion de 2 dias.
+- **RF10/RF11:** empleado con botones `[Validar QR]` y `[Registrar cobro]` y selector explicito online($0)/efectivo; admin mantiene el bloque inline (decision del usuario) ahora con los 9 accesos, incluidos modales centrados de `[Validar QR]` y `[Cobro]`; KPIs reales (sin textos falsos), badges `en_curso/cobrado`, timeline con montos.
+- **RF9 frontend:** advertencia/confirmacion al cambiar sede y toast con reservas canceladas; arreglo de "Mis Servicios Asignados" (antes siempre vacio).
+- **RF12 frontend:** input de fecha + export `.txt` via `api.logs.exportarTexto`.
+- **UI2:** `Modal`/`Sheet` con `role="dialog"`, `aria-modal`, Escape, focus trap y retorno de foco; `Input`/`Select` con `useId`+`htmlFor`; aria-labels en iconos; `aria-live` en Toast; skip-link; contraste de tokens ajustado; foco visible.
+- **C7 i18n:** proveedor propio (`i18n/`) con diccionario ES→EN (~200 frases), traduccion de nodos de texto/atributos por `MutationObserver` y toggle ES/EN en el navbar; persiste en `preferencia_usuario.idioma` + localStorage.
+- **Bugs encontrados en verificacion web:** los `children` del `Modal` se evaluaban aunque estuviera cerrado (crash en `/cliente/reservar` al leer `diaSeleccionado.fecha`) → guard con render condicional; `findAllReservas` no traia `cobro.monto` (Total del dia del empleado mostraba $0) → LEFT JOIN cobro.
+
+#### Infra y datos
+- Volumen `sgp-pgdata` recreado (init.sql limpio); `app_user.telefono` pasa a TEXT sin CHECK y `preferencia_usuario.idioma` agregado con ALTER idempotente.
+- Nuevo `.env.example` con placeholders (incluye `AES_SECRET`); `example.sgp-app-pod.yaml` con `AES_SECRET`.
+- `tests/api.sh` reescrito (21 pruebas: healthcheck, docs, RF13, RBAC, validaciones RF3, reportes/logs, catalogos).
+
+#### Verificacion
+- `bash tests/api.sh` → 21 PASS, 0 FAIL.
+- E2E API (`/tmp/opencode/e2e.py`) → 23 PASS, 0 FAIL (RF2 reserva/solape, RF3 check-in/cobro/doble cobro, RF9 cambio de sede con motivo exacto, reportes con ocupacion y ventas del dia).
+- 12 capturas Chromium headless vía CDP de todas las pantallas (login, registro, verificar, kanban cliente, reserva, perfil, empleado citas, disponibilidad, admin, ingles, movil, Swagger): todas correctas.
+- Lint backend limpio; build de frontend OK; imagenes `localhost/sgp-backend` y `localhost/sgp-frontend` reconstruidas y pod `sgp-app` redesplegado.
+
+#### Pendientes / riesgos
+- **Brevo:** la `BREVO_API_KEY` actual responde 535/502; el OTP real no se envia. Los clientes de prueba se verifican por SQL. Rotar la key (se compartio por chat) y verificar remitente.
+- **HW1 camara:** el usuario probara el escaneo real; el modal ya soporta entrada manual y vista de camara.
+- `sgp-app-pod.yaml` (gitignored) contiene la API key real; rotar tambien `JWT_SECRET`/`AES_SECRET` antes de produccion.
+- i18n: traduccion por diccionario DOM; cadenas dinamicas con datos (fechas `toLocaleString`) permanecen en espanol.
+
+---
+
+## Sesion — 26 Septiembre 2026 (segunda parte)
+
+### Plan de entrada/salida de datos masivos + fix del calendario
+
+#### Fase 0: calendario y estilistas
+- `irAPaso2` en `nueva-reserva.jsx` ahora consulta la disponibilidad de los **6 dias** que muestra el calendario y une estilistas por id (antes solo consultaba hoy: los domingos no aparecia nadie aunque trabajaran el lunes).
+- El paso 3 del calendario quedo verificado en navegador (grid, estados, modal del paso 4).
+
+#### Seed masivo `backend/src/utils/semillar-demo.js`
+- Parametrizable por CLI (`--reset`/`--append`, `--sedes`, `--empleados`, `--clientes`, `--reservas`, `--diasPasados`, `--diasFuturos`, `--sin-export`, `--sin-api`) y RNG determinista.
+- Volumen por defecto "Grande": 6 sedes, 10 servicios, 15 empleados `estilistaXX@demo.sgp`, 80 clientes `clienteXX@demo.sgp` (password `demo1234`, verificados, telefono cifrado AES), ~1270 reservas y ~725 cobros en -30..+30 dias, 366 jornadas.
+- **Dinamica multi-sede:** cada empleado tiene 1-3 sedes y 4-6 dias de trabajo; cada dia laboral se asigna una unica sede (rotacion) garantizando **una sola sede por dia**; turnos variados (manana/tarde/completo/late). Se guardo el patron ejemplo estilista01 -> Lun Suba, Mie Kennedy, Jue Suba...; estilista05 -> solo Kennedy.
+- Reservas con estados por fecha (pasadas cobrado/cancelada con motivos `Cancelada por el cliente`, `no-show`, `El empleado cambió de sede`; futuras pendiente/confirmada; 2 forzadas `en_curso` para los colores), QR para activas, `cobro` unico por reserva (70% fisico con monto, 30% online en 0) y maximo 4 activas por cliente para dejar cupo.
+- **Flujo hibrido por API** al final: elige empleado con turno y ranura libre, login de cliente/empleado demo, crea reserva y hace check-in si la ventana +-120 min lo permite (si no, crea para el dia siguiente) para generar `logs.txt` y eventos WS reales.
+- **Salida de datos:** `backend/exports/{reservas,cobros,disponibilidad}.csv` + `resumen.json` (ruta gitignored con `exports/`), resumen en consola y validaciones SQL automaticas.
+- Scripts: `pnpm run seed:demo` (raiz y backend) y `pnpm run test:datos`; `tests/datos.sh` valida doble sede/dia, solapes, >5 activas, cobros duplicados, cobrado sin cobro y citas fuera de disponibilidad.
+
+#### Bugs corregidos durante el desarrollo del seed
+- Reset: `cobro.registrado_por` no tiene ON DELETE, ahora se borran primero los cobros de empleados demo (`cobro_registrado_por_fkey`).
+- `minutosBogota()`: el calculo previo sumaba 300 min al UTC y fallaba en la madrugada (UTC ya es el dia siguiente); ahora se desplaza el instante -5h y se usan horas UTC.
+- Cobro mapeado por `id` devuelto del INSERT de reservas (antes por orden fragil).
+
+#### Bugs extra encontrados en la verificacion web (corregidos)
+- KPI "Reservas del dia" mostraba `0557542`: `COUNT` de pg llega como string y el `reduce` concatenaba; se usa `Number(d.total)`.
+- Elegir estilista no avanzaba al calendario: `irAPaso3`/`cargarCalendario` leian el estado `empleadoSeleccionado` (aun `null` en el closure del `setTimeout`); ahora se pasa el empleado por parametro (`irAPaso3(emp)`, `cargarCalendario(base, emp)`).
+- Captura CDP: setear `localStorage` en `about:blank` no persiste; navegar primero a `/login`.
+
+#### Verificacion final
+- Imagenes reconstruidas y pod redesplegado; `bash tests/api.sh` 21/21 y `bash tests/datos.sh` 6/6 (estado final: 95 usuarios demo, 6 sedes, 10 servicios, 85 bloques de disponibilidad, 1274 reservas, 725 cobros).
+- Capturas Chromium: empleado hoy (Natalia, Demo Sede Suba, Cancelada + Cobrado online $0), disponibilidad multi-sede (rotacion), kanban cliente (4 activas con mapa y QR), admin KPIs (33 citas hoy, $2.933.000, 27.5% ocupacion, 20 clientes), reportes con desglose por servicio, logs con actividad real, calendario paso 3 con "Disponible" (lunes 15:00-21:00) y modal paso 4 con duracion `15:00 → 15:45`.
+- RF9 dinamico: mover el lunes de `estilista01` de la sede 47 a la sede 1 cancelo 4 reservas futuras con motivo exacto `El empleado cambió de sede` (respuesta API + BD) y se restauro la disponibilidad.
+- Exports del seed en `backend/exports/` (gitignored): `reservas.csv` (~1270 filas), `cobros.csv`, `disponibilidad.csv`, `resumen.json`; copiados a `/tmp/opencode/exports` para inspeccion.
+
+---
+
+## Sesion — 26 Septiembre 2026 (tercera parte)
+
+### Rediseño del panel admin + Planificador de Horarios
+
+#### Backend (endpoints batch para el planificador)
+- `GET /api/empleados/disponibilidad/todas` (admin): disponibilidad semanal de todos los empleados con nombre de empleado y sede.
+- `GET /api/reservas/agenda?desde&hasta[&empleado_id]` (admin): citas del rango en TZ Bogota con cliente/servicio/sede/estado/qr_token; valida formato de fechas.
+- OpenAPI actualizado y `tests/api.sh` ampliado a **25 pruebas** (nuevas: disponibilidad/todas 200 y 401, agenda 200, agenda con fecha invalida 400).
+
+#### Frontend (rediseño desde 0 conservando funcionalidad)
+- `admin-dashboard.jsx` reescrito (1971 → ~330 lineas) y modularizado (alineado con `architecture.md`):
+  - `admin/utils.js` (estados, fechas Bogota, paleta de sedes, colores de cita).
+  - `admin/secciones/`: `validar-qr-modal`, `cobro-modal`, `empleados-seccion`, `servicios-seccion`, `sedes-seccion`, `horarios-seccion` (tabs), `planificador-horarios`, `jornada-sede`, `reportes-seccion`, `clientes-seccion`, `logs-seccion`.
+  - Cada seccion carga sus propios datos y es self-contained; los sheets se cierran recargando KPIs/timeline.
+- **Planificador de horarios** (pestaña por defecto del sheet Horarios, `size="wide"` 95vw):
+  - Matriz empleados x LUN-DOM con una sede por dia (colores por sede), filtros (busqueda, sede, solo con horario) y navegacion de semanas (Hoy/±7 dias).
+  - **Citas superpuestas** por dia/empleado (chips por estado); clic en pendiente/confirmada abre el modal de validacion con su token (RF11: una ventana flotante a la vez).
+  - Editor lateral por celda (sede, hora inicio/fin o descanso) con confirmacion RF9 al cambiar sede y toast con `reservas_canceladas`; guarda la semana completa del empleado via `PUT /empleados/:id/disponibilidad`.
+  - Pestaña "Jornada por sede": CRUD de jornadas por fecha con agregar/quitar.
+- Dashboard: acciones rapidas, tarjeta de Gestion con 9 accesos con iconos (lucide-react), KPIs con iconos y barra, timeline con cabecera sticky.
+- `Sheet` acepta `size="wide"`; i18n ampliado (~80 cadenas nuevas); accesibilidad mantenida (role dialog, Escape, foco, labels, aria-pressed).
+
+#### Verificacion
+- `tests/api.sh` **25/25**, `tests/datos.sh` **6/6**, e2e **23/23**; lint backend limpio; build de frontend OK; imagenes reconstruidas y pod redesplegado.
+- Capturas Chromium: dashboard redisenado, planificador con 207 citas de la semana, editor de celda, jornada por sede, empleados, reportes, logs y **RF9 desde el planificador** (cambio de sede de un dia con cita pendiente → toast "5 reserva(s) cancelada(s) por cambio de sede" y `reservas_canceladas` en API).
+- Fixes de la verificacion: la pestaña de Horarios se resetea al reabrir (`useEffect` sobre `open`); las validaciones de datos exigen disponibilidad solo a citas activas (`pendiente/confirmada`), porque RF9 deja historicas y `en_curso` fuera de la nueva disponibilidad; rutas relativas de `admin/secciones/` (un nivel mas).
+- Dataset demo regenerado limpio tras la demo RF9 (`semillar-demo.js --reset`).
+
+---
+
+## Sesion — 5 Octubre 2026 — Entregables documentales y verificacion
+
+### Auditoria y actualizacion de documentacion
+- `docs/formato_ieee830.md` reescrito (v2.0): estructura formal, se agrego **RF4** (cobro), RF11 refleja el acceso real (tarjeta Gestion + 2 modales + 7 sheets + planificador), RF2/RF3/RF9/RF10/RF12 alineados con la implementacion, RNF2 (AES telefono), RNF5 (Swagger, pruebas y cobertura), Apendice A glosario, Apendice B diagramas y Apendice C con matriz **RF ↔ F ↔ modulo ↔ prueba**.
+- `docs/modelos-uml.drawio` (nuevo, 7 paginas): casos de uso, clases/dominio, secuencia Reserva→QR, secuencia Validacion→Cobro, estados de reserva, despliegue y modelo ER. Se generan con `node scripts/generar-drawio.js` (idempotente).
+- `docs/diagrama.drawio`: se agrego la pagina **"Flujo actual"** (cliente/empleado/admin) sin tocar la original.
+- `docs/diseno-tecnico.md`, `docs/mockups.md` + **20 capturas reales** en `docs/img/` (Chromium headless/CDP: login, registro, verificacion, cliente kanban/calendario/modal/perfil/EN/movil, empleado citas/disponibilidad, admin dashboard/planificador/editor/jornada/empleados/reportes/logs y Swagger).
+- `docs/modelo-datos.md` (ER + diccionario de las 10 tablas) y `docs/despliegue.md` (Podman, seed, tests, troubleshooting). `plan.md` creado en la raiz (el README lo enlazaba y no existia).
+- `docs/manual-tecnico.{es,en}.md` y `docs/manual-usuario.{es,en}.md` (con capturas). README actualizado con indice completo de documentacion; `architecture.md` con el arbol real de `docs/` y seccion de testing; `AGENTS.md` con los comandos nuevos.
+
+### Pruebas y calidad
+- E2E movido al repo: `tests/e2e.py` (26 checks; BASE_URL y contenedor de BD configurables por env).
+- `tests/esquema.sh` (32 validaciones de tablas/columnas/constraints/indices contra `docs/modelo-datos.md`).
+- Unitarias `backend/tests/unit/*.test.js` con `node:test` y fixtures propios (helpers.js): 31 pruebas, cobertura **93.65 % lineas / 78.77 % ramas / 95.24 % funciones** con `--experimental-test-coverage` (excluye config/docs/integrations/server/utils de seeds).
+- Scripts nuevos: `test:unit`, `test:coverage`, `test:esquema`, `test:e2e` (raiz y backend).
+- Fix detectado por las unitarias: la validacion de fechas aceptaba `2026-99-99` y reventaba en Postgres; ahora `resolverFecha` (reportes.service) y `getAgenda` (reservas.service) validan fecha de calendario real.
+
+### Verificacion final (5 Oct 2026)
+- `tests/api.sh` 25/25 · `tests/datos.sh` 6/6 · `tests/esquema.sh` 32/32 · unitarias 31/31 · cobertura 93.65 % · `tests/e2e.py` 26/26 · lint backend limpio.
+- Imagen backend reconstruida (incluye tests y fix) y pod `sgp-app` redesplegado. Los pods se relanzaron tras reinicio del equipo; los datos del volumen persistieron (1274 reservas, 95 usuarios demo).
+
+### Pendientes
+- Credenciales Brevo validas (OTP real), rotar `BREVO_API_KEY`/`JWT_SECRET`/`AES_SECRET`, probar camara en equipo con webcam y desplegar tras HTTPS para produccion.
+
+---
+
+## Sesion — 6 Octubre 2026 — Registro con TTL, purga y cliente de prueba
+
+### Problema corregido
+- Un correo sin verificar quedaba permanente y bloqueaba el re-registro (409). Ahora:
+  - Si el correo ya existe **sin verificar** (rol cliente), `register` lo **reemplaza** (borra y crea de nuevo); si esta verificado responde 409.
+  - La cuenta sin verificar se conserva para permitir **Reenviar codigo**; si el usuario se sale, se elimina a los **5 minutos** (`REGISTRO_TTL_MINUTOS`, configurable) y el correo queda libre.
+  - Purga periodica cada 60 s y al arrancar el backend (`features/auth/purga.service.js` + `auth.model.deleteNoVerificadosAntiguos`, borra cobros residuales por FK). Reenviar codigo exitoso reinicia el tiempo y guarda el token solo tras el envio correcto.
+
+### Usuario de prueba
+- `db/init.sql`: cliente verificado `cliente@sgp.local` / `cliente123` (hash bcrypt en el seed), documentado en README (Usuarios semilla), `docs/despliegue.md` y manuales ES/EN.
+
+### Frontend
+- `registro-page.jsx` envia `correoEnviado`/`expiraEn`/`ttlMinutos` a `/verificar`; aviso del tiempo limite.
+- `verificar-page.jsx`: cuenta regresiva "Tiempo para verificar: mm:ss", aviso si el correo no se pudo enviar, estado expirado con "Tu registro expiro y el correo quedo libre" + boton "Registrarme de nuevo"; 404 de verificar/reenviar marca expirado; reenvio reinicia el contador. i18n ampliado.
+
+### Documentacion
+- IEEE RF13 actualizado (TTL 5 min, reemplazo, purga, reenviar reinicia); README (usuarios + reglas), `.env.example` (`REGISTRO_TTL_MINUTOS`), `architecture.md`, manuales ES/EN, `docs/despliegue.md`, `docs/mockups.md` (nuevas capturas verificar con contador y expirado), `docs/plan-pruebas.md` y `plan.md` con los conteos nuevos.
+
+### Verificacion (6 Oct 2026)
+- `tests/api.sh` **27/27** (nuevos: re-registro 201 y una sola fila del correo), `tests/datos.sh` 6/6, `tests/esquema.sh` 32/32, unitarias **32/32** con cobertura **93.84 % lineas / 79.04 % ramas / 95.33 % funciones** (auth.model 95.3 %, auth.service 91.4 %, purga 100 %), `tests/e2e.py` **29/29**.
+- Purga en vivo: usuario con token expirado insertado por SQL desaparecio en el siguiente ciclo (<=60 s).
+- Navegador (CDP): registro con Brevo invalido muestra contador `04:58` + aviso de correo; el mismo correo se puede re-registrar (reemplazo); estado expirado verificado con `history.replaceState` + reload.
+- Imagenes backend/frontend reconstruidas y pods redesplegados; login con `cliente@sgp.local` OK.
+
+---
+
+## Sesion — 6 Octubre 2026 (segunda parte) — Validacion de Brevo al arrancar
+
+### Diagnostico de credenciales
+- La key en `sgp-app-pod.yaml` (la que usa el pod) es una **SMTP key** (`xsmtpsib-`, 90 chars): la API v3 responde `401 Key not found`. `.env` y `sgp-config.yaml` (legado) conservan una API key antigua tambien con 401. El usuario decidio **no cambiar la key** por ahora; los OTP no se enviaran (`correoEnviado: false` + aviso en `/verificar`; la cuenta se mantiene y la purga de 5 min libera el correo).
+- Para probar sin Brevo sigue disponible `cliente@sgp.local / cliente123`.
+
+### Cambios implementados (sin tocar la key)
+- `integrations/email/mailer.js`: `verificarCredencialesBrevo()` consulta `GET /v3/account` (timeout 5 s) y cachea `{ estado: ok|error|no-configurado, detalle, verificadoEn }` (TTL 5 min); `estadoBrevo()` expone el estado.
+- `server.js`: valida credenciales al arrancar y loguea `Brevo OK` o `Brevo no disponible: los correos OTP no se enviaran` (nivel warn en `errores.txt`).
+- `routes/api.routes.js`: `/api/healthcheck` agrega `brevo` al payload (sin llamada de red por request).
+- `backend/tests/unit/mailer.test.js`: 4 pruebas con `fetch` simulado (sin key, 200, 401, error de red).
+- `tests/api.sh`: INFO con el estado de Brevo del healthcheck (27/27 se mantiene).
+- Docs: README (healthcheck), `docs/despliegue.md` y manuales ES/EN (si `brevo: error`, la key debe ser API v3 `xkeysib-`, no SMTP), `docs/plan-pruebas.md`, `plan.md` y `AGENTS.md` con los conteos nuevos.
+
+### Verificacion (6 Oct 2026)
+- Healthcheck en vivo: `{"ok":true,"uptime":...,"brevo":"error"}` (esperado con la SMTP key actual) y log de arranque `Brevo no disponible ... HTTP 401`.
+- Unitarias **36/36**, cobertura **93.84 % lineas / 79.04 % ramas / 95.33 % funciones**, `tests/api.sh` **27/27** con INFO del estado de Brevo.
+- Cuando se pegue una API key v3 valida (`xkeysib-...`) en `sgp-app-pod.yaml` y se reinicie el pod, el healthcheck pasara a `"brevo":"ok"` sin cambios de codigo; el envio real de prueba a `ajulianc47@gmail.com` queda pendiente de esa key.
+
+### Actualizacion: Brevo funcionando (envio real verificado)
+- Causa final: la key del yaml era **SMTP** (`xsmtpsib-`) y ademas Brevo tenia **Authorized IPs** activo. El usuario creo una **API key v3** (`xkeysib-...`) y autorizo la IP publica `181.51.91.28` en Settings → Security → Authorized IPs.
+- Verificacion: `GET /v3/account` 200, `GET /v3/senders` con `ajulianc47@gmail.com` activo, healthcheck `{"ok":true,...,"brevo":"ok"}` y log de arranque `Brevo OK: credenciales de correo validas`.
+- **Envio real** con `node scripts/enviar-correo-prueba.js ajulianc47@gmail.com`: `MessageId <202610080156.42669437377@smtp-relay.mailin.fr>`.
+- `tests/api.sh` ahora **28/28** (el caso de reenvio de codigo devuelve 200 al estar Brevo operativo); conteos actualizados en README, AGENTS, plan.md, `docs/despliegue.md` y `docs/plan-pruebas.md`.
+- Pendiente recomendado: rotar la API key (se compartio por chat) y confirmar recepcion del OTP en la bandeja del usuario.
+
+---
+
+## Sesion — 7 Octubre 2026 — Reorganizacion de archivos de build
+
+- `Containerfile` → `backend/Containerfile`, `Containerfile.nginx` → `frontend/Containerfile` y `nginx.conf` → `frontend/nginx.conf` (git mv, historial conservado). `.eslintrc.cjs` → `backend/.eslintrc.cjs`.
+- **Restriccion clave:** ambos Containerfiles requieren contexto de build = raiz del repo (copian `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `package.json`, `backend/`, `frontend/`, `db/`). Comandos: `podman build -t localhost/sgp-backend:latest -f backend/Containerfile .` y `podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .` (desde la raiz).
+- `frontend/Containerfile`: `COPY nginx.conf` → `COPY frontend/nginx.conf`; encabezados con el comando de build en ambos.
+- Los pods (`sgp-*-pod.yaml`, `example.sgp-*-pod.yaml`) y `.containerignore` se quedan en la raiz por decision del usuario; `sgp-config.yaml` y `example.env` no se borraron.
+- Docs actualizados: README (arbol y builds), `docs/despliegue.md` (tabla y builds), `.agents/skills/architecture.md` (comandos, arbol, prosa).
+
+### Verificacion (7 Oct 2026)
+- Builds con las rutas nuevas (`-f backend/Containerfile .`, `-f frontend/Containerfile .`) OK; stack redesplegado; healthcheck `{"ok":true,"brevo":"ok"}`.
+- Suites: `tests/api.sh` 28/28, `tests/datos.sh` 6/6, `tests/esquema.sh` 32/32, unitarias 36/36, `tests/e2e.py` 29/29.
+- `api.sh` y `e2e.py` comparten el rate limit de auth (10/15 min): al correrlos seguidos aparecen 429; reiniciar el pod de la app entre corridas (ya documentado en problemas conocidos).
+
+---
+
+## Sesion — 7-8 Octubre 2026 — Verificacion funcional en Chromium + fix de jornada
+
+- Verificacion entrada/salida de datos por UI (Chromium/Playwright) con reset total + `seed:demo --reset`:
+  - Auth: registro con validaciones (telefono +57, confirmacion), OTP inyectando SHA-256 de `123456` en `app_user.token_verificacion` (el codigo real solo llega por correo y esta hasheado), verificacion, login por rol, ruta protegida, reenvio.
+  - Cliente: kanban, reserva 5 pasos, descarga QR PNG (token coincide con BD), cancelacion con motivo, perfil (telefono cifrado AES en BD), idioma ES/EN persistente.
+  - Empleado: check-in fisico ($25.000) y online, segundo intento 409 "La reserva ya fue cobrada", token invalido 400, disponibilidad semanal (quitar/restaurar sabado persistente).
+  - Admin: KPIs y timeline, CRUD servicios/sedes/empleados, planificador RF9 (toast "9 reserva(s) cancelada(s) por cambio de sede", motivo en BD), jornada por sede, reportes con datos demo, moderacion clientes (bloqueo → login 403, desbloqueo, guard 3+ no-shows → 409), logs y export .txt.
+- BUG corregido: "Quitar jornada" en admin no persistia (el PUT `/api/reservas/jornada` solo hacia upsert). Ahora `reservasModel.replaceJornadas` reemplaza en transaccion (DELETE + INSERT) y `updateJornada` valida que `items` sea arreglo. Test de regresion en `backend/tests/unit/catalogos-operativos.test.js`. Verificado por UI y API (61 → 2 → quitar → 0).
+- Observaciones:
+  - Las FK `reserva.servicio_id` y `reserva.ubicacion_id` son `ON DELETE CASCADE` (documentado en `docs/modelo-datos.md`): borrar un servicio/sede con reservas elimina reservas y cobros en cascada; la UI solo pide confirmacion simple. Riesgo aceptado por diseno actual.
+  - Tooling: la sesion MCP de Chromium pierde el input de raton/teclado en `/empleado` tras ciertos eventos (se uso `el.click()` programatico, que dispara los handlers reales); el export de logs `.txt` tumbo la sesion MCP al final (endpoint verificado por curl: `text/plain`, `actividad-export.txt`).
+- Suites finales tras reset + seed: `tests/api.sh` 28/28, `tests/datos.sh` 6/6, `tests/esquema.sh` 32/32, unitarias 36/36, `tests/e2e.py` 29/29. Healthcheck `{"ok":true,"brevo":"ok"}`.
+- Realtime verificado por logs: `Servidor WebSocket iniciado en /ws`, `Disponibilidad actualizada`, `Disponibilidad de empleado actualizada por admin`.

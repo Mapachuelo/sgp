@@ -14,6 +14,8 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 | BD driver | pg (raw SQL, sin ORM) | latest |
 | Auth | JWT (jsonwebtoken) + bcryptjs + AES-256 (crypto) + helmet | latest |
 | Correo | Brevo API v3 REST (`fetch` nativo, sin SMTP) | latest |
+| Docs API | Swagger UI (CDN) + spec OpenAPI 3 (`src/docs/`) en `/api/docs` | latest |
+| i18n | modulo propio ES/EN (`frontend/src/i18n/`) | - |
 | QR | qrcode | latest |
 | Realtime | WebSocket (ws) | latest |
 | Logs | Pino (logs.txt + errores.txt) | latest |
@@ -38,10 +40,10 @@ pnpm run lint                         # ESLint en frontend y backend
 
 ```bash
 podman network create sgp-net                     # Crear red (una sola vez)
-podman build -t localhost/sgp-backend:latest -f Containerfile .
-podman build -t localhost/sgp-frontend:latest -f Containerfile.nginx .
-podman kube play sgp-db-pod.yaml --network sgp-net
-podman kube play sgp-app-pod.yaml --network sgp-net --configmap sgp-config.yaml
+podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
+podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
+podman kube play sgp-db-pod.yaml --network sgp-net # PRIMERO la BD
+podman kube play sgp-app-pod.yaml --network sgp-net
 ```
 
 ### Pruebas
@@ -58,12 +60,9 @@ sgp/
 ├── package.json              # Root: scripts dev, build, start, test
 ├── sgp-db-pod.yaml           # Pod PostgreSQL + PVC persistente
 ├── sgp-app-pod.yaml          # Pod backend + frontend
-├── Containerfile             # Backend (Node 22 Alpine + pnpm)
-├── Containerfile.nginx       # Frontend (Nginx Alpine)
 ├── .env.example
 ├── .gitignore
 ├── .containerignore
-├── .eslintrc.cjs
 ├── .prettierrc
 ├── plan.md
 ├── README.md
@@ -73,20 +72,26 @@ sgp/
 │   └── skills/
 │       ├── architecture.md   # Este archivo
 │       └── contexto.md
-├── docs/
-│   ├── ieee830/
-│   │   └── formato_ieee830.md
-│   ├── requisitos/
-│   │   └── historias_usuario.md
-│   ├── tecnicos/
-│   │   ├── ficha_tecnica.md
-│   │   ├── manual_tecnico.md
-│   │   └── despliegue.md
-│   └── usuario/
-│       └── manual_usuario.md
+├── docs/                     # Documentacion plana (un tema por archivo)
+│   ├── formato_ieee830.md    # Requisitos + apendices A/B/C
+│   ├── diseno-tecnico.md     # Arquitectura y decisiones
+│   ├── diagrama.drawio       # Flujo de trabajo (pagina "Flujo actual")
+│   ├── modelos-uml.drawio    # Casos de uso, clases, secuencias, estados, despliegue, ER
+│   ├── mockups.md            # Capturas reales por rol (ES/EN, movil)
+│   ├── modelo-datos.md       # ER + diccionario de datos
+│   ├── plan-pruebas.md       # Estrategia, matriz y cobertura
+│   ├── despliegue.md         # Guia Podman y operacion
+│   ├── manual-tecnico.es.md / manual-tecnico.en.md
+│   ├── manual-usuario.es.md / manual-usuario.en.md
+│   ├── prompts.md / tiempo.md
+│   └── img/                  # Capturas usadas por los manuales y mockups
+├── scripts/
+│   └── generar-drawio.js     # Genera los diagramas draw.io
 ├── db/
 │   └── init.sql
 ├── frontend/
+│   ├── Containerfile         # Frontend (build Vite + Nginx Alpine)
+│   ├── nginx.conf            # Proxy reverso /api → backend, SPA fallback
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── tailwind.config.js
@@ -123,17 +128,25 @@ sgp/
 │       │   │   ├── mi-disponibilidad.jsx
 │       │   │   └── mi-perfil.jsx
 │       │   └── admin/
-│       │       ├── admin-dashboard.jsx
-│       │       ├── gestion-empleados.jsx
-│       │       ├── gestion-servicios.jsx
-│       │       ├── gestion-ubicaciones.jsx
-│       │       ├── configurar-horarios.jsx
-│       │       ├── reportes-page.jsx
-│       │       ├── moderar-clientes.jsx
-│       │       └── gestor-logs.jsx
+│       │       ├── admin-dashboard.jsx      # Shell: acciones, gestion, KPIs, timeline
+│       │       ├── utils.js                 # Helpers de estado/fechas/colores admin
+│       │       └── secciones/
+│       │           ├── validar-qr-modal.jsx
+│       │           ├── cobro-modal.jsx
+│       │           ├── empleados-seccion.jsx
+│       │           ├── servicios-seccion.jsx
+│       │           ├── sedes-seccion.jsx
+│       │           ├── horarios-seccion.jsx     # Tabs planificador/jornada
+│       │           ├── planificador-horarios.jsx
+│       │           ├── jornada-sede.jsx
+│       │           ├── reportes-seccion.jsx
+│       │           ├── clientes-seccion.jsx
+│       │           └── logs-seccion.jsx
 │       └── lib/
 │           └── utils.js
 ├── backend/
+│   ├── Containerfile         # Backend (Node 22 Alpine + pnpm)
+│   ├── .eslintrc.cjs
 │   ├── package.json
 │   └── src/
 │       ├── server.js
@@ -224,16 +237,16 @@ sgp/
 ## Seguridad
 
 - Contrasenas hasheadas con **bcryptjs** (12 rounds).
-- Datos sensibles encriptados con **AES-256-CBC** via `crypto` nativo de Node.js. El modulo `shared/utils/encriptacion.js` expone `encriptar(texto)` y `desencriptar(iv, encrypted)`.
+- Datos sensibles encriptados con **AES-256-CBC** via `crypto` nativo de Node.js. El modulo `shared/utils/encriptacion.js` expone `encriptar(texto)` y `desencriptar(iv, encrypted)`; `shared/utils/telefono.js` los aplica al telefono de `app_user` (se guarda como `iv:hex` y se descifra en las lecturas). Llave en `AES_SECRET` (fallback a `JWT_SECRET`); `database-init.js` migra telefonos en claro al arrancar.
 - **HTTPS** obligatorio en produccion (Nginx reverse proxy + Let's Encrypt). Desarrollo local en HTTP.
 - Tokens **JWT** con expiracion configurable (`JWT_EXPIRES_IN`, default 30m). Middleware `auth.middleware.js` exporta `authenticate` (verifica token) y `authorize(...roles)` (verifica rol).
 - **RBAC** con tres roles: `admin`, `empleado`, `cliente`.
-- **Verificacion de cuenta por OTP:** al registrarse, el backend genera un codigo de 6 digitos (hash SHA-256 en BD), lo envia por correo via Brevo API v3 (`integrations/email/mailer.js`) y no emite JWT hasta `POST /api/auth/verificar`. Expiracion de 15 min (`token_verificacion_expiracion`). Reenvio limitado a 3 cada 15 min (`verificacionLimiter`). Usuarios creados antes del sistema quedan verificados por backfill en `db/init.sql`. Empleados creados por admin nacen verificados.
+- **Verificacion de cuenta por OTP:** al registrarse, el backend genera un codigo de 6 digitos (hash SHA-256 en BD), lo envia por correo via Brevo API v3 (`integrations/email/mailer.js`) y no emite JWT hasta `POST /api/auth/verificar`. Tiempo de registro configurable (`REGISTRO_TTL_MINUTOS`, 5 min): un correo sin verificar se reemplaza si el cliente vuelve a registrarse y, al expirar, la cuenta se elimina con la purga periodica (`features/auth/purga.service.js`, cada 60 s y al arrancar), liberando el correo. Reenvio limitado a 3 cada 15 min (`verificacionLimiter`) y reinicia el tiempo. Usuarios creados antes del sistema quedan verificados por backfill en `db/init.sql`. Empleados creados por admin nacen verificados.
 - **Rate limiting** con `express-rate-limit` en endpoints de auth (`authLimiter` max 10 intentos por IP cada 15 min; `verificacionLimiter` max 3 reenvios cada 15 min).
 - **Helmet** para headers de seguridad HTTP.
 - **CORS** configurado solo para el origen del frontend (`VITE_API_URL`).
 - **SQL injection:** prevenido mediante consultas parametrizadas con `pg` (sin concatenacion de strings).
-- **Credenciales de Brevo** (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`) solo en `.env` (gitignored) o `sgp-config.yaml` (gitignored). En `sgp-app-pod.yaml` se referencian con `configMapKeyRef` (sin valores, seguro para repo publico); se aplican con `podman kube play --configmap sgp-config.yaml`. Nunca en `.env.example` ni en repositorios publicos.
+- **Credenciales de Brevo** (`BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`) solo en `.env` (desarrollo, gitignored) y en `sgp-app-pod.yaml` (produccion, gitignored). Los ejemplos `example.sgp-*-pod.yaml` llevan valores de muestra (seguros para repo publico); el usuario copia y rellena los reales. Nunca en `.env.example` ni en repositorios publicos.
 
 ## Base de datos
 
@@ -261,13 +274,18 @@ sgp/
 - `sgp-db-pod.yaml` define el pod de PostgreSQL 17 Alpine con PVC persistente (`sgp-pgdata`).
 - `sgp-app-pod.yaml` define el pod de aplicacion con backend Node.js + frontend Nginx.
 - Los pods se conectan via la red `sgp-net`.
-- `Containerfile` (backend): Node 22 Alpine, instala pnpm, copia monorepo, ejecuta `pnpm --filter backend start`.
-- `Containerfile.nginx` (frontend): Nginx Alpine, copia `frontend/dist/` tras build, configura proxy reverso a backend en `/api`.
-- Variables de entorno en `.env` y `.env.example`. `sgp-config.yaml` (gitignored) contiene las credenciales de Brevo y se aplica con `--configmap`.
+- `backend/Containerfile` (backend): Node 22 Alpine, instala pnpm, copia monorepo, ejecuta `pnpm --filter backend start`. Contexto de build: raíz del repo.
+- `frontend/Containerfile` (frontend): Nginx Alpine, copia `frontend/dist/` tras build, configura proxy reverso a backend en `/api` con `frontend/nginx.conf`. Contexto de build: raíz del repo.
+- Variables de entorno en `.env` (desarrollo) y directamente en los pods `sgp-db-pod.yaml` / `sgp-app-pod.yaml` (gitignored, creados a partir de `example.sgp-*-pod.yaml`). No hay scripts de inyeccion: el usuario rellena los valores a mano.
 - Script de prueba de correo: `pnpm --filter backend exec node scripts/enviar-correo-prueba.js [email]` (usa las variables `BREVO_*` del `.env`).
 
 ## Testing
 
-- `tests/api.sh`: script bash que prueba los endpoints principales con `curl`, incluido el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
+- `tests/api.sh`: script bash que prueba con `curl` salud/docs, RBAC, validaciones de check-in, agenda/planificador, reportes/logs y el flujo registro → login sin verificar (403) → reenvio → codigo incorrecto (400). El paso final (codigo correcto) es manual con el codigo del correo.
+- `tests/datos.sh`: validaciones SQL del dataset demo (una sede por dia, sin solapes, maximo 5 activas, cobro unico, citas activas dentro de disponibilidad).
+- `tests/esquema.sh`: valida tablas, columnas, constraints e indices contra `docs/modelo-datos.md`.
+- `tests/e2e.py`: flujo completo reserva → QR → check-in/cobro → RF9 → reportes → agenda (Python + psql).
+- `backend/tests/unit/*.test.js`: unitarias con `node:test` ejecutadas dentro del contenedor backend; cobertura con `pnpm run test:coverage` (excluye config/docs/integrations/server/seeds). Objetivo RNF5: >= 80 % de lineas.
+- `backend/src/utils/semillar-demo.js`: seed masivo parametrizable (ver README, seccion Datos de demostracion).
 - Pruebas manuales con el demo (`demo.html`) como referencia visual.
 - No hay tests unitarios en el MVP inicial. Se agregaran en fase 10.

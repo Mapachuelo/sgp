@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
+    "seed:demo": "node src/utils/semillar-demo.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='src/config/**' --test-coverage-exclude='src/docs/**' --test-coverage-exclude='src/integrations/**' --test-coverage-exclude='src/server.js' --test-coverage-exclude='src/utils/**' --test-coverage-exclude='tests/**' tests/unit/*.test.js",
     "lint": "eslint src/ --ext .js"
   },
   "dependencies": {
