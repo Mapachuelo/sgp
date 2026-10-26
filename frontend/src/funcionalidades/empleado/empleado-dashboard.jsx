@@ -3,6 +3,7 @@ import api from '../../api/cliente';
 import { useAuth } from '../../hooks/use-auth';
 import useWebSocket from '../../hooks/use-websocket.js';
 import { Button, Card, Badge, Modal, Toast, Spinner } from '../../componentes/ui/index.jsx';
+import PagoReservaModal from '../../componentes/pagos/pago-reserva-modal.jsx';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -39,6 +40,9 @@ const formatearHoraLocal = (isoString) => {
   return `${h}:${m}`;
 };
 
+const estaPagada = (cita) =>
+  cita?.pago_estado === 'aprobado' || Boolean(cita?.cobro_metodo);
+
 const customMarkerIcon = new L.DivIcon({
   html: `<div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B84C3D" stroke-width="2">
@@ -61,10 +65,8 @@ function MapRecenter({ lat, lng }) {
   return null;
 }
 
-function ValidarQRModal({ open, onClose, onSuccess, citaPrevia, modoCobro = false }) {
-  const [qrToken, setQrToken] = useState('');
-  const [monto, setMonto] = useState('');
-  const [metodoCobro, setMetodoCobro] = useState('fisico');
+function LlegadaQRModal({ open, onClose, onSuccess, qrInicial = '' }) {
+  const [qrToken, setQrToken] = useState(qrInicial || '');
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [error, setError] = useState('');
@@ -83,51 +85,30 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia, modoCobro = fals
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (open && citaPrevia) {
-      setQrToken(citaPrevia.qr_token || '');
-      const precio = parseFloat(citaPrevia.precio_base || citaPrevia.precio || 0);
-      setMetodoCobro('fisico');
-      setMonto(precio ? String(precio) : '');
-    } else if (open) {
-      setMetodoCobro('fisico');
-      if (!qrToken) setMonto('');
+    if (open) {
+      setQrToken(qrInicial || '');
+      setResultado(null);
+      setError('');
     } else {
+      apagarCamara();
       setQrToken('');
-      setMonto('');
+      setResultado(null);
+      setError('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, citaPrevia, modoCobro]);
+  }, [open, qrInicial]);
+
+  useEffect(() => () => apagarCamara(), [apagarCamara]);
 
   const activarCamara = async () => {
     setErrorCamara('');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = stream;
       setCamaraActiva(true);
-    } catch (err) {
-      setErrorCamara('No se pudo acceder a la cámara real. Iniciando simulación...');
-      setCamaraActiva(true); // Activa el contenedor para simulación
-    }
-  };
-
-  const toggleCamara = () => {
-    if (camaraActiva) {
-      apagarCamara();
-    } else {
-      activarCamara();
+    } catch {
+      setErrorCamara('No se pudo acceder a la camara. Ingresa el token manualmente.');
     }
   };
 
@@ -137,177 +118,137 @@ function ValidarQRModal({ open, onClose, onSuccess, citaPrevia, modoCobro = fals
     setResultado(null);
     setCargando(true);
     try {
-      const montoFinal = metodoCobro === 'online' ? 0 : parseFloat(monto) || 0;
-      const data = await api.checkin.validar({ qr_token: qrToken, monto: montoFinal });
+      const data = await api.checkin.llegada(qrToken.trim());
       setResultado(data);
       onSuccess?.(data);
     } catch (err) {
-      setError(err.message || 'Error al validar QR');
+      setError(err.message || 'Error al registrar la llegada');
     } finally {
       setCargando(false);
     }
   };
 
-  const handleClose = () => {
+  const cerrar = () => {
     apagarCamara();
-    setQrToken('');
-    setMonto('');
-    setResultado(null);
-    setError('');
-    onClose();
+    onClose?.();
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title={modoCobro ? 'Registrar cobro' : 'Validar ingreso y cobro'}>
+    <Modal open={open} onClose={cerrar} title="Registrar llegada">
       {resultado ? (
-        <div className="text-center py-6 space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-green-50 flex items-center justify-center text-exito">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <div className="text-center py-5 space-y-3">
+          <div className="w-14 h-14 mx-auto rounded-full bg-green-50 flex items-center justify-center text-exito">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <div>
-            <p className="font-semibold text-exito text-lg">{modoCobro ? 'Cobro registrado' : 'Check-in validado'}</p>
-            <p className="text-texto-secundario text-xs mt-1">
-              Cliente: <strong className="text-texto-principal">{resultado.cliente_nombre || '—'}</strong>
-            </p>
-            <p className="text-texto-secundario text-xs">
-              Método: <strong className="text-texto-principal">{resultado.metodo_pago || resultado.metodo || '—'}</strong>
-            </p>
-            <p className="text-texto-secundario text-xs">
-              Monto: <strong className="text-texto-principal">${parseFloat(resultado.monto || 0).toLocaleString('es-CO')}</strong>
-            </p>
-          </div>
-          <Button variant="outline" className="mt-4 w-full" onClick={handleClose}>Cerrar Ventana</Button>
+          <p className="font-semibold text-exito text-lg">Llegada registrada</p>
+          <p className="text-xs text-texto-secundario">
+            Cliente: <strong className="text-texto-principal">{resultado.cliente_nombre || '—'}</strong>
+          </p>
+          <p className="text-xs text-texto-secundario">
+            {resultado.servicio_nombre || 'Servicio'} · {formatearHoraLocal(resultado.inicia_en)}
+          </p>
+          <Badge variant={resultado.pagado ? 'success' : 'warning'}>
+            {resultado.pagado ? 'Pagado' : 'Pago pendiente'}
+          </Badge>
+          <Button className="w-full" onClick={cerrar}>Cerrar</Button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          {citaPrevia && (
-            <div className="bg-exito/5 rounded-xl p-4 border border-exito/20 text-sm">
-              <p className="font-semibold text-exito">
-                Cliente: {citaPrevia.cliente_nombre || `${citaPrevia.cliente?.nombre || ''} ${citaPrevia.cliente?.apellido || ''}`.trim() || '—'}
-              </p>
-              <p className="text-xs text-texto-secundario mt-1">
-                {citaPrevia.servicio_nombre || citaPrevia.servicio?.nombre || 'Servicio'} · {formatearHoraLocal(citaPrevia.inicia_en)} - {formatearHoraLocal(citaPrevia.termina_en)}
-              </p>
-              {citaPrevia.estado === 'confirmada' ? (
-                <p className="text-xs text-info font-medium mt-1">Pago online registrado ($0 adicionales)</p>
-              ) : (
-                <p className="text-xs text-advertencia font-medium mt-1">Pago pendiente en local</p>
-              )}
-            </div>
-          )}
-
           {camaraActiva && (
-            <div className="space-y-2">
-              <div className="bg-black rounded-xl overflow-hidden aspect-video relative border border-borde flex flex-col justify-center items-center text-center p-4">
-                {streamRef.current ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 z-10">
-                    <span className="text-xs text-white/80">Simulando lectura de cámara...</span>
-                  </div>
-                )}
-                {/* Animación de láser escáner */}
-                <div className="w-full h-0.5 bg-red-600 absolute top-1/2 left-0 shadow-[0_0_8px_#EF4444] animate-bounce z-20"></div>
-                {!streamRef.current && (
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E5DDD3" strokeWidth="1.5" className="opacity-50 z-10">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <rect x="7" y="7" width="4" height="4"/>
-                    <rect x="13" y="7" width="4" height="4"/>
-                    <rect x="7" y="13" width="4" height="4"/>
-                    <rect x="13" y="13" width="4" height="4"/>
-                  </svg>
-                )}
-              </div>
+            <div className="bg-black rounded-xl overflow-hidden aspect-video relative border border-borde">
+              <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+              <div className="w-full h-0.5 bg-red-600 absolute top-1/2 left-0 shadow-[0_0_8px_#EF4444] animate-bounce z-20" />
             </div>
           )}
-
+          {errorCamara && <p className="text-xs text-advertencia">{errorCamara}</p>}
           <div>
-            <label className="block text-xs font-semibold text-texto-principal uppercase tracking-wider mb-1.5">Escanear QR o Ingresar Token</label>
+            <label className="block text-xs font-semibold text-texto-principal uppercase tracking-wider mb-1.5">
+              Token QR de la reserva
+            </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={qrToken}
                 onChange={(e) => setQrToken(e.target.value)}
-                placeholder="QR-TOKEN-XXXX"
+                placeholder="00000000-0000-4000-8000-000000000000"
                 className="flex-grow px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
                 required
               />
               <button
                 type="button"
-                onClick={toggleCamara}
+                onClick={() => (camaraActiva ? apagarCamara() : activarCamara())}
                 className="px-3 py-2 bg-fondo border border-borde rounded-lg text-xs font-semibold transition hover:bg-superficie shrink-0"
               >
-                {camaraActiva ? 'Apagar' : 'Cámara'}
+                {camaraActiva ? 'Apagar' : 'Camara'}
               </button>
             </div>
           </div>
-
-          <div>
-            <span className="block text-xs font-semibold text-texto-principal uppercase tracking-wider mb-1.5">Metodo de cobro</span>
-            <div className="grid grid-cols-2 gap-2 mb-3" role="group" aria-label="Metodo de cobro">
-              <button
-                type="button"
-                aria-pressed={metodoCobro === 'online'}
-                onClick={() => { setMetodoCobro('online'); setMonto('0'); }}
-                className={`px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer ${
-                  metodoCobro === 'online'
-                    ? 'border-info bg-info/10 text-info'
-                    : 'border-borde bg-superficie text-texto-secundario hover:border-info'
-                }`}
-              >
-                Pago online ($0)
-              </button>
-              <button
-                type="button"
-                aria-pressed={metodoCobro === 'fisico'}
-                onClick={() => {
-                  setMetodoCobro('fisico');
-                  const precio = parseFloat(citaPrevia?.precio_base || citaPrevia?.precio || 0);
-                  if ((!monto || monto === '0') && precio) setMonto(String(precio));
-                }}
-                className={`px-3 py-2 rounded-lg border text-xs font-semibold transition cursor-pointer ${
-                  metodoCobro === 'fisico'
-                    ? 'border-primario bg-primario/10 text-primario'
-                    : 'border-borde bg-superficie text-texto-secundario hover:border-primario'
-                }`}
-              >
-                Efectivo en local
-              </button>
-            </div>
-            <div className="flex justify-between items-center mb-1">
-              <label htmlFor="monto-cobro" className="block text-xs font-semibold text-texto-principal uppercase tracking-wider">Monto recibido</label>
-              {citaPrevia && (
-                <span className="text-[10px] text-texto-secundario">
-                  Precio del servicio: ${parseFloat(citaPrevia.precio_base || citaPrevia.precio || 0).toLocaleString()}
-                </span>
-              )}
-            </div>
-            <input
-              id="monto-cobro"
-              type="number"
-              value={metodoCobro === 'online' ? '0' : monto}
-              onChange={(e) => setMonto(e.target.value)}
-              placeholder="Monto"
-              step="0.01"
-              min="0"
-              disabled={metodoCobro === 'online'}
-              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition disabled:opacity-60"
-            />
-          </div>
-
           {error && <p className="text-error text-sm font-semibold">{error}</p>}
           <Button type="submit" disabled={cargando} className="w-full py-3">
-            {cargando ? <Spinner /> : 'Confirmar entrada y cobro'}
+            {cargando ? <Spinner /> : 'Registrar llegada'}
           </Button>
         </form>
+      )}
+    </Modal>
+  );
+}
+
+function CobroEfectivoModal({ open, cita, onClose, onSuccess, onToast }) {
+  const [monto, setMonto] = useState('');
+  const [cargando, setCargando] = useState(false);
+
+  const total = cita ? Number(cita.precio_base || 0) * Number(cita.cantidad_personas || 1) : 0;
+
+  useEffect(() => {
+    if (open && cita) setMonto(String(total || ''));
+  }, [open, cita, total]);
+
+  const cobrar = async () => {
+    const valor = Number(monto);
+    if (!Number.isFinite(valor) || valor <= 0) {
+      onToast?.('Ingresa un monto mayor a 0', 'warning');
+      return;
+    }
+    setCargando(true);
+    try {
+      await api.checkin.cobroEfectivo(cita.id, valor);
+      onToast?.('Cobro en efectivo registrado');
+      onSuccess?.();
+      onClose?.();
+    } catch (err) {
+      onToast?.(err.message, 'error');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Cobro en efectivo">
+      {cita && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-borde bg-fondo/40 p-3 text-sm">
+            <p className="font-semibold text-texto-principal">{cita.cliente_nombre || 'Cliente'}</p>
+            <p className="text-xs text-texto-secundario mt-1">
+              {cita.servicio_nombre || 'Servicio'} · Total ${total.toLocaleString('es-CO')}
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Monto recibido</label>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30"
+            />
+          </div>
+          <Button className="w-full" onClick={cobrar} disabled={cargando}>
+            {cargando ? <Spinner /> : 'Registrar cobro'}
+          </Button>
+        </div>
       )}
     </Modal>
   );
@@ -320,9 +261,9 @@ export default function EmpleadoDashboard() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [modalQR, setModalQR] = useState(false);
-  const [modoCobro, setModoCobro] = useState(false);
-  const [citaPrevia, setCitaPrevia] = useState(null);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+  const [pagoReserva, setPagoReserva] = useState(null);
+  const [cobroEfectivoCita, setCobroEfectivoCita] = useState(null);
   const [fecha, setFecha] = useState(formatearFechaLocal(new Date()));
 
   const fechaRef = useRef(fecha);
@@ -399,6 +340,14 @@ export default function EmpleadoDashboard() {
   const pendientes = citas.filter((c) => c.estado === 'pendiente' || c.estado === 'confirmada');
   const enCurso = citas.filter((c) => c.estado === 'en_curso');
   const cobrados = citas.filter((c) => c.estado === 'cobrado' || c.estado === 'completada');
+  const enAtencion = enCurso[0] || null;
+  const enEspera = citas
+    .filter((c) => c.llego_en && !['en_curso', 'cobrado', 'cancelada'].includes(c.estado))
+    .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en));
+  const programados = citas
+    .filter((c) => !c.llego_en && ['pendiente', 'confirmada'].includes(c.estado))
+    .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en));
+  const siguientes = enEspera.length > 0 ? enEspera : programados;
   const totalRevenue = citas
     .filter((c) => c.estado === 'cobrado' || c.estado === 'completada')
     .reduce((sum, c) => sum + (parseFloat(c.monto) || parseFloat(c.precio) || 0), 0);
@@ -408,16 +357,50 @@ export default function EmpleadoDashboard() {
     setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 3000);
   };
 
-  const handleValidarQrSuccess = (data) => {
-    mostrarToast('QR validado correctamente');
+  const refrescar = () => {
     cargarCitas(fecha);
     cargarSedeHoy(fecha);
   };
 
-  const handleValidarClick = (cita) => {
-    setCitaPrevia(cita);
-    setModoCobro(false);
-    setModalQR(true);
+  const handleValidarQrSuccess = () => {
+    mostrarToast('Llegada registrada correctamente');
+    refrescar();
+  };
+
+  const handleRegistrarLlegada = async (cita) => {
+    try {
+      await api.checkin.llegada(cita.qr_token);
+      mostrarToast(`Llegada registrada: ${cita.cliente_nombre || 'cliente'}`);
+      refrescar();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
+  };
+
+  const handleAtender = async (cita) => {
+    if (!estaPagada(cita)) {
+      setPagoReserva(cita);
+      mostrarToast('Primero registra el pago por QR o en efectivo', 'warning');
+      return;
+    }
+    try {
+      await api.checkin.iniciar(cita.id);
+      mostrarToast('Servicio iniciado');
+      refrescar();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
+  };
+
+  const handleFinalizar = async (cita) => {
+    if (!window.confirm(`¿Finalizar el servicio de ${cita.cliente_nombre || 'este cliente'}?`)) return;
+    try {
+      await api.checkin.finalizar(cita.id);
+      mostrarToast('Servicio finalizado. Puedes atender al siguiente cliente.');
+      refrescar();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
   };
 
   const esHoy = fecha === hoy;
@@ -532,11 +515,11 @@ export default function EmpleadoDashboard() {
           >
             →
           </button>
-          <Button className="w-full sm:w-auto" onClick={() => { setCitaPrevia(null); setModoCobro(false); setModalQR(true); }}>
-            Validar QR
+          <Button className="w-full sm:w-auto" onClick={() => setModalQR(true)}>
+            Escanear QR
           </Button>
-          <Button className="w-full sm:w-auto" variant="secundario" onClick={() => { setCitaPrevia(null); setModoCobro(true); setModalQR(true); }}>
-            Registrar cobro
+          <Button className="w-full sm:w-auto" variant="secundario" onClick={refrescar}>
+            Actualizar
           </Button>
         </div>
       </div>
@@ -611,6 +594,109 @@ export default function EmpleadoDashboard() {
         </div>
 
         <div className="lg:col-span-3 order-1 lg:order-2">
+          {!cargando && !error && (
+            <div className="space-y-3 mb-5">
+              <Card padding={true} className="border-l-4 border-l-primario">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div>
+                    <h2 className="font-display text-lg font-bold text-texto-principal">Cola de atencion</h2>
+                    <p className="text-xs text-texto-secundario">
+                      {enEspera.length} en espera · {programados.length} programados
+                    </p>
+                  </div>
+                  {siguientes[0] && (
+                    <Badge variant="info">
+                      Siguiente: {siguientes[0].cliente_nombre || 'cliente'} · {formatearHoraLocal(siguientes[0].inicia_en)}
+                    </Badge>
+                  )}
+                </div>
+
+                {enAtencion ? (
+                  <div className="rounded-xl border border-info/30 bg-info/5 p-3 mb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-info">En atencion</p>
+                        <p className="font-semibold text-texto-principal">{enAtencion.cliente_nombre || 'Cliente'}</p>
+                        <p className="text-xs text-texto-secundario">
+                          {enAtencion.servicio_nombre || 'Servicio'} · inicio {formatearHoraLocal(enAtencion.inicio_servicio)}
+                        </p>
+                      </div>
+                      <Button variant="danger" size="sm" onClick={() => handleFinalizar(enAtencion)}>
+                        Finalizar servicio
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-texto-secundario mb-3">No hay un servicio en curso.</p>
+                )}
+
+                {enEspera.length === 0 ? (
+                  <p className="text-xs text-texto-secundario">
+                    No hay clientes en espera. Cuando llegue el siguiente, escanea su QR.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {enEspera.map((cita) => {
+                      const pagada = estaPagada(cita);
+                      return (
+                        <div
+                          key={cita.id}
+                          className="flex flex-wrap items-center gap-2 rounded-xl border border-borde bg-superficie p-3"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-texto-principal truncate">
+                              {cita.cliente_nombre || 'Cliente'}
+                            </p>
+                            <p className="text-xs text-texto-secundario">
+                              {formatearHoraLocal(cita.inicia_en)} · {cita.servicio_nombre || 'Servicio'} · llegó {formatearHoraLocal(cita.llego_en)}
+                            </p>
+                          </div>
+                          <Badge variant={pagada ? 'success' : 'warning'}>
+                            {pagada ? 'Pagado' : 'Pago pendiente'}
+                          </Badge>
+                          {pagada ? (
+                            <Button size="sm" onClick={() => handleAtender(cita)}>Atender</Button>
+                          ) : (
+                            <>
+                              <Button size="sm" onClick={() => setPagoReserva(cita)}>Cobrar QR</Button>
+                              <Button variant="outline" size="sm" onClick={() => setCobroEfectivoCita(cita)}>Efectivo</Button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {programados.length > 0 && (
+                  <details className="mt-3">
+                    <summary className="text-xs font-semibold text-primario cursor-pointer">
+                      Ver citas programadas ({programados.length})
+                    </summary>
+                    <div className="space-y-2 mt-2">
+                      {programados.map((cita) => (
+                        <div key={cita.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-borde/70 bg-fondo/40 p-2.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-texto-principal truncate">{cita.cliente_nombre || 'Cliente'}</p>
+                            <p className="text-xs text-texto-secundario">
+                              {formatearHoraLocal(cita.inicia_en)} · {cita.servicio_nombre || 'Servicio'}
+                            </p>
+                          </div>
+                          <Badge variant={estaPagada(cita) ? 'success' : 'warning'}>
+                            {estaPagada(cita) ? 'Pagado' : 'Pago pendiente'}
+                          </Badge>
+                          <Button variant="outline" size="sm" onClick={() => handleRegistrarLlegada(cita)}>
+                            Registrar llegada
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </Card>
+            </div>
+          )}
+
           {cargando ? (
             <div className="flex justify-center py-20">
               <Spinner />
@@ -695,20 +781,29 @@ export default function EmpleadoDashboard() {
                         ) : null}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0 ml-auto">
-                      {cita.pago_estado === 'aprobado' && <Badge variant="success">Pagado</Badge>}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 ml-auto">
+                      <Badge variant={estaPagada(cita) ? 'success' : 'warning'}>
+                        {estaPagada(cita) ? 'Pagado' : 'Pago pendiente'}
+                      </Badge>
                       <Badge variant={ESTADO_COLOR[cita.estado] || 'default'}>
                         {ESTADO_LABEL[cita.estado] || cita.estado}
                       </Badge>
-                      {(cita.estado === 'pendiente' || cita.estado === 'confirmada') && (
-                        <Button
-                          variant="primario"
-                          size="sm"
-                          onClick={() => handleValidarClick(cita)}
-                          className="shrink-0"
-                        >
-                          Validar
+                      {(cita.estado === 'pendiente' || cita.estado === 'confirmada') && !cita.llego_en && (
+                        <Button variant="primario" size="sm" onClick={() => handleRegistrarLlegada(cita)} className="shrink-0">
+                          Registrar llegada
                         </Button>
+                      )}
+                      {(cita.estado === 'pendiente' || cita.estado === 'confirmada') && cita.llego_en && !estaPagada(cita) && (
+                        <>
+                          <Button size="sm" onClick={() => setPagoReserva(cita)}>Cobrar QR</Button>
+                          <Button variant="outline" size="sm" onClick={() => setCobroEfectivoCita(cita)}>Efectivo</Button>
+                        </>
+                      )}
+                      {(cita.estado === 'pendiente' || cita.estado === 'confirmada') && cita.llego_en && estaPagada(cita) && (
+                        <Button size="sm" onClick={() => handleAtender(cita)}>Atender</Button>
+                      )}
+                      {cita.estado === 'en_curso' && (
+                        <Button variant="danger" size="sm" onClick={() => handleFinalizar(cita)}>Finalizar</Button>
                       )}
                     </div>
                   </div>
@@ -719,16 +814,27 @@ export default function EmpleadoDashboard() {
         </div>
       </div>
 
-      <ValidarQRModal
+      <LlegadaQRModal
         open={modalQR}
-        modoCobro={modoCobro}
-        onClose={() => {
-          setModalQR(false);
-          setModoCobro(false);
-          setCitaPrevia(null);
-        }}
+        onClose={() => setModalQR(false)}
         onSuccess={handleValidarQrSuccess}
-        citaPrevia={citaPrevia}
+      />
+
+      <PagoReservaModal
+        open={Boolean(pagoReserva)}
+        reservaId={pagoReserva?.id}
+        modo="qr"
+        onClose={() => setPagoReserva(null)}
+        onPagado={refrescar}
+        onToast={mostrarToast}
+      />
+
+      <CobroEfectivoModal
+        open={Boolean(cobroEfectivoCita)}
+        cita={cobroEfectivoCita}
+        onClose={() => setCobroEfectivoCita(null)}
+        onSuccess={refrescar}
+        onToast={mostrarToast}
       />
     </div>
   );

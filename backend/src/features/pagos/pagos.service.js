@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 const pagosModel = require('./pagos.model');
 const wompi = require('../../integrations/pagos/wompi');
 const env = require('../../config/env');
@@ -21,6 +22,21 @@ function mapearEstadoWompi(estado) {
 
 function generarReferencia(reservaId) {
   return `SGP-${reservaId}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
+}
+
+function construirCheckoutUrl({ referencia, montoEnCentavos, firma, email }) {
+  const parametros = [
+    `public-key=${encodeURIComponent(env.wompiPublicKey)}`,
+    'currency=COP',
+    `amount-in-cents=${montoEnCentavos}`,
+    `reference=${encodeURIComponent(referencia)}`,
+    `signature:integrity=${firma}`,
+  ];
+  if (email) parametros.push(`customer-data:email=${encodeURIComponent(email)}`);
+  if (env.wompiRedirectUrl) {
+    parametros.push(`redirect-url=${encodeURIComponent(env.wompiRedirectUrl)}`);
+  }
+  return `https://checkout.wompi.co/p/?${parametros.join('&')}`;
 }
 
 function formatear(pago) {
@@ -47,6 +63,14 @@ async function sincronizarPago(pagoId, transaccion) {
       return { ...formatear(pago), reserva_estado: pago.reserva_estado, idempotente: true };
     }
 
+    if (
+      transaccion.amount_in_cents !== undefined &&
+      transaccion.amount_in_cents !== null &&
+      Number(transaccion.amount_in_cents) !== Math.round(Number(pago.monto) * 100)
+    ) {
+      throw new HttpError(400, 'El monto de la transaccion no coincide con el pago');
+    }
+
     const estado = mapearEstadoWompi(transaccion.status);
     const metodo =
       transaccion.payment_method_type || transaccion.payment_method?.type || null;
@@ -58,12 +82,29 @@ async function sincronizarPago(pagoId, transaccion) {
     );
 
     let reservaEstado = pago.reserva_estado;
+    let pagadoAntes = false;
     if (estado === 'aprobado') {
       const confirmada = await pagosModel.confirmarReservaSiPendiente(pago.reserva_id, client);
       if (confirmada) reservaEstado = 'confirmada';
+
+      const aprobadoEn = new Date(transaccion.finalized_at || Date.now());
+      pagadoAntes = aprobadoEn < new Date(pago.inicia_en);
+      await pagosModel.registrarCobroOnline(
+        {
+          reserva_id: pago.reserva_id,
+          monto: Number(pago.monto),
+          pago_id: pago.id,
+          pagado_antes: pagadoAntes,
+        },
+        client
+      );
     }
 
-    return { ...formatear(actualizado), reserva_estado: reservaEstado };
+    return {
+      ...formatear(actualizado),
+      reserva_estado: reservaEstado,
+      pagado_antes: pagadoAntes,
+    };
   });
 }
 
@@ -78,8 +119,11 @@ const pagosService = {
     if (!reserva) {
       throw new HttpError(404, 'Reserva no encontrada');
     }
-    if (reserva.cliente_id !== usuario.id) {
+    if (usuario.rol === 'cliente' && reserva.cliente_id !== usuario.id) {
       throw new HttpError(403, 'No puede pagar una reserva de otro cliente');
+    }
+    if (usuario.rol === 'empleado' && reserva.empleado_id !== usuario.id) {
+      throw new HttpError(403, 'No puede cobrar una reserva de otro empleado');
     }
     if (reserva.estado === 'cancelada') {
       throw new HttpError(409, 'La reserva esta cancelada');
@@ -88,9 +132,12 @@ const pagosService = {
       throw new HttpError(409, 'La reserva ya fue cobrada');
     }
 
-    const aprobado = await pagosModel.findAprobadoByReservaId(reservaId);
-    if (aprobado) {
-      throw new HttpError(409, 'La reserva ya tiene un pago aprobado');
+    const [aprobado, cobro] = await Promise.all([
+      pagosModel.findAprobadoByReservaId(reservaId),
+      pagosModel.findCobroByReservaId(reservaId),
+    ]);
+    if (aprobado || cobro) {
+      throw new HttpError(409, 'La reserva ya tiene un pago registrado');
     }
 
     const monto = Number(reserva.precio_base) * Number(reserva.cantidad_personas || 1);
@@ -108,6 +155,13 @@ const pagosService = {
     });
 
     const firma = wompi.firmaIntegridad({ referencia, montoEnCentavos, moneda: 'COP' });
+    const checkoutUrl = construirCheckoutUrl({
+      referencia,
+      montoEnCentavos,
+      firma,
+      email: reserva.cliente_email,
+    });
+    const qrDataUrl = await QRCode.toDataURL(checkoutUrl, { margin: 1, width: 320 });
 
     return {
       pago_id: pago.id,
@@ -118,6 +172,8 @@ const pagosService = {
       moneda: 'COP',
       llave_publica: env.wompiPublicKey,
       firma_integridad: firma,
+      checkout_url: checkoutUrl,
+      qr_data_url: qrDataUrl,
       redirect_url: env.wompiRedirectUrl || null,
       customer_data: {
         email: reserva.cliente_email,
@@ -138,6 +194,9 @@ const pagosService = {
     if (usuario.rol === 'cliente' && pago.cliente_id !== usuario.id) {
       throw new HttpError(403, 'No tiene acceso a este pago');
     }
+    if (usuario.rol === 'empleado' && pago.empleado_id !== usuario.id) {
+      throw new HttpError(403, 'No tiene acceso a este pago');
+    }
     return formatear(pago);
   },
 
@@ -155,6 +214,9 @@ const pagosService = {
       throw new HttpError(404, 'Pago no encontrado');
     }
     if (usuario.rol === 'cliente' && pago.cliente_id !== usuario.id) {
+      throw new HttpError(403, 'No tiene acceso a este pago');
+    }
+    if (usuario.rol === 'empleado' && pago.empleado_id !== usuario.id) {
       throw new HttpError(403, 'No tiene acceso a este pago');
     }
     if (ESTADOS_FINALES.has(pago.estado)) {

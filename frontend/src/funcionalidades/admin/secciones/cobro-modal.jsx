@@ -50,11 +50,11 @@ export default function CobroModal({ open, onClose, onToast, onActualizar }) {
         <div className="space-y-4">
           <p className="text-sm text-texto-secundario flex items-center gap-2">
             <BadgeDollarSign className="w-4 h-4" aria-hidden="true" />
-            Registra el cobro por token. Usa 0 si el cliente pago online.
+            Registra el cobro por token. Usa 0 solo si el cliente tiene un pago en linea aprobado; si no, ingresa el monto en efectivo.
           </p>
           <Input label="Token QR" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token QR de la reserva" />
           <Input
-            label="Monto recibido (0 = pago online)"
+            label="Monto recibido (0 = pago en linea aprobado)"
             type="number"
             step="0.01"
             min="0"

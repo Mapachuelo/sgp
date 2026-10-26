@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { Badge, Button, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import CampoTelefono from '../../../componentes/telefono/campo-telefono.jsx';
 import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
@@ -274,7 +275,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
               <Input label="Apellido" value={form.apellido} onChange={(e) => setForm((p) => ({ ...p, apellido: e.target.value }))} />
               <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
               <Input label={editId ? 'Nuevo password (opcional)' : 'Password'} type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={editId ? 'Dejar vacio para no cambiar' : ''} />
-              <Input label="Telefono" value={form.telefono} onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))} placeholder="+573001112233" />
+              <CampoTelefono label="Telefono" value={form.telefono} onChange={(telefono) => setForm((p) => ({ ...p, telefono }))} />
               <Input label="Identificacion" value={form.identificacion} onChange={(e) => setForm((p) => ({ ...p, identificacion: e.target.value }))} />
             </div>
 

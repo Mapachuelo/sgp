@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button, Card, Input, Toast } from '../../componentes/ui/index.jsx';
+import CampoTelefono from '../../componentes/telefono/campo-telefono.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
 
@@ -91,15 +92,11 @@ export default function MiPerfil() {
               />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Teléfono</label>
-            <input
-              type="text"
-              value={form.telefono}
-              onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
-            />
-          </div>
+          <CampoTelefono
+            label="Teléfono"
+            value={form.telefono}
+            onChange={(telefono) => setForm({ ...form, telefono })}
+          />
           <div>
             <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Correo Electrónico (No editable)</label>
             <input

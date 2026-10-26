@@ -111,18 +111,26 @@ _, data = req('POST', '/auth/login', {'email': 'admin@sgp.local', 'password': 'a
 token_admin = data.get('data', {}).get('token')
 check('Login admin', bool(token_admin))
 
-_, data = req('POST', '/auth/login', {'email': 'empleado@sgp.local', 'password': 'empleado123'})
+_, data = req('POST', '/auth/login', {'email': 'empleado01@sgp.local', 'password': 'empleado123'})
 token_emp = data.get('data', {}).get('token')
 check('Login empleado', bool(token_emp))
 
+empleado_id = int(sql("SELECT id FROM app_user WHERE email = 'empleado01@sgp.local'").strip())
 hoy_bogota = datetime.now(BOGOTA)
 dias_hasta_lunes = (7 - hoy_bogota.weekday()) % 7 or 7
 lunes = (hoy_bogota + timedelta(days=dias_hasta_lunes)).date()
+_, disponibilidad = req('GET', f'/empleados/{empleado_id}/disponibilidad', token=token_admin)
+bloque_lunes = next(
+    (b for b in (disponibilidad.get('data') or []) if b.get('dia_semana') == lunes.isoweekday()),
+    None,
+)
+ubicacion_id = bloque_lunes['ubicacion_id'] if bloque_lunes else 1
+check('Disponibilidad del empleado para el lunes', bool(bloque_lunes), disponibilidad)
 inicio_local = datetime(lunes.year, lunes.month, lunes.day, 10, 0, tzinfo=BOGOTA)
 inicia_en = inicio_local.astimezone(ZoneInfo('UTC')).isoformat().replace('+00:00', 'Z')
 
 status, data = req('POST', '/reservas', {
-    'empleado_id': 2, 'servicio_id': 1, 'ubicacion_id': 1,
+    'empleado_id': empleado_id, 'servicio_id': 1, 'ubicacion_id': ubicacion_id,
     'inicia_en': inicia_en, 'cantidad_personas': 2,
 }, token_cli)
 reserva = data.get('data') or {}
@@ -133,7 +141,7 @@ check('Duracion estimada = 30 min del servicio', (fin_dt - inicio_dt) == timedel
 qr = reserva.get('qr_token')
 
 status, data = req('POST', '/reservas', {
-    'empleado_id': 2, 'servicio_id': 1, 'ubicacion_id': 1,
+    'empleado_id': empleado_id, 'servicio_id': 1, 'ubicacion_id': ubicacion_id,
     'inicia_en': inicia_en, 'cantidad_personas': 1,
 }, token_cli)
 check('Solape de reserva rechazado (409)', status == 409, status)
@@ -144,7 +152,7 @@ check('GET /reservas/me devuelve la reserva', status == 200 and len(data.get('da
 inicio2_local = datetime(lunes.year, lunes.month, lunes.day, 11, 0, tzinfo=BOGOTA)
 inicia2 = inicio2_local.astimezone(ZoneInfo('UTC')).isoformat().replace('+00:00', 'Z')
 status, data = req('POST', '/reservas', {
-    'empleado_id': 2, 'servicio_id': 2, 'ubicacion_id': 1,
+    'empleado_id': empleado_id, 'servicio_id': 2, 'ubicacion_id': ubicacion_id,
     'inicia_en': inicia2, 'cantidad_personas': 1,
 }, token_cli)
 reserva2 = data.get('data') or {}
@@ -164,7 +172,7 @@ check('Doble cobro rechazado (409)', status == 409, f'{status} {data}')
 inicio3_local = datetime(lunes.year, lunes.month, lunes.day, 12, 0, tzinfo=BOGOTA)
 inicia3 = inicio3_local.astimezone(ZoneInfo('UTC')).isoformat().replace('+00:00', 'Z')
 status, data = req('POST', '/reservas', {
-    'empleado_id': 2, 'servicio_id': 1, 'ubicacion_id': 1,
+    'empleado_id': empleado_id, 'servicio_id': 1, 'ubicacion_id': ubicacion_id,
     'inicia_en': inicia3, 'cantidad_personas': 2,
 }, token_cli)
 reserva3 = data.get('data') or {}
@@ -172,7 +180,7 @@ check('Tercera reserva para pago digital', status == 201 and bool(reserva3.get('
 
 status, data = req('POST', '/pagos/intencion', {'reserva_id': reserva3.get('id')}, token_cli)
 intencion = data.get('data') or {}
-check('Intencion de pago Wompi creada (201)', status == 201 and intencion.get('monto_en_centavos') == 5000000, f'{status} {data}')
+check('Intencion de pago Wompi creada (201)', status == 201 and intencion.get('monto_en_centavos') == 6000000, f'{status} {data}')
 check('Firma de integridad SHA256 de 64 hex', len(intencion.get('firma_integridad', '')) == 64, intencion.get('firma_integridad'))
 
 pago_id = intencion.get('pago_id')
@@ -205,7 +213,7 @@ sql(f"UPDATE reserva SET inicia_en = NOW() - INTERVAL '10 minutes', termina_en =
 status, data = req('POST', '/checkin/validar', {'qr_token': reserva3.get('qr_token'), 'monto': 0}, token_emp)
 resultado = data.get('data') or {}
 check('Check-in de reserva pagada por Wompi', status == 200 and resultado.get('metodo') == 'online', f'{status} {data}')
-check('Cobro online registra el monto real del pago', resultado.get('monto') == 50000 and resultado.get('pagado_online') is True, resultado)
+check('Cobro online registra el monto real del pago', resultado.get('monto') == 60000 and resultado.get('pagado_online') is True, resultado)
 
 status, data = req('POST', '/ubicaciones', {
     'nombre': f'Sede E2E {int(time.time())}', 'direccion': 'Calle 1 #2-3, Bogota',
@@ -214,7 +222,7 @@ status, data = req('POST', '/ubicaciones', {
 sede2 = (data.get('data') or {}).get('id')
 check('Crear sede adicional', status == 201 and bool(sede2), f'{status} {data}')
 
-status, data = req('GET', '/empleados/2/disponibilidad', token=token_admin)
+status, data = req('GET', f'/empleados/{empleado_id}/disponibilidad', token=token_admin)
 bloques = data.get('data') or []
 check('Disponibilidad actual del empleado', status == 200 and len(bloques) >= 5, len(bloques))
 
@@ -226,7 +234,7 @@ for b in bloques:
     else:
         nuevos.append({'dia_semana': b['dia_semana'], 'ubicacion_id': b['ubicacion_id'], 'hora_inicio': b['hora_inicio'], 'hora_fin': b['hora_fin']})
 
-status, data = req('PUT', '/empleados/2/disponibilidad', nuevos, token_admin)
+status, data = req('PUT', f'/empleados/{empleado_id}/disponibilidad', nuevos, token_admin)
 resultado = data.get('data') or {}
 check('Cambio de sede cancela solo la reserva pendiente', status == 200 and resultado.get('reservas_canceladas') == [reserva2.get('id')], f'{status} {data}')
 check('Motivo de cancelacion exacto', resultado.get('motivo_cancelacion') == 'El empleado cambió de sede', resultado.get('motivo_cancelacion'))
@@ -234,7 +242,7 @@ check('Motivo de cancelacion exacto', resultado.get('motivo_cancelacion') == 'El
 out = sql(f"SELECT motivo_cancelacion FROM reserva WHERE id = {reserva2.get('id')}")
 check('Motivo persistido en BD', 'El empleado cambió de sede' in out, out.strip())
 
-status, data = req('PUT', '/empleados/2/disponibilidad', bloques, token_admin)
+status, data = req('PUT', f'/empleados/{empleado_id}/disponibilidad', bloques, token_admin)
 check('Restaurar disponibilidad del seed', status == 200, status)
 
 status, data = req('GET', f"/reportes/ocupacion?fecha={datetime.now(BOGOTA).date().isoformat()}", token=token_admin)

@@ -76,7 +76,7 @@ frontend/src/
   funcionalidades/   auth, cliente, empleado, admin/secciones
   i18n/              diccionario + proveedor
   lib/               descargas (QR, texto)
-db/init.sql          10 tablas + seeds + migraciones idempotentes
+db/init.sql          11 tablas + seeds + migraciones idempotentes
 ```
 
 ## 5. Seguridad

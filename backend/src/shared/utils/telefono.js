@@ -1,9 +1,22 @@
 const { encriptar, desencriptar } = require('./encriptacion');
 
-const TELEFONO_REGEX = /^\+57[0-9]{10}$/;
+const TELEFONO_REGEX = /^\+[1-9]\d{7,14}$/;
+const COLOMBIA_REGEX = /^\+57\d{10}$/;
+
+function normalizarTelefono(telefono) {
+  if (typeof telefono !== 'string') return telefono;
+  return telefono.trim().replace(/[\s().-]/g, '');
+}
 
 function validarTelefono(telefono) {
-  return typeof telefono === 'string' && TELEFONO_REGEX.test(telefono);
+  const normalizado = normalizarTelefono(telefono);
+  if (typeof normalizado !== 'string' || !TELEFONO_REGEX.test(normalizado)) {
+    return false;
+  }
+  if (normalizado.startsWith('+57')) {
+    return COLOMBIA_REGEX.test(normalizado);
+  }
+  return true;
 }
 
 function cifrarTelefono(telefono) {
@@ -23,4 +36,11 @@ function descifrarTelefono(valor) {
   }
 }
 
-module.exports = { TELEFONO_REGEX, validarTelefono, cifrarTelefono, descifrarTelefono };
+module.exports = {
+  TELEFONO_REGEX,
+  COLOMBIA_REGEX,
+  normalizarTelefono,
+  validarTelefono,
+  cifrarTelefono,
+  descifrarTelefono,
+};

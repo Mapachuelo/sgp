@@ -98,7 +98,7 @@ verificar "GET /auth/me con admin devuelve 200" "200" "$RESP"
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"email":"empleado@sgp.local","password":"empleado123"}')
+  -d '{"email":"empleado01@sgp.local","password":"empleado123"}')
 verificar "Login empleado devuelve 200" "200" "$RESP"
 
 RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/empleados")
@@ -146,8 +146,13 @@ verificar "POST /pagos/intencion sin token devuelve 401" "401" "$RESP"
 RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/pagos/intencion" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_ADMIN" \
-  -d '{"reserva_id":1}')
-verificar "POST /pagos/intencion con admin devuelve 403" "403" "$RESP"
+  -d '{"reserva_id":999999}')
+verificar "POST /pagos/intencion con admin valida RBAC y devuelve 404" "404" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/checkin/consultar" \
+  -H "Content-Type: application/json" \
+  -d '{"qr_token":"00000000-0000-4000-8000-000000000000"}')
+verificar "POST /checkin/consultar sin token devuelve 401" "401" "$RESP"
 
 RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/pagos/webhook" \
   -H "Content-Type: application/json" \

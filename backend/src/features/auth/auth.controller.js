@@ -2,6 +2,7 @@ const authService = require('./auth.service');
 const asyncHandler = require('../../shared/async-handler');
 const HttpError = require('../../shared/http-error');
 const logger = require('../../shared/logger');
+const { validarTelefono } = require('../../shared/utils/telefono');
 
 const authController = {
   register: asyncHandler(async (req, res) => {
@@ -11,8 +12,8 @@ const authController = {
       throw new HttpError(400, 'Todos los campos son requeridos: nombre, apellido, email, password, telefono');
     }
 
-    if (!/^\+57[0-9]{10}$/.test(telefono)) {
-      throw new HttpError(400, 'El telefono debe tener formato colombiano: +57 seguido de 10 digitos');
+    if (!validarTelefono(telefono)) {
+      throw new HttpError(400, 'El telefono debe incluir el codigo de pais, por ejemplo +573001112233');
     }
 
     const resultado = await authService.register({ nombre, apellido, email, password, telefono });

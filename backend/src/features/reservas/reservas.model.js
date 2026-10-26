@@ -71,11 +71,13 @@ const reservasModel = {
               u.latitud as ubicacion_latitud, u.longitud as ubicacion_longitud,
               s.nombre as servicio_nombre, s.precio_base,
               emp.nombre as empleado_nombre, emp.apellido as empleado_apellido,
-              p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto
+              p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto,
+              c.metodo as cobro_metodo, c.monto as cobro_monto, c.pago_id as cobro_pago_id
        FROM reserva r
        JOIN ubicacion u ON r.ubicacion_id = u.id
        JOIN servicio_catalogo s ON r.servicio_id = s.id
        JOIN app_user emp ON r.empleado_id = emp.id
+       LEFT JOIN cobro c ON c.reserva_id = r.id
        LEFT JOIN LATERAL (
          SELECT estado, metodo, monto FROM pago
          WHERE reserva_id = r.id
@@ -110,16 +112,19 @@ const reservasModel = {
     }
     const { rows } = await pool.query(
       `SELECT r.id, r.empleado_id, r.ubicacion_id, r.servicio_id, r.inicia_en, r.termina_en,
-              r.cantidad_personas, r.estado, r.qr_token,
-              u.nombre as ubicacion_nombre, s.nombre as servicio_nombre,
+              r.cantidad_personas, r.estado, r.qr_token, r.qr_data_url,
+              r.llego_en, r.inicio_servicio, r.fin_servicio, r.creado_en,
+              u.nombre as ubicacion_nombre, s.nombre as servicio_nombre, s.precio_base,
               cli.nombre as cliente_nombre, cli.apellido as cliente_apellido,
               emp.nombre as empleado_nombre, emp.apellido as empleado_apellido,
-              p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto
+              p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto,
+              c.metodo as cobro_metodo, c.monto as cobro_monto, c.pago_id as cobro_pago_id
        FROM reserva r
        JOIN ubicacion u ON r.ubicacion_id = u.id
        JOIN servicio_catalogo s ON r.servicio_id = s.id
        JOIN app_user cli ON r.cliente_id = cli.id
        JOIN app_user emp ON r.empleado_id = emp.id
+       LEFT JOIN cobro c ON c.reserva_id = r.id
        LEFT JOIN LATERAL (
          SELECT estado, metodo, monto FROM pago
          WHERE reserva_id = r.id
@@ -136,6 +141,7 @@ const reservasModel = {
     let query = `
       SELECT r.*, u.nombre as ubicacion_nombre, u.latitud as ubicacion_latitud, u.longitud as ubicacion_longitud,
              s.nombre as servicio_nombre, s.precio_base, c.monto as monto,
+             c.metodo as cobro_metodo, c.pago_id as cobro_pago_id, c.cobrado_en as cobro_en,
              emp.nombre as empleado_nombre, emp.apellido as empleado_apellido,
              cli.nombre as cliente_nombre, cli.apellido as cliente_apellido,
              p.estado as pago_estado, p.metodo as pago_metodo, p.monto as pago_monto

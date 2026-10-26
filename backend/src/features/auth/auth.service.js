@@ -6,7 +6,7 @@ const env = require('../../config/env');
 const HttpError = require('../../shared/http-error');
 const { enviarCorreoVerificacion } = require('../../integrations/email/mailer');
 const logger = require('../../shared/logger');
-const { validarTelefono } = require('../../shared/utils/telefono');
+const { validarTelefono, normalizarTelefono } = require('../../shared/utils/telefono');
 
 const EXPIRACION_TOKEN_MINUTOS = env.registroTtlMinutos;
 
@@ -14,10 +14,12 @@ function validarEmail(email) {
   return typeof email === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 }
 
-function validarTelefonoRequerido(telefono) {
-  if (!validarTelefono(telefono)) {
-    throw new HttpError(400, 'El telefono debe tener formato colombiano: +57 seguido de 10 digitos');
+function normalizarTelefonoRequerido(telefono) {
+  const normalizado = normalizarTelefono(telefono);
+  if (!validarTelefono(normalizado)) {
+    throw new HttpError(400, 'El telefono debe incluir el codigo de pais, por ejemplo +573001112233');
   }
+  return normalizado;
 }
 
 function generarCodigo() {
@@ -41,7 +43,7 @@ const authService = {
     if (!validarEmail(email)) {
       throw new HttpError(400, 'El correo no tiene un formato valido');
     }
-    validarTelefonoRequerido(telefono);
+    telefono = normalizarTelefonoRequerido(telefono);
 
     const existente = await authModel.findByEmail(email);
     if (existente) {
@@ -201,7 +203,7 @@ const authService = {
       throw new HttpError(400, 'El correo no tiene un formato valido');
     }
     if (data.telefono) {
-      validarTelefonoRequerido(data.telefono);
+      data.telefono = normalizarTelefonoRequerido(data.telefono);
     }
 
     const existente = await authModel.findByEmail(data.email);
@@ -240,7 +242,7 @@ const authService = {
       throw new HttpError(400, 'El correo no tiene un formato valido');
     }
     if (data.telefono !== undefined && data.telefono !== null && data.telefono !== '') {
-      validarTelefonoRequerido(data.telefono);
+      data.telefono = normalizarTelefonoRequerido(data.telefono);
     }
     if (data.password) {
       data.password_hash = await bcrypt.hash(data.password, 12);

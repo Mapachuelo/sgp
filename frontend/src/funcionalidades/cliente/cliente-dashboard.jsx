@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Badge, Toast, Spinner } from '../../componentes/ui/index.jsx';
+import PagoReservaModal from '../../componentes/pagos/pago-reserva-modal.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
 import useWebSocket from '../../hooks/use-websocket.js';
@@ -67,6 +68,10 @@ function etiquetaEstado(estado) {
   return estado.charAt(0).toUpperCase() + estado.slice(1);
 }
 
+function estaPagada(reserva) {
+  return reserva?.pago_estado === 'aprobado' || Boolean(reserva?.cobro_metodo);
+}
+
 function formatearFechaHora(iso) {
   if (!iso) return 'Sin fecha';
   return new Date(iso).toLocaleString('es-CO', {
@@ -86,6 +91,7 @@ export default function ClienteDashboard() {
   const [seleccionada, setSeleccionada] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+  const [pagoReserva, setPagoReserva] = useState(null);
   const detalleRef = useRef(null);
 
   const seleccionar = (reserva) => {
@@ -255,8 +261,13 @@ export default function ClienteDashboard() {
                             <Badge variant={estadoAVariante(reserva.estado)}>
                               {etiquetaEstado(reserva.estado)}
                             </Badge>
-                            {reserva.pago_estado === 'aprobado' && <Badge variant="success">Pagado</Badge>}
-                            {reserva.pago_estado === 'pendiente' && <Badge variant="warning">Pago pendiente</Badge>}
+                            {estaPagada(reserva) && <Badge variant="success">Pagado</Badge>}
+                            {!estaPagada(reserva) && ['pendiente', 'declinado', 'error'].includes(reserva.pago_estado) && (
+                              <Badge variant="warning">Pago pendiente</Badge>
+                            )}
+                            {!estaPagada(reserva) && !reserva.pago_estado && ['pendiente', 'confirmada'].includes(reserva.estado) && (
+                              <Badge variant="warning">Pago pendiente</Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
                             {reserva.qr_data_url && (
@@ -334,6 +345,22 @@ export default function ClienteDashboard() {
                         {seleccionada.cantidad_personas || 1}
                       </dd>
                     </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-texto-secundario">Pago</dt>
+                      <dd className="font-semibold text-texto-principal text-right">
+                        {estaPagada(seleccionada)
+                          ? `Pagado${seleccionada.cobro_metodo === 'fisico' ? ' en efectivo' : ''}`
+                          : 'Pendiente'}
+                      </dd>
+                    </div>
+                    {seleccionada.pago_monto && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-texto-secundario">Total</dt>
+                        <dd className="font-semibold text-texto-principal text-right">
+                          ${Number(seleccionada.pago_monto).toLocaleString('es-CO')}
+                        </dd>
+                      </div>
+                    )}
                     {seleccionada.motivo_cancelacion && (
                       <div className="bg-error/5 border border-error/20 rounded-lg p-3 text-xs text-error">
                         Motivo: {seleccionada.motivo_cancelacion}
@@ -401,15 +428,22 @@ export default function ClienteDashboard() {
                   </div>
                 )}
 
-                {(seleccionada.estado === 'pendiente' || seleccionada.estado === 'confirmada') && (
-                  <div className="p-5">
-                    <Button
-                      variant="danger"
-                      className="w-full"
-                      onClick={() => cancelarReserva(seleccionada.id)}
-                    >
-                      Cancelar reserva
-                    </Button>
+                {(['pendiente', 'confirmada', 'en_curso'].includes(seleccionada.estado)) && (
+                  <div className="p-5 space-y-2">
+                    {!estaPagada(seleccionada) && (
+                      <Button className="w-full" onClick={() => setPagoReserva(seleccionada)}>
+                        Pagar en linea
+                      </Button>
+                    )}
+                    {(seleccionada.estado === 'pendiente' || seleccionada.estado === 'confirmada') && (
+                      <Button
+                        variant="danger"
+                        className="w-full"
+                        onClick={() => cancelarReserva(seleccionada.id)}
+                      >
+                        Cancelar reserva
+                      </Button>
+                    )}
                   </div>
                 )}
               </Card>
@@ -423,6 +457,18 @@ export default function ClienteDashboard() {
           </aside>
         </div>
       )}
+
+      <PagoReservaModal
+        open={Boolean(pagoReserva)}
+        reservaId={pagoReserva?.id}
+        modo="cliente"
+        onClose={() => setPagoReserva(null)}
+        onPagado={() => {
+          cargarReservas();
+          mostrarToast('Pago confirmado. Tu reserva quedo al dia.');
+        }}
+        onToast={mostrarToast}
+      />
     </div>
   );
 }

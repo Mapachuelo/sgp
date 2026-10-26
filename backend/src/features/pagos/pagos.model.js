@@ -26,7 +26,7 @@ const pagosModel = {
 
   async findById(id, db = pool) {
     const { rows } = await db.query(
-      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id
+      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en
        FROM pago p
        JOIN reserva r ON p.reserva_id = r.id
        WHERE p.id = $1`,
@@ -37,7 +37,7 @@ const pagosModel = {
 
   async findByIdForUpdate(id, db = pool) {
     const { rows } = await db.query(
-      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id
+      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en
        FROM pago p
        JOIN reserva r ON p.reserva_id = r.id
        WHERE p.id = $1
@@ -49,7 +49,7 @@ const pagosModel = {
 
   async findByReferencia(referencia, db = pool) {
     const { rows } = await db.query(
-      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id
+      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en
        FROM pago p
        JOIN reserva r ON p.reserva_id = r.id
        WHERE p.referencia = $1`,
@@ -63,6 +63,11 @@ const pagosModel = {
       "SELECT * FROM pago WHERE reserva_id = $1 AND estado = 'aprobado' ORDER BY creado_en DESC LIMIT 1",
       [reserva_id]
     );
+    return rows[0] || null;
+  },
+
+  async findCobroByReservaId(reserva_id, db = pool) {
+    const { rows } = await db.query('SELECT * FROM cobro WHERE reserva_id = $1', [reserva_id]);
     return rows[0] || null;
   },
 
@@ -85,6 +90,17 @@ const pagosModel = {
     const { rows } = await db.query(
       "UPDATE reserva SET estado = 'confirmada' WHERE id = $1 AND estado = 'pendiente' RETURNING id",
       [reserva_id]
+    );
+    return rows[0] || null;
+  },
+
+  async registrarCobroOnline({ reserva_id, monto, pago_id, pagado_antes }, db = pool) {
+    const { rows } = await db.query(
+      `INSERT INTO cobro (reserva_id, monto, metodo, pago_id, pagado_antes)
+       VALUES ($1, $2, 'online', $3, $4)
+       ON CONFLICT (reserva_id) DO NOTHING
+       RETURNING *`,
+      [reserva_id, monto, pago_id, Boolean(pagado_antes)]
     );
     return rows[0] || null;
   },

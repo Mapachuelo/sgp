@@ -46,6 +46,8 @@ test('pagos: crearIntencion recalcula el monto en el servidor y firma la transac
     assert.match(intencion.llave_publica, /^pub_test_/);
     assert.match(intencion.referencia, /^SGP-/);
     assert.match(intencion.firma_integridad, /^[0-9a-f]{64}$/);
+    assert.match(intencion.checkout_url, /^https:\/\/checkout\.wompi\.co\/p\//);
+    assert.match(intencion.qr_data_url, /^data:image\/png;base64,/);
 
     const pago = await pagosModel.findById(intencion.pago_id);
     assert.equal(pago.estado, 'pendiente');

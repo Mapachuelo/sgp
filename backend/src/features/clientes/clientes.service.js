@@ -1,11 +1,12 @@
 const clientesModel = require('./clientes.model');
 const HttpError = require('../../shared/http-error');
-const { validarTelefono } = require('../../shared/utils/telefono');
+const { validarTelefono, normalizarTelefono } = require('../../shared/utils/telefono');
 
 function validarDatosPerfil(data) {
   if (data.telefono !== undefined && data.telefono !== null && data.telefono !== '') {
+    data.telefono = normalizarTelefono(data.telefono);
     if (!validarTelefono(data.telefono)) {
-      throw new HttpError(400, 'El telefono debe tener formato colombiano: +57 seguido de 10 digitos');
+      throw new HttpError(400, 'El telefono debe incluir el codigo de pais, por ejemplo +573001112233');
     }
   }
   if (data.email !== undefined && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) {

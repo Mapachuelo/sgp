@@ -2,12 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/use-auth';
 import { Button, Input } from '../../componentes/ui';
-
-const TELEFONO_REGEX = /^\+\d{12}$/;
-
-function validarTelefono(tel) {
-  return TELEFONO_REGEX.test(tel);
-}
+import CampoTelefono from '../../componentes/telefono/campo-telefono.jsx';
+import { validarTelefonoInternacional } from '../../lib/telefonos.js';
 
 export default function RegistroPage() {
   const { register } = useAuth();
@@ -27,13 +23,7 @@ export default function RegistroPage() {
     const { name, value } = e.target;
 
     if (name === 'telefono') {
-      if (!value.startsWith('+57')) {
-        setForm((prev) => ({ ...prev, telefono: '+57' + value.replace(/^\+?57?/, '') }));
-        return;
-      }
-      const digits = value.slice(3).replace(/\D/g, '');
-      if (digits.length > 10) return;
-      setForm((prev) => ({ ...prev, telefono: '+57' + digits }));
+      setForm((prev) => ({ ...prev, telefono: value }));
       return;
     }
 
@@ -41,8 +31,8 @@ export default function RegistroPage() {
   }
 
   function validar() {
-    if (!validarTelefono(form.telefono)) {
-      setError('El teléfono debe tener el formato +57 seguido de 10 dígitos.');
+    if (!validarTelefonoInternacional(form.telefono)) {
+      setError('El teléfono debe incluir el código de país. Ejemplo: +57 300 123 4567.');
       return false;
     }
     if (form.password !== form.confirmarPassword) {
@@ -135,15 +125,12 @@ export default function RegistroPage() {
                   autoComplete="family-name"
                 />
               </div>
-              <Input
+              <CampoTelefono
                 label="Teléfono"
                 name="telefono"
-                type="tel"
                 value={form.telefono}
-                onChange={handleChange}
-                placeholder="+57 300 123 4567"
+                onChange={(telefono) => setForm((prev) => ({ ...prev, telefono }))}
                 required
-                autoComplete="tel"
               />
               <Input
                 label="Correo electrónico"

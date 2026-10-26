@@ -275,20 +275,21 @@ test('checkin: validaciones y cobro atomico', async () => {
     [reserva.id]
   );
 
-  await assert.rejects(() => checkinService.validar({ qr_token: 'no-es-uuid', monto: 0 }, empleadoId), /UUID/);
-  await assert.rejects(() => checkinService.validar({ qr_token: reserva.qr_token, monto: -5 }, empleadoId), /monto/);
+  const usuarioEmpleado = { id: empleadoId, rol: 'empleado' };
+  await assert.rejects(() => checkinService.validar({ qr_token: 'no-es-uuid', monto: 0 }, usuarioEmpleado), /UUID/);
+  await assert.rejects(() => checkinService.validar({ qr_token: reserva.qr_token, monto: -5 }, usuarioEmpleado), /monto/);
   await assert.rejects(
-    () => checkinService.validar({ qr_token: '00000000-0000-4000-8000-000000000000', monto: 0 }, empleadoId),
+    () => checkinService.validar({ qr_token: '00000000-0000-4000-8000-000000000000', monto: 0 }, usuarioEmpleado),
     /no encontrada/
   );
 
-  const resultado = await checkinService.validar({ qr_token: reserva.qr_token, monto: 25000 }, empleadoId);
+  const resultado = await checkinService.validar({ qr_token: reserva.qr_token, monto: 25000 }, usuarioEmpleado);
   assert.equal(resultado.estado, 'cobrado');
   assert.equal(resultado.metodo, 'fisico');
   assert.equal(resultado.monto, 25000);
   assert.ok(resultado.cliente_nombre);
 
-  await assert.rejects(() => checkinService.validar({ qr_token: reserva.qr_token, monto: 0 }, empleadoId), /ya fue cobrada/);
+  await assert.rejects(() => checkinService.validar({ qr_token: reserva.qr_token, monto: 0 }, usuarioEmpleado), /ya fue cobrada/);
 
   const { rows } = await pool.query('SELECT estado FROM reserva WHERE id = $1', [reserva.id]);
   assert.equal(rows[0].estado, 'cobrado');

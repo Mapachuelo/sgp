@@ -69,7 +69,7 @@ const openapi = {
                   apellido: { type: 'string' },
                   email: { type: 'string' },
                   password: { type: 'string' },
-                  telefono: { type: 'string', example: '+573001112233' },
+                  telefono: { type: 'string', example: '+14155550123', description: 'E.164 con codigo de pais; Colombia usa +57 y 10 digitos' },
                 },
               },
             },
@@ -304,10 +304,118 @@ const openapi = {
     '/reservas/me/{id}': {
       delete: { tags: ['Reservas'], summary: 'Cancela una reserva propia (cliente)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Reserva cancelada' } } },
     },
+    '/checkin/consultar': {
+      post: {
+        tags: ['Checkin'],
+        summary: 'Consulta el estado de una reserva por QR y su pago (empleado/admin)',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['qr_token'],
+                properties: { qr_token: { type: 'string', format: 'uuid' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Resumen de reserva, cola y pago' },
+          403: { description: 'La reserva pertenece a otro empleado' },
+          404: { description: 'QR no encontrado' },
+        },
+      },
+    },
+    '/checkin/llegada': {
+      post: {
+        tags: ['Checkin'],
+        summary: 'Registra la llegada del cliente y lo pone en la cola de atencion',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['qr_token'],
+                properties: { qr_token: { type: 'string', format: 'uuid' } },
+              },
+            },
+          },
+        },
+        responses: { 200: { description: 'Llegada registrada' }, 409: { description: 'Reserva cancelada' } },
+      },
+    },
+    '/checkin/cobro-efectivo': {
+      post: {
+        tags: ['Checkin'],
+        summary: 'Registra un cobro en efectivo antes de iniciar el servicio',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['reserva_id', 'monto'],
+                properties: {
+                  reserva_id: { type: 'integer' },
+                  monto: { type: 'number', minimum: 1 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Cobro registrado' },
+          409: { description: 'Ya existe pago o cobro, o la reserva esta cerrada' },
+        },
+      },
+    },
+    '/checkin/iniciar': {
+      post: {
+        tags: ['Checkin'],
+        summary: 'Inicia el servicio; exige pago en linea aprobado o cobro en efectivo',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['reserva_id'],
+                properties: { reserva_id: { type: 'integer' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Servicio en curso' },
+          409: { description: 'Pago pendiente, reserva cancelada o ya atendida' },
+        },
+      },
+    },
+    '/checkin/finalizar': {
+      post: {
+        tags: ['Checkin'],
+        summary: 'Finaliza el servicio y deja la reserva en cobrado',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['reserva_id'],
+                properties: { reserva_id: { type: 'integer' } },
+              },
+            },
+          },
+        },
+        responses: { 200: { description: 'Servicio finalizado' }, 409: { description: 'Pago pendiente o reserva cerrada' } },
+      },
+    },
     '/checkin/validar': {
       post: {
         tags: ['Checkin'],
-        summary: 'Valida QR y registra check-in + cobro en una transaccion; deja la reserva en cobrado',
+        summary: 'Atajo legacy: valida QR, cobra y finaliza en una sola transaccion',
         requestBody: {
           required: true,
           content: {
@@ -317,7 +425,7 @@ const openapi = {
                 required: ['qr_token'],
                 properties: {
                   qr_token: { type: 'string', format: 'uuid' },
-                  monto: { type: 'number', minimum: 0, description: '0 = pago online; >0 = pago fisico' },
+                  monto: { type: 'number', minimum: 0, description: '0 requiere un pago en linea aprobado; >0 registra efectivo' },
                 },
               },
             },
@@ -326,7 +434,7 @@ const openapi = {
         responses: {
           200: { description: 'Check-in y cobro registrados' },
           400: { description: 'Fuera de la ventana +-120 min o monto invalido' },
-          409: { description: 'Reserva cancelada o ya cobrada' },
+          409: { description: 'Pago pendiente, reserva cancelada o ya cobrada' },
         },
       },
     },
@@ -366,9 +474,9 @@ const openapi = {
     '/pagos/intencion': {
       post: {
         tags: ['Pagos'],
-        summary: 'Crea una intencion de pago Wompi para una reserva del cliente',
+        summary: 'Crea una intencion de pago Wompi para una reserva (cliente dueno, empleado o admin)',
         description:
-          'Recalcula el monto en el servidor (precio_base x cantidad_personas), genera una referencia unica y devuelve la configuracion del widget de Wompi (llave publica, monto en centavos, firma de integridad y datos del pagador). El cobro digital se procesa en el checkout de Wompi (tarjeta, PSE, Nequi, Bancolombia).',
+          'Recalcula el monto en el servidor (precio_base x cantidad_personas), genera una referencia unica y devuelve la configuracion del widget de Wompi, la URL de checkout y un QR para pagar desde el celular del cliente (tarjeta, PSE, Nequi, Bancolombia). El cliente solo puede pagar sus reservas; el empleado solo las suyas.',
         requestBody: {
           required: true,
           content: {
@@ -384,9 +492,9 @@ const openapi = {
         responses: {
           201: { description: 'Intencion creada' },
           400: { description: 'Datos invalidos' },
-          403: { description: 'La reserva pertenece a otro cliente' },
+          403: { description: 'La reserva pertenece a otro cliente u empleado' },
           404: { description: 'Reserva no encontrada' },
-          409: { description: 'Reserva cancelada, cobrada o ya pagada' },
+          409: { description: 'Reserva cancelada, atendida, con cobro o ya pagada' },
         },
       },
     },

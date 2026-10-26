@@ -29,7 +29,7 @@ sgp/
 ├── sgp-app-pod.yaml          # Pod backend + frontend
 ├── .env / .env.example
 ├── db/
-│   └── init.sql              # 10 tablas + seed data
+│   └── init.sql              # 11 tablas + seed data
 ├── backend/
 │   ├── Containerfile         # Backend (Node 22 Alpine + pnpm)
 │   └── src/
@@ -156,7 +156,7 @@ podman volume rm sgp-pgdata
 | Empleado | empleado@sgp.local | empleado123 |
 | Cliente (pruebas) | cliente@sgp.local | cliente123 |
 
-## Base de datos (10 tablas)
+## Base de datos (11 tablas)
 
 | Tabla | Proposito |
 |-------|-----------|
@@ -168,11 +168,14 @@ podman volume rm sgp-pgdata
 | `jornada` | Horario global por sede y fecha |
 | `empleado_disponibilidad` | Disponibilidad semanal por empleado/sede |
 | `reserva` | Citas con QR token y estados |
-| `cobro` | Pagos con metodo fisico/online |
+| `cobro` | Pagos fisicos/online, vinculados a `pago` cuando aplica |
+| `pago` | Intentos de pago digital Wompi, referencias, transacciones y estado |
 | `preferencia_usuario` | Rango horario, granularidad, tema por usuario |
 
 Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S.
-`app_user.telefono` se almacena cifrado con AES-256 (TEXT); `preferencia_usuario.idioma` guarda ES/EN.
+`app_user.telefono` se almacena cifrado con AES-256 (TEXT), en formato E.164 internacional; Colombia usa `+57` + 10 digitos y es la opcion por defecto en la interfaz. `preferencia_usuario.idioma` guarda ES/EN.
+
+El formulario de sedes incluye un mapa Leaflet/OpenStreetMap: al hacer clic, arrastrar el marcador o usar la ubicacion actual se llenan latitud y longitud automaticamente.
 
 ## Datos de demostracion (seed masivo)
 
@@ -195,6 +198,26 @@ Crea por defecto **6 sedes, 10 servicios, 15 empleados, 80 clientes, ~1270 reser
 Salida de datos: `backend/exports/` con `reservas.csv`, `cobros.csv`, `disponibilidad.csv` y `resumen.json` (copiable con `podman cp`). Validaciones automaticas con `bash tests/datos.sh` (sin doble sede/dia, sin solapes, maximo 5 activas, un cobro por reserva, citas dentro de disponibilidad).
 
 Opciones: `--append` (no borra), `--sin-export`, `--sin-api`, `--reservas=2000`, `--empleados=20`, `--clientes=100`, `--diasPasados=60`, `--diasFuturos=60`.
+
+## Dataset de regresion 10x10
+
+Para pruebas funcionales deterministas existe un seed separado:
+
+```bash
+podman exec -w /app/backend sgp-app-backend node src/utils/semillar-pruebas.js
+# o via pnpm
+pnpm run seed:pruebas
+```
+
+Crea exactamente **10 clientes, 10 empleados, 3 sedes, 5 servicios y 30 reservas** (hoy, +10 dias y ayer), con pagos aprobados/declinados/pendientes, cobros fisicos/online, cola de atencion y un manifiesto en `tests/fixtures/seed-10x10.json`.
+
+Credenciales:
+
+- `admin@sgp.local` / `admin123`
+- `cliente01..10@sgp.local` / `cliente123`
+- `empleado01..10@sgp.local` / `empleado123`
+
+La suite `python3 tests/regresion_10x10.py` recorre autenticacion de los 20 usuarios, CRUD, reservas, cola, pagos, webhooks, reportes, logs, preferencias e integridad de datos.
 
 ## Panel de administracion
 
@@ -258,22 +281,35 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | GET | `/api/reservas/agenda?desde&hasta` | Admin (rango de citas para el planificador) |
 | GET | `/api/reservas` | Empleado/Admin |
 
-### Checkin (RF3)
+### Checkin y cola de atencion (RF3)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| POST | `/api/checkin/validar` | Empleado/Admin |
+| POST | `/api/checkin/consultar` | Empleado/Admin |
+| POST | `/api/checkin/llegada` | Empleado/Admin |
+| POST | `/api/checkin/cobro-efectivo` | Empleado/Admin |
+| POST | `/api/checkin/iniciar` | Empleado/Admin |
+| POST | `/api/checkin/finalizar` | Empleado/Admin |
+| POST | `/api/checkin/validar` | Empleado/Admin (atajo legacy) |
 
-`POST /api/checkin/validar` recibe `{ qr_token, monto }` y registra check-in + cobro en una sola transaccion (`SELECT ... FOR UPDATE`): valida estado activo, ventana ±120 min y monto numerico ≥ 0; `monto = 0` ⇒ `metodo='online'`, `monto > 0` ⇒ `metodo='fisico'`; la reserva queda en estado `cobrado` y un segundo intento responde 409. Si la reserva tiene un pago Wompi `aprobado`, el cobro se registra como `online` con el monto real del pago (ignora el monto recibido).
+La cola se deriva de las citas del dia y de `reserva.llego_en`, `inicio_servicio` y `fin_servicio`:
+
+- `llegada`: el empleado escanea el QR y el cliente pasa a **En espera**.
+- `iniciar`: exige pago en linea aprobado o cobro en efectivo; pasa a **En atencion** y permite iniciar antes de la hora si el cliente ya llego.
+- `finalizar`: deja la reserva en **Atendido** y habilita al siguiente cliente; si el servicio termino antes, no se espera la hora.
+- `cobro-efectivo`: registra el pago fisico antes de iniciar.
+- `consultar`: devuelve cliente, servicio, hora, estado de pago y total.
+
+`POST /api/checkin/validar` se conserva como atajo atomico: si hay pago Wompi `aprobado` registra el cobro online con el monto real; si no, exige `monto > 0` para efectivo. Un `monto = 0` sin pago aprobado responde 409.
 
 ### Pagos digitales (Wompi)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| POST | `/api/pagos/intencion` | Cliente |
-| GET | `/api/pagos/:id` | Cliente (dueno) / Empleado / Admin |
-| POST | `/api/pagos/:id/verificar` | Cliente (dueno) / Admin |
+| POST | `/api/pagos/intencion` | Cliente (dueno) / Empleado (dueno) / Admin |
+| GET | `/api/pagos/:id` | Cliente (dueno) / Empleado (dueno) / Admin |
+| POST | `/api/pagos/:id/verificar` | Cliente (dueno) / Empleado (dueno) / Admin |
 | POST | `/api/pagos/webhook` | Publico (firma Wompi) |
 
-Flujo: el cliente elige "Pago en linea" en el paso 5 y el frontend abre el **Widget de Wompi** (`checkout.wompi.co/widget.js`) con la configuracion que devuelve `POST /api/pagos/intencion` (referencia unica, monto en centavos recalculado en el servidor y firma SHA256 de integridad). El checkout procesa tarjeta, PSE, Nequi y Boton Bancolombia. Al aprobarse, `POST /api/pagos/:id/verificar` (o el webhook con checksum SHA256 del secreto de eventos) marca el pago `aprobado` y la reserva `confirmada`; un pago `declinado`/`error` deja la reserva `pendiente` para reintentar o pagar en local. El webhook es idempotente y responde 200 a eventos autenticos; `POST /api/pagos/webhook` con firma invalida responde 401. Las claves privada/secreta nunca se exponen al frontend; el monto siempre se recalcula en el backend (`precio_base × cantidad_personas`).
+Flujo: el cliente elige "Pago en linea" en el paso 5 y el frontend abre el **Widget de Wompi**; en recepcion, el empleado puede generar un **QR de pago** para que el cliente pague desde su celular. `POST /api/pagos/intencion` devuelve la configuracion del widget, `checkout_url` y `qr_data_url` con referencia unica, monto en centavos recalculado en el servidor y firma SHA256 de integridad. El checkout procesa tarjeta, PSE, Nequi y Boton Bancolombia. Al aprobarse, `POST /api/pagos/:id/verificar` (o el webhook con checksum SHA256) marca el pago `aprobado`, crea el `cobro` vinculado y confirma la reserva; un pago `declinado`/`error` deja la reserva `pendiente` para reintentar o pagar en efectivo. El webhook es idempotente y responde 200 a eventos autenticos; firma invalida responde 401. Las claves privada/secreta nunca se exponen al frontend; el monto siempre se recalcula en el backend (`precio_base × cantidad_personas`). No se usa NFC en esta version: el cobro presencial con tarjeta se hace por el checkout/QR de Wompi.
 
 ### Documentacion API (RNF5)
 | Metodo | Ruta | Rol |
@@ -350,8 +386,8 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Documentacion API en `/api/docs` (Swagger UI + OpenAPI 3)
 - Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
 
-Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin+cobro atomico, pagos Wompi (intencion RBAC, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
-Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura) y `tests/e2e.py` (flujo completo).
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin y cola (llegada, efectivo, inicio, finalizacion), pagos Wompi (intencion RBAC, QR, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
+Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura), `tests/e2e.py` (flujo completo) y `tests/regresion_10x10.py` (10 clientes x 10 empleados).
 
 ## Desarrollo local
 
@@ -360,6 +396,8 @@ pnpm install
 pnpm --filter backend dev      # Backend en :3000
 pnpm --filter frontend dev     # Frontend en :5173 con proxy /api → :3000
 pnpm run lint                  # ESLint
+pnpm run seed:pruebas          # Dataset determinista 10 clientes / 10 empleados
+pnpm run test:regresion        # Suite funcional 10x10
 ```
 
 ## Documentacion
@@ -370,8 +408,8 @@ pnpm run lint                  # ESLint
 - [Diseno tecnico](docs/diseno-tecnico.md) — arquitectura, decisiones y estructura del codigo
 - [Modelos UML](docs/modelos-uml.drawio) — casos de uso, clases, secuencias, estados, despliegue y ER (+ [flujo actual](docs/diagrama.drawio))
 - [Mockups e interfaz](docs/mockups.md) — capturas reales por rol (ES/EN, movil)
-- [Modelo de datos](docs/modelo-datos.md) — ER y diccionario de las 10 tablas
-- [Plan de pruebas](docs/plan-pruebas.md) — estrategia, matriz y cobertura (93.84 %)
+- [Modelo de datos](docs/modelo-datos.md) — ER y diccionario de las 11 tablas
+- [Plan de pruebas](docs/plan-pruebas.md) — estrategia, matriz, regresion 10x10 y cobertura
 - [Guia de despliegue](docs/despliegue.md) — Podman, datos demo, operacion y problemas conocidos
 - [Manual tecnico (ES)](docs/manual-tecnico.es.md) | [Manual tecnico (EN)](docs/manual-tecnico.en.md)
 - [Manual de usuario (ES)](docs/manual-usuario.es.md) | [Manual de usuario (EN)](docs/manual-usuario.en.md)

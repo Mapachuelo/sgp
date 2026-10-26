@@ -13,7 +13,7 @@ React SPA (Vite, Tailwind)  ->  Nginx :80/:8080
 Node.js/Express :3000  (JWT + RBAC + Pino + WebSocket + Swagger)
        |
        v
-PostgreSQL 17  (10 tables, raw SQL with pg)
+PostgreSQL 17  (11 tables, raw SQL with pg)
 ```
 
 Deployed with Podman: pod `sgp-db` (PostgreSQL + `sgp-pgdata` volume) and pod `sgp-app` (Nginx + backend) on the `sgp-net` network.
@@ -62,7 +62,7 @@ Seed accounts: `admin@sgp.local / admin123` and `empleado@sgp.local / empleado12
 
 ## 5. Database
 
-- 10 tables: `ubicacion`, `app_user`, `empleado_perfil`, `servicio_catalogo`, `empleado_tiempo_servicio`, `jornada`, `empleado_disponibilidad`, `reserva`, `cobro`, `preferencia_usuario`.
+- 11 tables: `ubicacion`, `app_user`, `empleado_perfil`, `servicio_catalogo`, `empleado_tiempo_servicio`, `jornada`, `empleado_disponibilidad`, `reserva`, `cobro`, `pago`, `preferencia_usuario`.
 - Schema and idempotent migrations in `db/init.sql`; the backend runs it on startup (`database-init.js`) and encrypts plaintext phones.
 - Full data dictionary and UML mapping: `docs/modelo-datos.md` (Spanish).
 - Key rules: one payment per booking (`UNIQUE`), valid states by CHECK, 1–5 people, one venue per employee per day (service-level), business dates in `America/Bogota`.
@@ -77,7 +77,8 @@ Interactive documentation: `http://localhost:8080/api/docs` (OpenAPI 3).
 | Customers | `/api/clientes/me`, `/api/clientes`, block/unblock/delete |
 | Venues | `/api/ubicaciones` CRUD |
 | Bookings | `/api/reservas` (create/list), `/me`, `/agenda`, services, shifts, availability, times |
-| Check-in | `POST /api/checkin/validar` (atomic check-in + payment) |
+| Check-in / queue | `POST /api/checkin/consultar`, `/llegada`, `/cobro-efectivo`, `/iniciar`, `/finalizar`; `/validar` (legacy shortcut) |
+| Payments | `POST /api/pagos/intencion`, `GET /api/pagos/:id`, `POST /api/pagos/:id/verificar`, `POST /api/pagos/webhook` |
 | Reports | `/api/reportes/ventas-diarias`, `/ocupacion`, `/clientes-recurrentes` |
 | Availability | `/api/empleados/disponibilidad`, `/disponibilidad/todas`, `/:id/disponibilidad` |
 | Logs | `/api/logs/actividad`, `/errores`, `/exportar` |

@@ -205,12 +205,14 @@ function paginaClases() {
     '+ estado: pendiente|confirmada|en_curso|cobrado|cancelada',
     '+ qr_token: uuid (UQ)',
     '+ motivo_cancelacion: text',
+    '+ llego_en / inicio_servicio / fin_servicio',
   ]);
-  const cobro = entidad(c, 440, 380, 300, 130, 'Cobro', [
+  const cobro = entidad(c, 440, 380, 300, 150, 'Cobro', [
     '+ id: serial (PK)',
     '+ reserva_id: int (UQ/FK)',
     '+ monto: decimal',
     '+ metodo: fisico|online',
+    '+ pago_id: int (FK/UQ) / pagado_antes',
     '+ cobrado_en / registrado_por',
   ]);
   const servicio = entidad(c, 820, 100, 280, 130, 'ServicioCatalogo', [
@@ -298,16 +300,16 @@ function paginaSecuenciaCheckin() {
   const vida = dibujarParticipantes(c, ['Empleado (UI)', 'API /checkin', 'CheckinService', 'PostgreSQL', 'WebSocket'], 40, 180, 235, '#4A7C59');
 
   const mensajes = [
-    ['Ingresar token QR + monto', 0, 1],
-    ['Validar UUID y monto >= 0', 1, 2],
+    ['Escanear QR (llegada)', 0, 1],
+    ['Consultar reserva y estado de pago', 1, 2],
     ['withTransaction + SELECT ... FOR UPDATE', 2, 3],
-    ['Validar estado activo y ventana +-120 min', 1, 1],
-    ['INSERT cobro (UNIQUE reserva_id)', 2, 3],
-    ['UPDATE reserva SET estado = cobrado', 2, 3],
+    ['Si no pago: QR Wompi o efectivo', 1, 2],
+    ['Vincular cobro a pago_id (si es online)', 2, 3],
+    ['UPDATE reserva SET estado = en_curso', 2, 3],
+    ['Finalizar: estado = cobrado + fin_servicio', 2, 3],
     ['COMMIT', 2, 3],
-    ['200 {estado: cobrado, metodo, monto}', 2, 1],
-    ['reserva.actualizada (WS)', 1, 4],
-    ['[409] ya cobrada / [400] fuera de ventana', 1, 0],
+    ['200 {estado, pago, monto} / evento WS', 2, 4],
+    ['[409] pago pendiente / ya atendida / otro empleado', 1, 0],
   ];
   mensajes.forEach(([texto, desde, hasta], i) => {
     const y = 170 + i * 56;
@@ -328,11 +330,11 @@ function paginaEstados() {
   const cancelada = cajaProceso(c, 390, 330, 150, 46, 'cancelada', '#F5E6E3');
   flecha(c, inicio, pendiente);
   flecha(c, pendiente, confirmada, 'confirmar');
-  flecha(c, confirmada, enCurso, 'cliente llega');
+  flecha(c, confirmada, enCurso, 'llego + pago + iniciar');
   flecha(c, pendiente, cancelada, 'cancela cliente / no-show');
   flecha(c, confirmada, cancelada, 'cancela cliente / cambio de sede');
-  flecha(c, enCurso, cobrado, 'check-in + cobro atomicos');
-  nodo(c, 560, 330, 440, 60, 'Nota: el endpoint de check-in deja la reserva directamente en cobrado (RF3/RF4).', 'text;html=1;fontSize=11;fontColor=#6F6157;');
+  flecha(c, enCurso, cobrado, 'finalizar servicio');
+  nodo(c, 520, 330, 500, 70, 'Nota: la cola usa llego_en, inicio_servicio y fin_servicio. El servicio solo inicia con pago aprobado o efectivo; el check-in legacy sigue disponible.', 'text;html=1;fontSize=11;fontColor=#6F6157;');
   return diagrama('Estados', 'estados', c, 1100, 600);
 }
 
@@ -345,7 +347,7 @@ function paginaDespliegue() {
   nodo(c, 430, 180, 240, 110, 'Nginx (frontend)&#10;puerto 80 -> hostPort 8080&#10;SPA + proxy /api y /ws', 'rounded=1;whiteSpace=wrap;html=1;fillColor=#DCE8E0;strokeColor=#8B5E3C;fontSize=11;');
   nodo(c, 720, 180, 320, 110, 'Backend Node.js/Express :3000&#10;JWT + RBAC + Pino + WebSocket /ws&#10;Swagger /api/docs', 'rounded=1;whiteSpace=wrap;html=1;fillColor=#DCE8E0;strokeColor=#8B5E3C;fontSize=11;');
   bloque(c, 400, 390, 680, 220, '<b>Pod sgp-db</b>', '#F5E8DC');
-  nodo(c, 430, 440, 240, 130, 'PostgreSQL 17 Alpine&#10;10 tablas + seeds&#10;Volumen PVC sgp-pgdata', 'rounded=1;whiteSpace=wrap;html=1;fillColor=#E3EEF7;strokeColor=#8B5E3C;fontSize=11;');
+  nodo(c, 430, 440, 240, 130, 'PostgreSQL 17 Alpine&#10;11 tablas + seeds&#10;Volumen PVC sgp-pgdata', 'rounded=1;whiteSpace=wrap;html=1;fillColor=#E3EEF7;strokeColor=#8B5E3C;fontSize=11;');
   nodo(c, 720, 440, 320, 130, 'init.sql&#10;database-init.js (migraciones idempotentes)&#10;cifrado de telefonos AES-256', 'rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8B5E3C;fontSize=11;');
   nodo(c, 80, 250, 240, 120, 'Brevo API v3&#10;(correo OTP)', 'rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E6;strokeColor=#C4883C;fontSize=11;');
   nodo(c, 80, 420, 240, 60, 'Red Podman: sgp-net', 'rounded=1;whiteSpace=wrap;html=1;fillColor=#EADCF5;strokeColor=#8B5E3C;');
@@ -367,8 +369,9 @@ function paginaEr() {
   const tiempo = entidad(c, 380, 260, 220, 110, 'empleado_tiempo_servicio', ['FK empleado_id', 'FK servicio_id', 'duracion_minutos']);
   const disponibilidad = entidad(c, 380, 430, 220, 120, 'empleado_disponibilidad', ['FK empleado_id', 'FK ubicacion_id', 'dia_semana 1-7', 'hora_inicio, hora_fin']);
   const jornada = entidad(c, 380, 610, 220, 110, 'jornada', ['FK ubicacion_id', 'fecha', 'hora_inicio, hora_fin']);
-  const reserva = entidad(c, 740, 80, 260, 190, 'reserva', ['PK id', 'FK cliente_id / empleado_id', 'FK servicio_id / ubicacion_id', 'inicia_en, termina_en', 'cantidad_personas', 'estado', 'UQ qr_token', 'motivo_cancelacion']);
-  const cobro = entidad(c, 740, 340, 260, 130, 'cobro', ['PK id', 'UQ/FK reserva_id', 'monto, metodo', 'cobrado_en', 'FK registrado_por']);
+  const reserva = entidad(c, 740, 80, 260, 230, 'reserva', ['PK id', 'FK cliente_id / empleado_id', 'FK servicio_id / ubicacion_id', 'inicia_en, termina_en', 'llego_en / inicio_servicio / fin_servicio', 'cantidad_personas', 'estado', 'UQ qr_token', 'motivo_cancelacion']);
+  const cobro = entidad(c, 740, 380, 260, 150, 'cobro', ['PK id', 'UQ/FK reserva_id', 'monto, metodo', 'cobrado_en', 'FK pago_id / pagado_antes', 'FK registrado_por']);
+  const pago = entidad(c, 740, 570, 260, 140, 'pago (Wompi)', ['PK id', 'FK reserva_id', 'UQ referencia / transaction_id', 'monto, moneda, metodo', 'estado / payload']);
 
   flecha(c, usuario, perfil, '1:1');
   flecha(c, usuario, preferencia, '1:1');
@@ -379,6 +382,7 @@ function paginaEr() {
   flecha(c, usuario, disponibilidad, '1:N');
   flecha(c, ubicacion, jornada, '1:N');
   flecha(c, reserva, cobro, '1:0..1');
+  flecha(c, cobro, pago, '0..1:1');
   flecha(c, usuario, cobro, 'registrado_por');
   return diagrama('Modelo ER', 'modeloEr', c, 1100, 850);
 }

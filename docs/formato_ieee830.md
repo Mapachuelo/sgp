@@ -25,7 +25,9 @@ El SGP es una aplicación web fullstack desplegable con Podman que permite:
 - Gestión de sedes físicas con coordenadas geográficas.
 - Reserva de citas en línea con calendario interactivo, selección de sede, estilista, servicio y cantidad de personas, con generación de código QR único.
 - Validación de ingreso por QR y registro de cobro en un solo paso atómico.
-- Cobro digital con pasarela **Wompi** (tarjeta credito/debito, PSE, Nequi, Boton Bancolombia) mediante widget embebido; pago fisico (efectivo) registrado en el local. El monto se recalcula en el servidor y el webhook valida firma SHA256.
+- Cobro digital con pasarela **Wompi** (tarjeta credito/debito, PSE, Nequi, Boton Bancolombia) mediante widget embebido o QR en el celular del cliente; pago fisico (efectivo) registrado en el local. El monto se recalcula en el servidor y el webhook valida firma SHA256.
+- Cola de atencion para citas con hora: llegada por QR, inicio anticipado si el cliente ya esta en espera, finalizacion y paso al siguiente cliente.
+- Telefonos internacionales en formato E.164, con Colombia (`+57`) como opcion por defecto.
 - Paneles diferenciados para cliente, empleado y administrador, incluido un planificador de horarios multi-sede.
 - Reportes administrativos de ventas, ocupación y clientes recurrentes.
 - Gestión de logs del sistema (`logs.txt` y `errores.txt`).
@@ -75,7 +77,7 @@ El SGP es un producto independiente desplegable con Podman (aplicación + Postgr
 ├───────────────────────────────┤
 │ API Node.js/Express (REST+WS) │  JWT + RBAC + Pino + WebSocket
 ├───────────────────────────────┤
-│ PostgreSQL 17 (SQL directo)   │  10 tablas, sin ORM
+│ PostgreSQL 17 (SQL directo)   │  11 tablas, sin ORM
 └───────────────────────────────┘
 ```
 
@@ -169,10 +171,10 @@ El SGP es un producto independiente desplegable con Podman (aplicación + Postgr
 | RF | Nombre | Prioridad | Descripción |
 |----|--------|-----------|-------------|
 | **RF0** | Login Unificado | Alta | Formulario único en `/login` (correo y contraseña); el backend responde `rol` y el frontend redirige a `/cliente`, `/empleado` o `/admin`. |
-| **RF1** | Registro de Cliente | Alta | El cliente se registra con nombre, apellido, celular colombiano (`+57` + 10 dígitos), correo y contraseña. Validación de formato de correo y teléfono en backend; teléfono cifrado en reposo. |
+| **RF1** | Registro de Cliente | Alta | El cliente se registra con nombre, apellido, teléfono internacional en formato E.164 (Colombia `+57` + 10 dígitos por defecto), correo y contraseña. Validación de formato de correo y teléfono en backend; teléfono cifrado en reposo. |
 | **RF2** | Reserva de Cita | Alta | Flujo: (1) sede, (2) estilista disponible en los próximos 6 días, (3) calendario con slots disponible/ocupado/no disponible/pasado/antelación, (4) ventana flotante con servicio, **duración estimada entrada→salida** y **personas (1–5)** que se abre al hacer clic en un horario libre, (5) confirmación con QR. Validaciones de servidor: máximo 5 activas, anticipación ≥60 min, disponibilidad semanal del empleado, duración desde `empleado_tiempo_servicio`, solape con bloqueo por `pg_advisory_xact_lock` (409 con sugerencia de otro horario) y cálculo de `termina_en`. |
-| **RF3** | Validación en Entrada | Alta | `POST /api/checkin/validar` recibe `{ qr_token, monto }`; valida token UUID, estado activo y ventana ±120 min; en una transacción con `SELECT ... FOR UPDATE` registra el cobro y deja la reserva en estado `cobrado`; `monto=0` ⇒ `online`, `monto>0` ⇒ `fisico`; un segundo intento responde 409. |
-| **RF4** | Registro de Cobro | Alta | El cobro se registra en el mismo paso atómico del RF3 (`cobro` con `UNIQUE(reserva_id)`), con monto numérico ≥0 y `registrado_por`. El administrador y el empleado disponen de modal de cobro con selector de método. |
+| **RF3** | Validación en Entrada y Cola | Alta | `POST /api/checkin/llegada` registra la llegada por QR y pone al cliente en la cola; `POST /api/checkin/iniciar` exige pago aprobado o efectivo y permite iniciar antes de la hora si el cliente ya está en espera; `POST /api/checkin/finalizar` deja la reserva en `cobrado` y habilita al siguiente cliente. Se conserva `POST /api/checkin/validar` como atajo atómico. |
+| **RF4** | Registro de Cobro | Alta | El cobro se registra con `UNIQUE(reserva_id)`, monto ≥0 y `registrado_por`; si es online queda vinculado a `pago_id` y `pagado_antes`. El empleado puede cobrar por QR (cliente paga en su celular) o efectivo antes de iniciar; el administrador conserva su modal de cobro. |
 | **RF5** | Generación de Reportes | Media | El administrador visualiza ventas por día (total y desglose por servicio), ocupación con porcentaje por sede y clientes recurrentes. Acceso restringido a rol `admin`. |
 | **RF6** | Gestión de Ubicaciones | Alta | CRUD de sedes con nombre, dirección y lat/lng (validación de rangos); las coordenadas alimentan los mapas Leaflet de cliente y empleado; la sede es obligatoria al reservar. |
 | **RF7** | Perfil de Empleado | Media | El empleado ve y edita nombre, apellido, teléfono, correo e **identificación**; el administrador gestiona todos los empleados (CRUD, sedes, horarios y servicios con duración). |
@@ -188,7 +190,7 @@ El SGP es un producto independiente desplegable con Podman (aplicación + Postgr
 | RNF | Área | Descripción |
 |-----|------|-------------|
 | **RNF1** | Rendimiento | Consultas indexadas (`qr_token`, `inicia_en`, `empleado_id`, etc.) y paginación implícita por fecha; validación QR en menos de 0.5 s. |
-| **RNF2** | Seguridad | Contraseñas con bcrypt (12 rounds); teléfono cifrado en reposo con AES-256-CBC (`AES_SECRET`); JWT 30 min; RBAC; rate limiting (10 intentos/15 min en auth, 3 reenvíos OTP/15 min); Helmet; CORS restringido; SQL parametrizado. HTTPS obligatorio en producción (la demo local usa HTTP y `localhost` para la cámara). |
+| **RNF2** | Seguridad | Contraseñas con bcrypt (12 rounds); teléfono cifrado en reposo con AES-256-CBC (`AES_SECRET`); JWT 30 min; RBAC; rate limiting (10 intentos fallidos/15 min en auth, 3 reenvíos OTP/15 min); Helmet; CORS restringido; SQL parametrizado. HTTPS obligatorio en producción (la demo local usa HTTP y `localhost` para la cámara). |
 | **RNF3** | Fiabilidad | Transacciones (`withTransaction`) y locks por empleado/día evitan dobles cobros y solapes; manejo centralizado de errores PostgreSQL (23505/23503/23514/22P02). |
 | **RNF4** | Disponibilidad | Despliegue por pods independientes (`sgp-db`, `sgp-app`) con volumen persistente; reinicio del backend sin perder datos. |
 | **RNF5** | Mantenibilidad | Arquitectura feature-based (`routes → controller → service → model`), frontend modular por funcionalidad y secciones; ESLint limpio; pruebas de integración, datos, unitarias con cobertura y E2E; documentación API auto-generada (Swagger en `/api/docs`). |
@@ -239,8 +241,8 @@ La correspondencia entre el modelo ER y el esquema real se documenta en `docs/mo
 | RF0 | F6 | `features/auth/*` | `funcionalidades/auth/login-page.jsx` | `tests/api.sh` (login admin/empleado), `tests/e2e.py` |
 | RF1 | F1 | `features/auth/*`, `shared/utils/telefono.js` | `auth/registro-page.jsx` | `tests/api.sh` (registro 201), E2E |
 | RF2 | F2 | `features/reservas/*` | `cliente/nueva-reserva.jsx` | E2E (reserva, duración, solape 409) |
-| RF3 | F3 | `features/checkin/*` | `empleado/empleado-dashboard.jsx` | `tests/api.sh` (UUID/monto/404), E2E (cobrado y doble cobro) |
-| RF4 | F4 | `features/checkin/*` | `admin/secciones/cobro-modal.jsx` | E2E (método físico, monto) |
+| RF3 | F3 | `features/checkin/*` | `empleado/empleado-dashboard.jsx` | `tests/regresion_10x10.py` (llegada, inicio, finalización, acceso por empleado), E2E (cobrado y doble cobro) |
+| RF4 | F4 | `features/checkin/*`, `features/pagos/*` | `empleado/empleado-dashboard.jsx`, `componentes/pagos/*` | `tests/regresion_10x10.py` (QR, webhook, efectivo, pago vinculado) |
 | RF5 | F5 | `features/reportes/*` | `admin/secciones/reportes-seccion.jsx` | `tests/api.sh` (ocupación admin), E2E (ventas/ocupación) |
 | RF6 | F7 | `features/ubicaciones/*` | `admin/secciones/sedes-seccion.jsx` | `tests/api.sh` (catálogo público), E2E (crear/eliminar sede) |
 | RF7 | F6, F1 | `features/clientes/*`, `features/auth/*` | `empleado/mi-perfil.jsx` | Unitarias (`clientes.service`), manual |

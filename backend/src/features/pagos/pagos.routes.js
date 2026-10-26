@@ -5,8 +5,8 @@ const { authenticate, authorize } = require('../../shared/middlewares/auth.middl
 const router = Router();
 
 router.post('/webhook', pagosController.webhook);
-router.post('/intencion', authenticate, authorize('cliente'), pagosController.crearIntencion);
+router.post('/intencion', authenticate, authorize('cliente', 'empleado', 'admin'), pagosController.crearIntencion);
 router.get('/:id', authenticate, pagosController.obtenerPago);
-router.post('/:id/verificar', authenticate, authorize('cliente', 'admin'), pagosController.verificarPago);
+router.post('/:id/verificar', authenticate, authorize('cliente', 'empleado', 'admin'), pagosController.verificarPago);
 
 module.exports = router;

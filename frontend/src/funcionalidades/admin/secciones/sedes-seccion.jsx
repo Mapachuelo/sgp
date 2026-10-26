@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import SelectorUbicacion from '../../../componentes/mapa/selector-ubicacion.jsx';
 import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 
@@ -38,9 +39,19 @@ export default function SedesSeccion({ open, onClose, onToast }) {
 
   const guardar = async () => {
     if (!form.nombre || !form.direccion) return onToast?.('Nombre y direccion son obligatorios', 'warning');
+    const latitud = Number(form.latitud);
+    const longitud = Number(form.longitud);
+    if (
+      form.latitud === '' ||
+      form.longitud === '' ||
+      !Number.isFinite(latitud) ||
+      !Number.isFinite(longitud)
+    ) {
+      return onToast?.('Selecciona la ubicacion de la sede en el mapa', 'warning');
+    }
     setGuardando(true);
     try {
-      const body = { ...form, latitud: Number(form.latitud) || 0, longitud: Number(form.longitud) || 0 };
+      const body = { ...form, latitud, longitud };
       if (editId) await api.ubicaciones.update(editId, body);
       else await api.ubicaciones.create(body);
       onToast?.(editId ? 'Sede actualizada' : 'Sede creada');
@@ -84,6 +95,19 @@ export default function SedesSeccion({ open, onClose, onToast }) {
               <Input label="Direccion" value={form.direccion} onChange={(e) => setForm((p) => ({ ...p, direccion: e.target.value }))} />
               <Input label="Latitud" type="number" step="any" value={form.latitud} onChange={(e) => setForm((p) => ({ ...p, latitud: e.target.value }))} />
               <Input label="Longitud" type="number" step="any" value={form.longitud} onChange={(e) => setForm((p) => ({ ...p, longitud: e.target.value }))} />
+            </div>
+            <div className="mt-4">
+              <SelectorUbicacion
+                latitud={form.latitud}
+                longitud={form.longitud}
+                onChange={(latitud, longitud) =>
+                  setForm((previo) => ({
+                    ...previo,
+                    latitud: String(latitud),
+                    longitud: String(longitud),
+                  }))
+                }
+              />
             </div>
             <div className="flex gap-2 mt-4">
               <Button variant="primario" onClick={guardar} disabled={guardando}>{guardando ? <Spinner /> : editId ? 'Actualizar' : 'Crear'}</Button>

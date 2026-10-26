@@ -13,7 +13,7 @@ Hair Salon Management System user guide for customers, employees and administrat
 ### 1.1 Create an account (customers only)
 
 1. On the login screen, click **Regístrate / Sign up**.
-2. Fill in first name, last name, Colombian phone (`+57` plus 10 digits), email and password.
+2. Fill in first name, last name, phone (choose the country; Colombia `+57` is selected by default), email and password.
 3. A 6-digit OTP code is emailed; the account becomes active after verification.
 
 ![Sign up](img/registro.png)
@@ -54,7 +54,7 @@ If the slot is taken while you decide, you get an error and the calendar refresh
 
 ### 2.3 My profile
 
-Edit first name, last name, phone, email and password.
+Edit first name, last name, phone, email and password. The phone field lets you choose a country; Colombia (+57) is the default and international numbers are accepted.
 
 ![Profile](img/cliente-perfil.png)
 
@@ -64,7 +64,12 @@ Edit first name, last name, phone, email and password.
 
 Timeline colored by state with quick actions:
 - `[Validar QR]`: opens the modal to paste the token or use the camera.
-- `[Registrar cobro]`: token-based payment; choose "Online payment ($0)" or "Cash at venue".
+- `[Scan QR]`: registers arrival and adds the customer to the service queue.
+- **Service queue:** shows the customer in service, waiting customers and scheduled appointments, with name, time and payment status.
+- `[Start service]`: only appears when payment is resolved; if you finish early, you can serve the next waiting customer immediately.
+- `[Charge via QR]`: generates a Wompi QR so the customer can pay on their phone.
+- `[Cash]`: records the amount received before starting.
+- `[Finish service]`: closes the visit and unlocks the next customer.
 
 The side panel shows today's venue map and the day summary.
 
@@ -73,7 +78,8 @@ The side panel shows today's venue map and the day summary.
 ### 3.2 Validate check-in and payment
 
 1. Click **Validar QR** and paste the token, or enable the camera and point at the QR.
-2. Choose method and amount (0 for online payment) and confirm.
+2. If unpaid, generate a **payment QR** or register cash. Once payment is resolved, press **Start service**.
+3. When finished, press **Finish service**. If you finish early, the system suggests the next waiting customer.
 3. The system validates state and the ±120 minute window; on success it shows "Check-in y cobro registrados". A second attempt warns "La reserva ya fue cobrada".
 
 ### 3.3 My availability
@@ -113,6 +119,7 @@ The **Venue shifts** tab edits opening hours per date.
 ### 4.3 Employees, services and venues
 
 - **Employees:** create/edit with assigned venues, per-venue/day schedules, services and durations; delete only when no payments are associated.
+- **Venues:** when creating or editing, click the map (or drag the marker) to set latitude and longitude; you can also use **Use my location**.
 - **Services:** CRUD plus per-employee durations.
 - **Venues:** CRUD with address and coordinates (feed the maps).
 
@@ -142,7 +149,8 @@ The UI is responsive (hamburger menu, scrollable tables, horizontally scrollable
 |----------|--------|
 | Why can't I book less than 60 minutes ahead? | It is the minimum lead time to prepare the service. |
 | What happens if the stylist changes venue? | Future bookings of that day at the previous venue are cancelled; you will see them in your kanban with the reason. |
-| How do I pay online? | When booking, choose **Online payment** and complete the Wompi checkout (card, PSE, Nequi or Bancolombia). If approved, the booking is confirmed and paid; if declined, you can retry or pay at the venue. |
+| How do I pay online? | When booking, choose **Online payment** and complete the Wompi checkout (card, PSE, Nequi or Bancolombia). You can also pay later from **Pay online** in the booking details. If approved, the booking is confirmed and paid; if declined, you can retry or pay at the venue. |
+| How do I pay on arrival? | If you did not pay in advance, the employee generates a **payment QR** for you to scan on your phone, or records cash. Service starts once payment is resolved. |
 | I did not receive the code | Use "Resend code" (max 3 every 15 min) or check spam. |
 | Why did my registration disappear? | Unverified registrations are deleted after 5 minutes; the email becomes available to register again. |
 | Can I have many bookings? | Up to 5 active bookings per customer. |

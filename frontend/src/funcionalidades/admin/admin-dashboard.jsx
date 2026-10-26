@@ -291,7 +291,12 @@ export default function AdminDashboard() {
                       <td className="py-3 px-3 text-center">
                         <div className="flex flex-col items-center gap-1">
                           <Badge variant={estadoBadgeVariant(reserva.estado)}>{estadoLabel(reserva.estado)}</Badge>
-                          {reserva.pago_estado === 'aprobado' && <Badge variant="success">Pagado</Badge>}
+                          {(reserva.pago_estado === 'aprobado' || reserva.cobro_metodo) && (
+                            <Badge variant="success">Pagado</Badge>
+                          )}
+                          {reserva.pago_estado !== 'aprobado' && !reserva.cobro_metodo && ['pendiente', 'confirmada'].includes(reserva.estado) && (
+                            <Badge variant="warning">Pago pendiente</Badge>
+                          )}
                         </div>
                       </td>
                       <td className="sticky right-0 bg-superficie py-3 px-4 text-center">

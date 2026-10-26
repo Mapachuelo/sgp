@@ -54,7 +54,7 @@ En **Inicio** se muestran columnas por estado: Pendiente, Confirmada, En curso, 
 
 ### 2.3 Mi perfil
 
-Editar nombre, apellido, teléfono, correo y contraseña.
+Editar nombre, apellido, teléfono, correo y contraseña. El teléfono permite elegir el país; Colombia (+57) aparece por defecto y también puedes escribir un número internacional.
 
 ![Perfil](img/cliente-perfil.png)
 
@@ -63,8 +63,12 @@ Editar nombre, apellido, teléfono, correo y contraseña.
 ### 3.1 Citas de hoy
 
 Timeline con color por estado y acciones rápidas:
-- `[Validar QR]`: abre el modal para ingresar el token o usar la cámara.
-- `[Registrar cobro]`: para cobros con token; elegir "Pago online ($0)" o "Efectivo en local".
+- `[Escanear QR]`: registra la llegada del cliente y lo pone en la cola de atención.
+- **Cola de atención:** muestra el cliente en atención, los que están en espera y las citas programadas, con nombre, hora y estado de pago.
+- `[Atender]`: inicia el servicio. Solo aparece cuando el pago está resuelto; si terminaste antes, puedes atender al siguiente cliente sin esperar la hora.
+- `[Cobrar QR]`: genera un QR de Wompi para que el cliente pague desde su celular.
+- `[Efectivo]`: registra el monto recibido antes de iniciar.
+- `[Finalizar servicio]`: cierra la atención y habilita al siguiente cliente.
 
 El panel lateral muestra el mapa de la sede donde trabajas hoy y el resumen del día.
 
@@ -72,7 +76,9 @@ El panel lateral muestra el mapa de la sede donde trabajas hoy y el resumen del 
 
 ### 3.2 Validar ingreso y cobro
 
-1. Pulsar **Validar QR** y pegar el token, o activar la cámara y apuntar al QR.
+1. Pulsar **Escanear QR** y pegar el token, o activar la cámara y apuntar al QR.
+2. El cliente aparece en la cola. Si no pagó, usa **Cobrar QR** o **Efectivo**; cuando el pago esté resuelto, pulsa **Atender**.
+3. Al terminar, pulsa **Finalizar servicio**. Si terminaste antes de la hora, el sistema te muestra al siguiente cliente en espera.
 2. Elegir método y monto (0 para pago online) y confirmar.
 3. El sistema valida estado y ventana ±120 minutos; si todo está bien muestra "Check-in y cobro registrados". Un segundo intento avisa "La reserva ya fue cobrada".
 
@@ -113,6 +119,7 @@ La pestaña **Jornada por sede** permite editar el horario de atención por fech
 ### 4.3 Empleados, servicios y sedes
 
 - **Empleados:** crear/editar con sedes asignadas, horarios por sede/día, servicios y duraciones; eliminar solo sin cobros asociados.
+- **Sedes:** al crear o editar, haz clic en el mapa (o arrastra el marcador) para fijar latitud y longitud; también puedes usar **Usar mi ubicación**.
 - **Servicios:** CRUD y tiempos por empleado.
 - **Sedes:** CRUD con dirección y coordenadas (alimentan los mapas).
 
@@ -142,7 +149,8 @@ La interfaz es responsiva (menú hamburguesa, tablas con scroll y planificador c
 |----------|-----------|
 | ¿Por qué no puedo reservar en menos de 60 minutos? | Es la anticipación mínima para preparar el servicio. |
 | ¿Qué pasa si el estilista cambia de sede? | Las reservas futuras de ese día en la sede anterior se cancelan y lo verás en tu kanban con el motivo. |
-| ¿Cómo pago en línea? | Al reservar elige **Pago en línea** y completa el checkout de Wompi (tarjeta, PSE, Nequi o Bancolombia). Si se aprueba, la reserva queda confirmada y pagada; si se rechaza, puedes reintentar o pagar en el local. |
+| ¿Cómo pago en línea? | Al reservar elige **Pago en línea** y completa el checkout de Wompi (tarjeta, PSE, Nequi o Bancolombia). También puedes pagar después desde **Pagar en línea** en el detalle de tu reserva. Si se aprueba, la reserva queda confirmada y pagada; si se rechaza, puedes reintentar o pagar en el local. |
+| ¿Cómo pago al llegar? | Si no pagaste antes, el empleado genera un **QR de pago** para que lo escanees con tu celular, o registra el pago en efectivo. El servicio inicia cuando el pago esté resuelto. |
 | ¿No me llegó el código? | Usa "Reenviar código" (máx. 3 cada 15 min) o revisa spam. |
 | ¿Por qué desapareció mi registro? | Los registros sin verificar se eliminan a los 5 minutos; el correo queda libre para registrarte otra vez. |
 | ¿Puedo tener muchas reservas? | Máximo 5 activas por cliente. |

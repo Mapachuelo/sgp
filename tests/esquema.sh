@@ -59,6 +59,24 @@ validar "cobro.reserva_id es UNIQUE (un cobro por reserva)" \
 validar "cobro.metodo restringido por CHECK" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='cobro'::regclass AND contype='c' AND pg_get_constraintdef(oid) LIKE '%metodo%')"
 
+validar "reserva.llego_en existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reserva' AND column_name='llego_en' AND data_type='timestamp with time zone')"
+
+validar "reserva.inicio_servicio existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reserva' AND column_name='inicio_servicio' AND data_type='timestamp with time zone')"
+
+validar "reserva.fin_servicio existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reserva' AND column_name='fin_servicio' AND data_type='timestamp with time zone')"
+
+validar "cobro.pago_id existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cobro' AND column_name='pago_id')"
+
+validar "cobro.pagado_antes existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cobro' AND column_name='pagado_antes' AND data_type='boolean')"
+
+validar "FK cobro.pago_id -> pago ON DELETE SET NULL" \
+  "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='cobro'::regclass AND contype='f' AND confrelid='pago'::regclass AND confdeltype='n')"
+
 validar "pago.referencia es UNIQUE" \
   "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='pago' AND indexdef LIKE '%UNIQUE%referencia%')"
 
@@ -92,7 +110,7 @@ validar "FK empleado_perfil.usuario_id -> app_user ON DELETE CASCADE" \
 validar "FK reserva.servicio_id -> servicio_catalogo" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='reserva'::regclass AND contype='f' AND confrelid='servicio_catalogo'::regclass)"
 
-for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_cobro_cobrado_en idx_pago_reserva_id idx_pago_estado idx_pago_referencia idx_app_user_rol_bloqueado; do
+for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_reserva_llego_en idx_cobro_cobrado_en idx_cobro_pago_id idx_pago_reserva_id idx_pago_estado idx_pago_referencia idx_app_user_rol_bloqueado; do
   validar "Indice $indice existe" "SELECT to_regclass('public.$indice') IS NOT NULL"
 done
 

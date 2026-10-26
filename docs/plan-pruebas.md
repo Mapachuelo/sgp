@@ -12,6 +12,7 @@ Estrategia de verificación del SGP. Relaciona cada requisito (RF/RNF) con prueb
 | Datos | SQL (bash + psql) | Integridad del dataset (sin solapes, ≤5 activas, una sede/día, cobro único) | `bash tests/datos.sh` |
 | Esquema | SQL (bash + psql) | Tablas, columnas, constraints e índices documentados vs BD real | `bash tests/esquema.sh` |
 | Extremo a extremo | Python (urllib + psql) | Flujo completo reserva → QR → check-in/cobro → RF9 → reportes → agenda | `python3 tests/e2e.py` |
+| Regresion 10x10 | Python (urllib + psql) | 10 clientes y 10 empleados: auth, CRUD, reservas, cola, pagos, webhooks, reportes, logs, preferencias e integridad | `python3 tests/regresion_10x10.py` |
 | Interfaz | Capturas Chromium/CDP | Pantallas por rol, ES/EN y móvil | `docs/mockups.md` |
 | Manual | Casos guiados | Cámara QR y correo OTP real (dependen del entorno) | `docs/manual-usuario.es.md` |
 
@@ -19,14 +20,15 @@ Estrategia de verificación del SGP. Relaciona cada requisito (RF/RNF) con prueb
 
 | Suite | Resultado | Fecha |
 |-------|-----------|-------|
-| `tests/api.sh` | 33/33 | 2026-10-08 |
-| `tests/datos.sh` | 6/6 | 2026-10-08 |
-| `tests/esquema.sh` | 40/40 | 2026-10-08 |
-| `tests/unit/*.test.js` | 46/46 | 2026-10-08 |
-| `tests/e2e.py` | 41/41 | 2026-10-08 |
-| Cobertura (líneas) | **>= 80 %** (RNF5) | 2026-10-08 |
+| `tests/api.sh` | 34/34 | 2026-10-26 |
+| `tests/datos.sh` | 6/6 | 2026-10-26 |
+| `tests/esquema.sh` | 48/48 | 2026-10-26 |
+| `tests/unit/*.test.js` | 50/50 | 2026-10-26 |
+| `tests/e2e.py` | 42/42 | 2026-10-26 |
+| `tests/regresion_10x10.py` | 122/122 | 2026-10-26 |
+| Cobertura (líneas / ramas / funciones) | **91.91 % / 75.83 % / 94.90 %** (RNF5) | 2026-10-26 |
 
-Ampliaciones 2026-10-08: `pago` en esquema (tabla, UNIQUEs, CHECK, FK e índices), RBAC de `POST /pagos/intencion` y webhook con firma inválida en `api.sh`, unitarias `wompi.test.js` (firma de integridad, checksum, consulta) y `pagos.test.js` (monto server-side, aprobado/declinado, idempotencia), y flujo e2e con webhook firmado (aprobado/declinado) + check-in de reserva pagada con monto real.
+Ampliaciones 2026-10-26: cola de atencion (`llego_en`, `inicio_servicio`, `fin_servicio`), cobro vinculado a `pago_id` y `pagado_antes`, QR de pago Wompi, bloqueo de inicio sin pago, llegada/inicio/finalizacion, telefonos internacionales, selector de mapa en sedes, seed determinista 10x10 y suite de regresion con 10 clientes y 10 empleados. Las unitarias cubren cola, pago aprobado, acceso por empleado, QR y validacion internacional.
 
 Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` (red), `src/server.js` y `src/utils/semillar-*.js` (seeds), por ser infraestructura o utilidades de datos, no lógica de negocio.
 
@@ -36,7 +38,9 @@ Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` 
 |--------|-----------|
 | auth.model / auth.service | 95.3 % / 91.4 % |
 | purga.service (registros sin verificar) | 100 % |
-| checkin.model / checkin.service | 100 % / 92.5 % |
+| checkin.model / checkin.service | 95.97 % / 91.15 % |
+| pagos.model / pagos.service | 100 % / 73.86 % |
+| cola.test (llegada, efectivo, inicio, fin y acceso) | 100 % de los casos nuevos |
 | clientes.model / clientes.service | 74.5 % / 76.2 % |
 | disponibilidad.model / service | 78.3 % / 94.1 % |
 | logs.service | 73.1 % |

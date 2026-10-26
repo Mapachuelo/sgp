@@ -82,7 +82,7 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
         <div className="space-y-4">
           <p className="text-sm text-texto-secundario flex items-center gap-2">
             <QrCode className="w-4 h-4" aria-hidden="true" />
-            Escanea o ingresa el token QR para registrar el ingreso y el cobro.
+            Escanea o ingresa el token QR para registrar el ingreso. Si no hay pago en linea, ingresa el monto en efectivo.
           </p>
 
           {!camaraActiva ? (
@@ -103,7 +103,7 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
 
           <Input label="Token QR" value={qrToken} onChange={(e) => setQrToken(e.target.value)} placeholder="Token QR de la reserva" />
           <Input
-            label="Monto recibido (0 = pago online)"
+            label="Monto recibido (0 = pago en linea aprobado)"
             type="number"
             step="0.01"
             min="0"

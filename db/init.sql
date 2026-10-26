@@ -86,8 +86,15 @@ CREATE TABLE IF NOT EXISTS reserva (
   qr_token UUID DEFAULT gen_random_uuid(),
   qr_data_url TEXT,
   motivo_cancelacion TEXT,
+  llego_en TIMESTAMPTZ,
+  inicio_servicio TIMESTAMPTZ,
+  fin_servicio TIMESTAMPTZ,
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS llego_en TIMESTAMPTZ;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS inicio_servicio TIMESTAMPTZ;
+ALTER TABLE reserva ADD COLUMN IF NOT EXISTS fin_servicio TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS cobro (
   id SERIAL PRIMARY KEY,
@@ -113,6 +120,9 @@ CREATE TABLE IF NOT EXISTS pago (
   actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE cobro ADD COLUMN IF NOT EXISTS pago_id INTEGER REFERENCES pago(id) ON DELETE SET NULL;
+ALTER TABLE cobro ADD COLUMN IF NOT EXISTS pagado_antes BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS preferencia_usuario (
   id SERIAL PRIMARY KEY,
   usuario_id INTEGER UNIQUE NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
@@ -130,7 +140,9 @@ CREATE INDEX IF NOT EXISTS idx_reserva_cliente_id ON reserva(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_reserva_empleado_id ON reserva(empleado_id);
 CREATE INDEX IF NOT EXISTS idx_reserva_estado ON reserva(estado);
 CREATE INDEX IF NOT EXISTS idx_reserva_ubicacion_id ON reserva(ubicacion_id);
+CREATE INDEX IF NOT EXISTS idx_reserva_llego_en ON reserva(llego_en);
 CREATE INDEX IF NOT EXISTS idx_cobro_cobrado_en ON cobro(cobrado_en);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cobro_pago_id ON cobro(pago_id);
 CREATE INDEX IF NOT EXISTS idx_pago_reserva_id ON pago(reserva_id);
 CREATE INDEX IF NOT EXISTS idx_pago_estado ON pago(estado);
 CREATE INDEX IF NOT EXISTS idx_pago_referencia ON pago(referencia);

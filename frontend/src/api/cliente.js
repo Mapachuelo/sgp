@@ -75,6 +75,11 @@ const api = {
     agenda: (params) => request(`/reservas/agenda?${new URLSearchParams(params)}`),
   },
   checkin: {
+    consultar: (qr_token) => request('/checkin/consultar', { method: 'POST', body: JSON.stringify({ qr_token }) }),
+    llegada: (qr_token) => request('/checkin/llegada', { method: 'POST', body: JSON.stringify({ qr_token }) }),
+    cobroEfectivo: (reserva_id, monto) => request('/checkin/cobro-efectivo', { method: 'POST', body: JSON.stringify({ reserva_id, monto }) }),
+    iniciar: (reserva_id) => request('/checkin/iniciar', { method: 'POST', body: JSON.stringify({ reserva_id }) }),
+    finalizar: (reserva_id) => request('/checkin/finalizar', { method: 'POST', body: JSON.stringify({ reserva_id }) }),
     validar: (body) => request('/checkin/validar', { method: 'POST', body: JSON.stringify(body) }),
   },
   pagos: {

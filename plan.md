@@ -19,15 +19,18 @@ Construir un sistema web de gestión de peluquería (reservas en línea, validac
 | 6. Verificación OTP | Registro con OTP por correo (Brevo API v3) y verificación por código | Completada (pendiente credenciales válidas de Brevo) |
 | 7. Endurecimiento | Transacciones, locks, validaciones, AES-256 del teléfono, rate limiting | Completada |
 | 8. Datos demo | Seed masivo parametrizable y validaciones SQL | Completada |
-| 9. Pruebas | API, datos, esquema, unitarias con cobertura y E2E | Completada |
+| 9. Pruebas | API, datos, esquema, unitarias con cobertura, E2E y regresion 10x10 | Completada |
 | 10. Documentación | IEEE 830, UML, mockups, modelo de datos, manuales ES/EN | Completada |
 
 ## 3. Funcionalidades entregadas
 
 - Login unificado con redirección por rol y verificación de cuenta por OTP.
 - Reserva de citas: sede → estilista → calendario → modal (servicio, duración, personas) → QR.
-- Kanban del cliente con mapa de la sede, descarga de QR y cancelación.
-- Panel del empleado: timeline por color, mapa, `[Validar QR]` y `[Registrar cobro]`.
+- Pago digital Wompi (tarjeta, PSE, Nequi, Bancolombia) con widget, QR en el celular del cliente y webhook idempotente.
+- Cola de atencion por cita: llegada por QR, inicio anticipado, cobro QR/efectivo y finalizacion con paso al siguiente cliente.
+- Kanban del cliente con mapa de la sede, descarga de QR, pago posterior y cancelación.
+- Panel del empleado: cola de atencion, timeline por color, mapa, llegada, cobro y finalizacion.
+- Telefonos internacionales E.164 con Colombia (+57) por defecto y mapa seleccionable al crear sedes.
 - Panel del administrador: KPIs, timeline, 9 accesos en ventanas flotantes y **planificador de horarios empleados × días** con citas superpuestas y cambio de sede (RF9).
 - CRUD de empleados/servicios/sedes, jornadas por sede, reportes, moderación de clientes y logs con exportación.
 - Interfaz ES/EN, responsiva y accesible; documentación de API en `/api/docs`.
@@ -47,18 +50,21 @@ Construir un sistema web de gestión de peluquería (reservas en línea, validac
 
 | Suite | Resultado |
 |-------|-----------|
-| API (`tests/api.sh`) | 28/28 |
+| API (`tests/api.sh`) | 34/34 |
 | Datos (`tests/datos.sh`) | 6/6 |
-| Esquema (`tests/esquema.sh`) | 32/32 |
-| Unitarias (`backend/tests/unit`) | 36/36 |
-| Cobertura (líneas) | 93.84 % |
-| E2E (`tests/e2e.py`) | 29/29 |
+| Esquema (`tests/esquema.sh`) | 48/48 |
+| Unitarias (`backend/tests/unit`) | 50/50 |
+| Cobertura (líneas / ramas / funciones) | 91.91 % / 75.83 % / 94.90 % |
+| E2E (`tests/e2e.py`) | 42/42 |
+| Regresion 10x10 (`tests/regresion_10x10.py`) | 122/122 |
 
 Detalle en `docs/plan-pruebas.md`.
 
 ## 6. Riesgos y pendientes
 
-- Rotar `BREVO_API_KEY`, `JWT_SECRET` y `AES_SECRET` antes de producción; la key actual falla al enviar OTP.
+- Rotar `BREVO_API_KEY`, `JWT_SECRET`, `AES_SECRET` y las llaves de producción de Wompi antes de producción; la key actual de Brevo puede fallar al enviar OTP.
+- Configurar la URL pública de eventos de Wompi (`https://<dominio>/api/pagos/webhook`).
 - Probar el escaneo QR con cámara en un equipo con webcam (entrada manual disponible como respaldo).
 - HTTPS en producción para habilitar cámara y proteger credenciales.
 - Respaldos del volumen `sgp-pgdata`.
+- NFC queda fuera de alcance; el cobro presencial usa QR/checkout Wompi o efectivo.

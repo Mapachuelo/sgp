@@ -19,6 +19,7 @@ servicio_catalogo 1───N empleado_tiempo_servicio
 servicio_catalogo 1───N reserva
 reserva 1───0..1 cobro
 reserva 1───N pago
+cobro 0..1───1 pago (pago_id)
 app_user 1───N cobro (registrado_por)
 ```
 
@@ -113,9 +114,12 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 | qr_token | uuid | DEFAULT `gen_random_uuid()` |
 | qr_data_url | text | PNG en base64 (se genera para reservas activas) |
 | motivo_cancelacion | text | `no-show`, `Cancelada por el cliente`, `El empleado cambió de sede` |
+| llego_en | timestamptz | Momento en que el empleado escanea el QR y el cliente entra a la cola |
+| inicio_servicio | timestamptz | Inicio real del servicio (puede ser antes de la hora si el cliente ya está en espera) |
+| fin_servicio | timestamptz | Fin real del servicio; habilita el paso al siguiente cliente |
 | creado_en | timestamptz | DEFAULT now() |
 
-Índices: `idx_reserva_inicia_en`, `idx_reserva_cliente_id`, `idx_reserva_empleado_id`, `idx_reserva_estado`, `idx_reserva_ubicacion_id`.
+Índices: `idx_reserva_inicia_en`, `idx_reserva_cliente_id`, `idx_reserva_empleado_id`, `idx_reserva_estado`, `idx_reserva_ubicacion_id`, `idx_reserva_llego_en`.
 
 ### 2.9 `cobro`
 | Columna | Tipo | Restricciones |
@@ -125,9 +129,11 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 | monto | decimal(10,2) | NOT NULL |
 | metodo | varchar(10) | NOT NULL, CHECK `fisico|online` |
 | cobrado_en | timestamptz | DEFAULT now() |
-| registrado_por | integer | FK `app_user(id)` |
+| registrado_por | integer | FK `app_user(id)` (NULL si lo generó el webhook de Wompi) |
+| pago_id | integer | FK `pago(id)` ON DELETE SET NULL; UNIQUE |
+| pagado_antes | boolean | DEFAULT false; pagado antes de la hora de la cita |
 
-Índice: `idx_cobro_cobrado_en`. El UNIQUE garantiza un solo cobro por reserva.
+Índices: `idx_cobro_cobrado_en`, `idx_cobro_pago_id`. El UNIQUE de `reserva_id` garantiza un solo cobro por reserva.
 
 ### 2.10 `pago`
 Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede tener varios intentos; solo un pago `aprobado` confirma la reserva.
@@ -161,7 +167,8 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 ## 3. Reglas de integridad
 
 - Un cobro por reserva (UNIQUE + transacción del check-in).
-- Un pago aprobado mueve la reserva a `confirmada`; al validar el QR, el check-in registra el `cobro` con `metodo='online'` y el monto real del pago (sin pedir monto adicional). Referencias de pago únicas; webhook idempotente por `transaction_id`/estado final.
+- Un pago aprobado crea/vincula el `cobro` online con `pago_id` y mueve la reserva a `confirmada`; el servicio solo puede iniciar si hay pago en línea aprobado o cobro en efectivo. Al finalizar, la reserva pasa a `cobrado` y se registra `fin_servicio`.
+- La cola de atención se deriva de `llego_en` + estado: programado, en espera, en curso o atendido. Referencias de pago únicas; webhook idempotente por `transaction_id`/estado final.
 - Estados válidos de reserva restringidos por CHECK.
 - Cantidad de personas entre 1 y 5.
 - Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro y sus pagos.

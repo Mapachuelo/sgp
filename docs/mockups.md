@@ -62,11 +62,16 @@ QR de ingreso, elección entre **Efectivo en Local** y **Pago en línea**, guía
 
 ![Pago paso 5](img/cliente-pago-wompi.png)
 
-### 2.6 Perfil (`/cliente/perfil`)
+### 2.6 Pago pendiente desde el tablero
+El detalle de una reserva sin pago muestra la insignia **Pago pendiente**, el total y el botón **Pagar en línea**, que abre el checkout de Wompi sin volver al paso 5.
+
+![Pago pendiente cliente](img/cliente-pago-pendiente.png)
+
+### 2.7 Perfil (`/cliente/perfil`)
 
 ![Perfil cliente](img/cliente-perfil.png)
 
-### 2.7 Interfaz en inglés y móvil
+### 2.8 Interfaz en inglés y móvil
 Conmutador ES/EN en la barra de navegación; menú hamburguesa y layout apilado en móvil.
 
 ![Kanban en inglés](img/cliente-kanban-en.png)
@@ -75,12 +80,17 @@ Conmutador ES/EN en la barra de navegación; menú hamburguesa y layout apilado 
 
 ## 3. Rol empleado
 
-### 3.1 Citas de hoy (`/empleado`)
-Timeline con color por estado, resumen del día, mapa de la sede y botones `[Validar QR]` y `[Registrar cobro]`.
+### 3.1 Citas y cola de atención (`/empleado`)
+La cola muestra al cliente en atención, los que están en espera y las citas programadas, con nombre, hora, estado de pago y botones para iniciar, cobrar o finalizar. Si el servicio termina antes, se habilita al siguiente cliente sin esperar la hora.
 
-![Citas empleado](img/empleado-citas.png)
+![Cola de atención](img/empleado-cola.png)
 
-### 3.2 Disponibilidad semanal (`/empleado/disponibilidad`)
+### 3.2 Pago con QR en recepción
+Si el cliente no pagó antes, el empleado genera un QR de Wompi; el cliente lo escanea con su celular y el pago se concilia por webhook. También puede registrar el cobro en efectivo.
+
+![Pago QR empleado](img/empleado-pago-qr.png)
+
+### 3.3 Disponibilidad semanal (`/empleado/disponibilidad`)
 Grilla semanal por sede, servicios asignados con duración y leyenda; una sede por día.
 
 ![Disponibilidad empleado](img/empleado-disponibilidad.png)
@@ -106,6 +116,11 @@ Selección de sede única por día, horario o descanso, con aviso RF9 al cambiar
 Matriz semanal: navegación `◀ semana ▶ Hoy`, filas por semana (2 anteriores y 2 siguientes a la actual) y columnas LUN–DOM con la fecha. Cada celda muestra el horario de atención (`09:00-18:00`) o "Sin jornada"; al hacer clic se abre el editor del día (hora inicio/fin, Guardar, Cerrar día). En móvil los días se muestran como tarjetas apiladas con botón Editar.
 
 ![Jornada sede](img/admin-jornada.png)
+
+### 4.5 Mapa al crear una sede
+El formulario de sedes incluye un mapa Leaflet/OpenStreetMap: clic, arrastre del marcador o **Usar mi ubicación** llenan latitud y longitud automáticamente.
+
+![Mapa de sede](img/admin-sede-mapa.png)
 
 ### 4.5 Gestión de empleados
 CRUD con sedes, horarios por sede/día y servicios con duración.
