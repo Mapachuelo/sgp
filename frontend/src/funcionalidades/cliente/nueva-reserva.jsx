@@ -554,7 +554,7 @@ export default function NuevaReserva() {
       <div className="mx-auto max-w-2xl py-8 text-center sm:py-14">
         <Toast open={toast.open} message={toast.message} type={toast.type} />
         <Card className="p-7 sm:p-10">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#e8f5ee] text-exito">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-exito/10 text-exito">
             <Check className="h-7 w-7" strokeWidth={2} aria-hidden="true" />
           </div>
           <h1 className="text-2xl font-semibold tracking-[-0.03em] text-texto-principal">
@@ -616,7 +616,7 @@ export default function NuevaReserva() {
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${
                     activo
-                      ? 'bg-primario text-white'
+                      ? 'bg-primario text-primario-texto'
                       : completado
                         ? 'bg-acento-suave text-acento-tinta'
                         : 'bg-panel text-tenue'
@@ -1066,7 +1066,7 @@ export default function NuevaReserva() {
 
           <div className="grid gap-5 md:grid-cols-2">
             <div className="flex flex-col items-center rounded-lg border border-borde bg-superficie p-5 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e8f5ee] text-exito">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-exito/10 text-exito">
                 <Check className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
               </div>
               <h3 className="mt-3 text-base font-semibold text-texto-principal">Reserva registrada</h3>
@@ -1150,7 +1150,7 @@ export default function NuevaReserva() {
                           ? 'text-exito'
                           : pagoEstado === 'declinado' || pagoEstado === 'error'
                             ? 'text-error'
-                            : 'text-[#7a4a10]'
+                            : 'text-advertencia'
                       }`}
                     >
                       {pagoMensaje}

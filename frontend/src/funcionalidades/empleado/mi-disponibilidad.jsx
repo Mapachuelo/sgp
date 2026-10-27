@@ -10,9 +10,9 @@ const GRANULARIDADES = [
 ];
 
 const ESTILOS_SLOT = {
-  disponible: 'border-[#9fc9d1] bg-[#e6f1f3] text-[#0f4550]',
+  disponible: 'border-[var(--slot-libre-border)] bg-[var(--slot-libre-bg)] text-[var(--slot-libre-ink)]',
   descanso: 'border-borde bg-panel text-texto-secundario',
-  no_disponible: 'border-[#e9b8b5] bg-[#fbe9e8] text-[#8e2420]',
+  no_disponible: 'border-[var(--slot-ocupado-border)] bg-[var(--slot-ocupado-bg)] text-[var(--slot-ocupado-ink)]',
 };
 
 const ETIQUETAS_SLOT = {
@@ -471,7 +471,7 @@ export default function EmpleadoDisponibilidad() {
                         <button
                           type="button"
                           onClick={() => eliminarServicio(ms.servicio_id)}
-                          className="flex h-5 w-5 items-center justify-center rounded text-error transition-colors hover:bg-[#fbe9e8]"
+                          className="flex h-5 w-5 items-center justify-center rounded text-error transition-colors hover:bg-error/10"
                           aria-label={`Desvincular ${serv?.nombre || 'servicio'}`}
                           title="Desvincular servicio"
                         >

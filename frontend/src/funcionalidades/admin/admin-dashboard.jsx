@@ -62,11 +62,11 @@ function estaPagada(reserva) {
 }
 
 function claseBarra(estado) {
-  if (estado === 'pendiente') return 'border-[#edcf9c] bg-[#fff6e8] text-[#7a4a10]';
-  if (estado === 'confirmada') return 'border-[#cfe3e7] bg-acento-suave text-acento-tinta';
-  if (estado === 'en_curso') return 'border-[#c7d9f2] bg-[#eaf1fb] text-[#1e4f8f]';
-  if (estado === 'cobrado' || estado === 'completada') return 'border-[#b9dfc9] bg-[#e8f5ee] text-[#145c39]';
-  if (estado === 'cancelada') return 'border-[#e9b8b5] bg-[#fbe9e8] text-[#8e2420]';
+  if (estado === 'pendiente') return 'barra-pendiente';
+  if (estado === 'confirmada') return 'barra-confirmada';
+  if (estado === 'en_curso') return 'barra-en-curso';
+  if (estado === 'cobrado' || estado === 'completada') return 'barra-completada';
+  if (estado === 'cancelada') return 'barra-cancelada';
   return 'border-borde bg-panel text-texto-secundario';
 }
 
@@ -362,7 +362,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
         <ul className="mt-3 divide-y divide-regla">
           {atencion.map((item) => (
             <li key={`${item.tipo}-${item.reserva.id}`} className="flex items-start gap-2.5 py-2.5 first:pt-0 last:pb-0">
-              <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${item.tipo === 'pago' ? 'bg-[#a86f0c]' : item.tipo === 'espera' ? 'bg-acento' : 'bg-error'}`} aria-hidden="true" />
+              <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${item.tipo === 'pago' ? 'bg-advertencia' : item.tipo === 'espera' ? 'bg-acento' : 'bg-error'}`} aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-texto-principal">
                   {item.reserva.cliente_nombre || 'Cliente'} {item.reserva.cliente_apellido || ''}
@@ -440,7 +440,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
       render: (r) => (
         <div className="flex flex-col items-start gap-1">
           <StatusPill estado={r.estado}>{estadoLabel(r.estado)}</StatusPill>
-          <span className={`text-[10px] font-medium ${estaPagada(r) ? 'text-exito' : 'text-[#7a4a10]'}`}>
+          <span className={`text-[10px] font-medium ${estaPagada(r) ? 'text-exito' : 'text-advertencia'}`}>
             {estaPagada(r) ? 'Pagado' : 'Sin pago'}
           </span>
         </div>

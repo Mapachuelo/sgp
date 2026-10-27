@@ -61,6 +61,18 @@ La fuente de verdad de los tokens es `frontend/src/index.css`. Los componentes b
 - Tablas de administracion: cabecera sticky, scroll interno, columnas secundarias ocultas en pantallas estrechas.
 - No usar paginacion en un overview corto: limitar filas y enlazar a la vista completa.
 
+## Tema claro y oscuro
+
+- `TemaProvider` en `frontend/src/contexto/tema-context.jsx`; hook en `hooks/use-tema.js`.
+- Preferencias: `claro`, `oscuro`, `sistema`; clave `sgp_tema`.
+- Tema inicial: `sistema`; escuchar `prefers-color-scheme`.
+- `data-theme="dark"` en `<html>`, `color-scheme` y `theme-color` actualizados.
+- Script inline en `index.html` para evitar flash blanco.
+- `BotonTema` en cabeceras/auth y `TemaSelect` en perfiles/sidebar.
+- Estados con tokens de píldora/barras; no colores pastel hardcodeados.
+- QR siempre sobre blanco; mapas con filtro solo al tile pane.
+- Probar ambos temas en 1440, 768 y 390, y el modo sistema en oscuro y claro.
+
 ## Movimiento
 
 - Press: `scale(0.97)`, 120ms, `--ease-out`.
@@ -84,7 +96,8 @@ Ademas, revisar en Chromium a 1440, 768 y 390:
 - sheets sin huecos;
 - acciones sticky visibles;
 - sin scroll horizontal;
-- consola sin errores.
+- consola sin errores;
+- tema claro y oscuro, y persistencia de `sgp_tema`.
 
 ## Cierre
 

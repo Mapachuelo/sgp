@@ -67,14 +67,14 @@ export function Button({
   const base =
     'inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[var(--ease-out)] active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 cursor-pointer select-none';
   const variants = {
-    primario: 'bg-primario text-white hover:bg-primario-hover border border-primario',
+    primario: 'bg-primario text-primario-texto hover:bg-primario-hover border border-primario',
     secundario: 'bg-superficie text-texto-principal border border-control hover:bg-panel',
     outline: 'bg-transparent text-texto-principal border border-borde hover:bg-panel',
     ghost: 'bg-transparent text-texto-secundario hover:bg-panel hover:text-texto-principal border border-transparent',
-    danger: 'bg-error text-white hover:bg-[#a51d22] border border-error',
-    dangerSuave: 'bg-[#fbe9e8] text-[#8e2420] border border-[#e9b8b5] hover:bg-[#f7dedd]',
-    exito: 'bg-exito text-white hover:bg-[#17633f] border border-exito',
-    acento: 'bg-acento text-white hover:bg-[#155a6b] border border-acento',
+    danger: 'bg-error text-error-texto hover:bg-error/90 border border-error',
+    dangerSuave: 'bg-[var(--pill-negative-bg)] text-[var(--pill-negative-ink)] border border-[var(--pill-negative-border)] hover:opacity-90',
+    exito: 'bg-exito text-exito-texto hover:bg-exito/90 border border-exito',
+    acento: 'bg-acento text-acento-texto hover:bg-acento/90 border border-acento',
   };
   const sizes = {
     xs: 'h-7 px-2 text-[11px]',
@@ -211,18 +211,18 @@ export function Card({ children, className = '', padding = true, ...props }) {
 
 export function Badge({ children, variant = 'default', className = '' }) {
   const variants = {
-    default: 'bg-panel text-texto-secundario border-borde',
-    warning: 'bg-[#fff6e8] text-[#7a4a10] border-[#edcf9c]',
-    success: 'bg-[#e8f5ee] text-[#145c39] border-[#b9dfc9]',
-    danger: 'bg-[#fbe9e8] text-[#8e2420] border-[#e9b8b5]',
-    info: 'bg-[#eaf1fb] text-[#1e4f8f] border-[#c7d9f2]',
-    accent: 'bg-acento-suave text-acento-tinta border-[#cfe3e7]',
-    neutral: 'bg-activo text-texto-principal border-control',
+    default: 'badge-default',
+    warning: 'badge-warning',
+    success: 'badge-success',
+    danger: 'badge-danger',
+    info: 'badge-info',
+    accent: 'badge-accent',
+    neutral: 'badge-default',
   };
   return (
     <span
       className={cn(
-        'inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded px-1.5 text-[11px] font-medium leading-none',
+        'inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded border px-1.5 text-[11px] font-medium leading-none',
         variants[variant] || variants.default,
         className
       )}

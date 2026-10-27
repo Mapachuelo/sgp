@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast as notificar } from 'sonner';
+import TemaSelect from '../../componentes/tema/tema-select.jsx';
 import { Button, Card, ConfirmDialog, Input, PageHeader } from '../../componentes/ui/index.jsx';
 import CampoTelefono from '../../componentes/telefono/campo-telefono.jsx';
 import api from '../../api/cliente.js';
@@ -85,6 +86,12 @@ export default function MiPerfil() {
       <PageHeader title="Mi perfil" subtitle="Actualiza tus datos de contacto. El correo de acceso no se puede cambiar." />
 
       <Card>
+        <h2 className="text-sm font-semibold text-texto-principal">Apariencia</h2>
+        <p className="mt-1 text-xs text-texto-secundario">Elige el tema de la interfaz o sigue la preferencia del sistema.</p>
+        <div className="mt-3"><TemaSelect /></div>
+      </Card>
+
+      <Card>
         <h2 className="text-sm font-semibold text-texto-principal">Datos personales</h2>
         <form onSubmit={handleGuardar} className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -124,7 +131,7 @@ export default function MiPerfil() {
         </form>
       </Card>
 
-      <Card className="border-[#e9b8b5]">
+      <Card className="border-error/30">
         <h2 className="text-sm font-semibold text-error">Eliminar cuenta</h2>
         <p className="mt-1 text-xs leading-5 text-texto-secundario">
           Esta acción es permanente. Se eliminan tus reservas y tus accesos al salón. No se puede deshacer.

@@ -197,7 +197,7 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
         </div>
 
         {reserva.motivo_cancelacion && (
-          <div className="rounded-md border border-[#e9b8b5] bg-[#fbe9e8] p-3 text-xs text-[#8e2420]">
+          <div className="rounded-md border border-error/30 bg-error/10 p-3 text-xs text-error">
             Motivo: {reserva.motivo_cancelacion}
           </div>
         )}
@@ -349,8 +349,8 @@ export default function ClienteDashboard() {
                   {proxima.cobro_metodo === 'fisico' ? 'Pagado en efectivo' : 'Pagado con Wompi'}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#7a4a10]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#a86f0c]" aria-hidden="true" />
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-advertencia">
+                  <span className="h-1.5 w-1.5 rounded-full bg-advertencia" aria-hidden="true" />
                   Pago pendiente
                 </span>
               )}
@@ -496,7 +496,7 @@ export default function ClienteDashboard() {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <StatusPill estado={reserva.estado}>{ETIQUETA_ESTADO[reserva.estado] || reserva.estado}</StatusPill>
-                        <span className={`text-[11px] font-medium ${pagada ? 'text-exito' : 'text-[#7a4a10]'}`}>
+                        <span className={`text-[11px] font-medium ${pagada ? 'text-exito' : 'text-advertencia'}`}>
                           {pagada ? 'Pagado' : 'Sin pago'}
                         </span>
                       </div>

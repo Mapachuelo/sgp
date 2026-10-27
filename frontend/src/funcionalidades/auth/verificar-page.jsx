@@ -146,9 +146,9 @@ export default function VerificarPage() {
       }
     >
       {expirado ? (
-        <div className="rounded-md border border-[#edcf9c] bg-[#fff6e8] p-4">
-          <p className="text-sm font-medium text-[#7a4a10]">Tu registro expiró y el correo quedó libre.</p>
-          <p className="mt-1 text-xs leading-5 text-[#7a4a10]/80">Regístrate de nuevo para recibir un código de verificación.</p>
+        <div className="rounded-md border border-advertencia/30 bg-advertencia/10 p-4">
+          <p className="text-sm font-medium text-advertencia">Tu registro expiró y el correo quedó libre.</p>
+          <p className="mt-1 text-xs leading-5 text-advertencia/80">Regístrate de nuevo para recibir un código de verificación.</p>
           <Button className="mt-4 w-full" onClick={() => navigate('/register')}>
             Registrarme de nuevo
           </Button>
@@ -168,18 +168,18 @@ export default function VerificarPage() {
       )}
 
       {!correoEnviado && !expirado && (
-        <div className="mb-4 rounded-md border border-[#edcf9c] bg-[#fff6e8] px-3 py-2.5 text-xs leading-5 text-[#7a4a10]">
+        <div className="mb-4 rounded-md border border-advertencia/30 bg-advertencia/10 px-3 py-2.5 text-xs leading-5 text-advertencia">
           No se pudo enviar el código a tu correo. Usa “Reenviar código” para intentarlo de nuevo.
         </div>
       )}
 
       {error && (
-        <div className="mb-4 rounded-md border border-[#e9b8b5] bg-[#fbe9e8] px-3 py-2.5 text-xs font-medium leading-5 text-[#8e2420]" role="alert">
+        <div className="mb-4 rounded-md border border-error/30 bg-error/10 px-3 py-2.5 text-xs font-medium leading-5 text-error" role="alert">
           {error}
         </div>
       )}
       {info && (
-        <div className="mb-4 rounded-md border border-[#b9dfc9] bg-[#e8f5ee] px-3 py-2.5 text-xs font-medium leading-5 text-[#145c39]" role="status">
+        <div className="mb-4 rounded-md border border-exito/30 bg-exito/10 px-3 py-2.5 text-xs font-medium leading-5 text-exito" role="status">
           {info}
         </div>
       )}

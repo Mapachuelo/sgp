@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import BotonTema from '../tema/boton-tema.jsx';
 
 function Marca() {
   return (
@@ -25,7 +26,10 @@ export default function AuthShell({ title, subtitle, children, footer }) {
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-[1180px] flex-col overflow-hidden bg-superficie lg:min-h-[calc(100dvh-16px)] lg:flex-row lg:rounded-2xl lg:border lg:border-borde">
         <aside className="hidden w-[38%] flex-col justify-between border-r border-borde bg-panel p-8 lg:flex">
           <div>
-            <Marca />
+            <div className="flex items-center justify-between gap-4">
+              <Marca />
+              <BotonTema />
+            </div>
             <p className="mt-16 max-w-[300px] text-[28px] font-semibold leading-[1.08] tracking-[-0.035em] text-texto-principal">
               El día del salón, en orden.
             </p>
@@ -52,8 +56,9 @@ export default function AuthShell({ title, subtitle, children, footer }) {
 
         <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
           <div className="w-full max-w-[400px]">
-            <div className="mb-8 lg:hidden">
+            <div className="mb-8 flex items-center justify-between lg:hidden">
               <Marca />
+              <BotonTema />
             </div>
 
             <div className="mb-7">

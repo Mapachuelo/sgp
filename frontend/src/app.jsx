@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexto/auth-context';
+import { useTema } from './hooks/use-tema.js';
 import Layout from './componentes/layout';
 import RutaProtegida from './componentes/ruta-protegida';
 import LoginPage from './funcionalidades/auth/login-page';
@@ -16,17 +17,20 @@ import AdminDashboard from './funcionalidades/admin/admin-dashboard';
 
 const toastOptions = {
   style: {
-    background: '#ffffff',
-    border: '1px solid #e2e1db',
+    background: 'var(--color-superficie)',
+    border: '1px solid var(--color-borde)',
     borderRadius: '8px',
-    color: '#161716',
-    boxShadow: '0 16px 48px rgba(22,23,22,0.14), 0 2px 8px rgba(22,23,22,0.06)',
+    color: 'var(--color-texto-principal)',
+    boxShadow: 'var(--shadow-float)',
     fontFamily: '"Archivo Variable", system-ui, sans-serif',
     fontSize: '13px',
   },
 };
 
 export default function App() {
+  const { tema } = useTema();
+  const sonnerTheme = tema === 'oscuro' ? 'dark' : 'light';
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -64,7 +68,7 @@ export default function App() {
         </Routes>
         <Toaster
           position="top-right"
-          theme="light"
+          theme={sonnerTheme}
           richColors={false}
           closeButton
           toastOptions={toastOptions}

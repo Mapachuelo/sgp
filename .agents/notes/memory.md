@@ -8,7 +8,9 @@
 - Componentes: `frontend/src/componentes/ui/index.jsx`.
 - Shell fijo en empleado/admin: sidebar y top bar quietas, scroll interno del contenido.
 - Sheets de altura automática con scroll interno; acciones en barras sticky.
-- Verificación: build, lint de design-taste, inspector y capturas Chromium 1440/768/390.
+- Verificación: build, lint de design-taste, inspector y capturas Chromium 1440/768/390 en tema claro y oscuro.
+- Modo oscuro: `TemaProvider` en `frontend/src/contexto/tema-context.jsx`, `sgp_tema` (`claro|oscuro|sistema`), `BotonTema` y `TemaSelect`.
+- Tokens oscuros en `:root[data-theme="dark"]`; QR sobre blanco; mapas con filtro solo al tile pane.
 - Skills de diseño instaladas en `.agents/skills/`; leer las indicadas en `AGENTS.md`.
 - El rediseño y esta documentación deben quedar commiteados para que un clon nuevo los reciba.
 
@@ -604,3 +606,15 @@
 - **Verificacion**: build Vite OK; lint de design-taste `0 FAIL`; inspector de login en build de produccion `0 FAIL`; capturas Chromium 1440/768/390 sin overflow horizontal en rutas de los tres roles; suites API 34/34, datos 6/6, esquema 48/48, unitarias 50/50, cobertura 91.91/75.83/94.90, e2e 42/42, regresion 10x10 122/122. Seed final 10 clientes, 10 empleados y 30 reservas.
 - **Pendiente**: rotar llaves Wompi de produccion y configurar webhook publico. La i18n por nodos traduce etiquetas estaticas; algunas fechas/plurales dinamicos siguen en español.
 - **Correccion de shell y altura (27 Oct)**: el staff ahora usa `h-[100dvh] overflow-hidden`, sidebar y top bar fijas, y scroll interno en el contenido. `Sheet` en escritorio ya no usa `h-full`: altura automática con `max-height` y scroll interno, sin hueco blanco. Acciones de formularios admin y disponibilidad son sticky; la reserva tiene barra sticky en móvil para “Continuar con estilista”. La cola del empleado ya no duplica “Día completo” (solo en `/empleado/agenda`); la agenda del admin muestra 6 filas y enlace a la agenda completa.
+
+## Modo oscuro — 27 Octubre 2026
+
+- **Estado**: implementado y persistente por preferencia (`sgp_tema`: claro/oscuro/sistema), con sistema como valor inicial.
+- **Tokens**: bloque `:root[data-theme="dark"]` en `frontend/src/index.css`; superficies neutras, texto claro, acento teal elevado y tokens de píldoras/slots/barras.
+- **Provider**: `frontend/src/contexto/tema-context.jsx` + `hooks/use-tema.js`; escucha `prefers-color-scheme`, actualiza `data-theme`, `color-scheme`, `meta[name="theme-color"]` y `localStorage`.
+- **Anti-flash**: script inline en `frontend/index.html`.
+- **Controles**: `BotonTema` en cabeceras/auth; `TemaSelect` en perfiles y sidebar; opción Sistema incluida.
+- **Componentes**: `Badge`, `StatusPill`, slots de reserva, barras del timeline, planner, alertas, auth y perfiles tokenizados. `Toaster` usa tema resuelto y variables CSS.
+- **Mapas**: filtro CSS al `.leaflet-tile-pane` en oscuro; marcadores/popups/controles no se invierten. QR siempre sobre blanco.
+- **Documentación**: `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md`, `AGENTS.md`, `contexto.md`, `architecture.md`.
+- **Verificación**: Chromium en claro/oscuro para login, cliente, admin, empleado, reserva, disponibilidad, sheets y perfil; cambio sin recarga, persistencia, sistema oscuro/claro y sin errores de consola.

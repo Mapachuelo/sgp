@@ -55,7 +55,7 @@ export function RielSecciones() {
             aria-current={activa ? 'page' : undefined}
             className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition cursor-pointer lg:w-full ${
               activa
-                ? 'border-primario bg-primario text-white'
+                ? 'border-primario bg-primario text-primario-texto'
                 : 'border-transparent bg-superficie/60 text-texto-secundario hover:border-borde hover:bg-superficie hover:text-texto-principal'
             }`}
           >

@@ -309,7 +309,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                         onClick={() => setSedeActiva(sid)}
                         aria-pressed={sedeActiva === sid}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          sedeActiva === sid ? 'bg-primario text-white' : 'bg-fondo border border-borde text-texto-principal hover:bg-superficie'
+                          sedeActiva === sid ? 'bg-primario text-primario-texto' : 'bg-fondo border border-borde text-texto-principal hover:bg-superficie'
                         }`}
                       >
                         {sede.nombre}

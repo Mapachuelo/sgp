@@ -45,7 +45,7 @@ export default function LoginPage() {
       }
     >
       {error && (
-        <div className="mb-4 rounded-md border border-[#e9b8b5] bg-[#fbe9e8] px-3 py-2.5 text-xs font-medium leading-5 text-[#8e2420]" role="alert">
+        <div className="mb-4 rounded-md border border-error/30 bg-error/10 px-3 py-2.5 text-xs font-medium leading-5 text-error" role="alert">
           {error}
         </div>
       )}

@@ -48,6 +48,8 @@ Reglas que no se negocian:
 - No gradientes, glass, sombras en tarjetas, iconos en KPI ni tablas con cebra.
 - Usar los componentes de `frontend/src/componentes/ui/` antes de crear variantes nuevas.
 - Revisar ES/EN, móvil, foco visible y `prefers-reduced-motion`.
+- Mantener tema claro y oscuro: tokens en `:root[data-theme="dark"]`, preferencia en `sgp_tema`, QR sobre blanco y mapas con filtro solo al tile pane.
+- `TemaProvider`, `BotonTema` y `TemaSelect` viven en `frontend/src/contexto/`, `componentes/tema/` y `hooks/use-tema.js`.
 
 Verificación de UI:
 
@@ -58,7 +60,7 @@ node .agents/skills/design-taste-frontend/scripts/lint.mjs --app frontend/src
 node .agents/skills/design-taste-frontend/scripts/inspect.mjs --app http://localhost:8080/login
 ```
 
-Además, capturas Chromium a 1440, 768 y 390, y revisar que no haya scroll horizontal ni errores de consola.
+Además, capturas Chromium a 1440, 768 y 390 en tema claro y oscuro, y revisar que no haya scroll horizontal ni errores de consola. Probar `sistema` con `prefers-color-scheme` en oscuro y claro.
 
 ## Convenciones
 

@@ -172,7 +172,7 @@ export default function PagoReservaModal({
       <div className="space-y-4">
         {estado === 'aprobado' ? (
           <div className="text-center py-4 space-y-3">
-            <div className="w-14 h-14 mx-auto rounded-full bg-green-50 flex items-center justify-center text-exito">
+            <div className="w-14 h-14 mx-auto rounded-full bg-exito/10 flex items-center justify-center text-exito">
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="20 6 9 17 4 12" />
               </svg>

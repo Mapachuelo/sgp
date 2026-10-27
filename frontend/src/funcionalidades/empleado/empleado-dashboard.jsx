@@ -201,7 +201,7 @@ function LlegadaQRModal({ open, onClose, onSuccess, qrInicial = '' }) {
     <Modal open={open} onClose={cerrar} title="Registrar llegada" size="normal">
       {resultado ? (
         <div className="py-2 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#e8f5ee] text-exito">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-exito/10 text-exito">
             <Check className="h-7 w-7" strokeWidth={2} aria-hidden="true" />
           </div>
           <p className="mt-3 text-lg font-semibold text-texto-principal">Llegada registrada</p>
@@ -220,7 +220,7 @@ function LlegadaQRModal({ open, onClose, onSuccess, qrInicial = '' }) {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative overflow-hidden rounded-lg border border-borde bg-[#161716]" style={{ aspectRatio: '4 / 3' }}>
+          <div className="relative overflow-hidden rounded-lg border border-borde bg-black" style={{ aspectRatio: '4 / 3' }}>
             {camaraActiva ? (
               <>
                 <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
@@ -240,7 +240,7 @@ function LlegadaQRModal({ open, onClose, onSuccess, qrInicial = '' }) {
             <canvas ref={canvasRef} className="hidden" />
           </div>
 
-          {errorCamara && <p className="text-xs text-[#7a4a10]">{errorCamara}</p>}
+          {errorCamara && <p className="text-xs text-advertencia">{errorCamara}</p>}
 
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant={camaraActiva ? 'secundario' : 'primario'} onClick={() => (camaraActiva ? apagarCamara() : activarCamara())}>
@@ -260,7 +260,7 @@ function LlegadaQRModal({ open, onClose, onSuccess, qrInicial = '' }) {
           />
 
           {error && (
-            <p className="rounded-md border border-[#e9b8b5] bg-[#fbe9e8] px-3 py-2 text-xs text-[#8e2420]" role="alert">
+            <p className="rounded-md border border-error/30 bg-error/10 px-3 py-2 text-xs text-error" role="alert">
               {error}
             </p>
           )}
@@ -816,7 +816,7 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
                     <div key={cita.id} className="relative">
                       <span
                         className={`absolute -left-[18px] top-4 h-2 w-2 rounded-full ${
-                          cita.estado === 'en_curso' ? 'bg-acento' : cita.llego_en ? 'bg-[#a86f0c]' : 'border border-control bg-superficie'
+                          cita.estado === 'en_curso' ? 'bg-acento' : cita.llego_en ? 'bg-advertencia' : 'border border-control bg-superficie'
                         }`}
                         aria-hidden="true"
                       />

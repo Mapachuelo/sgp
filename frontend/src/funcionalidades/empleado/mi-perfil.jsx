@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast as notificar } from 'sonner';
 import api from '../../api/cliente';
 import { useAuth } from '../../hooks/use-auth';
+import TemaSelect from '../../componentes/tema/tema-select.jsx';
 import { Button, Card, Input, PageHeader, Spinner } from '../../componentes/ui/index.jsx';
 import CampoTelefono from '../../componentes/telefono/campo-telefono.jsx';
 
@@ -72,6 +73,12 @@ export default function EmpleadoPerfil() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <PageHeader title="Mi perfil" subtitle="Tus datos de contacto y acceso al salón." />
+
+      <Card>
+        <h2 className="text-sm font-semibold text-texto-principal">Apariencia</h2>
+        <p className="mt-1 text-xs text-texto-secundario">Elige el tema de la interfaz o sigue la preferencia del sistema.</p>
+        <div className="mt-3"><TemaSelect /></div>
+      </Card>
 
       <Card>
         <h2 className="text-sm font-semibold text-texto-principal">Datos personales</h2>

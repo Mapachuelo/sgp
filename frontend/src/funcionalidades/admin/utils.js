@@ -92,25 +92,21 @@ export const DIAS_SEMANA = [
   { numero: 7, corto: 'DOM', nombre: 'Domingo' },
 ];
 
-export const PALETA_SEDES = [
-  { bg: '#DCE8E0', borde: '#A3C9A8', texto: '#3F6B4C' },
-  { bg: '#DCE8F2', borde: '#A3BDD4', texto: '#3F5F7F' },
-  { bg: '#F5E8DC', borde: '#E5C7A3', texto: '#8A5E1F' },
-  { bg: '#EADCF5', borde: '#CFA3E5', texto: '#6B4A86' },
-  { bg: '#F5DCE6', borde: '#E5A3BD', texto: '#8A4A6B' },
-  { bg: '#E3F0DA', borde: '#B5D4A0', texto: '#4F6B3F' },
-  { bg: '#F2E9D5', borde: '#D9C79A', texto: '#7A6528' },
-];
+const TOTAL_SEDES = 7;
 
 export function estiloSede(indice) {
-  const color = PALETA_SEDES[((indice % PALETA_SEDES.length) + PALETA_SEDES.length) % PALETA_SEDES.length];
-  return { backgroundColor: color.bg, borderColor: color.borde, color: color.texto };
+  const numero = ((indice % TOTAL_SEDES) + TOTAL_SEDES) % TOTAL_SEDES + 1;
+  return {
+    backgroundColor: `var(--sede-${numero}-bg)`,
+    borderColor: `var(--sede-${numero}-border)`,
+    color: `var(--sede-${numero}-ink)`,
+  };
 }
 
 export const COLOR_ESTADO_CITA = {
-  pendiente: { bg: '#FFF3E6', texto: '#8F5E1D', borde: '#F0C78E' },
-  confirmada: { bg: '#E3EEF7', texto: '#3F5F7F', borde: '#A3BDD4' },
-  en_curso: { bg: '#DCE8F2', texto: '#3F5F7F', borde: '#7FA8C9' },
-  cobrado: { bg: '#DCE8E0', texto: '#3F6B4C', borde: '#A3C9A8' },
-  cancelada: { bg: '#F5E6E3', texto: '#8F3B2E', borde: '#E8C5C0' },
+  pendiente: { bg: 'var(--pill-warning-bg)', texto: 'var(--pill-warning-ink)', borde: 'var(--pill-warning-border)' },
+  confirmada: { bg: 'var(--pill-accent-bg)', texto: 'var(--pill-accent-ink)', borde: 'var(--pill-accent-border)' },
+  en_curso: { bg: 'var(--pill-info-bg)', texto: 'var(--pill-info-ink)', borde: 'var(--pill-info-border)' },
+  cobrado: { bg: 'var(--pill-positive-bg)', texto: 'var(--pill-positive-ink)', borde: 'var(--pill-positive-border)' },
+  cancelada: { bg: 'var(--pill-negative-bg)', texto: 'var(--pill-negative-ink)', borde: 'var(--pill-negative-border)' },
 };

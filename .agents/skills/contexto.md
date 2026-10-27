@@ -83,7 +83,8 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 - Usar solo los tokens de `frontend/src/index.css` y los componentes de `frontend/src/componentes/ui/` antes de crear variantes.
 - Mantener el shell fijo de empleado/admin: sidebar y barra superior quietas, scroll interno del contenido.
 - Los sheets son de altura automatica con scroll interno; las acciones van en barras sticky.
-- Verificar en Chromium a 1440, 768 y 390; revisar consola y scroll horizontal.
+- Verificar en Chromium a 1440, 768 y 390 en tema claro y oscuro; revisar consola y scroll horizontal.
+- Mantener el tema oscuro: `sgp_tema`, `data-theme`, QR sobre blanco y mapas con filtro solo al tile pane.
 - Ejecutar `npx pnpm@11 --filter frontend build`, el lint de design-taste y el inspector cuando se cambie UI.
 - No cambiar logica de negocio, endpoints ni tablas para resolver un problema visual.
 

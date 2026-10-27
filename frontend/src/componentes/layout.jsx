@@ -18,6 +18,8 @@ import {
 import { useAuth } from '../hooks/use-auth';
 import { useI18n } from '../i18n/index.jsx';
 import { Sheet } from './ui/index.jsx';
+import BotonTema from './tema/boton-tema.jsx';
+import TemaSelect from './tema/tema-select.jsx';
 
 function Marca({ compacto = false, to = '/login' }) {
   return (
@@ -163,8 +165,9 @@ function Sidebar({ nav, usuario, logout, onNavigate }) {
             <p className="truncate text-[11px] capitalize text-tenue">{usuario?.rol}</p>
           </div>
         </div>
-        <div className="mt-2 flex items-center gap-2 px-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2 px-2">
           <BotonIdioma />
+          <TemaSelect />
           <button
             type="button"
             onClick={logout}
@@ -203,6 +206,7 @@ function ClientHeader({ usuario, logout }) {
           })}
         </nav>
         <div className="flex items-center gap-2">
+          <BotonTema />
           <BotonIdioma />
           <div className="hidden items-center gap-2 sm:flex">
             <Iniciales nombre={usuario?.nombre} apellido={usuario?.apellido} />
@@ -270,6 +274,7 @@ function StaffHeader({ navPlano, onMenu }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <BotonTema />
         <span className="hidden text-[11px] text-tenue sm:block">
           {new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
         </span>
@@ -303,6 +308,7 @@ function StaffMobileMenu({ open, onClose, nav, usuario, logout }) {
               <p className="text-[11px] capitalize text-tenue">{usuario?.rol}</p>
             </div>
             <BotonIdioma />
+            <TemaSelect />
           </div>
           <button
             type="button"

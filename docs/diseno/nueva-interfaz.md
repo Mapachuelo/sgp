@@ -32,6 +32,34 @@ Antes de cambiar una pantalla, leer también `.agents/skills/diseno-sgp/SKILL.md
 
 Radios: tarjeta 8px, control 6px, sheet 16px. Rejilla base de 4px; gap 16-24px; sidebar 228px; barra superior 48px.
 
+## Modo oscuro
+
+El tema oscuro es neutro, no azul marino:
+
+| Rol | Valor |
+|---|---|
+| Fondo | `#0f100f` |
+| Superficie | `#161816` |
+| Panel | `#1d201d` |
+| Activo | `#272b27` |
+| Borde | `#2a2e2a` |
+| Tinta | `#f2f2ee` |
+| Secundario | `#b4b8b3` |
+| Acento | `#5cc7d8` |
+| Éxito | `#5fd39a` |
+| Aviso | `#f0b45c` |
+| Error | `#f07a72` |
+
+- La preferencia se guarda en `localStorage` como `sgp_tema`: `claro`, `oscuro` o `sistema`.
+- El modo inicial es `sistema`; el `TemaProvider` escucha `prefers-color-scheme`.
+- `data-theme="dark"` en `<html>`, `color-scheme: dark` y `meta[name="theme-color"]` actualizado.
+- El script inline de `index.html` aplica el tema antes de React para evitar el flash blanco.
+- `BotonTema` en cabeceras y auth; `TemaSelect` en perfiles y sidebar para elegir Claro/Oscuro/Sistema.
+- Los estados usan tokens de píldora y barras; no colores pastel hardcodeados.
+- El QR conserva fondo blanco en ambos temas para que siga siendo escaneable.
+- Los mapas aplican un filtro solo al `tile-pane`; marcadores, popups y controles conservan sus tokens.
+- El widget de Wompi es externo y mantiene su propio tema; el contenedor sí cambia.
+
 ## Shell por rol
 
 - Cliente: barra superior de 56px, contenido centrado de 1120px, navegación inferior en móvil.
@@ -56,7 +84,7 @@ Radios: tarjeta 8px, control 6px, sheet 16px. Rejilla base de 4px; gap 16-24px; 
 
 ## Componentes
 
-`Button`, `Input`, `Select`, `Textarea`, `Card`, `Badge`, `StatusPill`, `Sheet`, `Modal`, `ConfirmDialog`, `PageHeader`, `KpiStrip`, `DataTable`, `EmptyState`, `Skeleton`, `Tabs`, `SegmentedControl`, `Spinner`, `Toast`.
+`Button`, `Input`, `Select`, `Textarea`, `Card`, `Badge`, `StatusPill`, `Sheet`, `Modal`, `ConfirmDialog`, `PageHeader`, `KpiStrip`, `DataTable`, `EmptyState`, `Skeleton`, `Tabs`, `SegmentedControl`, `Spinner`, `Toast`, `BotonTema`, `TemaSelect`.
 
 Los formularios usan etiquetas arriba, altura de 40px y foco visible de 2px. Los estados vacíos conservan el marco y una acción. Las cargas usan barras planas, sin shimmer. Los errores se muestran dentro del bloque afectado, con reintento.
 
@@ -68,6 +96,7 @@ Los formularios usan etiquetas arriba, altura de 40px y foco visible de 2px. Los
 - Toasts: Sonner, un solo `Toaster` en la raíz, `toast.promise` para operaciones de pago y cola.
 - Sin animaciones de entrada en dashboards, sin count-up, sin dibujo de gráficos y sin hover con elevación.
 - `prefers-reduced-motion` reduce el movimiento a opacidad.
+- El cambio de tema no anima toda la página; solo actualiza tokens y un crossfade corto si se desea.
 
 ## Accesibilidad y móvil
 
@@ -75,6 +104,7 @@ Los formularios usan etiquetas arriba, altura de 40px y foco visible de 2px. Los
 - Foco visible, labels asociados, `aria-live` para cambios de cola, tablas con `scope`.
 - `break-ui`: los fixtures de peor caso se prueban en 320, 390, 768 y 1440, con 200% de zoom.
 - i18n ES/EN con diccionario por nodo; los datos dinámicos usan `Intl` cuando la pantalla lo permite.
+- Tema claro y oscuro, además de `prefers-color-scheme`; contraste AA en textos, estados y mapas.
 
 ## Skills de diseño
 
@@ -97,5 +127,6 @@ Apoyo: `prototype`, `pick-ui-library`, `ask-sonner`, `find-animation-opportuniti
 - `npx pnpm@11 --filter frontend build`.
 - `node .agents/skills/design-taste-frontend/scripts/lint.mjs --app frontend/src`.
 - `node .agents/skills/design-taste-frontend/scripts/inspect.mjs --app <url>` sobre build de producción.
-- Playwright/Chromium para capturas 1440, 768 y 390; revisar consola y desbordes horizontales.
+- Playwright/Chromium para capturas 1440, 768 y 390 en tema claro y oscuro; revisar consola y desbordes horizontales.
+- Probar `sistema` con `prefers-color-scheme: dark` y `light`, y persistencia al recargar.
 - Suites de API, datos, esquema, unitarias, e2e y regresión 10x10.

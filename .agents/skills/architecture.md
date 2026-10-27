@@ -32,8 +32,10 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 - Tokens en `frontend/src/index.css`; componentes base en `frontend/src/componentes/ui/`.
 - Shell fijo para empleado/admin: sidebar y barra superior quietas, scroll interno del contenido.
 - Sheets de altura automatica con `max-height` y scroll interno; acciones en barras sticky.
+- Tema claro/oscuro con `TemaProvider`, `data-theme`, `sgp_tema` y tokens en `:root[data-theme="dark"]`.
+- QR siempre sobre blanco; mapas oscuros con filtro solo al tile pane.
 - Antes de cambiar UI leer `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md` y las skills indicadas en `AGENTS.md`.
-- Verificar con build, lint de design-taste, inspector y capturas Chromium 1440/768/390.
+- Verificar con build, lint de design-taste, inspector y capturas Chromium 1440/768/390 en tema claro y oscuro.
 
 ## Comandos de ejecucion
 

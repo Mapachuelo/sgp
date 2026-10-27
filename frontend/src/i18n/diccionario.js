@@ -619,4 +619,13 @@ export const TRADUCCIONES_EN = {
   "Cola": "Queue",
   "Activa la cámara o ingresa el token": "Turn on the camera or enter the token",
   "1 cliente listo para entrar.": "1 customer ready to enter.",
+  "Tema": "Theme",
+  "Claro": "Light",
+  "Oscuro": "Dark",
+  "Apariencia": "Appearance",
+  "Elige el tema de la interfaz o sigue la preferencia del sistema.": "Choose the interface theme or follow the system preference.",
+  "Cambiar a modo oscuro": "Switch to dark mode",
+  "Cambiar a modo claro": "Switch to light mode",
+  "Modo oscuro": "Dark mode",
+  "Modo claro": "Light mode",
 };
