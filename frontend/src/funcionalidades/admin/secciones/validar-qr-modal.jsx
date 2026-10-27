@@ -43,7 +43,7 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
       if (videoRef.current) videoRef.current.srcObject = stream;
       setCamaraActiva(true);
     } catch {
-      setErrorCamara('No se pudo acceder a la camara. Verifica los permisos.');
+      setErrorCamara('No se pudo acceder a la cámara. Verifica los permisos.');
     }
   };
 
@@ -64,7 +64,7 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
   };
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Validar entrada">
+    <SheetAdmin open={open} onClose={onClose} title="Validar entrada" size="normal">
       {resultado ? (
         <div className="text-center py-4 space-y-3">
           <CheckCircle2 className="w-14 h-14 mx-auto text-exito" aria-hidden="true" />
@@ -87,7 +87,7 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
 
           {!camaraActiva ? (
             <Button variant="outline" className="w-full" onClick={activarCamara}>
-              <Camera className="w-4 h-4 mr-2" aria-hidden="true" /> Activar camara
+              <Camera className="w-4 h-4 mr-2" aria-hidden="true" /> Activar cámara
             </Button>
           ) : (
             <div className="space-y-2">
@@ -95,7 +95,7 @@ export default function ValidarQrModal({ open, onClose, onToast, onActualizar, t
                 <video ref={videoRef} autoPlay playsInline className="w-full" style={{ maxHeight: '220px', objectFit: 'cover' }} />
               </div>
               <Button variant="outline" className="w-full" onClick={apagarCamara}>
-                <CameraOff className="w-4 h-4 mr-2" aria-hidden="true" /> Apagar camara
+                <CameraOff className="w-4 h-4 mr-2" aria-hidden="true" /> Apagar cámara
               </Button>
             </div>
           )}

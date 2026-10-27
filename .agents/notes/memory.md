@@ -1,5 +1,19 @@
 # Memoria del proyecto — SGP
 
+## Estado de diseño vigente (leer antes de tocar UI)
+
+- Guía canónica: `docs/diseno/nueva-interfaz.md`.
+- Reglas operativas: `.agents/skills/diseno-sgp/SKILL.md`.
+- Tokens: `frontend/src/index.css`.
+- Componentes: `frontend/src/componentes/ui/index.jsx`.
+- Shell fijo en empleado/admin: sidebar y top bar quietas, scroll interno del contenido.
+- Sheets de altura automática con scroll interno; acciones en barras sticky.
+- Verificación: build, lint de design-taste, inspector y capturas Chromium 1440/768/390 en tema claro y oscuro.
+- Modo oscuro: `TemaProvider` en `frontend/src/contexto/tema-context.jsx`, `sgp_tema` (`claro|oscuro|sistema`), `BotonTema` y `TemaSelect`.
+- Tokens oscuros en `:root[data-theme="dark"]`; QR sobre blanco; mapas con filtro solo al tile pane.
+- Skills de diseño instaladas en `.agents/skills/`; leer las indicadas en `AGENTS.md`.
+- El rediseño y esta documentación deben quedar commiteados para que un clon nuevo los reciba.
+
 ## Sesion inicial — 30 Mayo 2026
 
 ### Decisiones tomadas
@@ -575,3 +589,32 @@
 - **Pruebas finales (reset de volumen + seed 10x10)**: unitarias 50/50, `api.sh` 34/34, `datos.sh` 6/6, `esquema.sh` 48/48, `e2e.py` 42/42, `regresion_10x10.py` 122/122, cobertura 91.91 % líneas / 75.83 % ramas / 94.90 % funciones, lint backend OK, build Vite OK. Regresión 10x10 recorre login de los 20 usuarios, CRUD, reservas, cola, pagos, QR, webhook, reportes, logs, preferencias e integridad.
 - **Documentación**: README (endpoints, seed 10x10, QR/cola, teléfonos/mapa), `docs/modelo-datos.md`, `docs/formato_ieee830.md`, manuales ES/EN, `docs/plan-pruebas.md`, `docs/mockups.md` + capturas (`empleado-cola.png`, `empleado-pago-qr.png`, `admin-sede-mapa.png`, `cliente-pago-pendiente.png`), OpenAPI.
 - **Notas**: no se commiteó nada. Sigue pendiente rotar las llaves de producción expuestas en el chat y configurar el webhook público de Wompi en producción.
+
+---
+
+## Sesion — 26 Octubre 2026 — Rediseno de interfaz (cliente, empleado y admin)
+
+- **Direccion visual**: estilo `framed-sheet` (marco piedra, hoja blanca, borde 1px, sin sombra en reposo), tipografia Archivo Variable + IBM Plex Mono para tokens/IDs, acento teal `#1b6c80`, boton primario tinta. Sin gradientes, glass, iconos en KPI ni cebra.
+- **Shell**: cliente con top bar y bottom nav; empleado/admin con sidebar de 228px, top bar de 48px y hoja insertada 8px. En movil el sidebar se convierte en sheet de menu.
+- **Rutas admin**: `/admin`, `/admin/agenda`, `/admin/equipo`, `/admin/servicios`, `/admin/sedes`, `/admin/horarios`, `/admin/clientes`, `/admin/reportes`, `/admin/actividad`; las secciones abren su sheet de creacion/edicion sobre la ruta.
+- **Cliente**: inicio con ticket de proxima cita, QR en modal en movil, tabs proximas/historial/canceladas, reserva en 5 pasos (sede, estilista, horario, confirmar, pago), perfil con telefono internacional y confirmacion de eliminacion. Pagos Wompi y QR conservados.
+- **Empleado**: cola “Ahora / En espera / Programadas / Dia completo”, escaner QR con decodificacion real (`jsqr`), cobro QR/efectivo, iniciar/finalizar, agenda y disponibilidad semanal rediseñada (una sede por dia + editor de horario en modal), perfil.
+- **Admin**: overview con KPI strip, riel del dia por sede, lista de atencion y agenda; tabla responsive; secciones reutilizadas en sheets con tokens nuevos. Sedes con mapa, reportes y logs conservados.
+- **Componentes**: `componentes/ui/index.jsx` reescrito (Button, Input, Select, Card, Badge, StatusPill, Sheet, Modal, ConfirmDialog, PageHeader, KpiStrip, DataTable, EmptyState, Skeleton, Tabs, SegmentedControl, Spinner, Toast). Sonner montado una vez en `app.jsx`; `Toast` legado redirige a Sonner.
+- **Dependencias**: `sonner`, `jsqr`, `@fontsource-variable/archivo`, `@fontsource/ibm-plex-mono`. Se removio `motion` por no usarse. Fuentes self-hosted; Google Fonts eliminado de `index.html`.
+- **Documentacion**: `docs/diseno/nueva-interfaz.md`; nota historica en `docs/mockups.md`; enlace en README.
+- **Verificacion**: build Vite OK; lint de design-taste `0 FAIL`; inspector de login en build de produccion `0 FAIL`; capturas Chromium 1440/768/390 sin overflow horizontal en rutas de los tres roles; suites API 34/34, datos 6/6, esquema 48/48, unitarias 50/50, cobertura 91.91/75.83/94.90, e2e 42/42, regresion 10x10 122/122. Seed final 10 clientes, 10 empleados y 30 reservas.
+- **Pendiente**: rotar llaves Wompi de produccion y configurar webhook publico. La i18n por nodos traduce etiquetas estaticas; algunas fechas/plurales dinamicos siguen en español.
+- **Correccion de shell y altura (27 Oct)**: el staff ahora usa `h-[100dvh] overflow-hidden`, sidebar y top bar fijas, y scroll interno en el contenido. `Sheet` en escritorio ya no usa `h-full`: altura automática con `max-height` y scroll interno, sin hueco blanco. Acciones de formularios admin y disponibilidad son sticky; la reserva tiene barra sticky en móvil para “Continuar con estilista”. La cola del empleado ya no duplica “Día completo” (solo en `/empleado/agenda`); la agenda del admin muestra 6 filas y enlace a la agenda completa.
+
+## Modo oscuro — 27 Octubre 2026
+
+- **Estado**: implementado y persistente por preferencia (`sgp_tema`: claro/oscuro/sistema), con sistema como valor inicial.
+- **Tokens**: bloque `:root[data-theme="dark"]` en `frontend/src/index.css`; superficies neutras, texto claro, acento teal elevado y tokens de píldoras/slots/barras.
+- **Provider**: `frontend/src/contexto/tema-context.jsx` + `hooks/use-tema.js`; escucha `prefers-color-scheme`, actualiza `data-theme`, `color-scheme`, `meta[name="theme-color"]` y `localStorage`.
+- **Anti-flash**: script inline en `frontend/index.html`.
+- **Controles**: `BotonTema` en cabeceras/auth; `TemaSelect` en perfiles y sidebar; opción Sistema incluida.
+- **Componentes**: `Badge`, `StatusPill`, slots de reserva, barras del timeline, planner, alertas, auth y perfiles tokenizados. `Toaster` usa tema resuelto y variables CSS.
+- **Mapas**: filtro CSS al `.leaflet-tile-pane` en oscuro; marcadores/popups/controles no se invierten. QR siempre sobre blanco.
+- **Documentación**: `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md`, `AGENTS.md`, `contexto.md`, `architecture.md`.
+- **Verificación**: Chromium en claro/oscuro para login, cliente, admin, empleado, reserva, disponibilidad, sheets y perfil; cambio sin recarga, persistencia, sistema oscuro/claro y sin errores de consola.

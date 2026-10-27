@@ -47,7 +47,7 @@ export default function ReportesSeccion({ open, onClose, onToast }) {
               onClick={() => { setTab(t.clave); setDatos(null); }}
               aria-pressed={tab === t.clave}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                tab === t.clave ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario hover:text-texto-principal'
+                tab === t.clave ? 'bg-superficie text-primario' : 'text-texto-secundario hover:text-texto-principal'
               }`}
             >
               {t.etiqueta}

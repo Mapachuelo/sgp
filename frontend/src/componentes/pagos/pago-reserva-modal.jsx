@@ -172,7 +172,7 @@ export default function PagoReservaModal({
       <div className="space-y-4">
         {estado === 'aprobado' ? (
           <div className="text-center py-4 space-y-3">
-            <div className="w-14 h-14 mx-auto rounded-full bg-green-50 flex items-center justify-center text-exito">
+            <div className="w-14 h-14 mx-auto rounded-full bg-exito/10 flex items-center justify-center text-exito">
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -191,10 +191,10 @@ export default function PagoReservaModal({
                 Medios de pago
               </p>
               <div className="grid grid-cols-2 gap-1.5">
-                <TarjetaMedio>Tarjeta credito/debito</TarjetaMedio>
+                <TarjetaMedio>Tarjeta crédito/débito</TarjetaMedio>
                 <TarjetaMedio>PSE</TarjetaMedio>
                 <TarjetaMedio>Nequi</TarjetaMedio>
-                <TarjetaMedio>Boton Bancolombia</TarjetaMedio>
+                <TarjetaMedio>Botón Bancolombia</TarjetaMedio>
               </div>
             </div>
 
@@ -214,7 +214,7 @@ export default function PagoReservaModal({
                   <img src={intencion.qr_data_url} alt="QR de pago Wompi" className="w-52 h-52" />
                 </div>
                 <p className="text-xs text-texto-secundario">
-                  Pide al cliente escanear este QR con la camara de su celular.
+                  Pide al cliente escanear este QR con la cámara de su celular.
                 </p>
               </div>
             )}
@@ -240,9 +240,9 @@ export default function PagoReservaModal({
             )}
 
             {(estado === 'esperando' || estado === 'pendiente' || estado === 'declinado' || estado === 'error') && (
-              <div className="space-y-2 rounded-xl border border-borde bg-fondo/30 p-3">
-                <label className="block text-[10px] font-semibold text-texto-principal uppercase">
-                  Numero de transaccion (opcional)
+              <div className="space-y-2 rounded-md border border-borde bg-panel/50 p-3">
+                <label className="block text-[11px] font-medium text-texto-principal">
+                  Número de transacción (opcional)
                 </label>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
@@ -250,7 +250,7 @@ export default function PagoReservaModal({
                     value={transaccionManual}
                     onChange={(e) => setTransaccionManual(e.target.value)}
                     placeholder="01-1531231271-19365"
-                    className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+                    className="h-9 w-full rounded-md border border-control bg-superficie px-3 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
                   />
                   <Button
                     variant="outline"
@@ -272,7 +272,7 @@ export default function PagoReservaModal({
 
             {modo === 'qr' && estado !== 'aprobado' && (
               <Button variant="outline" className="w-full" onClick={consultarEstado}>
-                Ya pague, verificar estado
+                Ya pagué, verificar estado
               </Button>
             )}
           </>

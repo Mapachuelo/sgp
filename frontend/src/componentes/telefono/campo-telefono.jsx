@@ -7,7 +7,7 @@ import {
 } from '../../lib/telefonos.js';
 
 export default function CampoTelefono({
-  label = 'Telefono',
+  label = 'Teléfono',
   value = '',
   onChange,
   name = 'telefono',
@@ -65,16 +65,16 @@ export default function CampoTelefono({
 
   return (
     <div>
-      <label htmlFor={`${name}-numero`} className="block text-xs font-semibold text-texto-principal uppercase mb-1">
+      <label htmlFor={`${name}-numero`} className="mb-1.5 block text-xs font-medium text-texto-principal">
         {label}
       </label>
       <div className="flex gap-2">
         <select
-          aria-label="Pais del telefono"
+          aria-label="País del teléfono"
           value={codigoPais}
           onChange={(e) => cambiarPais(e.target.value)}
           disabled={disabled}
-          className="w-[42%] sm:w-[45%] px-2 py-2 border border-borde rounded-lg text-xs bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition disabled:opacity-60"
+          className="h-10 w-[44%] min-w-0 rounded-md border border-control bg-superficie px-2 text-xs text-texto-principal transition-colors focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 disabled:bg-panel disabled:text-tenue sm:w-[45%]"
         >
           {PAISES_TELEFONO.map((opcion) => (
             <option key={opcion.codigo} value={opcion.codigo}>
@@ -93,15 +93,15 @@ export default function CampoTelefono({
           onPaste={pegarNumero}
           required={required}
           disabled={disabled}
-          placeholder={pais.codigo === 'CO' ? '300 123 4567' : 'Numero local'}
-          className="flex-1 min-w-0 px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition disabled:opacity-60"
+          placeholder={pais.codigo === 'CO' ? '300 123 4567' : 'Número local'}
+          className="h-10 min-w-0 flex-1 rounded-md border border-control bg-superficie px-3 text-sm text-texto-principal placeholder:text-tenue/70 transition-colors focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 disabled:bg-panel disabled:text-tenue"
         />
       </div>
       {error ? (
-        <p className="text-[11px] text-error mt-1">{error}</p>
+        <p className="mt-1.5 text-[11px] font-medium text-error">{error}</p>
       ) : (
-        <p className="text-[11px] text-texto-secundario mt-1">
-          {pais.prefijo} · {longitudSugerida} digitos. Colombia (+57) se selecciona por defecto.
+        <p className="mt-1.5 text-[11px] leading-4 text-tenue">
+          {pais.prefijo} · {longitudSugerida} dígitos. Colombia (+57) se selecciona por defecto.
         </p>
       )}
     </div>

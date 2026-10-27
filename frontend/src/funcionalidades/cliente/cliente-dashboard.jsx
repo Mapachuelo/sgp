@@ -1,6 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Badge, Toast, Spinner } from '../../componentes/ui/index.jsx';
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Clock3,
+  MapPin,
+  QrCode,
+  RefreshCw,
+  Scissors,
+  Users,
+} from 'lucide-react';
+import { toast as notificar } from 'sonner';
+import {
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  EmptyState,
+  Modal,
+  PageHeader,
+  Sheet,
+  Spinner,
+  StatusPill,
+  Tabs,
+} from '../../componentes/ui/index.jsx';
 import PagoReservaModal from '../../componentes/pagos/pago-reserva-modal.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
@@ -9,27 +32,11 @@ import { descargarQrReserva } from '../../lib/descargas.js';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
-const COLUMNAS = [
-  { key: 'pendiente', label: 'Pendiente', variant: 'warning' },
-  { key: 'confirmada', label: 'Confirmada', variant: 'info' },
-  { key: 'en_curso', label: 'En curso', variant: 'info' },
-  { key: 'cobrado', label: 'Completada', variant: 'success' },
-  { key: 'cancelada', label: 'Cancelada', variant: 'danger' },
-];
-
-const BORDE_ESTADO = {
-  pendiente: 'border-l-4 border-l-texto-secundario',
-  confirmada: 'border-l-4 border-l-info',
-  en_curso: 'border-l-4 border-l-info',
-  cobrado: 'border-l-4 border-l-exito',
-  cancelada: 'border-l-4 border-l-error',
-};
-
 const iconoMarcador = new L.DivIcon({
-  html: `<div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#E8D9CB"/>
-      <circle cx="12" cy="10" r="3" fill="#8B5E3C"/>
+  html: `<div style="display:flex;justify-content:center;align-items:center;width:30px;height:30px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1B6C80" stroke-width="2">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#E6F1F3"/>
+      <circle cx="12" cy="10" r="3" fill="#1B6C80"/>
     </svg>
   </div>`,
   className: 'custom-leaflet-icon',
@@ -45,42 +52,185 @@ function MapRecenter({ lat, lng }) {
   return null;
 }
 
-function claveColumna(estado) {
-  return estado === 'completada' ? 'cobrado' : estado;
-}
-
-function estadoAVariante(estado) {
-  const mapa = {
-    pendiente: 'warning',
-    confirmada: 'info',
-    en_curso: 'info',
-    completada: 'success',
-    cobrado: 'success',
-    cancelada: 'danger',
-  };
-  return mapa[estado] || 'default';
-}
-
-function etiquetaEstado(estado) {
-  if (!estado) return '';
-  if (estado === 'cobrado') return 'Completada';
-  if (estado === 'en_curso') return 'En curso';
-  return estado.charAt(0).toUpperCase() + estado.slice(1);
-}
+const ETIQUETA_ESTADO = {
+  pendiente: 'Pendiente',
+  confirmada: 'Confirmada',
+  en_curso: 'En curso',
+  cobrado: 'Completada',
+  completada: 'Completada',
+  cancelada: 'Cancelada',
+};
 
 function estaPagada(reserva) {
   return reserva?.pago_estado === 'aprobado' || Boolean(reserva?.cobro_metodo);
 }
 
-function formatearFechaHora(iso) {
+function localeActual() {
+  return typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en-US' : 'es-CO';
+}
+
+function personas(cantidad) {
+  const n = cantidad || 1;
+  if (localeActual() === 'en-US') return `${n} ${n === 1 ? 'person' : 'people'}`;
+  return `${n} ${n === 1 ? 'persona' : 'personas'}`;
+}
+
+function fecha(iso) {
   if (!iso) return 'Sin fecha';
-  return new Date(iso).toLocaleString('es-CO', {
+  return new Intl.DateTimeFormat(localeActual(), {
+    weekday: 'short',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  }).format(new Date(iso));
+}
+
+function hora(iso) {
+  if (!iso) return '--:--';
+  return new Intl.DateTimeFormat(localeActual(), { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+}
+
+function fechaLarga(iso) {
+  if (!iso) return 'Sin fecha';
+  return new Intl.DateTimeFormat(localeActual(), {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date(iso));
+}
+
+function dinero(valor) {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  })
+    .format(Number(valor) || 0)
+    .replace(/\u00a0/g, '');
+}
+
+function esFutura(reserva) {
+  return new Date(reserva.inicia_en).getTime() >= Date.now() - 60 * 60 * 1000;
+}
+
+function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
+  if (!reserva) return null;
+  const lat = Number.parseFloat(reserva.ubicacion_latitud);
+  const lng = Number.parseFloat(reserva.ubicacion_longitud);
+  const tieneMapa = Number.isFinite(lat) && Number.isFinite(lng);
+  const pagada = estaPagada(reserva);
+  const activa = ['pendiente', 'confirmada', 'en_curso'].includes(reserva.estado);
+  const mapsUrl = tieneMapa
+    ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`
+    : null;
+
+  return (
+    <Sheet open={abierto} onClose={onClose} title="Detalle de la cita" size="normal">
+      <div className="space-y-5">
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] text-tenue">{fechaLarga(reserva.inicia_en)}</p>
+              <p className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-texto-principal">{hora(reserva.inicia_en)}</p>
+            </div>
+            <StatusPill estado={reserva.estado}>{ETIQUETA_ESTADO[reserva.estado] || reserva.estado}</StatusPill>
+          </div>
+          <p className="mt-3 text-base font-medium text-texto-principal">{reserva.servicio_nombre || 'Servicio'}</p>
+          <p className="mt-1 text-sm text-texto-secundario">
+            {reserva.empleado_nombre} {reserva.empleado_apellido || ''} · {personas(reserva.cantidad_personas)}
+          </p>
+        </div>
+
+        <div className="rounded-md border border-borde bg-panel/60 p-3">
+          <p className="text-[11px] font-medium text-texto-secundario">Sede</p>
+          <p className="mt-1 text-sm font-medium text-texto-principal">{reserva.ubicacion_nombre || 'Sede por confirmar'}</p>
+          {reserva.ubicacion_direccion && <p className="mt-0.5 text-xs text-texto-secundario">{reserva.ubicacion_direccion}</p>}
+          {tieneMapa ? (
+            <div className="relative z-0 mt-3 h-40 overflow-hidden rounded-md border border-borde">
+              <MapContainer center={[lat, lng]} zoom={15} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker position={[lat, lng]} icon={iconoMarcador} />
+                <MapRecenter lat={lat} lng={lng} />
+              </MapContainer>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-tenue">La sede no tiene coordenadas configuradas.</p>
+          )}
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-acento underline-offset-2 hover:underline"
+            >
+              Abrir en el mapa <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-[11px] text-tenue">Personas</p>
+            <p className="mt-0.5 font-medium text-texto-principal">{reserva.cantidad_personas || 1}</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-tenue">Total</p>
+            <p className="num mt-0.5 font-medium text-texto-principal">
+              {dinero(reserva.pago_monto || Number(reserva.precio_base || 0) * Number(reserva.cantidad_personas || 1))}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-tenue">Pago</p>
+            <p className="mt-0.5 font-medium text-texto-principal">
+              {pagada ? (reserva.cobro_metodo === 'fisico' ? 'Efectivo' : 'Wompi') : 'Pendiente'}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-tenue">Duración</p>
+            <p className="mt-0.5 font-medium text-texto-principal">
+              {reserva.duracion_minutos ? `${reserva.duracion_minutos} min` : 'Según servicio'}
+            </p>
+          </div>
+        </div>
+
+        {reserva.motivo_cancelacion && (
+          <div className="rounded-md border border-error/30 bg-error/10 p-3 text-xs text-error">
+            Motivo: {reserva.motivo_cancelacion}
+          </div>
+        )}
+
+        {reserva.qr_data_url && (
+          <div className="text-center">
+            <p className="mb-2 text-[11px] font-medium text-texto-secundario">Código QR de acceso</p>
+            <div className="inline-block rounded-md border border-borde bg-white p-3">
+              <img src={reserva.qr_data_url} alt={`Código QR de la cita ${reserva.id}`} className="h-40 w-40" />
+            </div>
+            <Button variant="secundario" size="sm" className="mt-2" onClick={() => descargarQrReserva(reserva)}>
+              <QrCode className="h-4 w-4" aria-hidden="true" /> Descargar QR
+            </Button>
+          </div>
+        )}
+
+        {activa && (
+          <div className="flex flex-col gap-2 border-t border-borde pt-4 sm:flex-row">
+            {!pagada && (
+              <Button className="flex-1" onClick={() => onPagar(reserva)}>
+                Pagar ahora
+              </Button>
+            )}
+            {['pendiente', 'confirmada'].includes(reserva.estado) && (
+              <Button variant="dangerSuave" className="flex-1" onClick={() => onCancelar(reserva)}>
+                Cancelar cita
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </Sheet>
+  );
 }
 
 export default function ClienteDashboard() {
@@ -88,39 +238,21 @@ export default function ClienteDashboard() {
   const { usuario } = useAuth();
   const { ultimoEvento } = useWebSocket();
   const [reservas, setReservas] = useState([]);
-  const [seleccionada, setSeleccionada] = useState(null);
   const [cargando, setCargando] = useState(true);
-  const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+  const [tab, setTab] = useState('proximas');
+  const [detalle, setDetalle] = useState(null);
+  const [qrReserva, setQrReserva] = useState(null);
   const [pagoReserva, setPagoReserva] = useState(null);
-  const detalleRef = useRef(null);
-
-  const seleccionar = (reserva) => {
-    setSeleccionada(reserva);
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      setTimeout(() => detalleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-    }
-  };
-
-  const mostrarToast = (message, type = 'success') => {
-    setToast({ open: true, message, type });
-    setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 3000);
-  };
+  const [cancelarReserva, setCancelarReserva] = useState(null);
+  const [cancelando, setCancelando] = useState(false);
 
   const cargarReservas = async () => {
     try {
       setCargando(true);
       const data = await api.reservas.misReservas();
-      const lista = data || [];
-      setReservas(lista);
-      setSeleccionada((actual) => {
-        if (actual) {
-          const refrescada = lista.find((r) => r.id === actual.id);
-          if (refrescada) return refrescada;
-        }
-        return lista[0] || null;
-      });
+      setReservas(Array.isArray(data) ? data : []);
     } catch (err) {
-      mostrarToast(err.message, 'error');
+      notificar.error(err.message);
     } finally {
       setCargando(false);
     }
@@ -128,335 +260,287 @@ export default function ClienteDashboard() {
 
   useEffect(() => {
     cargarReservas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!ultimoEvento) return;
-    if (ultimoEvento.tipo === 'reserva.actualizada') {
-      cargarReservas();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (ultimoEvento?.tipo === 'reserva.actualizada') cargarReservas();
   }, [ultimoEvento]);
 
-  const cancelarReserva = async (id) => {
-    if (!window.confirm('¿Seguro que deseas cancelar esta reserva?')) return;
+  const activas = useMemo(
+    () =>
+      reservas
+        .filter((r) => ['pendiente', 'confirmada', 'en_curso'].includes(r.estado))
+        .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en)),
+    [reservas]
+  );
+
+  const proximas = useMemo(
+    () => activas.filter((r) => esFutura(r) || r.estado === 'en_curso'),
+    [activas]
+  );
+
+  const proxima = proximas[0] || null;
+
+  const historial = useMemo(
+    () =>
+      reservas
+        .filter((r) => ['cobrado', 'completada', 'cancelada'].includes(r.estado))
+        .sort((a, b) => new Date(b.inicia_en) - new Date(a.inicia_en)),
+    [reservas]
+  );
+
+  const canceladas = useMemo(() => historial.filter((r) => r.estado === 'cancelada'), [historial]);
+
+  const listaVisible = tab === 'proximas' ? proximas : tab === 'historial' ? historial : canceladas;
+
+  const confirmarCancelacion = async () => {
+    if (!cancelarReserva) return;
+    setCancelando(true);
     try {
-      await api.reservas.cancelar(id);
-      mostrarToast('Reserva cancelada con exito', 'success');
-      cargarReservas();
+      await api.reservas.cancelar(cancelarReserva.id);
+      notificar.success('Cita cancelada');
+      setCancelarReserva(null);
+      setDetalle(null);
+      await cargarReservas();
     } catch (err) {
-      mostrarToast(err.message, 'error');
+      notificar.error(err.message);
+    } finally {
+      setCancelando(false);
     }
   };
 
-  const reservasActivas = reservas.filter((r) =>
-    ['pendiente', 'confirmada', 'en_curso'].includes(r.estado)
-  );
-
   if (cargando) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Spinner />
+      <div className="space-y-4">
+        <Spinner label="Cargando tus citas" />
       </div>
     );
   }
 
-  const porColumna = COLUMNAS.map((col) => ({
-    ...col,
-    items: reservas.filter((r) => claveColumna(r.estado) === col.key),
-  }));
-
-  const lat = seleccionada ? parseFloat(seleccionada.ubicacion_latitud) : null;
-  const lng = seleccionada ? parseFloat(seleccionada.ubicacion_longitud) : null;
-  const tieneMapa = Number.isFinite(lat) && Number.isFinite(lng);
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <Toast open={toast.open} message={toast.message} type={toast.type} />
+    <div className="space-y-7">
+      <PageHeader
+        title="Tu próxima cita"
+        subtitle="Todo lo que necesitas para llegar, pagar y disfrutar tu servicio."
+        actions={
+          <>
+            <Button variant="secundario" onClick={cargarReservas}>
+              <RefreshCw className="h-4 w-4" aria-hidden="true" /> Actualizar
+            </Button>
+            <Button onClick={() => navigate('/cliente/reservar')}>Reservar cita</Button>
+          </>
+        }
+      />
 
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-texto-principal mb-1">
-          Hola{usuario?.nombre ? `, ${usuario.nombre}` : ''}
-        </h1>
-        <p className="text-texto-secundario text-lg mb-6">Gestiona tus reservas en el tablero</p>
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="bg-fondo rounded-xl px-5 py-3 border border-borde">
-            <span className="text-2xl font-bold text-primario">{reservasActivas.length}</span>
-            <span className="text-texto-secundario text-sm ml-2">reservas activas</span>
-          </div>
-          <Button onClick={() => navigate('/cliente/reservar')}>Reservar ahora</Button>
-        </div>
-      </div>
-
-      {reservas.length === 0 ? (
-        <Card className="text-center py-12">
-          <svg
-            className="w-12 h-12 mx-auto mb-4 text-texto-secundario/40"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          <p className="text-texto-secundario text-lg mb-4">No tienes reservas aun</p>
-          <Button onClick={() => navigate('/cliente/reservar')}>Hacer mi primera reserva</Button>
-        </Card>
+      {!proxima ? (
+        <EmptyState
+          title="No tienes citas próximas"
+          description="Elige una sede, un servicio y un horario. En menos de un minuto tienes tu turno."
+          action={<Button onClick={() => navigate('/cliente/reservar')}>Reservar mi primera cita</Button>}
+        />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
-          <div
-            className="flex gap-4 overflow-x-auto pb-4"
-            role="list"
-            aria-label="Tablero de reservas por estado"
-          >
-            {porColumna.map((col) => (
-              <section
-                key={col.key}
-                role="listitem"
-                className="min-w-[240px] w-64 shrink-0 bg-fondo/60 rounded-2xl border border-borde p-3"
-                aria-label={`Reservas ${col.label}`}
-              >
-                <header className="flex items-center justify-between mb-3 px-1">
-                  <h2 className="text-sm font-bold text-texto-principal">{col.label}</h2>
-                  <span className="text-xs font-bold bg-superficie border border-borde rounded-full px-2 py-0.5 text-texto-secundario">
-                    {col.items.length}
-                  </span>
-                </header>
-                <div className="space-y-3 max-h-[58vh] overflow-y-auto pr-1">
-                  {col.items.length === 0 ? (
-                    <p className="text-xs text-texto-secundario text-center py-6">Sin reservas</p>
-                  ) : (
-                    col.items.map((reserva) => (
-                      <article
-                        key={reserva.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={seleccionada?.id === reserva.id}
-                        onClick={() => seleccionar(reserva)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            seleccionar(reserva);
-                          }
-                        }}
-                        className={`rounded-xl bg-superficie border border-borde p-3 shadow-sm cursor-pointer transition hover:shadow-md ${BORDE_ESTADO[claveColumna(reserva.estado)] || ''} ${
-                          seleccionada?.id === reserva.id ? 'ring-2 ring-primario/40' : ''
-                        }`}
-                      >
-                        <h3 className="text-sm font-semibold text-texto-principal mb-1">
-                          {reserva.servicio_nombre || 'Sin servicio'}
-                        </h3>
-                        <p className="text-xs text-texto-secundario mb-1">
-                          {formatearFechaHora(reserva.inicia_en)}
-                        </p>
-                        <p className="text-xs text-texto-secundario mb-2">
-                          {reserva.ubicacion_nombre || 'Sede'}
-                        </p>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-1">
-                            <Badge variant={estadoAVariante(reserva.estado)}>
-                              {etiquetaEstado(reserva.estado)}
-                            </Badge>
-                            {estaPagada(reserva) && <Badge variant="success">Pagado</Badge>}
-                            {!estaPagada(reserva) && ['pendiente', 'declinado', 'error'].includes(reserva.pago_estado) && (
-                              <Badge variant="warning">Pago pendiente</Badge>
-                            )}
-                            {!estaPagada(reserva) && !reserva.pago_estado && ['pendiente', 'confirmada'].includes(reserva.estado) && (
-                              <Badge variant="warning">Pago pendiente</Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {reserva.qr_data_url && (
-                              <button
-                                type="button"
-                                aria-label={`Descargar QR de la reserva ${reserva.id}`}
-                                title="Descargar QR"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  descargarQrReserva(reserva);
-                                }}
-                                className="p-1.5 rounded-lg text-primario hover:bg-primario/10 cursor-pointer"
-                              >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                  <polyline points="7 10 12 15 17 10" />
-                                  <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                              </button>
-                            )}
-                            {(reserva.estado === 'pendiente' || reserva.estado === 'confirmada') && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  cancelarReserva(reserva.id);
-                                }}
-                                className="text-[11px] text-error hover:underline cursor-pointer font-medium"
-                              >
-                                Cancelar
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </article>
-                    ))
-                  )}
-                </div>
-              </section>
-            ))}
+        <section className="grid overflow-hidden rounded-xl border border-borde bg-superficie lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusPill estado={proxima.estado}>{ETIQUETA_ESTADO[proxima.estado] || proxima.estado}</StatusPill>
+              {estaPagada(proxima) ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-exito">
+                  <span className="h-1.5 w-1.5 rounded-full bg-exito" aria-hidden="true" />
+                  {proxima.cobro_metodo === 'fisico' ? 'Pagado en efectivo' : 'Pagado con Wompi'}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-advertencia">
+                  <span className="h-1.5 w-1.5 rounded-full bg-advertencia" aria-hidden="true" />
+                  Pago pendiente
+                </span>
+              )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-[13px] text-texto-secundario">{fechaLarga(proxima.inicia_en)}</p>
+                <p className="num mt-1 text-[38px] font-semibold leading-none tracking-[-0.05em] text-texto-principal">
+                  {hora(proxima.inicia_en)}
+                </p>
+                <p className="mt-3 text-lg font-medium text-texto-principal">{proxima.servicio_nombre || 'Servicio'}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-texto-secundario">
+                  <Scissors className="h-3.5 w-3.5" aria-hidden="true" />
+                  {proxima.empleado_nombre} {proxima.empleado_apellido || ''}
+                </p>
+              </div>
+              <div className="min-w-[180px] rounded-lg border border-borde bg-panel/60 p-3">
+                <p className="text-[11px] text-tenue">Sede</p>
+                <p className="mt-0.5 text-sm font-medium text-texto-principal">{proxima.ubicacion_nombre || 'Por confirmar'}</p>
+                {proxima.ubicacion_direccion && (
+                  <p className="mt-0.5 text-xs leading-5 text-texto-secundario">{proxima.ubicacion_direccion}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDetalle(proxima)}
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-acento underline-offset-2 hover:underline"
+                >
+                  Ver mapa y detalle <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-borde pt-4 text-xs text-texto-secundario">
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                {personas(proxima.cantidad_personas)}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                {proxima.duracion_minutos ? `${proxima.duracion_minutos} min` : 'Duración según servicio'}
+              </span>
+              <span className="num inline-flex items-center gap-1.5 font-medium text-texto-principal">
+                {dinero(proxima.pago_monto || Number(proxima.precio_base || 0) * Number(proxima.cantidad_personas || 1))}
+              </span>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {!estaPagada(proxima) && <Button onClick={() => setPagoReserva(proxima)}>Pagar ahora</Button>}
+              <Button variant="secundario" onClick={() => setDetalle(proxima)}>
+                <MapPin className="h-4 w-4" aria-hidden="true" /> Cómo llegar
+              </Button>
+              {proxima.qr_data_url && (
+                <Button variant="secundario" className="lg:hidden" onClick={() => setQrReserva(proxima)}>
+                  <QrCode className="h-4 w-4" aria-hidden="true" /> Ver QR
+                </Button>
+              )}
+              {['pendiente', 'confirmada'].includes(proxima.estado) && (
+                <Button variant="ghost" onClick={() => setCancelarReserva(proxima)}>
+                  Cancelar cita
+                </Button>
+              )}
+            </div>
           </div>
 
-          <aside ref={detalleRef} className="lg:sticky lg:top-20 scroll-mt-20">
-            {seleccionada ? (
-              <Card padding={false} className="overflow-hidden">
-                <div className="p-5 border-b border-borde">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <h2 className="font-display text-lg font-bold text-texto-principal">Detalle</h2>
-                    <Badge variant={estadoAVariante(seleccionada.estado)}>
-                      {etiquetaEstado(seleccionada.estado)}
-                    </Badge>
-                  </div>
-                  <dl className="space-y-2 text-sm">
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-texto-secundario">Servicio</dt>
-                      <dd className="font-semibold text-texto-principal text-right">
-                        {seleccionada.servicio_nombre || '—'}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-texto-secundario">Fecha</dt>
-                      <dd className="font-semibold text-texto-principal text-right">
-                        {formatearFechaHora(seleccionada.inicia_en)}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-texto-secundario">Estilista</dt>
-                      <dd className="font-semibold text-texto-principal text-right">
-                        {seleccionada.empleado_nombre} {seleccionada.empleado_apellido || ''}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-texto-secundario">Personas</dt>
-                      <dd className="font-semibold text-texto-principal text-right">
-                        {seleccionada.cantidad_personas || 1}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-texto-secundario">Pago</dt>
-                      <dd className="font-semibold text-texto-principal text-right">
-                        {estaPagada(seleccionada)
-                          ? `Pagado${seleccionada.cobro_metodo === 'fisico' ? ' en efectivo' : ''}`
-                          : 'Pendiente'}
-                      </dd>
-                    </div>
-                    {seleccionada.pago_monto && (
-                      <div className="flex justify-between gap-3">
-                        <dt className="text-texto-secundario">Total</dt>
-                        <dd className="font-semibold text-texto-principal text-right">
-                          ${Number(seleccionada.pago_monto).toLocaleString('es-CO')}
-                        </dd>
-                      </div>
-                    )}
-                    {seleccionada.motivo_cancelacion && (
-                      <div className="bg-error/5 border border-error/20 rounded-lg p-3 text-xs text-error">
-                        Motivo: {seleccionada.motivo_cancelacion}
-                      </div>
-                    )}
-                  </dl>
-                </div>
-
-                <div className="p-5 border-b border-borde">
-                  <p className="text-xs font-bold uppercase tracking-wider text-texto-secundario mb-2">
-                    Ubicacion de la sede
-                  </p>
-                  <p className="text-xs text-texto-secundario mb-3">
-                    {seleccionada.ubicacion_nombre}
-                    {seleccionada.ubicacion_direccion ? ` — ${seleccionada.ubicacion_direccion}` : ''}
-                  </p>
-                  <div className="h-44 rounded-xl border border-borde overflow-hidden relative z-0 isolate bg-fondo">
-                    {tieneMapa ? (
-                      <MapContainer
-                        center={[lat, lng]}
-                        zoom={15}
-                        scrollWheelZoom={false}
-                        style={{ height: '100%', width: '100%' }}
-                      >
-                        <TileLayer
-                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
-                        <Marker position={[lat, lng]} icon={iconoMarcador} />
-                        <MapRecenter lat={lat} lng={lng} />
-                      </MapContainer>
-                    ) : (
-                      <p className="text-xs text-texto-secundario text-center pt-16">
-                        La sede no tiene coordenadas configuradas.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {seleccionada.qr_data_url && (
-                  <div className="p-5 border-b border-borde text-center">
-                    <p className="text-xs font-bold uppercase tracking-wider text-texto-secundario mb-3">
-                      Codigo QR de acceso
-                    </p>
-                    <div className="inline-block border border-borde rounded-2xl bg-white p-3">
-                      <img
-                        src={seleccionada.qr_data_url}
-                        alt={`Codigo QR de la reserva ${seleccionada.id}`}
-                        className="w-36 h-36 mx-auto"
-                      />
-                    </div>
-                    {seleccionada.qr_token && (
-                      <span className="font-mono text-[10px] text-texto-secundario break-all block mt-2">
-                        {seleccionada.qr_token}
-                      </span>
-                    )}
-                    <Button
-                      variant="secundario"
-                      size="sm"
-                      className="mt-3 w-full"
-                      onClick={() => descargarQrReserva(seleccionada)}
-                    >
-                      Descargar QR
-                    </Button>
-                  </div>
-                )}
-
-                {(['pendiente', 'confirmada', 'en_curso'].includes(seleccionada.estado)) && (
-                  <div className="p-5 space-y-2">
-                    {!estaPagada(seleccionada) && (
-                      <Button className="w-full" onClick={() => setPagoReserva(seleccionada)}>
-                        Pagar en linea
-                      </Button>
-                    )}
-                    {(seleccionada.estado === 'pendiente' || seleccionada.estado === 'confirmada') && (
-                      <Button
-                        variant="danger"
-                        className="w-full"
-                        onClick={() => cancelarReserva(seleccionada.id)}
-                      >
-                        Cancelar reserva
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </Card>
-            ) : (
-              <Card>
-                <p className="text-sm text-texto-secundario text-center py-8">
-                  Selecciona una reserva para ver su detalle, mapa y codigo QR.
+          <div className="hidden flex-col items-center justify-center border-t border-borde bg-panel/50 px-4 py-4 lg:flex lg:border-l lg:border-t-0 lg:p-5">
+            {proxima.qr_data_url ? (
+              <>
+                <img
+                  src={proxima.qr_data_url}
+                  alt={`Código QR de la cita ${proxima.id}`}
+                  className="h-28 w-28 bg-white lg:h-40 lg:w-40"
+                />
+                <p className="mt-1.5 text-center text-[10px] leading-4 text-texto-secundario lg:mt-2 lg:text-[11px]">
+                  Muestra este código al llegar.
                 </p>
-              </Card>
+                <Button variant="secundario" size="sm" className="mt-1.5 lg:mt-2" onClick={() => descargarQrReserva(proxima)}>
+                  <QrCode className="h-4 w-4" aria-hidden="true" /> Descargar QR
+                </Button>
+              </>
+            ) : (
+              <div className="flex h-28 w-28 items-center justify-center rounded-md border border-dashed border-control text-center text-[11px] text-tenue lg:h-40 lg:w-40">
+                QR disponible al confirmar
+              </div>
             )}
-          </aside>
-        </div>
+          </div>
+        </section>
       )}
+
+      <section>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-texto-principal">Tus citas</h2>
+            <p className="mt-0.5 text-xs text-texto-secundario">Próximas, historial y canceladas.</p>
+          </div>
+          <Button size="sm" variant="secundario" onClick={() => navigate('/cliente/reservar')}>
+            <CalendarDays className="h-4 w-4" aria-hidden="true" /> Nueva cita
+          </Button>
+        </div>
+
+        <Tabs
+          items={[
+            { value: 'proximas', label: 'Próximas', count: proximas.length },
+            { value: 'historial', label: 'Historial', count: historial.length },
+            { value: 'canceladas', label: 'Canceladas', count: canceladas.length },
+          ]}
+          value={tab}
+          onChange={setTab}
+          label="Filtrar citas"
+          className="mb-4"
+        />
+
+        {listaVisible.length === 0 ? (
+          <EmptyState
+            title={tab === 'proximas' ? 'No tienes citas próximas' : 'No hay citas en esta vista'}
+            description={tab === 'proximas' ? 'Reserva una cita para verla aquí.' : 'Cuando tengas citas en este estado aparecerán aquí.'}
+            action={tab === 'proximas' ? <Button size="sm" onClick={() => navigate('/cliente/reservar')}>Reservar</Button> : null}
+          />
+        ) : (
+          <Card padding={false} className="overflow-hidden">
+            <ul className="divide-y divide-regla">
+              {listaVisible.map((reserva) => {
+                const pagada = estaPagada(reserva);
+                return (
+                  <li key={reserva.id}>
+                    <button
+                      type="button"
+                      onClick={() => setDetalle(reserva)}
+                      className="flex w-full items-center gap-4 px-4 py-3.5 text-left transition-colors hover:bg-panel/60 sm:px-5"
+                    >
+                      <div className="w-14 shrink-0 text-center">
+                        <p className="text-[10px] font-medium text-tenue">{fecha(reserva.inicia_en).split(' ')[0].replace(',', '')}</p>
+                        <p className="num text-lg font-semibold leading-tight text-texto-principal">{hora(reserva.inicia_en)}</p>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-texto-principal">{reserva.servicio_nombre || 'Servicio'}</p>
+                        <p className="mt-0.5 truncate text-xs text-texto-secundario">
+                          {reserva.ubicacion_nombre || 'Sede'} · {reserva.empleado_nombre} {reserva.empleado_apellido || ''}
+                        </p>
+                        <p className="mt-1 text-[11px] text-tenue">
+                          {fecha(reserva.inicia_en)} · {personas(reserva.cantidad_personas)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <StatusPill estado={reserva.estado}>{ETIQUETA_ESTADO[reserva.estado] || reserva.estado}</StatusPill>
+                        <span className={`text-[11px] font-medium ${pagada ? 'text-exito' : 'text-advertencia'}`}>
+                          {pagada ? 'Pagado' : 'Sin pago'}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+      </section>
+
+      <DetalleReserva
+        reserva={detalle}
+        abierto={Boolean(detalle)}
+        onClose={() => setDetalle(null)}
+        onPagar={(reserva) => {
+          setDetalle(null);
+          setPagoReserva(reserva);
+        }}
+        onCancelar={(reserva) => {
+          setDetalle(null);
+          setCancelarReserva(reserva);
+        }}
+      />
+
+      <Modal open={Boolean(qrReserva)} onClose={() => setQrReserva(null)} title="Código QR de acceso" size="sm">
+        {qrReserva?.qr_data_url ? (
+          <div className="text-center">
+            <p className="text-xs text-texto-secundario">
+              {fechaLarga(qrReserva.inicia_en)} · {hora(qrReserva.inicia_en)}
+            </p>
+            <div className="mx-auto mt-4 inline-block rounded-lg border border-borde bg-white p-4">
+              <img src={qrReserva.qr_data_url} alt="Código QR de la cita" className="h-56 w-56" />
+            </div>
+            <p className="mt-3 text-xs leading-5 text-texto-secundario">Muestra este código al llegar al salón.</p>
+            <Button className="mt-4 w-full" onClick={() => descargarQrReserva(qrReserva)}>
+              <QrCode className="h-4 w-4" aria-hidden="true" /> Descargar QR
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-texto-secundario">El QR estará disponible cuando la cita esté confirmada.</p>
+        )}
+      </Modal>
 
       <PagoReservaModal
         open={Boolean(pagoReserva)}
@@ -465,9 +549,28 @@ export default function ClienteDashboard() {
         onClose={() => setPagoReserva(null)}
         onPagado={() => {
           cargarReservas();
-          mostrarToast('Pago confirmado. Tu reserva quedo al dia.');
+          notificar.success('Pago confirmado. Tu cita quedó al día.');
         }}
-        onToast={mostrarToast}
+        onToast={(mensaje, tipo) => {
+          if (tipo === 'error') notificar.error(mensaje);
+          else if (tipo === 'warning') notificar.warning(mensaje);
+          else notificar.success(mensaje);
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(cancelarReserva)}
+        onClose={() => setCancelarReserva(null)}
+        onConfirm={confirmarCancelacion}
+        title="Cancelar cita"
+        description={
+          cancelarReserva
+            ? `Se cancelará la cita de ${cancelarReserva.servicio_nombre || 'servicio'} del ${fecha(cancelarReserva.inicia_en)} a las ${hora(cancelarReserva.inicia_en)}. Esta acción no se puede deshacer.`
+            : ''
+        }
+        confirmLabel="Cancelar cita"
+        danger
+        cargando={cancelando}
       />
     </div>
   );

@@ -20,7 +20,7 @@ export const ACCESOS_ADMIN = [
   { clave: 'sedes', etiqueta: 'Sedes', icono: MapPin },
   { clave: 'horarios', etiqueta: 'Horarios', icono: CalendarCog },
   { clave: 'reportes', etiqueta: 'Reportes', icono: BarChart3 },
-  { clave: 'clientes', etiqueta: 'Moderacion clientes', icono: ShieldAlert },
+  { clave: 'clientes', etiqueta: 'Moderación clientes', icono: ShieldAlert },
   { clave: 'logs', etiqueta: 'Logs', icono: FileText },
 ];
 
@@ -55,7 +55,7 @@ export function RielSecciones() {
             aria-current={activa ? 'page' : undefined}
             className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition cursor-pointer lg:w-full ${
               activa
-                ? 'border-primario bg-primario text-white shadow-sm'
+                ? 'border-primario bg-primario text-primario-texto'
                 : 'border-transparent bg-superficie/60 text-texto-secundario hover:border-borde hover:bg-superficie hover:text-texto-principal'
             }`}
           >
@@ -68,9 +68,9 @@ export function RielSecciones() {
   );
 }
 
-export function SheetAdmin({ open, onClose, children, title, size = 'wide' }) {
+export function SheetAdmin({ open, onClose, children, title, size = 'full' }) {
   return (
-    <Sheet open={open} onClose={onClose} title={title} size={size} nav={<RielSecciones />}>
+    <Sheet open={open} onClose={onClose} title={title} size={size}>
       {children}
     </Sheet>
   );

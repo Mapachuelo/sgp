@@ -109,7 +109,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
   };
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Gestion de servicios">
+    <SheetAdmin open={open} onClose={onClose} title="Gestión de servicios">
       <div className="space-y-6">
         <div className="flex justify-end">
           <Button variant="primario" onClick={() => { resetForm(); setMostrarForm(true); }}>
@@ -126,9 +126,9 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input label="Nombre" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
               <Input label="Precio base" type="number" value={form.precio} onChange={(e) => setForm((p) => ({ ...p, precio: e.target.value }))} />
-              <Input label="Descripcion" value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} />
+              <Input label="Descripción" value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} />
             </div>
-            <div className="flex gap-2 mt-4">
+            <div className="sticky bottom-0 z-20 mt-4 flex gap-2 border-t border-borde bg-superficie pt-3">
               <Button variant="primario" onClick={guardar} disabled={guardando}>{guardando ? <Spinner /> : editId ? 'Actualizar' : 'Crear'}</Button>
               <Button variant="secundario" onClick={resetForm}>Cancelar</Button>
             </div>
@@ -143,7 +143,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
               <thead className="bg-fondo/60">
                 <tr className="text-left text-texto-secundario text-xs uppercase">
                   <th className="py-3 px-3">Nombre</th>
-                  <th className="py-3 px-3">Descripcion</th>
+                  <th className="py-3 px-3">Descripción</th>
                   <th className="py-3 px-3">Precio</th>
                   <th className="py-3 px-3 text-right">Acciones</th>
                 </tr>
@@ -159,7 +159,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
                         <Button variant="outline" size="sm" aria-label={`Editar ${servicio.nombre}`} onClick={() => { setEditId(servicio.id); setMostrarForm(true); setForm({ nombre: servicio.nombre || '', descripcion: servicio.descripcion || '', precio: servicio.precio_base ?? servicio.precio ?? '' }); }}>
                           <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
-                        <Button variant="danger" size="sm" aria-label={`Eliminar ${servicio.nombre}`} onClick={() => eliminar(servicio)}>
+                        <Button variant="dangerSuave" size="sm" aria-label={`Eliminar ${servicio.nombre}`} onClick={() => eliminar(servicio)}>
                           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       </div>
@@ -228,7 +228,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
                             type="number"
                             min="5"
                             value={t.duracion_minutos}
-                            aria-label={`Duracion de ${t.servicio_nombre}`}
+                            aria-label={`Duración de ${t.servicio_nombre}`}
                             onChange={(e) => setTiempos((prev) => prev.map((item, i) => (i === indice ? { ...item, duracion_minutos: Number(e.target.value) } : item)))}
                             className="w-16 px-1.5 py-0.5 border border-borde rounded bg-superficie text-xs text-center focus:outline-none"
                           />

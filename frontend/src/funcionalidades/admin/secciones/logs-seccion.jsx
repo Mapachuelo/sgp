@@ -95,7 +95,7 @@ export default function LogsSeccion({ open, onClose, onToast }) {
             onClick={() => { setTab('actividad'); setDatos([]); }}
             aria-pressed={tab === 'actividad'}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              tab === 'actividad' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'
+              tab === 'actividad' ? 'bg-superficie text-primario' : 'text-texto-secundario'
             }`}
           >
             <ScrollText className="w-4 h-4" aria-hidden="true" /> logs.txt (Actividad)
@@ -105,7 +105,7 @@ export default function LogsSeccion({ open, onClose, onToast }) {
             onClick={() => { setTab('errores'); setDatos([]); }}
             aria-pressed={tab === 'errores'}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              tab === 'errores' ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario'
+              tab === 'errores' ? 'bg-superficie text-primario' : 'text-texto-secundario'
             }`}
           >
             <FileWarning className="w-4 h-4" aria-hidden="true" /> errores.txt (Fallos)

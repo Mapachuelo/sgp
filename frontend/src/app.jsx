@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider } from './contexto/auth-context';
+import { useTema } from './hooks/use-tema.js';
 import Layout from './componentes/layout';
 import RutaProtegida from './componentes/ruta-protegida';
 import LoginPage from './funcionalidades/auth/login-page';
@@ -13,7 +15,22 @@ import EmpleadoDisponibilidad from './funcionalidades/empleado/mi-disponibilidad
 import EmpleadoPerfil from './funcionalidades/empleado/mi-perfil';
 import AdminDashboard from './funcionalidades/admin/admin-dashboard';
 
+const toastOptions = {
+  style: {
+    background: 'var(--color-superficie)',
+    border: '1px solid var(--color-borde)',
+    borderRadius: '8px',
+    color: 'var(--color-texto-principal)',
+    boxShadow: 'var(--shadow-float)',
+    fontFamily: '"Archivo Variable", system-ui, sans-serif',
+    fontSize: '13px',
+  },
+};
+
 export default function App() {
+  const { tema } = useTema();
+  const sonnerTheme = tema === 'oscuro' ? 'dark' : 'light';
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -30,16 +47,34 @@ export default function App() {
 
           <Route element={<RutaProtegida roles={['empleado']}><Layout /></RutaProtegida>}>
             <Route path="/empleado" element={<EmpleadoDashboard />} />
+            <Route path="/empleado/agenda" element={<EmpleadoDashboard vista="agenda" />} />
             <Route path="/empleado/disponibilidad" element={<EmpleadoDisponibilidad />} />
             <Route path="/empleado/perfil" element={<EmpleadoPerfil />} />
           </Route>
 
           <Route element={<RutaProtegida roles={['admin']}><Layout /></RutaProtegida>}>
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/agenda" element={<AdminDashboard seccionInicial="horarios" />} />
+            <Route path="/admin/equipo" element={<AdminDashboard seccionInicial="empleados" />} />
+            <Route path="/admin/servicios" element={<AdminDashboard seccionInicial="servicios" />} />
+            <Route path="/admin/sedes" element={<AdminDashboard seccionInicial="sedes" />} />
+            <Route path="/admin/horarios" element={<AdminDashboard seccionInicial="horarios" />} />
+            <Route path="/admin/clientes" element={<AdminDashboard seccionInicial="clientes" />} />
+            <Route path="/admin/reportes" element={<AdminDashboard seccionInicial="reportes" />} />
+            <Route path="/admin/actividad" element={<AdminDashboard seccionInicial="logs" />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        <Toaster
+          position="top-right"
+          theme={sonnerTheme}
+          richColors={false}
+          closeButton
+          toastOptions={toastOptions}
+          offset={16}
+          mobileOffset={{ top: 16, bottom: 76 }}
+        />
       </AuthProvider>
     </BrowserRouter>
   );

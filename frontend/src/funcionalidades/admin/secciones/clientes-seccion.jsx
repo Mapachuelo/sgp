@@ -66,7 +66,7 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
   );
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Moderacion de clientes">
+    <SheetAdmin open={open} onClose={onClose} title="Moderación de clientes">
       <div className="space-y-4">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-texto-secundario" aria-hidden="true" />
@@ -89,7 +89,7 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
                 <tr className="text-left text-texto-secundario text-xs uppercase">
                   <th className="py-3 px-3">Cliente</th>
                   <th className="py-3 px-3">Email</th>
-                  <th className="py-3 px-3">Telefono</th>
+                  <th className="py-3 px-3">Teléfono</th>
                   <th className="py-3 px-3">Estado</th>
                   <th className="py-3 px-3 text-right">Acciones</th>
                 </tr>
@@ -127,7 +127,7 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
                             <ShieldOff className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Bloquear
                           </Button>
                         )}
-                        <Button variant="danger" size="sm" aria-label={`Eliminar ${cliente.nombre}`} onClick={() => eliminar(cliente)}>
+                        <Button variant="dangerSuave" size="sm" aria-label={`Eliminar ${cliente.nombre}`} onClick={() => eliminar(cliente)}>
                           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       </div>

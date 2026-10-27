@@ -1,6 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Badge, Modal, Toast, Input, Spinner, Select } from '../../componentes/ui/index.jsx';
+import { ArrowLeft, ArrowRight, Check, MapPin } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  Spinner,
+  Toast,
+} from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import useWebSocket from '../../hooks/use-websocket.js';
 import { descargarQrReserva } from '../../lib/descargas.js';
@@ -8,10 +20,10 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 const customMarkerIcon = new L.DivIcon({
-  html: `<div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#B84C3D" stroke-width="2">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#F5E6E3"/>
-      <circle cx="12" cy="10" r="3" fill="#B84C3D"/>
+  html: `<div style="display:flex;justify-content:center;align-items:center;width:30px;height:30px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1B6C80" stroke-width="2">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#E6F1F3"/>
+      <circle cx="12" cy="10" r="3" fill="#1B6C80"/>
     </svg>
   </div>`,
   className: 'custom-leaflet-icon',
@@ -29,10 +41,25 @@ function MapRecenter({ lat, lng }) {
   return null;
 }
 
+function AjustarMapa({ puntos }) {
+  const map = useMap();
+  const clave = puntos.map((p) => p.join(',')).join(';');
+  useEffect(() => {
+    const validos = puntos.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (validos.length > 1) {
+      map.fitBounds(L.latLngBounds(validos), { padding: [28, 28], maxZoom: 14 });
+    } else if (validos.length === 1) {
+      map.setView(validos[0], 14);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave, map]);
+  return null;
+}
+
 const PASOS = [
-  { num: 1, label: 'Ubicacion' },
-  { num: 2, label: 'Empleado' },
-  { num: 3, label: 'Calendario' },
+  { num: 1, label: 'Sede' },
+  { num: 2, label: 'Estilista' },
+  { num: 3, label: 'Horario' },
   { num: 4, label: 'Confirmar' },
   { num: 5, label: 'Pago' },
 ];
@@ -48,7 +75,18 @@ function formatearFechaLocal(date) {
 
 function obtenerIniciales(nombre) {
   if (!nombre) return '??';
-  return nombre.split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2);
+  return nombre.split(' ').filter(Boolean).map((p) => p[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function fechaBonita(valor) {
+  if (!valor) return '';
+  const [anio, mes, dia] = valor.split('-').map(Number);
+  return new Intl.DateTimeFormat('es-CO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(anio, mes - 1, dia));
 }
 
 export default function NuevaReserva() {
@@ -513,33 +551,31 @@ export default function NuevaReserva() {
 
   if (pagoCompletado) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-12 text-center">
+      <div className="mx-auto max-w-2xl py-8 text-center sm:py-14">
         <Toast open={toast.open} message={toast.message} type={toast.type} />
-        <Card className="p-10 shadow-elevated">
-          <div className="text-exito mb-6">
-            <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
+        <Card className="p-7 sm:p-10">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-exito/10 text-exito">
+            <Check className="h-7 w-7" strokeWidth={2} aria-hidden="true" />
           </div>
-          <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">
-            {pagoEstado === 'aprobado' ? '¡Tu Cita ha sido Confirmada!' : '¡Tu Reserva ha sido Registrada!'}
-          </h2>
-          <p className="text-texto-secundario mb-6">
+          <h1 className="text-2xl font-semibold tracking-[-0.03em] text-texto-principal">
+            {pagoEstado === 'aprobado' ? 'Cita confirmada' : 'Reserva registrada'}
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-texto-secundario">
             {pagoEstado === 'aprobado'
-              ? 'Pago aprobado con Wompi. Muestra el código QR al ingresar.'
-              : 'Tu reserva quedo activa. Muestra el código QR al ingresar y paga en el local.'}
+              ? 'El pago fue aprobado. Muestra el código QR al llegar al salón.'
+              : 'Tu cita quedó activa. Muestra el código QR al llegar y paga en el local.'}
           </p>
           {reservaCreada?.qr_data_url && (
-            <div className="border border-borde p-4 rounded-3xl bg-white shadow-sm inline-block mb-6 max-w-full w-48">
-              <img src={reservaCreada.qr_data_url} alt="QR" className="w-40 h-40 mx-auto" />
+            <div className="mx-auto mt-6 inline-block max-w-full rounded-lg border border-borde bg-white p-4">
+              <img src={reservaCreada.qr_data_url} alt="Código QR de la cita" className="mx-auto h-40 w-40" />
               {reservaCreada.qr_token && (
-                <span className="font-mono text-[10px] sm:text-xs text-texto-principal font-bold mt-2 block break-all">{reservaCreada.qr_token}</span>
+                <span className="mono mt-2 block break-all text-[10px] text-tenue">{reservaCreada.qr_token}</span>
               )}
             </div>
           )}
-          <div className="flex gap-3 justify-center">
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
             <Button variant="secundario" onClick={descargarQR}>Descargar QR</Button>
-            <Button onClick={() => navigate('/cliente')}>Ir al inicio</Button>
+            <Button onClick={() => navigate('/cliente')}>Ir a mis citas</Button>
           </div>
         </Card>
       </div>
@@ -549,37 +585,66 @@ export default function NuevaReserva() {
   const diasSem = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-[1000px] space-y-6 pb-20 md:pb-0">
       <Toast open={toast.open} message={toast.message} type={toast.type} />
-      <div className="text-center space-y-2 max-w-xl mx-auto mb-6">
-        <h1 className="font-display text-3xl font-bold text-texto-principal">Agendar Cita</h1>
-        <p className="text-sm text-texto-secundario">Sigue los pasos interactivos para completar la reserva en la sede de tu elección.</p>
-      </div>
+      <PageHeader
+        title="Reservar cita"
+        subtitle="Elige sede, estilista y horario. El total se confirma al finalizar."
+        actions={
+          <Button variant="ghost" onClick={() => navigate('/cliente')}>
+            Cancelar
+          </Button>
+        }
+      />
 
-      <div className="flex justify-between items-center max-w-2xl mx-auto relative mb-10 px-4">
-        {PASOS.map((p, i) => (
-          <div key={p.num} className={`flex items-center ${i < PASOS.length - 1 ? 'flex-grow' : ''}`}>
-            <div className="flex items-center gap-1.5 select-none shrink-0">
-              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                p.num === paso ? 'bg-primario text-white' : p.num < paso ? 'bg-exito text-white' : 'bg-borde text-texto-secundario'
-              }`}>
-                {p.num}
-              </div>
-              <span className={`text-[10px] sm:text-xs font-semibold hidden sm:inline-block ${p.num <= paso ? 'text-texto-principal' : 'text-texto-secundario'}`}>{p.label}</span>
-            </div>
-            {i < PASOS.length - 1 && <div className={`flex-grow h-px mx-2 sm:mx-3 ${p.num < paso ? 'bg-exito' : 'bg-borde'}`} />}
+      <div className="rounded-lg border border-borde bg-superficie px-3 py-2.5">
+        <div className="flex items-center gap-3 sm:hidden">
+          <span className="mono shrink-0 text-[11px] font-medium text-texto-principal">
+            {paso}/{PASOS.length}
+          </span>
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-panel">
+            <div className="h-full rounded-full bg-acento" style={{ width: `${(paso / PASOS.length) * 100}%` }} />
           </div>
-        ))}
+          <span className="shrink-0 text-[11px] font-medium text-texto-principal">{PASOS[paso - 1]?.label}</span>
+        </div>
+        <div className="hidden items-center gap-1 sm:flex">
+          {PASOS.map((p, i) => {
+            const activo = p.num === paso;
+            const completado = p.num < paso;
+            return (
+              <div key={p.num} className="flex flex-1 items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${
+                    activo
+                      ? 'bg-primario text-primario-texto'
+                      : completado
+                        ? 'bg-acento-suave text-acento-tinta'
+                        : 'bg-panel text-tenue'
+                  }`}
+                >
+                  {completado ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : p.num}
+                </span>
+                <span className={`text-[11px] ${activo || completado ? 'font-medium text-texto-principal' : 'text-tenue'}`}>
+                  {p.label}
+                </span>
+                {i < PASOS.length - 1 && <span className={`h-px flex-1 ${completado ? 'bg-acento/40' : 'bg-borde'}`} />}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* STEP 1 */}
       {paso === 1 && (
-        <div className="space-y-6">
-          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 1: Selecciona la sede del servicio</h2>
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="lg:w-1/2 flex flex-col gap-3">
-              {/* Buscador y filtro de ciudad */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+        <div className="space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-texto-principal">Elige la sede</h2>
+            <p className="mt-0.5 text-xs text-texto-secundario">Busca por nombre o ciudad, o selecciona un punto en el mapa.</p>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Input
                   label="Buscar sede"
                   placeholder="Nombre o dirección..."
@@ -587,7 +652,7 @@ export default function NuevaReserva() {
                   onChange={(e) => setFiltroNombre(e.target.value)}
                 />
                 <Select
-                  label="Filtrar por ciudad"
+                  label="Ciudad"
                   value={filtroCiudad}
                   onChange={(e) => setFiltroCiudad(e.target.value)}
                   options={ciudades.map((c) => ({ value: c, label: c }))}
@@ -597,42 +662,38 @@ export default function NuevaReserva() {
               {cargando && ubicaciones.length === 0 ? (
                 <div className="flex justify-center py-12"><Spinner /></div>
               ) : ubicacionesFiltradas.length === 0 ? (
-                <Card>
-                  <p className="text-texto-secundario text-center py-8">
-                    No se encontraron sedes con los filtros seleccionados.
-                  </p>
-                </Card>
+                <EmptyState title="No encontramos sedes" description="Prueba con otro nombre o quita el filtro de ciudad." />
               ) : (
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                <div className="max-h-[330px] space-y-2 overflow-y-auto pr-1 scroll-thin">
                   {ubicacionesFiltradas.map((ubic) => {
                     const isSel = ubicacionSeleccionada?.id === ubic.id;
                     return (
-                      <div
+                      <button
                         key={ubic.id}
+                        type="button"
                         onClick={() => setUbicacionSeleccionada(ubic)}
-                        className={`p-4 rounded-2xl border-2 cursor-pointer transition flex items-start gap-3 bg-superficie ${
-                          isSel ? 'border-primario bg-primario/5 ring-2 ring-primario/10' : 'border-borde hover:border-primario'
+                        className={`flex w-full items-start gap-3 rounded-lg border p-3.5 text-left transition-colors ${
+                          isSel ? 'border-acento bg-acento-suave/40 ring-1 ring-acento/20' : 'border-borde bg-superficie hover:bg-panel/60'
                         }`}
                       >
-                        <div className="w-8 h-8 rounded-full bg-primario/10 flex items-center justify-center shrink-0">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-sm text-texto-principal">{ubic.nombre}</h3>
-                          {ubic.direccion && <p className="text-xs text-texto-secundario mt-0.5">{ubic.direccion}</p>}
-                        </div>
-                      </div>
+                        <MapPin className={`mt-0.5 h-4 w-4 shrink-0 ${isSel ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-texto-principal">{ubic.nombre}</span>
+                          {ubic.direccion && <span className="mt-0.5 block text-xs leading-5 text-texto-secundario">{ubic.direccion}</span>}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
               )}
             </div>
 
-            <div className="lg:w-1/2 bg-superficie rounded-2xl border border-borde p-4 shadow-premium space-y-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-texto-secundario">Mapa de Sedes</p>
-              <div className="h-64 rounded-xl border border-borde overflow-hidden relative z-10 isolate bg-fondo">
+            <div className="space-y-3 rounded-lg border border-borde bg-superficie p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-medium text-texto-secundario">Mapa de sedes</p>
+                {ubicacionSeleccionada && <Badge variant="accent">{ubicacionSeleccionada.nombre}</Badge>}
+              </div>
+              <div className="relative z-0 h-64 overflow-hidden rounded-md border border-borde bg-panel">
                 <MapContainer
                   center={ubicacionSeleccionada ? [parseFloat(ubicacionSeleccionada.latitud), parseFloat(ubicacionSeleccionada.longitud)] : [4.60971, -74.08175]}
                   zoom={13}
@@ -640,7 +701,7 @@ export default function NuevaReserva() {
                   style={{ height: '100%', width: '100%' }}
                 >
                   <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   {ubicacionesFiltradas.map((u) => (
@@ -648,25 +709,19 @@ export default function NuevaReserva() {
                       key={u.id}
                       position={[parseFloat(u.latitud), parseFloat(u.longitud)]}
                       icon={customMarkerIcon}
-                      eventHandlers={{
-                        click: () => setUbicacionSeleccionada(u)
-                      }}
+                      eventHandlers={{ click: () => setUbicacionSeleccionada(u) }}
                     />
                   ))}
+                  <AjustarMapa
+                    puntos={ubicacionesFiltradas.map((u) => [parseFloat(u.latitud), parseFloat(u.longitud)])}
+                  />
                   {ubicacionSeleccionada && (
-                    <MapRecenter
-                      lat={parseFloat(ubicacionSeleccionada.latitud)}
-                      lng={parseFloat(ubicacionSeleccionada.longitud)}
-                    />
+                    <MapRecenter lat={parseFloat(ubicacionSeleccionada.latitud)} lng={parseFloat(ubicacionSeleccionada.longitud)} />
                   )}
                 </MapContainer>
               </div>
-              <Button
-                onClick={irAPaso2}
-                disabled={!ubicacionSeleccionada}
-                className="w-full py-3"
-              >
-                {cargando ? <Spinner /> : 'Siguiente: Elegir Estilista'}
+              <Button onClick={irAPaso2} disabled={!ubicacionSeleccionada} className="hidden w-full md:inline-flex">
+                {cargando ? <Spinner /> : 'Continuar con estilista'}
               </Button>
             </div>
           </div>
@@ -675,46 +730,56 @@ export default function NuevaReserva() {
 
       {/* STEP 2 */}
       {paso === 2 && (
-        <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <button onClick={volverAtras} className="text-xs text-primario hover:underline flex items-center gap-1">← Volver</button>
-            <span className="text-xs text-texto-secundario">Sede: <strong className="text-texto-principal">{ubicacionSeleccionada?.nombre}</strong></span>
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <button type="button" onClick={volverAtras} className="inline-flex items-center gap-1 text-xs font-medium text-acento hover:underline">
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Volver
+              </button>
+              <h2 className="mt-1 text-base font-semibold text-texto-principal">Elige estilista</h2>
+              <p className="mt-0.5 text-xs text-texto-secundario">Sede: {ubicacionSeleccionada?.nombre}</p>
+            </div>
           </div>
-          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 2: Selecciona un Estilista</h2>
+
           {cargando ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : empleados.length === 0 ? (
-            <Card><p className="text-texto-secundario text-center py-8">No hay estilistas disponibles en esta sede durante los proximos 6 dias.</p></Card>
+            <EmptyState title="No hay estilistas disponibles" description="Prueba con otra sede o revisa los próximos días." />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {empleados.map((emp) => {
                 const isSel = empleadoSeleccionado?.id === emp.id;
                 return (
-                  <div
+                  <button
                     key={emp.id}
+                    type="button"
                     onClick={() => {
                       setEmpleadoSeleccionado(emp);
-                      setTimeout(() => {
-                        irAPaso3(emp);
-                      }, 300);
+                      setTimeout(() => irAPaso3(emp), 180);
                     }}
-                    className={`p-5 rounded-2xl border-2 cursor-pointer text-center transition flex flex-col items-center gap-3 bg-superficie ${
-                      isSel ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'
+                    className={`flex items-center gap-3 rounded-lg border p-3.5 text-left transition-colors ${
+                      isSel ? 'border-acento bg-acento-suave/40 ring-1 ring-acento/20' : 'border-borde bg-superficie hover:bg-panel/60'
                     }`}
                   >
-                    <div className="w-14 h-14 rounded-full bg-primario/10 text-primario font-display text-xl font-bold flex items-center justify-center">
-                      {obtenerIniciales(emp.nombre)}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-texto-principal">{emp.nombre} {emp.apellido}</h4>
-                      {emp.especialidad && <p className="text-xs text-texto-secundario mt-0.5">{emp.especialidad}</p>}
-                    </div>
-                  </div>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-activo text-sm font-semibold text-texto-secundario">
+                      {obtenerIniciales(`${emp.nombre || ''} ${emp.apellido || ''}`)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-texto-principal">
+                        {emp.nombre} {emp.apellido}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-texto-secundario">
+                        {emp.especialidad || 'Elegir estilista'}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-tenue" aria-hidden="true" />
+                  </button>
                 );
               })}
             </div>
           )}
-          <div className="mt-8">
+
+          <div className="flex justify-start border-t border-borde pt-4">
             <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
           </div>
         </div>
@@ -722,38 +787,35 @@ export default function NuevaReserva() {
 
       {/* STEP 3 */}
       {paso === 3 && (
-        <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <button onClick={volverAtras} className="text-xs text-primario hover:underline flex items-center gap-1">← Volver</button>
-            <span className="text-xs text-texto-secundario">Estilista: <strong className="text-texto-principal">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</strong></span>
-          </div>
-          <div className="flex justify-between items-center flex-wrap gap-2 border-b border-borde pb-4">
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-lg font-bold text-texto-principal">Paso 3: Escoge el día y la hora</h2>
-              <p className="text-xs text-texto-secundario">Haga clic en una ranura libre para agendar. Debe tener al menos 60m de antelación.</p>
+              <button type="button" onClick={volverAtras} className="inline-flex items-center gap-1 text-xs font-medium text-acento hover:underline">
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Volver
+              </button>
+              <h2 className="mt-1 text-base font-semibold text-texto-principal">Elige día y hora</h2>
+              <p className="mt-0.5 text-xs text-texto-secundario">
+                Estilista: {empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido} · mínimo 60 min de anticipación.
+              </p>
             </div>
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-wrap items-center gap-2">
               {fechaBase && (
-                <div className="flex flex-wrap gap-1.5 items-center mr-2">
-                  <button
-                    type="button"
+                <div className="flex items-center gap-1 rounded-md border border-borde bg-superficie p-0.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       const nueva = new Date(fechaBase);
                       nueva.setDate(nueva.getDate() - 6);
                       const hoy = new Date();
                       hoy.setHours(0, 0, 0, 0);
-                      if (nueva < hoy) {
-                        cargarCalendario(hoy);
-                      } else {
-                        cargarCalendario(nueva);
-                      }
+                      cargarCalendario(nueva < hoy ? hoy : nueva);
                     }}
                     disabled={fechaBase.getTime() <= new Date().setHours(0, 0, 0, 0)}
-                    className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
-                    title="Ver 6 días anteriores"
+                    aria-label="Ver 6 días anteriores"
                   >
                     ←
-                  </button>
+                  </Button>
                   <input
                     type="date"
                     value={fechaBase ? `${fechaBase.getFullYear()}-${String(fechaBase.getMonth() + 1).padStart(2, '0')}-${String(fechaBase.getDate()).padStart(2, '0')}` : ''}
@@ -764,30 +826,31 @@ export default function NuevaReserva() {
                     onChange={(e) => {
                       if (e.target.value) {
                         const partes = e.target.value.split('-').map(Number);
-                        const nueva = new Date(partes[0], partes[1] - 1, partes[2]);
-                        cargarCalendario(nueva);
+                        cargarCalendario(new Date(partes[0], partes[1] - 1, partes[2]));
                       }
                     }}
-                    className="text-xs px-2.5 py-1.5 border border-borde rounded bg-superficie text-texto-principal focus:outline-none"
+                    className="h-8 rounded border-0 bg-transparent px-1 text-xs text-texto-principal focus:outline-none"
+                    aria-label="Fecha de inicio"
                   />
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       const nueva = new Date(fechaBase);
                       nueva.setDate(nueva.getDate() + 6);
                       cargarCalendario(nueva);
                     }}
-                    className="px-2.5 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold transition cursor-pointer"
-                    title="Ver siguientes 6 días"
+                    aria-label="Ver siguientes 6 días"
                   >
                     →
-                  </button>
+                  </Button>
                 </div>
               )}
               <select
                 value={granularidad}
                 onChange={(e) => setGranularidad(Number(e.target.value))}
-                className="text-xs px-2 py-1.5 border border-borde rounded bg-superficie text-texto-principal"
+                className="h-9 rounded-md border border-control bg-superficie px-2 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+                aria-label="Intervalo de horarios"
               >
                 <option value="15">Intervalo 15m</option>
                 <option value="30">Intervalo 30m</option>
@@ -805,24 +868,24 @@ export default function NuevaReserva() {
             
             return (
               <>
-                <Card padding={false} className="max-w-4xl mx-auto overflow-hidden border border-borde/70 shadow-premium">
-                  <div className="overflow-y-auto overflow-x-auto max-h-[42vh]">
+                <Card padding={false} className="max-w-4xl mx-auto overflow-hidden">
+                  <div className="max-h-[42vh] overflow-x-auto overflow-y-auto scroll-thin">
                     <table className={`w-full border-collapse text-xs ${isMobile ? '' : 'min-w-[700px]'}`}>
                       <thead className="sticky top-0 z-20">
-                        <tr className="border-b border-borde bg-superficie/95 backdrop-blur">
-                          <th className="sticky left-0 bg-superficie z-30 border-b border-borde py-4 px-4 text-left font-bold text-texto-secundario uppercase tracking-wider w-24">Hora</th>
+                        <tr className="border-b border-borde bg-superficie">
+                          <th className="sticky left-0 z-30 w-24 border-b border-borde bg-superficie px-3 py-3 text-left text-[11px] font-medium text-texto-secundario">Hora</th>
                           {diasVisibles.map((dia) => (
-                            <th key={dia.fecha} className="border-b border-borde py-3 px-2 text-center font-bold text-texto-principal">
-                              <span className="text-[10px] font-bold text-texto-secundario uppercase block">{diasSem[dia.objetoFecha.getDay()]}</span>
-                              <span className="font-display text-base font-bold text-texto-principal">{dia.objetoFecha.getDate()}</span>
+                            <th key={dia.fecha} className="border-b border-borde px-2 py-2.5 text-center">
+                              <span className="block text-[10px] font-medium text-texto-secundario">{diasSem[dia.objetoFecha.getDay()]}</span>
+                              <span className="num block text-sm font-medium text-texto-principal">{dia.objetoFecha.getDate()}</span>
                             </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {generarSlotsDelDia().map((hora) => (
-                          <tr key={hora} className="hover:bg-fondo/20 transition-colors">
-                            <td className="sticky left-0 bg-superficie z-10 border-b border-borde/40 py-2.5 px-4 text-xs font-semibold text-texto-secundario whitespace-nowrap">{hora}</td>
+                          <tr key={hora} className="transition-colors hover:bg-panel/50">
+                            <td className="sticky left-0 z-10 whitespace-nowrap border-b border-regla bg-superficie px-3 py-2 text-[11px] font-medium text-texto-secundario">{hora}</td>
                             {diasVisibles.map((dia) => {
                               const fueraDeDisponibilidad = esSlotFueraDeDisponibilidad(dia.fecha, hora);
                               const ocupado = !fueraDeDisponibilidad && esSlotOcupado(dia.fecha, hora);
@@ -847,12 +910,12 @@ export default function NuevaReserva() {
                               }
 
                               return (
-                                <td key={dia.fecha} className="border-b border-r border-borde/20 p-0.5">
+                                <td key={dia.fecha} className="border-b border-r border-regla p-0.5 last:border-r-0">
                                   <button
                                     type="button"
                                     onClick={() => libre && handleSlotClick(dia, hora)}
                                     disabled={!libre}
-                                    className={`w-full text-center py-2 text-[10px] font-bold rounded-lg border transition hover:ring-2 hover:ring-primario/40 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-sm relative ${clase}`}
+                                    className={`relative w-full rounded px-1 py-1.5 text-[10px] font-medium transition-colors ${clase}`}
                                   >
                                     {label}
                                   </button>
@@ -871,19 +934,19 @@ export default function NuevaReserva() {
                       type="button"
                       onClick={() => setDiaInicioMovil(Math.max(0, inicio - 1))}
                       disabled={inicio <= 0}
-                      aria-label="Ver dias anteriores"
+                      aria-label="Ver días anteriores"
                       className="px-3 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
                     >
                       ←
                     </button>
                     <span className="text-xs text-texto-secundario font-semibold">
-                      Dias {inicio + 1}–{inicio + diasVisibles.length} de {semana.length}
+                      Días {inicio + 1}–{inicio + diasVisibles.length} de {semana.length}
                     </span>
                     <button
                       type="button"
                       onClick={() => setDiaInicioMovil(Math.min(maxInicio, inicio + 1))}
                       disabled={inicio >= maxInicio}
-                      aria-label="Ver dias siguientes"
+                      aria-label="Ver días siguientes"
                       className="px-3 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
                     >
                       →
@@ -894,15 +957,15 @@ export default function NuevaReserva() {
             );
           })()}
 
-          <div className="flex flex-wrap justify-center gap-6 text-xs font-medium border-t border-borde/50 pt-4 max-w-4xl mx-auto">
-            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#DCE8E0] border-[#A3C9A8]" /> Disponible</span>
-            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#F5E6E3] border-[#E8C5C0]" /> Ocupado</span>
-            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#EBEBEB] border-[#D1D1D1]" /> Pasado</span>
-            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#E2E8F0] border-[#CBD5E1]" /> No disponible</span>
-            <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded border bg-[#FFF3E6] border-[#F0C78E]" /> Anticipación &lt;60m</span>
+          <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-x-5 gap-y-2 border-t border-borde pt-4 text-[11px] text-texto-secundario">
+            <span className="flex items-center gap-1.5"><span className="slot-libre h-3.5 w-3.5 rounded-sm border" /> Disponible</span>
+            <span className="flex items-center gap-1.5"><span className="slot-ocupado h-3.5 w-3.5 rounded-sm border" /> Ocupado</span>
+            <span className="flex items-center gap-1.5"><span className="slot-pasado h-3.5 w-3.5 rounded-sm border" /> Pasado</span>
+            <span className="flex items-center gap-1.5"><span className="slot-no-disponible h-3.5 w-3.5 rounded-sm border" /> No disponible</span>
+            <span className="flex items-center gap-1.5"><span className="slot-antelacion h-3.5 w-3.5 rounded-sm border" /> Anticipación &lt;60m</span>
           </div>
 
-          <div className="flex justify-center mt-6">
+          <div className="mt-2 flex justify-center">
             <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
           </div>
         </div>
@@ -912,192 +975,173 @@ export default function NuevaReserva() {
       <Modal
         open={paso === 4 && !!diaSeleccionado && !!slotSeleccionado}
         onClose={volverAtras}
-        title="Paso 4: Confirma los detalles de tu cita"
+        title="Confirma tu cita"
       >
         {diaSeleccionado && slotSeleccionado && (
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <h3 className="font-display text-xl font-bold text-texto-principal border-b border-borde/50 pb-2">Resumen</h3>
-            <div className="grid grid-cols-2 gap-y-2 text-sm">
-              <span className="text-texto-secundario">Sede</span>
-              <span className="font-semibold text-right">{ubicacionSeleccionada?.nombre}</span>
-              <span className="text-texto-secundario">Estilista</span>
-              <span className="font-semibold text-right">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</span>
-              <span className="text-texto-secundario">Fecha</span>
-              <span className="font-semibold text-right text-primario">{diaSeleccionado.fecha}</span>
-              <span className="text-texto-secundario">Duracion estimada</span>
-              <span className="font-semibold text-right text-primario">
-                {slotSeleccionado} → {calcularHoraFin()} ({duracionSeleccionada} min)
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="servicio-reserva" className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Selecciona el Servicio</label>
-              <select
-                id="servicio-reserva"
-                value={servicioSeleccionado}
-                onChange={(e) => setServicioSeleccionado(e.target.value)}
-                className="w-full px-3 py-2.5 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
-              >
-                {servicios.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre} ({s.duracion_base_minutos || s.duracion || 30} min · ${parseFloat(s.precio_base || s.precio || 0).toLocaleString()})
-                  </option>
-                ))}
-              </select>
+          <div className="space-y-5">
+            <div className="rounded-md border border-borde bg-panel/50 p-3.5">
+              <div className="grid grid-cols-2 gap-y-2 text-sm">
+                <span className="text-texto-secundario">Sede</span>
+                <span className="text-right font-medium text-texto-principal">{ubicacionSeleccionada?.nombre}</span>
+                <span className="text-texto-secundario">Estilista</span>
+                <span className="text-right font-medium text-texto-principal">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</span>
+                <span className="text-texto-secundario">Fecha</span>
+                <span className="text-right font-medium capitalize text-texto-principal">{fechaBonita(diaSeleccionado.fecha)}</span>
+                <span className="text-texto-secundario">Horario</span>
+                <span className="num text-right font-medium text-texto-principal">
+                  {slotSeleccionado} → {calcularHoraFin()} ({duracionSeleccionada} min)
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div>
-                <span className="block text-xs font-semibold text-texto-principal uppercase mb-1.5">Personas</span>
-                <div className="flex items-center gap-2" role="group" aria-label="Cantidad de personas">
-                  <button
-                    type="button"
-                    aria-label="Quitar una persona"
-                    onClick={() => setCantidad(c => Math.max(1, c - 1))}
-                    className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
-                  >
-                    -
-                  </button>
-                  <span className="font-semibold w-8 text-center text-sm" aria-live="polite">{cantidad}</span>
-                  <button
-                    type="button"
-                    aria-label="Agregar una persona"
-                    onClick={() => setCantidad(c => Math.min(5, c + 1))}
-                    className="w-8 h-8 rounded border border-borde flex items-center justify-center font-bold hover:bg-fondo transition"
-                  >
-                    +
-                  </button>
+                <label htmlFor="servicio-reserva" className="mb-1.5 block text-xs font-medium text-texto-principal">
+                  Servicio
+                </label>
+                <select
+                  id="servicio-reserva"
+                  value={servicioSeleccionado}
+                  onChange={(e) => setServicioSeleccionado(e.target.value)}
+                  className="h-10 w-full rounded-md border border-control bg-superficie px-3 text-sm text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+                >
+                  {servicios.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre} ({s.duracion_base_minutos || s.duracion || 30} min · ${parseFloat(s.precio_base || s.precio || 0).toLocaleString('es-CO')})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 items-end gap-4">
+                <div>
+                  <span className="mb-1.5 block text-xs font-medium text-texto-principal">Personas</span>
+                  <div className="flex items-center gap-2" role="group" aria-label="Cantidad de personas">
+                    <button
+                      type="button"
+                      aria-label="Quitar una persona"
+                      onClick={() => setCantidad((c) => Math.max(1, c - 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
+                    >
+                      −
+                    </button>
+                    <span className="num w-8 text-center text-sm font-medium" aria-live="polite">{cantidad}</span>
+                    <button
+                      type="button"
+                      aria-label="Agregar una persona"
+                      onClick={() => setCantidad((c) => Math.min(5, c + 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] text-texto-secundario">Total estimado</span>
+                  <p className="num text-2xl font-medium text-texto-principal">${totalPrecio.toLocaleString('es-CO')}</p>
                 </div>
               </div>
-              <div className="text-right flex flex-col justify-end">
-                <span className="text-xs text-texto-secundario">Total a pagar:</span>
-                <span className="text-2xl font-bold text-primario">${totalPrecio.toLocaleString()}</span>
-              </div>
+            </div>
+
+            <p className="text-[11px] leading-5 text-tenue">
+              El monto final se calcula en el servidor al confirmar la reserva. La disponibilidad puede cambiar mientras completas el pago.
+            </p>
+
+            <div className="flex gap-2 border-t border-borde pt-4">
+              <Button variant="secundario" className="flex-1" onClick={volverAtras}>Atrás</Button>
+              <Button className="flex-1" onClick={handleCrearReserva} disabled={cargando}>
+                {cargando ? <Spinner /> : 'Confirmar reserva'}
+              </Button>
             </div>
           </div>
-
-          <div className="flex gap-3 pt-4 border-t border-borde/50">
-            <Button variant="secundario" className="flex-1" onClick={volverAtras}>Atrás</Button>
-            <Button className="flex-grow flex-1" onClick={handleCrearReserva} disabled={cargando}>
-              {cargando ? <Spinner /> : 'Confirmar Reserva'}
-            </Button>
-          </div>
-        </div>
         )}
       </Modal>
 
-      {/* STEP 5 */}
       {paso === 5 && reservaCreada && (
-        <div className="space-y-6">
-          <h2 className="font-display text-lg font-bold text-texto-principal text-center">Paso 5: Proceso de Pago y Código QR</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* QR e Instrucciones */}
-            <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-exito/10 flex items-center justify-center text-exito">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-display text-lg font-bold text-texto-principal">¡Tu Reserva ha sido Registrada!</h3>
-                <p className="text-xs text-texto-secundario mt-1">Hemos generado un token de acceso QR. Elige el método de pago para activarla.</p>
-              </div>
+        <div className="space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-texto-principal">Elige cómo pagar</h2>
+            <p className="mt-0.5 text-xs text-texto-secundario">Tu cita ya está registrada. El pago en línea o en efectivo la deja lista.</p>
+          </div>
 
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="flex flex-col items-center rounded-lg border border-borde bg-superficie p-5 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-exito/10 text-exito">
+                <Check className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+              </div>
+              <h3 className="mt-3 text-base font-semibold text-texto-principal">Reserva registrada</h3>
+              <p className="mt-1 max-w-xs text-xs leading-5 text-texto-secundario">
+                Muestra el QR al llegar. Si eliges efectivo, el pago se registra en recepción.
+              </p>
               {reservaCreada.qr_data_url && (
-                <div className="border border-borde p-3 rounded-2xl bg-white shadow-sm inline-block max-w-full w-40">
-                  <div className="flex flex-col items-center">
-                    <img src={reservaCreada.qr_data_url} alt="QR" className="w-32 h-32" />
-                    {reservaCreada.qr_token && (
-                      <span className="font-mono text-[9px] sm:text-[10px] text-texto-principal font-bold mt-2 break-all text-center">{reservaCreada.qr_token}</span>
-                    )}
-                  </div>
+                <div className="mt-4 inline-block rounded-md border border-borde bg-white p-3">
+                  <img src={reservaCreada.qr_data_url} alt="Código QR de la cita" className="h-32 w-32" />
+                  {reservaCreada.qr_token && (
+                    <span className="mono mt-2 block break-all text-[9px] text-tenue">{reservaCreada.qr_token}</span>
+                  )}
                 </div>
               )}
-              <Button variant="secundario" size="sm" onClick={descargarQR}>Descargar QR</Button>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Button variant="secundario" size="sm" onClick={descargarQR}>
+                  Descargar QR
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/cliente')}>
+                  Ir a mis citas
+                </Button>
+              </div>
             </div>
 
-            {/* Pago */}
-            <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
-              <h3 className="font-semibold text-sm text-texto-principal uppercase tracking-wider">Selecciona la forma de pago</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMetodoPago('efectivo')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-center transition ${
-                    metodoPago === 'efectivo' ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'
-                  }`}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={metodoPago === 'efectivo' ? '#8B5E3C' : '#8C7B70'} strokeWidth="1.5">
-                    <rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span className={`text-xs font-bold ${metodoPago === 'efectivo' ? 'text-primario' : 'text-texto-secundario'}`}>Efectivo en Local</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMetodoPago('online')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 text-center transition ${
-                    metodoPago === 'online' ? 'border-primario bg-primario/5' : 'border-borde hover:border-primario'
-                  }`}
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={metodoPago === 'online' ? '#8B5E3C' : '#8C7B70'} strokeWidth="1.5">
-                    <rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>
-                  </svg>
-                  <span className={`text-xs font-bold ${metodoPago === 'online' ? 'text-primario' : 'text-texto-secundario'}`}>Pago en linea</span>
-                </button>
+            <div className="space-y-4 rounded-lg border border-borde bg-superficie p-5">
+              <div>
+                <p className="text-xs font-medium text-texto-principal">Forma de pago</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMetodoPago('efectivo')}
+                    className={`flex flex-col items-center gap-2 rounded-md border p-3 text-center transition-colors ${
+                      metodoPago === 'efectivo' ? 'border-acento bg-acento-suave/50' : 'border-borde hover:bg-panel'
+                    }`}
+                  >
+                    <span className={`text-xs font-medium ${metodoPago === 'efectivo' ? 'text-acento-tinta' : 'text-texto-secundario'}`}>
+                      Efectivo en local
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMetodoPago('online')}
+                    className={`flex flex-col items-center gap-2 rounded-md border p-3 text-center transition-colors ${
+                      metodoPago === 'online' ? 'border-acento bg-acento-suave/50' : 'border-borde hover:bg-panel'
+                    }`}
+                  >
+                    <span className={`text-xs font-medium ${metodoPago === 'online' ? 'text-acento-tinta' : 'text-texto-secundario'}`}>
+                      Pago en línea
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {metodoPago === 'efectivo' ? (
                 <div className="space-y-3">
-                  <p className="text-xs text-texto-secundario">
-                    Reserva ahora y paga en el local al presentar tu codigo QR.
+                  <p className="text-xs leading-5 text-texto-secundario">
+                    Reserva ahora y paga en el local al presentar tu código QR.
                   </p>
-                  <Button
-                    onClick={confirmarPagoEfectivo}
-                    className="w-full py-3 bg-exito hover:bg-green-700 text-white rounded-xl font-semibold transition shadow-md"
-                  >
-                    Confirmar reserva y pagar en local
+                  <Button onClick={confirmarPagoEfectivo} className="w-full">
+                    Confirmar y pagar en local
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded-xl border border-borde bg-fondo/40 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-texto-secundario mb-2">
-                      Medios de pago en el checkout seguro de Wompi
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
-                          <rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>
-                        </svg>
-                        Tarjeta credito/debito
-                      </span>
-                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
-                          <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"></path>
-                        </svg>
-                        PSE
-                      </span>
-                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
-                          <rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="11" y1="18" x2="13" y2="18"></line>
-                        </svg>
-                        Nequi
-                      </span>
-                      <span className="flex items-center gap-2 rounded-lg border border-borde bg-superficie px-2.5 py-2 text-[11px] font-semibold text-texto-principal">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" strokeWidth="1.5">
-                          <path d="M4 10h16M6 10V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3M5 10h14v9H5z"></path>
-                        </svg>
-                        Boton Bancolombia
-                      </span>
+                  <div className="rounded-md border border-borde bg-panel/60 p-3">
+                    <p className="text-[11px] font-medium text-texto-secundario">Medios disponibles en Wompi</p>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px] text-texto-principal">
+                      <span className="rounded border border-borde bg-superficie px-2 py-1.5">Tarjeta</span>
+                      <span className="rounded border border-borde bg-superficie px-2 py-1.5">PSE</span>
+                      <span className="rounded border border-borde bg-superficie px-2 py-1.5">Nequi</span>
+                      <span className="rounded border border-borde bg-superficie px-2 py-1.5">Bancolombia</span>
                     </div>
                   </div>
-                  <p className="text-xs text-texto-secundario">
-                    Total a pagar: <strong className="text-texto-principal">${totalPrecio.toLocaleString('es-CO')}</strong>. El cobro lo
-                    procesa Wompi; el SGP no almacena los datos de tu tarjeta.
+                  <p className="text-xs leading-5 text-texto-secundario">
+                    Total: <strong className="num text-texto-principal">${totalPrecio.toLocaleString('es-CO')}</strong>. El cobro lo procesa Wompi; el SGP no almacena datos de tarjeta.
                   </p>
                   {pagoMensaje && (
                     <p
@@ -1115,43 +1159,44 @@ export default function NuevaReserva() {
                   <Button
                     onClick={pagarConWompi}
                     disabled={pagoEstado === 'procesando' || pagoEstado === 'aprobado'}
-                    className="w-full py-3 bg-exito hover:bg-green-700 text-white rounded-xl font-semibold transition shadow-md"
+                    className="w-full"
                   >
                     {pagoEstado === 'procesando' ? (
                       <Spinner />
                     ) : pagoEstado === 'declinado' || pagoEstado === 'error' ? (
-                      'Reintentar pago en linea'
+                      'Reintentar pago en línea'
                     ) : (
-                      'Pagar en linea con Wompi'
+                      'Pagar con Wompi'
                     )}
                   </Button>
                   {(pagoEstado === 'esperando' || pagoEstado === 'pendiente') && (
-                    <div className="space-y-2 rounded-xl border border-borde bg-fondo/30 p-3">
-                      <label className="block text-[10px] font-semibold text-texto-principal uppercase">
-                        Numero de transaccion (aparece en el comprobante de Wompi)
+                    <div className="space-y-2 rounded-md border border-borde bg-panel/50 p-3">
+                      <label className="block text-[11px] font-medium text-texto-principal">
+                        Número de transacción (comprobante de Wompi)
                       </label>
-                      <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                           type="text"
                           value={transaccionManual}
                           onChange={(e) => setTransaccionManual(e.target.value)}
                           placeholder="01-1531231271-19365"
-                          className="w-full px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+                          className="h-9 w-full rounded-md border border-control bg-superficie px-3 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
                         />
                         <Button
-                          variant="outline"
+                          variant="secundario"
+                          size="sm"
                           onClick={() => verificarPago(transaccionManual.trim())}
                           disabled={!transaccionManual.trim()}
                         >
-                          Verificar pago
+                          Verificar
                         </Button>
                       </div>
                       <button
                         type="button"
                         onClick={consultarEstadoPago}
-                        className="text-[11px] text-primario hover:underline cursor-pointer"
+                        className="text-[11px] font-medium text-acento underline-offset-2 hover:underline"
                       >
-                        Ya pague, actualizar estado
+                        Ya pagué, actualizar estado
                       </button>
                     </div>
                   )}
@@ -1159,9 +1204,15 @@ export default function NuevaReserva() {
               )}
             </div>
           </div>
-          <div className="flex justify-center mt-4">
-            <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
-          </div>
+
+        </div>
+      )}
+
+      {paso === 1 && (
+        <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-30 border-t border-borde bg-superficie p-3 md:hidden">
+          <Button onClick={irAPaso2} disabled={!ubicacionSeleccionada || cargando} className="w-full">
+            {cargando ? <Spinner /> : 'Continuar con estilista'}
+          </Button>
         </div>
       )}
     </div>

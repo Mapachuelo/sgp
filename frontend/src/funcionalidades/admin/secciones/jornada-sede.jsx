@@ -166,7 +166,7 @@ export default function JornadaSede({ onToast }) {
           <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
           Al cerrar un dia la sede no tendra atencion en esa fecha.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="sticky bottom-0 z-20 flex flex-wrap gap-2 border-t border-borde bg-superficie pt-3">
           <Button variant="primario" size="sm" onClick={guardarDia} disabled={guardando}>
             {guardando ? <Spinner /> : 'Guardar'}
           </Button>
