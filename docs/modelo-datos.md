@@ -16,6 +16,7 @@ app_user 1───N reserva (cliente y empleado)
 app_user 1───N empleado_disponibilidad
 app_user 1───N empleado_tiempo_servicio
 servicio_categoria 1───N servicio_catalogo
+servicio_catalogo 1───N servicio_imagen
 servicio_catalogo 1───N empleado_tiempo_servicio
 servicio_catalogo 1───N reserva
 servicio_catalogo 1───N reserva_servicio
@@ -84,10 +85,23 @@ Representa los títulos del menú que ve el cliente: Peluqueada, Planchada, Barb
 | precio_base | decimal(10,2) | NOT NULL |
 | duracion_base_minutos | integer | NOT NULL |
 | categoria_id | integer | FK `servicio_categoria(id)` ON DELETE RESTRICT |
-| imagen_url | text | Data URL comprimida JPG/PNG/WebP; opcional |
+| imagen_url | text | Portada sincronizada con la primera imagen de `servicio_imagen`; opcional |
 | activo | boolean | NOT NULL, DEFAULT TRUE |
 
-### 2.6 `empleado_tiempo_servicio`
+La galería completa vive en `servicio_imagen`; `imagen_url` se conserva como portada para tarjetas y listados.
+
+### 2.6 `servicio_imagen`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| servicio_id | integer | NOT NULL, FK `servicio_catalogo(id)` ON DELETE CASCADE |
+| imagen_url | text | NOT NULL; Data URL comprimida JPG/PNG/WebP |
+| orden | integer | NOT NULL, DEFAULT 1 |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(servicio_id, orden)`. Máximo 6 imágenes por servicio, validado en la aplicación. La primera imagen (orden 1) es la portada y se copia a `servicio_catalogo.imagen_url` en cada actualización.
+
+### 2.7 `empleado_tiempo_servicio`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -97,7 +111,7 @@ Representa los títulos del menú que ve el cliente: Peluqueada, Planchada, Barb
 
 UNIQUE `(empleado_id, servicio_id)`.
 
-### 2.7 `jornada`
+### 2.8 `jornada`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -107,7 +121,7 @@ UNIQUE `(empleado_id, servicio_id)`.
 
 UNIQUE `(ubicacion_id, fecha)`.
 
-### 2.8 `empleado_disponibilidad`
+### 2.9 `empleado_disponibilidad`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -118,7 +132,7 @@ UNIQUE `(ubicacion_id, fecha)`.
 
 UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día** se garantiza en el servicio (`disponibilidad.service.js`) y en el planificador del administrador; el generador de datos también la respeta.
 
-### 2.9 `reserva`
+### 2.10 `reserva`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -139,7 +153,7 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 
 Índices: `idx_reserva_inicia_en`, `idx_reserva_cliente_id`, `idx_reserva_empleado_id`, `idx_reserva_estado`, `idx_reserva_ubicacion_id`, `idx_reserva_llego_en`.
 
-### 2.10 `cobro`
+### 2.11 `cobro`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -153,7 +167,7 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 
 Índices: `idx_cobro_cobrado_en`, `idx_cobro_pago_id`. El UNIQUE de `reserva_id` garantiza un solo cobro por reserva.
 
-### 2.11 `pago`
+### 2.12 `pago`
 Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede tener varios intentos; solo un pago `aprobado` confirma la reserva.
 
 | Columna | Tipo | Restricciones |
@@ -163,7 +177,7 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 | proveedor | varchar(20) | NOT NULL, DEFAULT `wompi` |
 | referencia | varchar(100) | **UNIQUE**, NOT NULL (referencia propia `SGP-<reserva>-<aleatorio>`) |
 | transaction_id | varchar(100) | **UNIQUE** (id de la transacción en Wompi) |
-| monto | decimal(10,2) | NOT NULL (calculado en el servidor: `precio_base × cantidad_personas`) |
+| monto | decimal(10,2) | NOT NULL (calculado en el servidor: suma de `reserva_servicio.precio` × `cantidad_personas`) |
 | moneda | varchar(3) | NOT NULL, DEFAULT `COP` |
 | metodo | varchar(30) | `CARD`, `NEQUI`, `PSE`, `BANCOLOMBIA_TRANSFER`, ... (lo reporta Wompi) |
 | estado | varchar(20) | NOT NULL, CHECK `pendiente|aprobado|declinado|error|anulado` |
@@ -172,7 +186,7 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 
 Índices: `idx_pago_reserva_id`, `idx_pago_estado`, `idx_pago_referencia`.
 
-### 2.12 `preferencia_usuario`
+### 2.13 `preferencia_usuario`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -182,7 +196,7 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 | tema | varchar(10) | DEFAULT `claro` |
 | idioma | varchar(5) | DEFAULT `es` (ES/EN) |
 
-### 2.13 `reserva_servicio`
+### 2.14 `reserva_servicio`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -197,7 +211,7 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 
 UNIQUE `(reserva_id, orden)`. Es la fuente real de servicios, estilistas y precios de una reserva; `reserva.servicio_id` y `reserva.empleado_id` se conservan como primer servicio/estilista para compatibilidad.
 
-### 2.14 `configuracion`
+### 2.15 `configuracion`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | clave | varchar(80) | PK |
@@ -219,9 +233,12 @@ Clave inicial: `max_servicios_reserva = 5`; el admin la edita entre 1 y 10.
 - Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `idioma`, `telefono` a TEXT, `categoria_id`, `imagen_url` y `activo`; el teléfono en claro se cifra al arrancar (`database-init.js`).
 - Las reservas históricas se backfillean a `reserva_servicio` al arrancar, usando el precio del cobro si existe y la duración real de la cita.
 - El servicio con reservas no se elimina: se marca `activo = FALSE` para conservar el histórico; una categoría con servicios no se puede eliminar.
+- Un servicio puede tener de 0 a 6 imágenes en `servicio_imagen`; si se elimina el servicio, sus imágenes se eliminan en cascada. La portada de `servicio_catalogo` se mantiene sincronizada con la primera imagen.
+- El listado del catálogo devuelve solo la portada y `total_imagenes`; la galería se consulta bajo demanda con `GET /api/reservas/servicios/:id/imagenes`.
+- El cliente puede pagar en línea desde el dashboard cualquier reserva activa sin pago aprobado; el servidor recalcula el monto desde los segmentos congelados.
 
 ## 4. Seeds
 
-- **Base (`db/init.sql`):** Sede Centro, 7 categorías, 4 servicios, admin/empleado con credenciales conocidas, jornadas y disponibilidad del empleado semilla, tiempos de servicio, configuración inicial y backfill de `reserva_servicio`.
+- **Base (`db/init.sql`):** Sede Centro, 7 categorías, 4 servicios, backfill de `servicio_imagen`, admin/empleado con credenciales conocidas, jornadas y disponibilidad del empleado semilla, tiempos de servicio, configuración inicial y backfill de `reserva_servicio`.
 - **Masivo (`backend/src/utils/semillar-demo.js`):** 6 sedes, 10 servicios, 15 empleados, 80 clientes, ~1270 reservas y ~725 cobros en ±30 días, con rotación multi-sede y validaciones.
 - **Pruebas (`backend/src/utils/semillar-pruebas.js`):** 10 clientes, 10 empleados, 3 sedes, 5 servicios, 30 reservas y segmentos `reserva_servicio`; algunas reservas futuras combinan dos servicios para ejercitar el flujo multi-servicio.

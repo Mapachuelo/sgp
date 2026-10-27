@@ -366,7 +366,8 @@ function paginaEr() {
   const perfil = entidad(c, 40, 490, 220, 110, 'empleado_perfil', ['PK/FK usuario_id', 'identificacion', 'FK ubicacion_base_id']);
   const preferencia = entidad(c, 40, 660, 220, 120, 'preferencia_usuario', ['PK/FK usuario_id', 'rango_hora', 'granularidad, tema, idioma']);
   const categoria = entidad(c, 380, 80, 220, 100, 'servicio_categoria', ['PK id', 'nombre (titulo del menu)', 'descripcion, orden']);
-  const servicio = entidad(c, 380, 210, 220, 150, 'servicio_catalogo', ['PK id', 'FK categoria_id', 'nombre, descripcion', 'precio_base', 'duracion_base_minutos', 'imagen_url, activo']);
+  const servicio = entidad(c, 380, 210, 220, 150, 'servicio_catalogo', ['PK id', 'FK categoria_id', 'nombre, descripcion', 'precio_base', 'duracion_base_minutos', 'imagen_url (portada), activo']);
+  const servicioImagen = entidad(c, 40, 930, 220, 100, 'servicio_imagen', ['PK id', 'FK servicio_id', 'imagen_url', 'orden 1..6']);
   const tiempo = entidad(c, 380, 390, 220, 110, 'empleado_tiempo_servicio', ['FK empleado_id', 'FK servicio_id', 'duracion_minutos']);
   const disponibilidad = entidad(c, 380, 540, 220, 120, 'empleado_disponibilidad', ['FK empleado_id', 'FK ubicacion_id', 'dia_semana 1-7', 'hora_inicio, hora_fin']);
   const jornada = entidad(c, 380, 700, 220, 100, 'jornada', ['FK ubicacion_id', 'fecha', 'hora_inicio, hora_fin']);
@@ -380,6 +381,7 @@ function paginaEr() {
   flecha(c, usuario, preferencia, '1:1');
   flecha(c, usuario, reserva, 'cliente 1:N');
   flecha(c, categoria, servicio, '1:N');
+  flecha(c, servicio, servicioImagen, '1:N');
   flecha(c, servicio, tiempo, '1:N');
   flecha(c, servicio, reservaServicio, '1:N');
   flecha(c, usuario, reservaServicio, 'estilista 1:N');
@@ -390,7 +392,7 @@ function paginaEr() {
   flecha(c, reserva, cobro, '1:0..1');
   flecha(c, cobro, pago, '0..1:1');
   flecha(c, usuario, cobro, 'registrado_por');
-  return diagrama('Modelo ER', 'modeloEr', c, 1400, 900);
+  return diagrama('Modelo ER', 'modeloEr', c, 1400, 1080);
 }
 
 // ---------------- Salida ----------------

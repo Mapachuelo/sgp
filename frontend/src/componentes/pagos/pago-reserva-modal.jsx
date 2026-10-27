@@ -16,6 +16,8 @@ export default function PagoReservaModal({
   onClose,
   reservaId,
   modo = 'cliente',
+  monto,
+  resumen,
   onPagado,
   onToast,
 }) {
@@ -167,7 +169,7 @@ export default function PagoReservaModal({
     <Modal
       open={open}
       onClose={cerrar}
-      title={modo === 'qr' ? 'Pago con QR' : 'Pagar en linea'}
+      title={modo === 'qr' ? 'Pago con QR' : 'Pagar en línea'}
     >
       <div className="space-y-4">
         {estado === 'aprobado' ? (
@@ -186,6 +188,17 @@ export default function PagoReservaModal({
           </div>
         ) : (
           <>
+            {modo !== 'qr' && (resumen || monto != null) && (
+              <div className="rounded-lg border border-borde bg-panel/40 p-3">
+                {resumen && <p className="text-xs font-medium text-texto-principal">{resumen}</p>}
+                {monto != null && (
+                  <p className="num mt-1 text-lg font-semibold text-texto-principal">
+                    ${Number(monto).toLocaleString('es-CO')}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="rounded-xl border border-borde bg-fondo/40 p-3">
               <p className="text-[11px] font-bold uppercase tracking-wider text-texto-secundario mb-2">
                 Medios de pago
@@ -230,13 +243,18 @@ export default function PagoReservaModal({
             )}
 
             {modo !== 'qr' && (
-              <Button
-                className="w-full"
-                onClick={pagarConWidget}
-                disabled={cargando || estado === 'esperando'}
-              >
-                {cargando ? <Spinner /> : 'Abrir checkout de Wompi'}
-              </Button>
+              <>
+                <Button
+                  className="w-full"
+                  onClick={pagarConWidget}
+                  disabled={cargando || estado === 'esperando'}
+                >
+                  {cargando ? <Spinner /> : 'Abrir checkout de Wompi'}
+                </Button>
+                <p className="text-[11px] leading-4 text-tenue">
+                  También puedes pagar en efectivo en recepción el día de tu cita.
+                </p>
+              </>
             )}
 
             {(estado === 'esperando' || estado === 'pendiente' || estado === 'declinado' || estado === 'error') && (

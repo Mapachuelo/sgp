@@ -230,12 +230,18 @@ const openapi = {
       delete: { tags: ['Ubicaciones'], summary: 'Elimina sede (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede eliminada' } } },
     },
     '/reservas/servicios': {
-      get: { tags: ['Reservas'], summary: 'Catalogo de servicios activos (publico); admin puede incluir inactivos y filtrar por categoria', security: [], parameters: [{ name: 'incluir_inactivos', in: 'query', schema: { type: 'string', enum: ['1'] } }, { name: 'categoria_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Servicios con categoria, precio, duracion, imagen y estado' } } },
-      post: { tags: ['Reservas'], summary: 'Crea servicio (admin) con categoria, duracion, imagen y estado', responses: { 201: { description: 'Servicio creado' } } },
+      get: { tags: ['Reservas'], summary: 'Catalogo de servicios activos (publico); admin puede incluir inactivos y filtrar por categoria; incluye portada y total_imagenes', security: [], parameters: [{ name: 'incluir_inactivos', in: 'query', schema: { type: 'string', enum: ['1'] } }, { name: 'categoria_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Servicios con categoria, precio, duracion, portada, total_imagenes y estado' } } },
+      post: { tags: ['Reservas'], summary: 'Crea servicio (admin) con categoria, duracion, hasta 6 imagenes y estado', responses: { 201: { description: 'Servicio creado' } } },
     },
     '/reservas/servicios/{id}': {
-      put: { tags: ['Reservas'], summary: 'Actualiza servicio (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Servicio actualizado' } } },
+      put: { tags: ['Reservas'], summary: 'Actualiza servicio (admin); si recibe imagenes reemplaza la galeria y sincroniza la portada', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Servicio actualizado' } } },
       delete: { tags: ['Reservas'], summary: 'Elimina o desactiva un servicio con reservas (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Servicio eliminado o desactivado' } } },
+    },
+    '/reservas/servicios/{id}/imagenes': {
+      get: { tags: ['Reservas'], summary: 'Galeria ordenada de imagenes de un servicio (publico)', security: [], parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Imagenes con id, url y orden' }, 404: { description: 'Servicio no encontrado' } } },
+    },
+    '/reservas/sedes-por-servicio': {
+      get: { tags: ['Reservas'], summary: 'Sedes donde hay al menos un estilista que ofrece el servicio (publico)', security: [], parameters: [{ name: 'servicio_id', in: 'query', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sedes con direccion, coordenadas, total_estilistas y duracion_minima' }, 400: { description: 'servicio_id requerido' }, 404: { description: 'Servicio no encontrado' } } },
     },
     '/reservas/categorias': {
       get: { tags: ['Reservas'], summary: 'Categorias o titulos del catalogo (publico)', security: [], responses: { 200: { description: 'Categorias con total de servicios' } } },

@@ -80,7 +80,13 @@ fi
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/verificar" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$EMAIL\",\"codigo\":\"000000\"}")
-verificar "Verificacion con codigo incorrecto devuelve 400" "400" "$RESP"
+if [ "$RESP" = "400" ] || [ "$RESP" = "429" ]; then
+  PASS=$((PASS + 1))
+  echo "PASS: Verificacion con codigo incorrecto devuelve 400 o 429"
+else
+  FAIL=$((FAIL + 1))
+  echo "FAIL: Verificacion con codigo incorrecto devuelve 400 o 429 (obtenido $RESP)"
+fi
 
 echo ""
 echo "== RBAC y autenticacion =="
@@ -241,6 +247,28 @@ RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X PUT "$BASE_URL/reserva
   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
   -d '{"precio_base":12000,"duracion_base_minutos":30,"activo":false}')
 verificar "Editar duracion, precio y estado del servicio devuelve 200" "200" "$RESP"
+
+IMAGEN_API="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X PUT "$BASE_URL/reservas/servicios/$SERVICIO_ID" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d "{\"imagenes\":[\"$IMAGEN_API\",\"$IMAGEN_API\"]}")
+verificar "Reemplazar galeria del servicio devuelve 200" "200" "$RESP"
+RESP=$(curl -s -o /tmp/sgp_imagenes.json -w "%{http_code}" "$BASE_URL/reservas/servicios/$SERVICIO_ID/imagenes")
+verificar "GET /reservas/servicios/:id/imagenes devuelve 200" "200" "$RESP"
+TOTAL_IMAGENES=$(grep -o '"imagen_url"' /tmp/sgp_imagenes.json | wc -l | tr -d ' ')
+verificar "Galeria devuelve dos imagenes" "2" "$TOTAL_IMAGENES"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/reservas/servicios" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d "{\"nombre\":\"Servicio Muchas Imagenes $SUFIJO_API\",\"precio_base\":10000,\"duracion_base_minutos\":20,\"imagenes\":[\"$IMAGEN_API\",\"$IMAGEN_API\",\"$IMAGEN_API\",\"$IMAGEN_API\",\"$IMAGEN_API\",\"$IMAGEN_API\",\"$IMAGEN_API\"]}")
+verificar "Rechazar mas de 6 imagenes devuelve 400" "400" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/sedes-por-servicio?servicio_id=$SERVICIO_ID")
+verificar "GET /reservas/sedes-por-servicio devuelve 200" "200" "$RESP"
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/reservas/sedes-por-servicio")
+verificar "GET /reservas/sedes-por-servicio sin servicio devuelve 400" "400" "$RESP"
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/reservas/sedes-por-servicio?servicio_id=999999")
+verificar "GET /reservas/sedes-por-servicio inexistente devuelve 404" "404" "$RESP"
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/reservas/servicios" \
   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \

@@ -629,3 +629,15 @@
 - **Pagos/check-in/reportes**: usan la suma de `reserva_servicio`; los reportes reparten el cobro proporcionalmente entre servicios.
 - **Configuración**: `configuracion.max_servicios_reserva` (1..10, default 5) editable en Servicios → Configuración.
 - **Pruebas**: unitarias 51, api 46, datos 10, esquema 66, e2e 47, regresión 128; cobertura 89.69 % líneas / 72.25 % ramas / 91.37 % funciones. `tests/fixtures/seed-10x10.json` actualizado.
+
+## Galería, panel fijo y pagos del cliente — 27 Octubre 2026
+
+- **Imágenes múltiples**: nueva tabla `servicio_imagen` (servicio, data URL, orden, UNIQUE servicio+orden, FK CASCADE). `servicio_catalogo.imagen_url` queda como portada sincronizada con la primera imagen. Backfill automático al arrancar y máximo 6 imágenes por servicio.
+- **API**: `GET /reservas/servicios` devuelve portada y `total_imagenes`; `GET /reservas/servicios/:id/imagenes` carga la galería bajo demanda; `POST/PUT` aceptan `imagenes: []` y reemplazan la galería en transacción. Body limit 8 MB y Nginx 10 MB.
+- **Admin**: carga múltiple comprimida, cuadrícula de miniaturas, portada, mover izquierda/derecha y quitar. La tabla muestra la portada y el número de fotos.
+- **Cliente**: la tarjeta abre un modal de detalle con carrusel, flechas laterales, contador, miniaturas, precio, duración y acción agregar/quitar. El panel de servicios tiene altura fija con scroll interno en ordenador y móvil; categorías, buscador y barra de resumen quedan fijos.
+- **Sin estilista**: `GET /reservas/sedes-por-servicio` lista sedes con estilistas que ofrecen el servicio. Modal con mapa, lista de sedes, cobertura y acciones “Cambiar a sede” o “Quedarme y quitar el servicio”.
+- **Dashboard cliente**: estados `Pagado`, `Pago pendiente`, `Pago en proceso` y `Pago no completado`; sección “Otros pagos pendientes” y botones de pago en la próxima cita y en cada fila. Modal de pago con resumen y monto; recarga al cerrar y por WebSocket.
+- **Nginx**: `index.html` sin caché y `/assets/` inmutable; `client_max_body_size 10m`.
+- **Pruebas**: unitarias 52, API 53, datos 13, esquema 74, e2e 47, regresión 128; cobertura 90.15 % líneas / 72.58 % ramas / 92.08 % funciones.
+- **Despliegue**: imágenes `sgp-backend` y `sgp-frontend` reconstruidas, pod recreado, seed 10x10 final (10 clientes, 10 empleados, 30 reservas, 34 segmentos, 5 servicios, 7 categorías, 0 imágenes hasta que el admin suba las suyas), `index.html` y `/api/` sin caché, `/assets/` inmutable.

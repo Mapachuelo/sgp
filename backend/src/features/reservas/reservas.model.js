@@ -59,7 +59,8 @@ const SELECT_RESERVA_BASE = `
 const reservasModel = {
   async findAllServicios({ incluirInactivos = false, categoria_id = null } = {}) {
     const { rows } = await pool.query(
-      `SELECT s.*, c.nombre AS categoria_nombre, c.orden AS categoria_orden
+      `SELECT s.*, c.nombre AS categoria_nombre, c.orden AS categoria_orden,
+              (SELECT COUNT(*)::int FROM servicio_imagen si WHERE si.servicio_id = s.id) AS total_imagenes
        FROM servicio_catalogo s
        LEFT JOIN servicio_categoria c ON c.id = s.categoria_id
        WHERE ($1::boolean IS TRUE OR s.activo = TRUE)
@@ -70,15 +71,42 @@ const reservasModel = {
     return rows;
   },
 
-  async findServicioById(id) {
-    const { rows } = await pool.query(
-      `SELECT s.*, c.nombre AS categoria_nombre, c.orden AS categoria_orden
+  async findServicioById(id, db = pool) {
+    const { rows } = await db.query(
+      `SELECT s.*, c.nombre AS categoria_nombre, c.orden AS categoria_orden,
+              (SELECT COUNT(*)::int FROM servicio_imagen si WHERE si.servicio_id = s.id) AS total_imagenes
        FROM servicio_catalogo s
        LEFT JOIN servicio_categoria c ON c.id = s.categoria_id
        WHERE s.id = $1`,
       [id]
     );
     return rows[0] || null;
+  },
+
+  async findImagenesServicio(servicio_id) {
+    const { rows } = await pool.query(
+      `SELECT id, imagen_url, orden
+       FROM servicio_imagen
+       WHERE servicio_id = $1
+       ORDER BY orden, id`,
+      [servicio_id]
+    );
+    return rows;
+  },
+
+  async replaceImagenesServicio(servicio_id, imagenes, db = pool) {
+    await db.query('DELETE FROM servicio_imagen WHERE servicio_id = $1', [servicio_id]);
+    for (let indice = 0; indice < imagenes.length; indice += 1) {
+      await db.query(
+        `INSERT INTO servicio_imagen (servicio_id, imagen_url, orden)
+         VALUES ($1, $2, $3)`,
+        [servicio_id, imagenes[indice], indice + 1]
+      );
+    }
+    await db.query(
+      'UPDATE servicio_catalogo SET imagen_url = $2 WHERE id = $1',
+      [servicio_id, imagenes[0] || null]
+    );
   },
 
   async findServiciosPorIds(ids) {
@@ -94,9 +122,9 @@ const reservasModel = {
     return rows;
   },
 
-  async createServicio(data) {
+  async createServicio(data, db = pool) {
     const { nombre, descripcion, precio_base, duracion_base_minutos, categoria_id, imagen_url, activo } = data;
-    const { rows } = await pool.query(
+    const { rows } = await db.query(
       `INSERT INTO servicio_catalogo
          (nombre, descripcion, precio_base, duracion_base_minutos, categoria_id, imagen_url, activo)
        VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, TRUE))
@@ -106,7 +134,7 @@ const reservasModel = {
     return rows[0];
   },
 
-  async updateServicio(id, data) {
+  async updateServicio(id, data, db = pool) {
     const fields = [];
     const values = [];
     let idx = 1;
@@ -119,10 +147,10 @@ const reservasModel = {
     if (data.imagen_url !== undefined) { fields.push(`imagen_url = $${idx++}`); values.push(data.imagen_url || null); }
     if (data.activo !== undefined) { fields.push(`activo = $${idx++}`); values.push(Boolean(data.activo)); }
 
-    if (fields.length === 0) return reservasModel.findServicioById(id);
+    if (fields.length === 0) return reservasModel.findServicioById(id, db);
 
     values.push(id);
-    const { rows } = await pool.query(
+    const { rows } = await db.query(
       `UPDATE servicio_catalogo SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
       values
     );
@@ -423,6 +451,26 @@ const reservasModel = {
          AND sc.activo = TRUE
        ORDER BY u.nombre, u.apellido`,
       [ubicacion_id, servicio_id]
+    );
+    return rows;
+  },
+
+  async findSedesPorServicio(servicio_id) {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.nombre, u.direccion, u.latitud, u.longitud,
+              COUNT(DISTINCT emp.id)::int AS total_estilistas,
+              MIN(etp.duracion_minutos)::int AS duracion_minima
+       FROM ubicacion u
+       JOIN empleado_disponibilidad ed ON ed.ubicacion_id = u.id
+       JOIN app_user emp ON emp.id = ed.empleado_id
+         AND emp.rol = 'empleado'
+         AND NOT emp.esta_bloqueado
+       JOIN empleado_tiempo_servicio etp ON etp.empleado_id = emp.id
+         AND etp.servicio_id = $1
+       JOIN servicio_catalogo sc ON sc.id = etp.servicio_id AND sc.activo = TRUE
+       GROUP BY u.id
+       ORDER BY u.nombre`,
+      [servicio_id]
     );
     return rows;
   },

@@ -76,12 +76,16 @@ La fuente de verdad de los tokens es `frontend/src/index.css`. Los componentes b
 ## Catálogo y reservas multi-servicio
 
 - Jerarquía: `servicio_categoria` (título) → `servicio_catalogo` (servicio). El admin crea ambos.
-- Cada servicio tiene imagen opcional, descripción, precio, duración y estado activo/inactivo.
+- Cada servicio puede tener de 0 a 6 imágenes, descripción, precio, duración y estado activo/inactivo. La primera es la portada; la galería se carga bajo demanda.
+- El cliente abre el detalle del servicio en un modal con carrusel y flechas laterales.
 - El cliente elige 1..N servicios; el máximo se configura en el admin (`configuracion.max_servicios_reserva`).
 - Cada servicio puede tener un estilista distinto; el calendario valida la secuencia completa.
 - `reserva_servicio` guarda servicio, estilista, horario y precio/duración congelados. No mostrar precios actuales del catálogo en reservas existentes.
 - Las listas largas (empleados, servicios, categorías) usan `BuscadorSelect`; la búsqueda de servicios del cliente filtra tarjetas en vivo.
 - Las imágenes de servicio se comprimen antes de subirlas y se muestran con placeholder `ImageOff` cuando faltan.
+- El listado de servicios usa un panel de altura fija con scroll interno en ordenador y móvil; categorías, buscador y barra de resumen quedan fijos.
+- El dashboard del cliente muestra `Pagado`, `Pago pendiente`, `Pago en proceso` o `Pago no completado` y permite pagar en línea las citas activas impagas.
+- Sin estilista en la sede: modal con mapa de sedes alternativas y opciones de cambiar de sede o quitar el servicio.
 
 ## Movimiento
 

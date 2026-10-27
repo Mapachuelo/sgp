@@ -32,7 +32,11 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 - Tokens en `frontend/src/index.css`; componentes base en `frontend/src/componentes/ui/`.
 - Shell fijo para empleado/admin: sidebar y barra superior quietas, scroll interno del contenido.
 - Sheets de altura automatica con `max-height` y scroll interno; acciones en barras sticky.
-- Catalogo jerarquico `servicio_categoria` → `servicio_catalogo`; imagen opcional, precio, duracion y estado.
+- Catalogo jerarquico `servicio_categoria` → `servicio_catalogo` → `servicio_imagen`; portada y hasta 6 imagenes por servicio, precio, duracion y estado.
+- El listado devuelve portada y total de imagenes; la galeria se carga bajo demanda para el detalle del cliente.
+- Panel fijo de servicios con scroll interno en ordenador y movil; detalle en modal con carrusel y flechas laterales.
+- Si no hay estilista en la sede, modal con mapa de sedes alternativas para cambiar o quitar el servicio.
+- Dashboard del cliente con estado de pago y pago en linea de reservas activas impagas.
 - Reservas multi-servicio con `reserva_servicio`: cada segmento tiene estilista, horario y precio/duracion congelados.
 - `configuracion.max_servicios_reserva` limita el carrito y se edita en el admin.
 - Pagos, check-in, agenda y reportes leen la suma de segmentos, no el precio actual del catalogo.

@@ -40,6 +40,66 @@ test('reservas: CRUD de servicios y validaciones del catalogo', async () => {
   await assert.rejects(() => reservasService.deleteServicio(servicio.id), /no encontrado/);
 });
 
+test('reservas: galeria de imagenes y sedes que ofrecen un servicio', async () => {
+  const imagenA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  const imagenB = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EH//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EH//2Q==';
+
+  const servicio = await reservasService.createServicio({
+    nombre: `Galeria ${sufijo()}`,
+    precio_base: 10000,
+    duracion_base_minutos: 20,
+    imagenes: [imagenA, imagenB],
+  });
+  ids.servicios.push(servicio.id);
+
+  assert.equal(servicio.imagen_url, imagenA);
+  const galeria = await reservasService.getImagenesServicio(servicio.id);
+  assert.equal(galeria.length, 2);
+  assert.equal(galeria[0].imagen_url, imagenA);
+  assert.equal(galeria[1].imagen_url, imagenB);
+
+  const actualizado = await reservasService.updateServicio(servicio.id, { imagenes: [imagenB] });
+  assert.equal(actualizado.imagen_url, imagenB);
+  const galeriaActualizada = await reservasService.getImagenesServicio(servicio.id);
+  assert.equal(galeriaActualizada.length, 1);
+  assert.equal(galeriaActualizada[0].imagen_url, imagenB);
+
+  await assert.rejects(
+    () => reservasService.createServicio({
+      nombre: `Galeria excedida ${sufijo()}`,
+      precio_base: 10000,
+      duracion_base_minutos: 20,
+      imagenes: Array(7).fill(imagenA),
+    }),
+    /hasta 6 imagenes/
+  );
+  await assert.rejects(
+    () => reservasService.updateServicio(servicio.id, { imagenes: ['data:image/svg+xml;base64,PHN2Zy8+'] }),
+    /PNG, JPG o WebP/
+  );
+  await assert.rejects(() => reservasService.getImagenesServicio(999999), /no encontrado/);
+
+  const sedeA = await crearSede();
+  const sedeB = await crearSede();
+  const empleadoA = await crearUsuario({ rol: 'empleado' });
+  const empleadoB = await crearUsuario({ rol: 'empleado' });
+  ids.sedes.push(sedeA.id, sedeB.id);
+  ids.usuarios.push(empleadoA, empleadoB);
+  await asignarServicio(empleadoA, servicio.id, 20);
+  await crearDisponibilidad(empleadoA, sedeA.id, 1, '09:00', '18:00');
+  await crearDisponibilidad(empleadoB, sedeB.id, 1, '09:00', '18:00');
+
+  const sedes = await reservasService.getSedesPorServicio({ servicio_id: servicio.id });
+  assert.deepEqual(sedes.map((sede) => sede.id), [sedeA.id]);
+  assert.equal(sedes[0].total_estilistas, 1);
+  await assert.rejects(() => reservasService.getSedesPorServicio({}), /requerido/);
+  await assert.rejects(() => reservasService.getSedesPorServicio({ servicio_id: 999999 }), /no encontrado/);
+
+  await reservasService.deleteServicio(servicio.id);
+  await limpiar({ usuarios: [empleadoA, empleadoB], sedes: [sedeA.id, sedeB.id] });
+  ids.servicios = ids.servicios.filter((id) => id !== servicio.id);
+});
+
 test('reservas: categorias, varios servicios y varios estilistas', async () => {
   const sufijoPrueba = sufijo();
   const categoria = await reservasService.createCategoria({

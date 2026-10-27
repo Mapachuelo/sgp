@@ -65,6 +65,49 @@ function estaPagada(reserva) {
   return reserva?.pago_estado === 'aprobado' || Boolean(reserva?.cobro_metodo);
 }
 
+function totalReserva(reserva) {
+  if (!reserva) return 0;
+  if (reserva.pago_monto != null) return Number(reserva.pago_monto);
+  return Number(reserva.precio_total || reserva.precio_base || 0) * Number(reserva.cantidad_personas || 1);
+}
+
+function estadoPago(reserva) {
+  if (!reserva) return { texto: '', tono: 'tenue', accion: null };
+  if (reserva.estado === 'cancelada') return { texto: 'Cancelada', tono: 'tenue', accion: null };
+  if (estaPagada(reserva)) {
+    return {
+      texto: reserva.cobro_metodo === 'fisico' ? 'Pagado en efectivo' : 'Pagado con Wompi',
+      tono: 'exito',
+      accion: null,
+    };
+  }
+  if (reserva.pago_estado === 'pendiente') {
+    return { texto: 'Pago en proceso', tono: 'advertencia', accion: 'reintentar' };
+  }
+  if (reserva.pago_estado === 'declinado' || reserva.pago_estado === 'error') {
+    return { texto: 'Pago no completado', tono: 'error', accion: 'reintentar' };
+  }
+  return { texto: 'Pago pendiente', tono: 'advertencia', accion: 'pagar' };
+}
+
+const TONO_PAGO = {
+  exito: { punto: 'bg-exito', texto: 'text-exito' },
+  advertencia: { punto: 'bg-advertencia', texto: 'text-advertencia' },
+  error: { punto: 'bg-error', texto: 'text-error' },
+  tenue: { punto: 'bg-tenue', texto: 'text-tenue' },
+};
+
+function EstadoPago({ reserva }) {
+  const estado = estadoPago(reserva);
+  const tono = TONO_PAGO[estado.tono] || TONO_PAGO.tenue;
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${tono.texto}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${tono.punto}`} aria-hidden="true" />
+      {estado.texto}
+    </span>
+  );
+}
+
 function localeActual() {
   return typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en-US' : 'es-CO';
 }
@@ -119,6 +162,7 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
   const lng = Number.parseFloat(reserva.ubicacion_longitud);
   const tieneMapa = Number.isFinite(lat) && Number.isFinite(lng);
   const pagada = estaPagada(reserva);
+  const pago = estadoPago(reserva);
   const activa = ['pendiente', 'confirmada', 'en_curso'].includes(reserva.estado);
   const mapsUrl = tieneMapa
     ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`
@@ -179,14 +223,12 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
           <div>
             <p className="text-[11px] text-tenue">Total</p>
             <p className="num mt-0.5 font-medium text-texto-principal">
-              {dinero(reserva.pago_monto || Number(reserva.precio_total || reserva.precio_base || 0) * Number(reserva.cantidad_personas || 1))}
+              {dinero(totalReserva(reserva))}
             </p>
           </div>
           <div>
             <p className="text-[11px] text-tenue">Pago</p>
-            <p className="mt-0.5 font-medium text-texto-principal">
-              {pagada ? (reserva.cobro_metodo === 'fisico' ? 'Efectivo' : 'Wompi') : 'Pendiente'}
-            </p>
+            <div className="mt-0.5"><EstadoPago reserva={reserva} /></div>
           </div>
           <div>
             <p className="text-[11px] text-tenue">Duración</p>
@@ -195,6 +237,14 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
             </p>
           </div>
         </div>
+
+        {!pagada && pago.accion && activa && (
+          <p className="rounded-md border border-advertencia/30 bg-advertencia/10 p-3 text-[11px] leading-5 text-advertencia">
+            {pago.accion === 'reintentar'
+              ? 'Tu último intento de pago no se completó. Puedes reintentarlo en línea o pagar en recepción el día de la cita.'
+              : 'Aún no registras el pago. Puedes pagar en línea ahora o en efectivo en recepción.'}
+          </p>
+        )}
 
         {reserva.motivo_cancelacion && (
           <div className="rounded-md border border-error/30 bg-error/10 p-3 text-xs text-error">
@@ -218,7 +268,7 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
           <div className="flex flex-col gap-2 border-t border-borde pt-4 sm:flex-row">
             {!pagada && (
               <Button className="flex-1" onClick={() => onPagar(reserva)}>
-                Pagar ahora
+                {pago.accion === 'reintentar' ? 'Reintentar pago' : 'Pagar ahora'}
               </Button>
             )}
             {['pendiente', 'confirmada'].includes(reserva.estado) && (
@@ -280,6 +330,24 @@ export default function ClienteDashboard() {
   );
 
   const proxima = proximas[0] || null;
+
+  const pendientesPago = useMemo(
+    () =>
+      activas
+        .filter((reserva) => !estaPagada(reserva))
+        .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en)),
+    [activas]
+  );
+
+  const otrosPendientes = useMemo(
+    () => pendientesPago.filter((reserva) => reserva.id !== proxima?.id),
+    [pendientesPago, proxima]
+  );
+
+  const totalPendiente = useMemo(
+    () => otrosPendientes.reduce((sum, reserva) => sum + totalReserva(reserva), 0),
+    [otrosPendientes]
+  );
 
   const historial = useMemo(
     () =>
@@ -343,17 +411,7 @@ export default function ClienteDashboard() {
           <div className="p-5 sm:p-6">
             <div className="flex flex-wrap items-center gap-2">
               <StatusPill estado={proxima.estado}>{ETIQUETA_ESTADO[proxima.estado] || proxima.estado}</StatusPill>
-              {estaPagada(proxima) ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-exito">
-                  <span className="h-1.5 w-1.5 rounded-full bg-exito" aria-hidden="true" />
-                  {proxima.cobro_metodo === 'fisico' ? 'Pagado en efectivo' : 'Pagado con Wompi'}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-advertencia">
-                  <span className="h-1.5 w-1.5 rounded-full bg-advertencia" aria-hidden="true" />
-                  Pago pendiente
-                </span>
-              )}
+              <EstadoPago reserva={proxima} />
             </div>
 
             <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -394,12 +452,16 @@ export default function ClienteDashboard() {
                 {proxima.duracion_minutos ? `${proxima.duracion_minutos} min` : 'Duración según servicio'}
               </span>
               <span className="num inline-flex items-center gap-1.5 font-medium text-texto-principal">
-                {dinero(proxima.pago_monto || Number(proxima.precio_total || proxima.precio_base || 0) * Number(proxima.cantidad_personas || 1))}
+                {dinero(totalReserva(proxima))}
               </span>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {!estaPagada(proxima) && <Button onClick={() => setPagoReserva(proxima)}>Pagar ahora</Button>}
+              {!estaPagada(proxima) && (
+                <Button onClick={() => setPagoReserva(proxima)}>
+                  {estadoPago(proxima).accion === 'reintentar' ? 'Reintentar pago' : 'Pagar ahora'}
+                </Button>
+              )}
               <Button variant="secundario" onClick={() => setDetalle(proxima)}>
                 <MapPin className="h-4 w-4" aria-hidden="true" /> Cómo llegar
               </Button>
@@ -440,6 +502,49 @@ export default function ClienteDashboard() {
         </section>
       )}
 
+      {otrosPendientes.length > 0 && (
+        <section aria-labelledby="pagos-pendientes-titulo">
+          <Card padding={false} className="overflow-hidden border-advertencia/30">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-borde bg-advertencia/5 px-4 py-3.5 sm:px-5">
+              <div>
+                <h2 id="pagos-pendientes-titulo" className="text-sm font-semibold text-texto-principal">
+                  {proxima ? 'Otros pagos pendientes' : 'Pagos pendientes'}
+                </h2>
+                <p className="mt-0.5 text-xs text-texto-secundario">
+                  {otrosPendientes.length} cita(s) por pagar · {dinero(totalPendiente)}
+                </p>
+              </div>
+              <Badge variant="warning">{otrosPendientes.length}</Badge>
+            </div>
+            <ul className="divide-y divide-regla">
+              {otrosPendientes.map((reserva) => {
+                const pago = estadoPago(reserva);
+                return (
+                  <li key={reserva.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-texto-principal">{reserva.servicio_nombre || 'Servicio'}</p>
+                      <p className="mt-0.5 text-xs text-texto-secundario">
+                        {fecha(reserva.inicia_en)} · {hora(reserva.inicia_en)} · {reserva.ubicacion_nombre || 'Sede'}
+                      </p>
+                      <div className="mt-1"><EstadoPago reserva={reserva} /></div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                      <span className="num text-sm font-semibold text-texto-principal">{dinero(totalReserva(reserva))}</span>
+                      <Button size="sm" onClick={() => setPagoReserva(reserva)}>
+                        {pago.accion === 'reintentar' ? 'Reintentar pago' : 'Pagar ahora'}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="border-t border-borde px-4 py-2.5 text-[11px] leading-5 text-tenue sm:px-5">
+              También puedes pagar en efectivo en recepción el día de tu cita.
+            </p>
+          </Card>
+        </section>
+      )}
+
       <section>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -474,12 +579,14 @@ export default function ClienteDashboard() {
             <ul className="divide-y divide-regla">
               {listaVisible.map((reserva) => {
                 const pagada = estaPagada(reserva);
+                const activa = ['pendiente', 'confirmada', 'en_curso'].includes(reserva.estado);
+                const pago = estadoPago(reserva);
                 return (
-                  <li key={reserva.id}>
+                  <li key={reserva.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                     <button
                       type="button"
                       onClick={() => setDetalle(reserva)}
-                      className="flex w-full items-center gap-4 px-4 py-3.5 text-left transition-colors hover:bg-panel/60 sm:px-5"
+                      className="flex min-w-0 flex-1 items-center gap-4 text-left transition-colors hover:opacity-85"
                     >
                       <div className="w-14 shrink-0 text-center">
                         <p className="text-[10px] font-medium text-tenue">{fecha(reserva.inicia_en).split(' ')[0].replace(',', '')}</p>
@@ -494,13 +601,21 @@ export default function ClienteDashboard() {
                           {fecha(reserva.inicia_en)} · {personas(reserva.cantidad_personas)}
                         </p>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <StatusPill estado={reserva.estado}>{ETIQUETA_ESTADO[reserva.estado] || reserva.estado}</StatusPill>
-                        <span className={`text-[11px] font-medium ${pagada ? 'text-exito' : 'text-advertencia'}`}>
-                          {pagada ? 'Pagado' : 'Sin pago'}
-                        </span>
-                      </div>
                     </button>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <StatusPill estado={reserva.estado}>{ETIQUETA_ESTADO[reserva.estado] || reserva.estado}</StatusPill>
+                      <EstadoPago reserva={reserva} />
+                      {!pagada && activa && (
+                        <Button
+                          size="sm"
+                          variant="secundario"
+                          aria-label={`Pagar ${reserva.servicio_nombre || 'la cita'}`}
+                          onClick={() => setPagoReserva(reserva)}
+                        >
+                          {pago.accion === 'reintentar' ? 'Reintentar' : 'Pagar'}
+                        </Button>
+                      )}
+                    </div>
                   </li>
                 );
               })}
@@ -546,7 +661,12 @@ export default function ClienteDashboard() {
         open={Boolean(pagoReserva)}
         reservaId={pagoReserva?.id}
         modo="cliente"
-        onClose={() => setPagoReserva(null)}
+        monto={pagoReserva ? totalReserva(pagoReserva) : null}
+        resumen={pagoReserva ? `${pagoReserva.servicio_nombre || 'Servicio'} · ${fecha(pagoReserva.inicia_en)} ${hora(pagoReserva.inicia_en)}` : ''}
+        onClose={() => {
+          setPagoReserva(null);
+          cargarReservas();
+        }}
         onPagado={() => {
           cargarReservas();
           notificar.success('Pago confirmado. Tu cita quedó al día.');

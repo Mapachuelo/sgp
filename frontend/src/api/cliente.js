@@ -62,6 +62,8 @@ const api = {
     createServicio: (body) => request('/reservas/servicios', { method: 'POST', body: JSON.stringify(body) }),
     updateServicio: (id, body) => request(`/reservas/servicios/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     deleteServicio: (id) => request(`/reservas/servicios/${id}`, { method: 'DELETE' }),
+    imagenesServicio: (id) => request(`/reservas/servicios/${id}/imagenes`),
+    sedesPorServicio: (servicio_id) => request(`/reservas/sedes-por-servicio?servicio_id=${servicio_id}`),
     categorias: () => request('/reservas/categorias'),
     createCategoria: (body) => request('/reservas/categorias', { method: 'POST', body: JSON.stringify(body) }),
     updateCategoria: (id, body) => request(`/reservas/categorias/${id}`, { method: 'PUT', body: JSON.stringify(body) }),

@@ -64,6 +64,15 @@ ALTER TABLE servicio_catalogo ADD COLUMN IF NOT EXISTS categoria_id INTEGER REFE
 ALTER TABLE servicio_catalogo ADD COLUMN IF NOT EXISTS imagen_url TEXT;
 ALTER TABLE servicio_catalogo ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
 
+CREATE TABLE IF NOT EXISTS servicio_imagen (
+  id SERIAL PRIMARY KEY,
+  servicio_id INTEGER NOT NULL REFERENCES servicio_catalogo(id) ON DELETE CASCADE,
+  imagen_url TEXT NOT NULL,
+  orden INTEGER NOT NULL DEFAULT 1,
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(servicio_id, orden)
+);
+
 CREATE TABLE IF NOT EXISTS empleado_tiempo_servicio (
   id SERIAL PRIMARY KEY,
   empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
@@ -186,6 +195,7 @@ CREATE INDEX IF NOT EXISTS idx_pago_estado ON pago(estado);
 CREATE INDEX IF NOT EXISTS idx_pago_referencia ON pago(referencia);
 CREATE INDEX IF NOT EXISTS idx_app_user_rol_bloqueado ON app_user(rol, esta_bloqueado);
 CREATE INDEX IF NOT EXISTS idx_servicio_catalogo_categoria_id ON servicio_catalogo(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_servicio_imagen_servicio ON servicio_imagen(servicio_id, orden);
 CREATE INDEX IF NOT EXISTS idx_reserva_servicio_reserva_id ON reserva_servicio(reserva_id);
 CREATE INDEX IF NOT EXISTS idx_reserva_servicio_empleado_inicia ON reserva_servicio(empleado_id, inicia_en);
 CREATE INDEX IF NOT EXISTS idx_reserva_servicio_servicio_id ON reserva_servicio(servicio_id);
@@ -438,3 +448,21 @@ WHERE u.email = 'empleado@sgp.local'
 -- Backfill: usuarios creados antes del sistema de verificacion quedan verificados
 UPDATE app_user SET verificado = TRUE
 WHERE verificado IS FALSE AND token_verificacion IS NULL AND token_verificacion_expiracion IS NULL;
+
+-- Backfill de imagenes: la portada anterior pasa a ser la primera imagen de la galeria
+INSERT INTO servicio_imagen (servicio_id, imagen_url, orden)
+SELECT s.id, s.imagen_url, 1
+FROM servicio_catalogo s
+WHERE s.imagen_url IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM servicio_imagen si WHERE si.servicio_id = s.id);
+
+-- Mantiene la portada sincronizada con la primera imagen de la galeria
+UPDATE servicio_catalogo s
+SET imagen_url = primera.imagen_url
+FROM (
+  SELECT DISTINCT ON (servicio_id) servicio_id, imagen_url
+  FROM servicio_imagen
+  ORDER BY servicio_id, orden
+) primera
+WHERE s.id = primera.servicio_id
+  AND s.imagen_url IS DISTINCT FROM primera.imagen_url;

@@ -5,6 +5,7 @@ const { withTransaction } = require('../../config/db');
 
 const MAX_SERVICIOS_DEFAULT = 5;
 const MAX_SERVICIOS_LIMITE = 10;
+const MAX_IMAGENES_SERVICIO = 6;
 const GRANULARIDADES = [15, 30, 60];
 const BOGOTA_OFFSET = '-05:00';
 
@@ -64,6 +65,20 @@ function normalizarImagen(imagen) {
   return imagen;
 }
 
+function normalizarImagenes(imagenes) {
+  if (imagenes === undefined) return undefined;
+  if (!Array.isArray(imagenes)) throw new HttpError(400, 'imagenes debe ser un arreglo');
+  if (imagenes.length > MAX_IMAGENES_SERVICIO) {
+    throw new HttpError(400, `Puedes subir hasta ${MAX_IMAGENES_SERVICIO} imagenes por servicio`);
+  }
+  return imagenes.map((imagen, indice) => {
+    if (typeof imagen !== 'string' || !imagen) {
+      throw new HttpError(400, `imagenes[${indice}] no es valida`);
+    }
+    return normalizarImagen(imagen);
+  });
+}
+
 function validarServicio(data, { parcial = false } = {}) {
   const salida = {};
   if (!parcial || data.nombre !== undefined) {
@@ -90,7 +105,12 @@ function validarServicio(data, { parcial = false } = {}) {
   if (data.categoria_id !== undefined) {
     salida.categoria_id = data.categoria_id === null || data.categoria_id === '' ? null : entero(data.categoria_id, 'categoria_id');
   }
-  if (data.imagen_url !== undefined) salida.imagen_url = normalizarImagen(data.imagen_url);
+  if (data.imagenes !== undefined) {
+    salida.imagenes = normalizarImagenes(data.imagenes);
+  } else if (data.imagen_url !== undefined) {
+    const imagen = normalizarImagen(data.imagen_url);
+    salida.imagenes = imagen ? [imagen] : [];
+  }
   if (data.activo !== undefined) salida.activo = Boolean(data.activo);
   return salida;
 }
@@ -208,7 +228,7 @@ const reservasService = {
   },
 
   async createServicio(data) {
-    const payload = validarServicio(data);
+    const { imagenes, ...payload } = validarServicio(data);
     if (payload.categoria_id) {
       const categoria = await reservasModel.findCategoriaById(payload.categoria_id);
       if (!categoria) throw new HttpError(404, 'Categoria no encontrada');
@@ -216,18 +236,50 @@ const reservasService = {
       const otros = await reservasModel.findCategoriaByNombre('Otros');
       payload.categoria_id = otros?.id || null;
     }
-    return reservasModel.createServicio(payload);
+    const galeria = imagenes || [];
+    payload.imagen_url = galeria[0] || null;
+    return withTransaction(async (client) => {
+      const servicio = await reservasModel.createServicio(payload, client);
+      if (galeria.length > 0) {
+        await reservasModel.replaceImagenesServicio(servicio.id, galeria, client);
+      }
+      return servicio;
+    });
   },
 
   async updateServicio(id, data) {
     const servicio = await reservasModel.findServicioById(id);
     if (!servicio) throw new HttpError(404, 'Servicio no encontrado');
-    const payload = validarServicio(data, { parcial: true });
+    const { imagenes, ...payload } = validarServicio(data, { parcial: true });
     if (payload.categoria_id) {
       const categoria = await reservasModel.findCategoriaById(payload.categoria_id);
       if (!categoria) throw new HttpError(404, 'Categoria no encontrada');
     }
-    return reservasModel.updateServicio(id, payload);
+    if (imagenes === undefined) {
+      return reservasModel.updateServicio(id, payload);
+    }
+    return withTransaction(async (client) => {
+      const actualizado = await reservasModel.updateServicio(id, payload, client);
+      if (!actualizado) throw new HttpError(404, 'Servicio no encontrado');
+      await reservasModel.replaceImagenesServicio(id, imagenes, client);
+      return reservasModel.findServicioById(id, client);
+    });
+  },
+
+  async getImagenesServicio(id) {
+    const servicio = await reservasModel.findServicioById(id);
+    if (!servicio) throw new HttpError(404, 'Servicio no encontrado');
+    return reservasModel.findImagenesServicio(id);
+  },
+
+  async getSedesPorServicio({ servicio_id }) {
+    if (!servicio_id) {
+      throw new HttpError(400, 'servicio_id es requerido');
+    }
+    const id = entero(servicio_id, 'servicio_id');
+    const servicio = await reservasModel.findServicioById(id);
+    if (!servicio) throw new HttpError(404, 'Servicio no encontrado');
+    return reservasModel.findSedesPorServicio(id);
   },
 
   async deleteServicio(id) {

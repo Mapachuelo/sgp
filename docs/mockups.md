@@ -65,9 +65,12 @@ QR de ingreso, elección entre **Efectivo en Local** y **Pago en línea**, guía
 ![Pago paso 5](img/cliente-pago-wompi.png)
 
 ### 2.6 Pago pendiente desde el tablero
-El detalle de una reserva sin pago muestra la insignia **Pago pendiente**, el total y el botón **Pagar en línea**, que abre el checkout de Wompi sin volver al paso 5.
+El dashboard muestra el estado de pago de cada cita, una sección de **Otros pagos pendientes** cuando hay más de una cita por pagar y el botón **Pagar ahora** en la próxima cita y en cada fila. El modal muestra servicio, fecha, total y abre el checkout de Wompi sin volver al paso 5; también recuerda que se puede pagar en efectivo en recepción.
 
 ![Pago pendiente cliente](img/cliente-pago-pendiente.png)
+
+### 2.6b Detalle de servicio
+Al hacer clic en una tarjeta del paso **Servicios** se abre un modal con la galería del servicio (hasta 6 imágenes), flechas laterales, contador, miniaturas, precio, duración y las acciones **Agregar a la cita** o **Quitar de la cita**. El listado solo carga la portada; la galería se consulta bajo demanda.
 
 ### 2.7 Perfil (`/cliente/perfil`)
 

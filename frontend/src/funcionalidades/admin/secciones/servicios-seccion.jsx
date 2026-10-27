@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Clock, ImageOff, Layers, Pencil, Plus, Scissors, Settings, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, ImageOff, Layers, Pencil, Plus, Scissors, Settings, Trash2, Upload, X } from 'lucide-react';
 import {
   Badge,
   BuscadorSelect,
@@ -16,13 +16,15 @@ import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
 import { comprimirImagen } from '../../../lib/imagen.js';
 
+const MAX_IMAGENES = 6;
+
 const FORM_INICIAL = {
   nombre: '',
   descripcion: '',
   precio: '',
   duracion: 30,
   categoria_id: '',
-  imagen_url: '',
+  imagenes: [],
   activo: true,
 };
 
@@ -70,7 +72,10 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [cargandoImagenes, setCargandoImagenes] = useState(false);
+  const [errorImagenes, setErrorImagenes] = useState(false);
   const inputImagenRef = useRef(null);
+  const edicionRef = useRef(null);
 
   const [categoriaForm, setCategoriaForm] = useState(CATEGORIA_INICIAL);
   const [editCategoriaId, setEditCategoriaId] = useState(null);
@@ -165,13 +170,18 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
   );
 
   const resetForm = () => {
+    edicionRef.current = null;
     setForm(FORM_INICIAL);
     setEditId(null);
     setMostrarForm(false);
+    setCargandoImagenes(false);
+    setErrorImagenes(false);
     if (inputImagenRef.current) inputImagenRef.current.value = '';
   };
 
   const abrirNuevo = () => {
+    edicionRef.current = null;
+    setErrorImagenes(false);
     setEditId(null);
     setForm({
       ...FORM_INICIAL,
@@ -180,21 +190,44 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
     setMostrarForm(true);
   };
 
-  const abrirEditar = (servicio) => {
+  const abrirEditar = async (servicio) => {
+    edicionRef.current = servicio.id;
+    setErrorImagenes(false);
     setEditId(servicio.id);
+    setMostrarForm(true);
     setForm({
       nombre: servicio.nombre || '',
       descripcion: servicio.descripcion || '',
       precio: servicio.precio_base ?? '',
       duracion: servicio.duracion_base_minutos || 30,
       categoria_id: servicio.categoria_id ? String(servicio.categoria_id) : '',
-      imagen_url: servicio.imagen_url || '',
+      imagenes: servicio.imagen_url ? [servicio.imagen_url] : [],
       activo: servicio.activo !== false,
     });
-    setMostrarForm(true);
+    setCargandoImagenes(true);
+    try {
+      const galeria = await api.reservas.imagenesServicio(servicio.id);
+      if (edicionRef.current !== servicio.id) return;
+      const urls = (Array.isArray(galeria) ? galeria : [])
+        .sort((a, b) => Number(a.orden) - Number(b.orden))
+        .map((imagen) => imagen.imagen_url)
+        .filter(Boolean);
+      if (urls.length > 0) {
+        setForm((prev) => ({ ...prev, imagenes: urls }));
+      }
+    } catch (error) {
+      if (edicionRef.current === servicio.id) {
+        setErrorImagenes(true);
+        onToast?.(error.message, 'error');
+      }
+    } finally {
+      if (edicionRef.current === servicio.id) setCargandoImagenes(false);
+    }
   };
 
   const guardar = async () => {
+    if (cargandoImagenes) return onToast?.('Espera a que carguen las imágenes del servicio', 'warning');
+    if (errorImagenes) return onToast?.('No se pudieron cargar las imágenes; cierra y vuelve a editar', 'warning');
     if (!form.nombre.trim()) return onToast?.('El nombre es obligatorio', 'warning');
     if (!form.categoria_id) return onToast?.('Elige una categoría', 'warning');
     if (!form.precio || Number(form.precio) < 0) return onToast?.('El precio es obligatorio', 'warning');
@@ -207,7 +240,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
         precio_base: Number(form.precio),
         duracion_base_minutos: Number(form.duracion),
         categoria_id: Number(form.categoria_id),
-        imagen_url: form.imagen_url || null,
+        imagenes: form.imagenes,
         activo: Boolean(form.activo),
       };
       if (editId) await api.reservas.updateServicio(editId, body);
@@ -222,24 +255,57 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
     }
   };
 
-  const subirImagen = async (evento) => {
-    const archivo = evento.target.files?.[0];
-    if (!archivo) return;
+  const subirImagenes = async (evento) => {
+    const archivos = [...(evento.target.files || [])];
+    if (archivos.length === 0) return;
+    const disponibles = MAX_IMAGENES - form.imagenes.length;
+    if (disponibles <= 0) {
+      onToast?.(`Puedes subir hasta ${MAX_IMAGENES} imágenes por servicio`, 'warning');
+      evento.target.value = '';
+      return;
+    }
+    if (archivos.length > disponibles) {
+      onToast?.(`Solo caben ${disponibles} imagen(es) más`, 'warning');
+    }
     setSubiendoImagen(true);
     try {
-      const dataUrl = await comprimirImagen(archivo);
-      setForm((prev) => ({ ...prev, imagen_url: dataUrl }));
+      const nuevas = [];
+      for (const archivo of archivos.slice(0, disponibles)) {
+        nuevas.push(await comprimirImagen(archivo));
+      }
+      setForm((prev) => ({ ...prev, imagenes: [...prev.imagenes, ...nuevas].slice(0, MAX_IMAGENES) }));
     } catch (error) {
       onToast?.(error.message, 'error');
-      if (inputImagenRef.current) inputImagenRef.current.value = '';
     } finally {
+      if (inputImagenRef.current) inputImagenRef.current.value = '';
       setSubiendoImagen(false);
     }
   };
 
-  const quitarImagen = () => {
-    setForm((prev) => ({ ...prev, imagen_url: '' }));
-    if (inputImagenRef.current) inputImagenRef.current.value = '';
+  const quitarImagen = (indice) => {
+    setForm((prev) => ({
+      ...prev,
+      imagenes: prev.imagenes.filter((_, posicion) => posicion !== indice),
+    }));
+  };
+
+  const moverImagen = (indice, direccion) => {
+    setForm((prev) => {
+      const destino = indice + direccion;
+      if (destino < 0 || destino >= prev.imagenes.length) return prev;
+      const imagenes = [...prev.imagenes];
+      [imagenes[indice], imagenes[destino]] = [imagenes[destino], imagenes[indice]];
+      return { ...prev, imagenes };
+    });
+  };
+
+  const hacerPortada = (indice) => {
+    setForm((prev) => {
+      if (indice <= 0 || indice >= prev.imagenes.length) return prev;
+      const imagenes = [...prev.imagenes];
+      const [portada] = imagenes.splice(indice, 1);
+      return { ...prev, imagenes: [portada, ...imagenes] };
+    });
   };
 
   const guardarCategoria = async () => {
@@ -451,36 +517,99 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
                   />
 
                   <div className="sm:col-span-2">
-                    <span className="mb-1.5 block text-xs font-medium text-texto-principal">Imagen de referencia</span>
-                    <div className="flex flex-wrap items-center gap-3 rounded-md border border-borde bg-panel/40 p-3">
-                      <ImagenServicio src={form.imagen_url} nombre={form.nombre} tamano="lg" />
-                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                        <input
-                          ref={inputImagenRef}
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          onChange={subirImagen}
-                          className="sr-only"
-                          id="imagen-servicio"
-                        />
-                        <Button
-                          variant="secundario"
-                          size="sm"
-                          onClick={() => inputImagenRef.current?.click()}
-                          disabled={subiendoImagen}
-                        >
-                          {subiendoImagen ? <Spinner /> : <Upload className="h-3.5 w-3.5" aria-hidden="true" />}
-                          Subir imagen
-                        </Button>
-                        {form.imagen_url && (
-                          <Button variant="ghost" size="sm" onClick={quitarImagen}>
-                            <X className="h-3.5 w-3.5" aria-hidden="true" /> Quitar
-                          </Button>
-                        )}
-                        <p className="w-full text-[11px] leading-4 text-tenue sm:w-auto">
-                          JPG, PNG o WebP. Se comprime para que el catálogo siga liviano.
+                    <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                      <span className="block text-xs font-medium text-texto-principal">Imágenes de referencia</span>
+                      <span className="num text-[11px] text-tenue">{form.imagenes.length}/{MAX_IMAGENES}</span>
+                    </div>
+                    <div className="rounded-md border border-borde bg-panel/40 p-3">
+                      {cargandoImagenes ? (
+                        <div className="flex justify-center py-6"><Spinner /></div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                          {form.imagenes.map((imagen, indice) => (
+                            <div key={`${indice}-${imagen.slice(-18)}`} className="group relative overflow-hidden rounded-md border border-borde bg-superficie">
+                              <img
+                                src={imagen}
+                                alt={`Imagen ${indice + 1} de ${form.nombre || 'servicio'}`}
+                                className="aspect-[4/3] w-full object-cover"
+                              />
+                              {indice === 0 && (
+                                <Badge variant="accent" className="absolute left-1.5 top-1.5">Portada</Badge>
+                              )}
+                              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-superficie p-1">
+                                <div className="flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => moverImagen(indice, -1)}
+                                    disabled={indice === 0}
+                                    aria-label={`Mover imagen ${indice + 1} a la izquierda`}
+                                    className="flex h-7 w-7 items-center justify-center rounded border border-borde text-texto-secundario hover:bg-panel disabled:opacity-35"
+                                  >
+                                    <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moverImagen(indice, 1)}
+                                    disabled={indice === form.imagenes.length - 1}
+                                    aria-label={`Mover imagen ${indice + 1} a la derecha`}
+                                    className="flex h-7 w-7 items-center justify-center rounded border border-borde text-texto-secundario hover:bg-panel disabled:opacity-35"
+                                  >
+                                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </button>
+                                </div>
+                                <div className="flex gap-1">
+                                  {indice > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => hacerPortada(indice)}
+                                      className="h-7 rounded border border-borde px-1.5 text-[10px] font-medium text-texto-secundario hover:bg-panel"
+                                    >
+                                      Portada
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => quitarImagen(indice)}
+                                    aria-label={`Quitar imagen ${indice + 1}`}
+                                    className="flex h-7 w-7 items-center justify-center rounded border border-error/30 text-error hover:bg-error/10"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {form.imagenes.length < MAX_IMAGENES && (
+                            <button
+                              type="button"
+                              onClick={() => inputImagenRef.current?.click()}
+                              disabled={subiendoImagen}
+                              className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-control bg-superficie px-3 text-center text-[11px] font-medium text-texto-secundario transition-colors hover:border-acento hover:text-acento disabled:opacity-50"
+                            >
+                              {subiendoImagen ? <Spinner /> : <Upload className="h-4 w-4" aria-hidden="true" />}
+                              {subiendoImagen ? 'Comprimiendo...' : 'Agregar imágenes'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      <input
+                        ref={inputImagenRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        onChange={subirImagenes}
+                        className="sr-only"
+                        id="imagenes-servicio"
+                      />
+                      {errorImagenes && (
+                        <p className="mt-2 text-[11px] leading-4 text-error">
+                          No se pudieron cargar las imágenes guardadas. Cierra el formulario y vuelve a intentarlo.
                         </p>
-                      </div>
+                      )}
+                      <p className="mt-2 text-[11px] leading-4 text-tenue">
+                        JPG, PNG o WebP. Máximo {MAX_IMAGENES} imágenes; la primera es la portada. Se comprimen automáticamente.
+                      </p>
                     </div>
                   </div>
 
@@ -496,7 +625,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
                 </div>
 
                 <div className="sticky bottom-0 z-20 mt-5 flex gap-2 border-t border-borde bg-superficie pt-3">
-                  <Button variant="primario" onClick={guardar} disabled={guardando}>
+                  <Button variant="primario" onClick={guardar} disabled={guardando || cargandoImagenes}>
                     {guardando ? <Spinner /> : editId ? 'Actualizar servicio' : 'Crear servicio'}
                   </Button>
                   <Button variant="secundario" onClick={resetForm}>Cancelar</Button>
@@ -523,7 +652,12 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
                         <div className="flex items-center gap-3">
                           <ImagenServicio src={servicio.imagen_url} nombre={servicio.nombre} />
                           <div className="min-w-0">
-                            <p className="truncate font-medium text-texto-principal">{servicio.nombre}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="truncate font-medium text-texto-principal">{servicio.nombre}</p>
+                              {Number(servicio.total_imagenes) > 1 && (
+                                <Badge variant="default">{servicio.total_imagenes} fotos</Badge>
+                              )}
+                            </div>
                             <p className="mt-0.5 max-w-[280px] truncate text-[11px] text-texto-secundario">
                               {servicio.descripcion || 'Sin descripción'}
                             </p>

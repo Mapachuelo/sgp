@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/empleados-disponibles', reservasController.empleadosDisponibles);
 router.get('/empleados-por-servicio', reservasController.empleadosPorServicio);
+router.get('/sedes-por-servicio', reservasController.listarSedesPorServicio);
 router.post('/disponibilidad-combo', reservasController.disponibilidadCombo);
 
 router.get('/configuracion', reservasController.getConfiguracion);
@@ -17,6 +18,7 @@ router.put('/categorias/:id', authenticate, authorize('admin'), reservasControll
 router.delete('/categorias/:id', authenticate, authorize('admin'), reservasController.eliminarCategoria);
 
 router.get('/servicios', reservasController.listarServicios);
+router.get('/servicios/:id/imagenes', reservasController.listarImagenesServicio);
 router.post('/servicios', authenticate, authorize('admin'), reservasController.crearServicio);
 router.put('/servicios/:id', authenticate, authorize('admin'), reservasController.actualizarServicio);
 router.delete('/servicios/:id', authenticate, authorize('admin'), reservasController.eliminarServicio);

@@ -31,7 +31,7 @@ esperar_tabla() {
 
 echo "== Validacion del esquema (docs/modelo-datos.md) =="
 
-for tabla in ubicacion app_user empleado_perfil servicio_categoria servicio_catalogo empleado_tiempo_servicio jornada empleado_disponibilidad reserva reserva_servicio cobro pago preferencia_usuario configuracion; do
+for tabla in ubicacion app_user empleado_perfil servicio_categoria servicio_catalogo servicio_imagen empleado_tiempo_servicio jornada empleado_disponibilidad reserva reserva_servicio cobro pago preferencia_usuario configuracion; do
   validar "Tabla $tabla existe" "SELECT to_regclass('public.$tabla') IS NOT NULL"
 done
 
@@ -116,6 +116,24 @@ validar "servicio_catalogo.activo existe" \
 validar "FK servicio_catalogo.categoria_id -> servicio_categoria ON DELETE RESTRICT" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='servicio_catalogo'::regclass AND contype='f' AND confrelid='servicio_categoria'::regclass AND confdeltype='r')"
 
+validar "servicio_imagen.servicio_id existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicio_imagen' AND column_name='servicio_id')"
+
+validar "servicio_imagen.imagen_url existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicio_imagen' AND column_name='imagen_url' AND data_type='text')"
+
+validar "servicio_imagen.orden existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicio_imagen' AND column_name='orden' AND data_type='integer')"
+
+validar "FK servicio_imagen.servicio_id -> servicio_catalogo ON DELETE CASCADE" \
+  "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='servicio_imagen'::regclass AND contype='f' AND confrelid='servicio_catalogo'::regclass AND confdeltype='c')"
+
+validar "servicio_imagen UNIQUE (servicio, orden)" \
+  "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='servicio_imagen' AND indexdef LIKE '%UNIQUE%servicio_id%orden%')"
+
+validar "Portadas sin fila en servicio_imagen" \
+  "SELECT NOT EXISTS (SELECT 1 FROM servicio_catalogo s WHERE s.imagen_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM servicio_imagen si WHERE si.servicio_id = s.id))"
+
 validar "reserva_servicio.empleado_id existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reserva_servicio' AND column_name='empleado_id')"
 
@@ -140,7 +158,7 @@ validar "FK empleado_perfil.usuario_id -> app_user ON DELETE CASCADE" \
 validar "FK reserva.servicio_id -> servicio_catalogo" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='reserva'::regclass AND contype='f' AND confrelid='servicio_catalogo'::regclass)"
 
-for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_reserva_llego_en idx_reserva_servicio_reserva_id idx_reserva_servicio_empleado_inicia idx_reserva_servicio_servicio_id idx_servicio_catalogo_categoria_id idx_servicio_categoria_nombre idx_cobro_cobrado_en idx_cobro_pago_id idx_pago_reserva_id idx_pago_estado idx_pago_referencia idx_app_user_rol_bloqueado; do
+for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_reserva_llego_en idx_reserva_servicio_reserva_id idx_reserva_servicio_empleado_inicia idx_reserva_servicio_servicio_id idx_servicio_catalogo_categoria_id idx_servicio_imagen_servicio idx_servicio_categoria_nombre idx_cobro_cobrado_en idx_cobro_pago_id idx_pago_reserva_id idx_pago_estado idx_pago_referencia idx_app_user_rol_bloqueado; do
   validar "Indice $indice existe" "SELECT to_regclass('public.$indice') IS NOT NULL"
 done
 

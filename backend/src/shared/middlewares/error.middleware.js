@@ -1,6 +1,11 @@
 const logger = require('../logger');
 
 function errorMiddleware(err, _req, res, _next) {
+  if (err.type === 'entity.too.large' || err.status === 413) {
+    err.statusCode = 413;
+    err.message = 'El contenido enviado es demasiado grande';
+  }
+
   if (!err.statusCode) {
     if (err.code === '23505') {
       err.statusCode = 409;

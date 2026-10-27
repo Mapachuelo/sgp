@@ -72,7 +72,7 @@ El tema oscuro es neutro, no azul marino:
 ## Rutas
 
 - `/cliente`: próxima cita, listas de próximas, historial y canceladas.
-- `/cliente/reservar`: flujo de sede, servicios (hasta el máximo configurado), equipo por servicio, horario combinado, confirmación y pago.
+- `/cliente/reservar`: flujo de sede, servicios (panel fijo con scroll interno), detalle con carrusel de imágenes, equipo por servicio, horario combinado, confirmación y pago.
 - `/cliente/perfil`: datos y eliminación de cuenta.
 - `/empleado`: cola con “Ahora”, “En espera” y “Programadas”.
 - `/empleado/agenda`: agenda del día con espacios libres y acciones.
@@ -93,14 +93,19 @@ Los formularios usan etiquetas arriba, altura de 40px y foco visible de 2px. Los
 ## Servicios y reservas multi-servicio
 
 - El catálogo se organiza en **categorías o títulos** (Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros) y servicios dentro de cada una.
-- Cada servicio puede tener imagen de referencia, descripción, precio, duración y estado activo/inactivo. La imagen se comprime en el navegador y se guarda como data URL.
+- Cada servicio puede tener de 0 a 6 imágenes, descripción, precio, duración y estado activo/inactivo. Las imágenes se comprimen en el navegador y se guardan como data URLs.
+- La primera imagen es la portada (`servicio_catalogo.imagen_url`); la galería completa vive en `servicio_imagen` y se carga bajo demanda.
+- Al hacer clic en la tarjeta se abre el detalle: imagen grande, flechas laterales, contador, miniaturas, precio, duración y acción de agregar/quitar.
+- El listado de servicios es un panel de altura fija en ordenador y móvil: categorías, buscador y barra de resumen quedan fijos; solo la cuadrícula tiene scroll interno.
 - El cliente elige uno o varios servicios; la barra de resumen muestra cantidad, duración y total.
 - Cada servicio puede tener un estilista distinto; el sistema propone un equipo y el cliente puede cambiarlo.
 - El calendario solo muestra horas donde la secuencia completa cabe y todos los estilistas están libres.
 - La confirmación lista cada segmento con su estilista, horario y precio; el pago usa el total calculado por el servidor.
 - El admin configura el máximo de servicios por reserva en **Servicios → Configuración**.
 - Las imágenes de servicio usan un placeholder neutro con `ImageOff`; no se inventan degradados ni ilustraciones.
-- Las tarjetas de servicio son compactas en móvil (miniatura + datos) y muestran la imagen completa en escritorio.
+- Las tarjetas de servicio son compactas en móvil (miniatura + datos) y muestran una portada de altura fija en escritorio.
+- En el paso **Equipo**, si un servicio no tiene estilista en la sede, se muestra un aviso y el botón **Ver sedes**. El modal lista las sedes que sí ofrecen el servicio, las dibuja en el mapa y permite cambiar de sede o quedarse y quitar el servicio.
+- El dashboard del cliente muestra el estado de pago (`Pagado`, `Pago pendiente`, `Pago en proceso`, `Pago no completado`) y permite pagar en línea las citas activas impagas.
 
 ## Movimiento
 

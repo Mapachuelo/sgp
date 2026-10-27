@@ -25,6 +25,16 @@ const reservasController = {
     res.json({ ok: true, data: resultado });
   }),
 
+  listarImagenesServicio: asyncHandler(async (req, res) => {
+    const imagenes = await reservasService.getImagenesServicio(parseInt(req.params.id, 10));
+    res.json({ ok: true, data: imagenes });
+  }),
+
+  listarSedesPorServicio: asyncHandler(async (req, res) => {
+    const sedes = await reservasService.getSedesPorServicio(req.query);
+    res.json({ ok: true, data: sedes });
+  }),
+
   listarCategorias: asyncHandler(async (_req, res) => {
     const categorias = await reservasService.getCategorias();
     res.json({ ok: true, data: categorias });

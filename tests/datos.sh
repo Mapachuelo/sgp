@@ -51,6 +51,15 @@ validar "Segmentos con estilista que no ofrece el servicio" \
 validar "Segmentos con precio negativo o duracion invalida" \
   "SELECT COUNT(*) FROM reserva_servicio WHERE precio < 0 OR duracion_minutos <= 0"
 
+validar "Portadas sin fila en servicio_imagen" \
+  "SELECT COUNT(*) FROM servicio_catalogo s WHERE s.imagen_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM servicio_imagen si WHERE si.servicio_id = s.id)"
+
+validar "Portadas distintas de la primera imagen" \
+  "SELECT COUNT(*) FROM servicio_catalogo s WHERE s.imagen_url IS DISTINCT FROM (SELECT si.imagen_url FROM servicio_imagen si WHERE si.servicio_id = s.id ORDER BY si.orden, si.id LIMIT 1)"
+
+validar "Servicios con mas de 6 imagenes" \
+  "SELECT COUNT(*) FROM (SELECT servicio_id FROM servicio_imagen GROUP BY servicio_id HAVING COUNT(*) > 6) t"
+
 echo ""
 echo "Datos actuales:"
 podman exec "$CONTENEDOR_DB" psql -U sgp_user -d sgp -c \
@@ -58,6 +67,7 @@ podman exec "$CONTENEDOR_DB" psql -U sgp_user -d sgp -c \
           (SELECT COUNT(*) FROM ubicacion WHERE nombre LIKE 'Demo %') AS sedes_demo,
           (SELECT COUNT(*) FROM servicio_catalogo WHERE nombre LIKE 'Demo %') AS servicios_demo,
           (SELECT COUNT(*) FROM servicio_categoria) AS categorias,
+          (SELECT COUNT(*) FROM servicio_imagen) AS imagenes,
           (SELECT COUNT(*) FROM reserva_servicio) AS segmentos,
           (SELECT COUNT(*) FROM empleado_disponibilidad) AS bloques_disponibilidad,
           (SELECT COUNT(*) FROM reserva) AS reservas,

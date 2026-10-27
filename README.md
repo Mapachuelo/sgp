@@ -116,6 +116,7 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 
 - **Frontend:** `http://localhost:8080`
 - **Healthcheck:** `http://localhost:8080/api/healthcheck` (incluye el estado de Brevo y Wompi: `ok`, `error` o `no-configurado`)
+- **Nginx:** `index.html` y `/api/` sin cache, `/assets/` inmutable y `client_max_body_size 10m` para subir hasta 6 imagenes por servicio.
 - **API directa:** no expuesta al host; el frontend la proxya a `127.0.0.1:3000` dentro del pod `sgp-app`
 
 ### Actualizar la app tras cambios de imagen (sin tocar la base de datos)
@@ -156,7 +157,7 @@ podman volume rm sgp-pgdata
 | Empleado | empleado@sgp.local | empleado123 |
 | Cliente (pruebas) | cliente@sgp.local | cliente123 |
 
-## Base de datos (11 tablas)
+## Base de datos (15 tablas)
 
 | Tabla | Proposito |
 |-------|-----------|
@@ -164,7 +165,8 @@ podman volume rm sgp-pgdata
 | `app_user` | Usuarios con roles: cliente, empleado, admin |
 | `empleado_perfil` | Datos extra de empleados |
 | `servicio_categoria` | Titulos del menu: Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros |
-| `servicio_catalogo` | Catalogo de servicios con categoria, imagen, precio, duracion y estado |
+| `servicio_catalogo` | Catalogo de servicios con categoria, portada, precio, duracion y estado |
+| `servicio_imagen` | Galeria ordenada de hasta 6 imagenes por servicio |
 | `empleado_tiempo_servicio` | Duracion personalizada empleado/servicio |
 | `reserva_servicio` | Segmentos de una reserva: servicio, estilista, horario y precio congelado |
 | `configuracion` | Parametros del negocio, como el maximo de servicios por reserva |
@@ -175,7 +177,7 @@ podman volume rm sgp-pgdata
 | `pago` | Intentos de pago digital Wompi, referencias, transacciones y estado |
 | `preferencia_usuario` | Rango horario, granularidad, tema por usuario |
 
-Seed: Sede Centro (Bogota), 7 categorias, 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S. Las reservas existentes se backfillean a `reserva_servicio` al arrancar.
+Seed: Sede Centro (Bogota), 7 categorias, 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S. Las reservas existentes se backfillean a `reserva_servicio` y las portadas a `servicio_imagen` al arrancar.
 `app_user.telefono` se almacena cifrado con AES-256 (TEXT), en formato E.164 internacional; Colombia usa `+57` + 10 digitos y es la opcion por defecto en la interfaz. `preferencia_usuario.idioma` guarda ES/EN.
 
 El formulario de sedes incluye un mapa Leaflet/OpenStreetMap: al hacer clic, arrastrar el marcador o usar la ubicacion actual se llenan latitud y longitud automaticamente.
@@ -269,7 +271,8 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 ### Reservas (RF2, RF8)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| GET | `/api/reservas/servicios` | Publico |
+| GET | `/api/reservas/servicios` | Publico (portada y total de imagenes) |
+| GET | `/api/reservas/servicios/:id/imagenes` | Publico (galeria bajo demanda) |
 | POST | `/api/reservas/servicios` | Admin |
 | PUT | `/api/reservas/servicios/:id` | Admin |
 | DELETE | `/api/reservas/servicios/:id` | Admin |
@@ -280,6 +283,7 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | GET | `/api/reservas/configuracion` | Publico |
 | PUT | `/api/reservas/configuracion` | Admin |
 | GET | `/api/reservas/empleados-por-servicio` | Publico |
+| GET | `/api/reservas/sedes-por-servicio` | Publico |
 | POST | `/api/reservas/disponibilidad-combo` | Publico |
 | GET | `/api/reservas/disponibilidad` | Autenticado |
 | GET | `/api/reservas/jornada` | Publico |
@@ -320,7 +324,7 @@ La cola se deriva de las citas del dia y de `reserva.llego_en`, `inicio_servicio
 | POST | `/api/pagos/:id/verificar` | Cliente (dueno) / Empleado (dueno) / Admin |
 | POST | `/api/pagos/webhook` | Publico (firma Wompi) |
 
-Flujo: el cliente elige "Pago en linea" en el paso 5 y el frontend abre el **Widget de Wompi**; en recepcion, el empleado puede generar un **QR de pago** para que el cliente pague desde su celular. `POST /api/pagos/intencion` devuelve la configuracion del widget, `checkout_url` y `qr_data_url` con referencia unica, monto en centavos recalculado en el servidor y firma SHA256 de integridad. El checkout procesa tarjeta, PSE, Nequi y Boton Bancolombia. Al aprobarse, `POST /api/pagos/:id/verificar` (o el webhook con checksum SHA256) marca el pago `aprobado`, crea el `cobro` vinculado y confirma la reserva; un pago `declinado`/`error` deja la reserva `pendiente` para reintentar o pagar en efectivo. El webhook es idempotente y responde 200 a eventos autenticos; firma invalida responde 401. Las claves privada/secreta nunca se exponen al frontend; el monto siempre se recalcula en el backend (`precio_base × cantidad_personas`). No se usa NFC en esta version: el cobro presencial con tarjeta se hace por el checkout/QR de Wompi.
+Flujo: el cliente elige "Pago en linea" en el paso 5 y el frontend abre el **Widget de Wompi**; en recepcion, el empleado puede generar un **QR de pago** para que el cliente pague desde su celular. `POST /api/pagos/intencion` devuelve la configuracion del widget, `checkout_url` y `qr_data_url` con referencia unica, monto en centavos recalculado en el servidor y firma SHA256 de integridad. El checkout procesa tarjeta, PSE, Nequi y Boton Bancolombia. Al aprobarse, `POST /api/pagos/:id/verificar` (o el webhook con checksum SHA256) marca el pago `aprobado`, crea el `cobro` vinculado y confirma la reserva; un pago `declinado`/`error` deja la reserva `pendiente` para reintentar o pagar en efectivo. El webhook es idempotente y responde 200 a eventos autenticos; firma invalida responde 401. Las claves privada/secreta nunca se exponen al frontend; el monto siempre se recalcula en el backend (suma de `reserva_servicio.precio` × `cantidad_personas`). No se usa NFC en esta version: el cobro presencial con tarjeta se hace por el checkout/QR de Wompi.
 
 ### Documentacion API (RNF5)
 | Metodo | Ruta | Rol |
@@ -386,6 +390,8 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - El precio y la duracion de cada servicio se congelan en `reserva_servicio` al reservar; los cambios posteriores del catalogo no alteran reservas existentes.
 - Las categorias con servicios no se pueden eliminar; los servicios con reservas se desactivan en lugar de borrarse.
 - El cliente busca servicios por texto y puede filtrar por categoria; los selectores largos del admin usan busqueda incremental.
+- Un servicio puede tener hasta 6 imagenes; la primera es la portada. El cliente abre el detalle con carrusel y flechas laterales; el listado solo carga la portada.
+- El dashboard del cliente muestra el estado de pago de cada cita y permite pagar en linea las reservas activas impagas, sin volver al flujo de reserva.
 - Rango horario default: 06:00-22:00, granularidad default: 30 min
 - Registro: un correo sin verificar se reemplaza si el cliente vuelve a registrarse; la cuenta sin verificar se elimina a los **5 minutos** (configurable con `REGISTRO_TTL_MINUTOS`) y el correo queda libre; si el envio del OTP falla se puede usar `Reenviar codigo` (reinicia el tiempo de registro)
 

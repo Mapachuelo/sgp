@@ -20,15 +20,15 @@ Estrategia de verificación del SGP. Relaciona cada requisito (RF/RNF) con prueb
 
 | Suite | Resultado | Fecha |
 |-------|-----------|-------|
-| `tests/api.sh` | 46/46 | 2026-10-27 |
-| `tests/datos.sh` | 10/10 | 2026-10-27 |
-| `tests/esquema.sh` | 66/66 | 2026-10-27 |
-| `tests/unit/*.test.js` | 51/51 | 2026-10-27 |
+| `tests/api.sh` | 53/53 | 2026-10-27 |
+| `tests/datos.sh` | 13/13 | 2026-10-27 |
+| `tests/esquema.sh` | 74/74 | 2026-10-27 |
+| `tests/unit/*.test.js` | 52/52 | 2026-10-27 |
 | `tests/e2e.py` | 47/47 | 2026-10-27 |
 | `tests/regresion_10x10.py` | 128/128 | 2026-10-27 |
-| Cobertura (líneas / ramas / funciones) | **91.91 % / 75.83 % / 94.90 %** (RNF5) | 2026-10-26 |
+| Cobertura (líneas / ramas / funciones) | **90.15 % / 72.58 % / 92.08 %** (RNF5) | 2026-10-27 |
 
-Ampliaciones 2026-10-27: categorias/titulos de servicio con imagen y precio editable, reservas con varios servicios y estilistas por segmento (`reserva_servicio`), disponibilidad combinada, maximo configurable de servicios, precios congelados y reportes proporcionales. Ampliaciones 2026-10-26: cola de atencion (`llego_en`, `inicio_servicio`, `fin_servicio`), cobro vinculado a `pago_id` y `pagado_antes`, QR de pago Wompi, bloqueo de inicio sin pago, llegada/inicio/finalizacion, telefonos internacionales, selector de mapa en sedes, seed determinista 10x10 y suite de regresion con 10 clientes y 10 empleados. Las unitarias cubren cola, pago aprobado, acceso por empleado, QR y validacion internacional.
+Ampliaciones 2026-10-27: detalle de servicio con carrusel de hasta 6 imagenes y flechas laterales (`servicio_imagen`), panel fijo de servicios con scroll interno, sedes alternativas con mapa cuando no hay estilista, pagos pendientes y pago en linea desde el dashboard del cliente, categorias/titulos de servicio con portada y precio editable, reservas con varios servicios y estilistas por segmento (`reserva_servicio`), disponibilidad combinada, maximo configurable de servicios, precios congelados y reportes proporcionales. Ampliaciones 2026-10-26: cola de atencion (`llego_en`, `inicio_servicio`, `fin_servicio`), cobro vinculado a `pago_id` y `pagado_antes`, QR de pago Wompi, bloqueo de inicio sin pago, llegada/inicio/finalizacion, telefonos internacionales, selector de mapa en sedes, seed determinista 10x10 y suite de regresion con 10 clientes y 10 empleados. Las unitarias cubren cola, pago aprobado, acceso por empleado, QR y validacion internacional.
 
 Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` (red), `src/server.js` y `src/utils/semillar-*.js` (seeds), por ser infraestructura o utilidades de datos, no lógica de negocio.
 
@@ -46,12 +46,12 @@ Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` 
 | logs.service | 73.1 % |
 | preferencias.model / service | 100 % / 100 % |
 | reportes.model / service | 100 % / 97.7 % |
-| reservas.model / reservas.service | 91.60 % / 84.27 % |
+| reservas.model / reservas.service | 92.29 % / 86.28 % |
 | ubicaciones.model / service | 100 % / 100 % |
 | shared (http-error, logger) | 100 % |
 | utils (encriptacion, telefono) | 100 % / 92.3 % |
 
-> Nota: con 51 unitarias el agregado es **89.69 % líneas / 72.25 % ramas / 91.37 % funciones**, por encima del 80 % exigido por RNF5. Nuevas funcionalidades deben mantener o mejorar este porcentaje.
+> Nota: con 52 unitarias el agregado es **90.15 % líneas / 72.58 % ramas / 92.08 % funciones**, por encima del 80 % exigido por RNF5. Nuevas funcionalidades deben mantener o mejorar este porcentaje.
 
 ## 3. Trazabilidad RF/RNF → prueba
 
@@ -59,7 +59,7 @@ Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` 
 |-----------|---------------------|
 | RF0 Login | `api.sh` (login admin/empleado), unitarias auth |
 | RF1 Registro | `api.sh` (201), unitarias auth (validaciones, duplicado) |
-| RF2 Reserva | `e2e.py` (crear, duración, solape, combo multi-servicio y monto), unitarias reservas (categorías, multi-servicio, multi-estilista, disponibilidad combinada), regresión 10x10 |
+| RF2 Reserva | `e2e.py` (crear, duración, solape, combo multi-servicio y monto), unitarias reservas (categorías, galería de imágenes, sedes por servicio, multi-servicio, multi-estilista, disponibilidad combinada), API (`/servicios/:id/imagenes`, `/sedes-por-servicio`, límite de 6 imágenes), regresión 10x10 |
 | RF3/RF4 Check-in y cobro | `e2e.py` (cobrado, doble cobro, cobro online con monto real de pago Wompi), unitarias checkin |
 | Cobro digital Wompi | `api.sh` (RBAC, webhook firma inválida), unitarias `wompi`/`pagos` (firma, checksum, monto server-side, aprobado→confirmada, declinado, idempotencia), `e2e.py` (webhook firmado), prueba manual en sandbox con tarjeta `4242`/`4111`, Nequi `3991111111`/`3992222222` y PSE (banco que aprueba/rechaza) |
 | RF5 Reportes | `api.sh`, `e2e.py`, unitarias reportes; reparto proporcional en reservas multi-servicio |

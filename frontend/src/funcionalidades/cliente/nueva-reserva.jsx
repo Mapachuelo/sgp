@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, Clock, ImageOff, MapPin, Search, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Clock, ImageOff, MapPin, Search, Users, X } from 'lucide-react';
 import {
   Badge,
   BuscadorSelect,
@@ -8,6 +8,7 @@ import {
   Card,
   EmptyState,
   Input,
+  Modal,
   PageHeader,
   Select,
   Spinner,
@@ -129,7 +130,7 @@ function AjustarMapa({ puntos }) {
 function ImagenServicio({ src, nombre }) {
   if (!src) {
     return (
-      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md border border-borde bg-panel text-tenue sm:h-auto sm:w-full sm:aspect-[4/3]">
+      <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-md border border-borde bg-panel text-tenue sm:h-32 sm:w-full">
         <ImageOff className="h-5 w-5" strokeWidth={1.6} aria-hidden="true" />
       </span>
     );
@@ -139,8 +140,301 @@ function ImagenServicio({ src, nombre }) {
       src={src}
       alt={`Imagen de ${nombre}`}
       loading="lazy"
-      className="h-20 w-20 shrink-0 rounded-md border border-borde object-cover sm:h-auto sm:w-full sm:aspect-[4/3]"
+      className="h-24 w-24 shrink-0 rounded-md border border-borde object-cover sm:h-32 sm:w-full"
     />
+  );
+}
+
+const iconoMarcadorActual = new L.DivIcon({
+  html: `<div style="display:flex;justify-content:center;align-items:center;width:30px;height:30px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5e625f" stroke-width="2">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="#e8e8e3"/>
+      <circle cx="12" cy="10" r="3" fill="#5e625f"/>
+    </svg>
+  </div>`,
+  className: 'custom-leaflet-icon',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+});
+
+function InvalidarMapa() {
+  const map = useMap();
+  useEffect(() => {
+    const temporizador = setTimeout(() => map.invalidateSize(), 80);
+    return () => clearTimeout(temporizador);
+  }, [map]);
+  return null;
+}
+
+function ModalDetalleServicio({ servicio, abierto, onClose, seleccionado, puedeAgregar, onToggle }) {
+  const [imagenes, setImagenes] = useState([]);
+  const [indice, setIndice] = useState(0);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!abierto || !servicio?.id) return undefined;
+    let activo = true;
+    setIndice(0);
+    setError('');
+    setImagenes(servicio.imagen_url ? [servicio.imagen_url] : []);
+    setCargando(true);
+    api.reservas
+      .imagenesServicio(servicio.id)
+      .then((data) => {
+        if (!activo) return;
+        const urls = (Array.isArray(data) ? data : [])
+          .sort((a, b) => Number(a.orden) - Number(b.orden))
+          .map((imagen) => imagen.imagen_url)
+          .filter(Boolean);
+        if (urls.length > 0) setImagenes(urls);
+      })
+      .catch((err) => {
+        if (activo) setError(err.message);
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+    return () => { activo = false; };
+  }, [abierto, servicio?.id, servicio?.imagen_url]);
+
+  const total = imagenes.length;
+  const irA = (delta) => {
+    if (total <= 1) return;
+    setIndice((actual) => (actual + delta + total) % total);
+  };
+
+  return (
+    <Modal open={abierto && Boolean(servicio)} onClose={onClose} title={servicio?.nombre || 'Detalle del servicio'} size="wide">
+      {servicio && (
+        <div className="space-y-4">
+          <div className="grid gap-5 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div>
+              <div
+                className="relative overflow-hidden rounded-lg border border-borde bg-panel"
+                tabIndex={0}
+                onKeyDown={(evento) => {
+                  if (evento.key === 'ArrowLeft') { evento.preventDefault(); irA(-1); }
+                  if (evento.key === 'ArrowRight') { evento.preventDefault(); irA(1); }
+                }}
+                aria-label={total > 1 ? `Galería de ${servicio.nombre}. Usa las flechas para cambiar de imagen.` : `Imagen de ${servicio.nombre}`}
+              >
+                {cargando && total === 0 ? (
+                  <div className="flex aspect-[4/3] items-center justify-center"><Spinner /></div>
+                ) : total === 0 ? (
+                  <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-tenue">
+                    <ImageOff className="h-7 w-7" strokeWidth={1.5} aria-hidden="true" />
+                    <span className="text-[11px]">Sin imágenes</span>
+                  </div>
+                ) : (
+                  <img
+                    src={imagenes[indice]}
+                    alt={`${servicio.nombre}, imagen ${indice + 1} de ${total}`}
+                    className="aspect-[4/3] w-full object-cover"
+                  />
+                )}
+                {total > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => irA(-1)}
+                      aria-label="Imagen anterior"
+                      className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-borde bg-superficie text-texto-principal hover:bg-panel"
+                    >
+                      <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => irA(1)}
+                      aria-label="Imagen siguiente"
+                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-borde bg-superficie text-texto-principal hover:bg-panel"
+                    >
+                      <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    <span className="num absolute bottom-2 right-2 rounded border border-borde bg-superficie px-1.5 py-0.5 text-[10px] font-medium text-texto-secundario" aria-live="polite">
+                      {indice + 1} / {total}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {total > 1 && (
+                <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 scroll-thin" aria-label="Miniaturas de imágenes">
+                  {imagenes.map((imagen, posicion) => (
+                    <button
+                      key={`${posicion}-${imagen.slice(-16)}`}
+                      type="button"
+                      onClick={() => setIndice(posicion)}
+                      aria-label={`Ver imagen ${posicion + 1}`}
+                      aria-current={posicion === indice ? 'true' : undefined}
+                      className={`h-12 w-12 shrink-0 overflow-hidden rounded border ${
+                        posicion === indice ? 'border-acento ring-1 ring-acento/20' : 'border-borde opacity-75 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={imagen} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {error && <p className="mt-2 text-[11px] text-error">No se pudieron cargar todas las imágenes.</p>}
+            </div>
+
+            <div className="min-w-0">
+              <Badge variant="accent">{servicio.categoria_nombre || 'Servicio'}</Badge>
+              <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-texto-principal">{servicio.nombre}</h3>
+              {servicio.descripcion ? (
+                <p className="mt-2 text-sm leading-6 text-texto-secundario">{servicio.descripcion}</p>
+              ) : (
+                <p className="mt-2 text-sm text-tenue">Sin descripción.</p>
+              )}
+              <div className="mt-5 grid grid-cols-2 gap-3 border-t border-borde pt-4">
+                <div>
+                  <p className="text-[11px] text-tenue">Precio</p>
+                  <p className="num mt-0.5 text-lg font-semibold text-texto-principal">{dinero(servicio.precio_base)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-tenue">Duración</p>
+                  <p className="num mt-0.5 text-lg font-semibold text-texto-principal">{servicio.duracion_base_minutos || 30} min</p>
+                </div>
+              </div>
+              {!seleccionado && !puedeAgregar && (
+                <p className="mt-4 rounded-md border border-advertencia/30 bg-advertencia/10 p-2.5 text-[11px] text-advertencia">
+                  Alcanzaste el máximo de servicios por cita.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-col gap-2 border-t border-borde bg-superficie p-4 sm:-mx-6 sm:-mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <span className="num text-sm font-semibold text-texto-principal">
+              {dinero(servicio.precio_base)} · {servicio.duracion_base_minutos || 30} min
+            </span>
+            <div className="flex gap-2">
+              <Button variant="secundario" onClick={onClose}>Cerrar</Button>
+              <Button
+                variant={seleccionado ? 'dangerSuave' : 'primario'}
+                disabled={!seleccionado && !puedeAgregar}
+                onClick={() => {
+                  onToggle(servicio);
+                  onClose();
+                }}
+              >
+                {seleccionado ? 'Quitar de la cita' : 'Agregar a la cita'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function ModalSedesServicio({
+  abierto, servicio, sedeActual, sedes = [], cargando, error,
+  seleccionada, onSeleccionar, onCambiar, onQuedarse, onCerrar, onReintentar, cambiando,
+}) {
+  const actualLat = Number.parseFloat(sedeActual?.latitud);
+  const actualLng = Number.parseFloat(sedeActual?.longitud);
+  const alternativas = sedes
+    .map((sede) => ({ ...sede, lat: Number.parseFloat(sede.latitud), lng: Number.parseFloat(sede.longitud) }))
+    .filter((sede) => Number.isFinite(sede.lat) && Number.isFinite(sede.lng));
+  const puntos = [
+    ...(Number.isFinite(actualLat) && Number.isFinite(actualLng) ? [[actualLat, actualLng]] : []),
+    ...alternativas.map((sede) => [sede.lat, sede.lng]),
+  ];
+  const centro = puntos[0] || [4.60971, -74.08175];
+  const elegida = sedes.find((sede) => String(sede.id) === String(seleccionada)) || null;
+
+  return (
+    <Modal open={abierto && Boolean(servicio)} onClose={onCerrar} title={servicio ? `Sedes con ${servicio.nombre}` : 'Sedes disponibles'} size="wide">
+      <div className="space-y-4">
+        <p className="text-xs leading-5 text-texto-secundario">
+          {sedeActual ? `No hay estilista en ${sedeActual.nombre}.` : 'No hay estilista en esta sede.'}{' '}
+          Estas sedes sí ofrecen el servicio. La disponibilidad exacta se confirma al elegir el horario.
+        </p>
+
+        {cargando ? (
+          <div className="flex justify-center py-10"><Spinner /></div>
+        ) : error ? (
+          <div className="rounded-md border border-error/30 bg-error/10 p-3 text-xs text-error">
+            {error}
+            <Button variant="secundario" size="sm" className="mt-2" onClick={onReintentar}>Reintentar</Button>
+          </div>
+        ) : sedes.length === 0 ? (
+          <div className="rounded-md border border-advertencia/30 bg-advertencia/10 p-4 text-xs leading-5 text-advertencia">
+            Ninguna sede tiene estilistas para este servicio. Puedes quitarlo y seguir con los demás.
+          </div>
+        ) : (
+          <>
+            {puntos.length > 0 && (
+              <div className="relative z-0 h-52 overflow-hidden rounded-lg border border-borde bg-panel">
+                <MapContainer center={centro} zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <AjustarMapa puntos={puntos} />
+                  <InvalidarMapa />
+                  {Number.isFinite(actualLat) && Number.isFinite(actualLng) && (
+                    <Marker position={[actualLat, actualLng]} icon={iconoMarcadorActual} title={sedeActual.nombre} />
+                  )}
+                  {alternativas.map((sede) => (
+                    <Marker
+                      key={sede.id}
+                      position={[sede.lat, sede.lng]}
+                      icon={customMarkerIcon}
+                      title={sede.nombre}
+                      eventHandlers={{ click: () => onSeleccionar(String(sede.id)) }}
+                    />
+                  ))}
+                </MapContainer>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {sedes.map((sede) => {
+                const activa = String(sede.id) === String(seleccionada);
+                return (
+                  <button
+                    key={sede.id}
+                    type="button"
+                    onClick={() => onSeleccionar(String(sede.id))}
+                    className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                      activa ? 'border-acento bg-acento-suave/30 ring-1 ring-acento/20' : 'border-borde bg-superficie hover:bg-panel/60'
+                    }`}
+                  >
+                    <MapPin className={`h-4 w-4 shrink-0 ${activa ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-texto-principal">{sede.nombre}</span>
+                      {sede.direccion && <span className="mt-0.5 block text-[11px] leading-4 text-texto-secundario">{sede.direccion}</span>}
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="num block text-sm font-semibold text-texto-principal">{sede.total_estilistas}</span>
+                      <span className="block text-[10px] text-tenue">estilista(s)</span>
+                    </span>
+                    {activa && <Check className="h-4 w-4 shrink-0 text-acento" strokeWidth={2.5} aria-hidden="true" />}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <div className="sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-col gap-2 border-t border-borde bg-superficie p-4 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:p-5">
+          <Button variant="secundario" onClick={onQuedarse} disabled={cambiando}>
+            Quedarme en esta sede y quitar el servicio
+          </Button>
+          {sedes.length > 0 && (
+            <Button
+              onClick={() => elegida && onCambiar(elegida)}
+              disabled={!elegida || cambiando}
+            >
+              {cambiando ? <Spinner /> : `Cambiar a ${elegida?.nombre || 'la sede'}`}
+            </Button>
+          )}
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -166,6 +460,10 @@ export default function NuevaReserva() {
   const [busquedaServicio, setBusquedaServicio] = useState('');
   const [seleccionados, setSeleccionados] = useState([]);
   const [configuracion, setConfiguracion] = useState({ max_servicios_reserva: 5 });
+  const [detalleServicio, setDetalleServicio] = useState(null);
+  const [sedesModal, setSedesModal] = useState(null);
+  const [cambiandoSede, setCambiandoSede] = useState(false);
+  const sedesCacheRef = useRef(new Map());
 
   const [empleadosPorServicio, setEmpleadosPorServicio] = useState({});
   const [asignaciones, setAsignaciones] = useState({});
@@ -361,20 +659,35 @@ export default function NuevaReserva() {
     setDiaSeleccionado(null);
   };
 
-  const cargarEquipo = async () => {
-    if (!ubicacionSeleccionada || seleccionados.length === 0) return;
+  const cargarSedesServicio = useCallback(async (servicioId) => {
+    if (sedesCacheRef.current.has(servicioId)) {
+      return sedesCacheRef.current.get(servicioId);
+    }
+    const data = await api.reservas.sedesPorServicio(servicioId);
+    const sedes = Array.isArray(data) ? data : [];
+    sedesCacheRef.current.set(servicioId, sedes);
+    return sedes;
+  }, []);
+
+  const cargarEquipo = async (sede = ubicacionSeleccionada) => {
+    if (!sede || seleccionados.length === 0) return;
     setCargandoEquipo(true);
     try {
       const respuestas = await Promise.all(
         seleccionados.map(async (servicio) => {
           const data = await api.reservas
-            .empleadosPorServicio({ ubicacion_id: ubicacionSeleccionada.id, servicio_id: servicio.id })
+            .empleadosPorServicio({ ubicacion_id: sede.id, servicio_id: servicio.id })
             .catch(() => []);
           return [servicio.id, Array.isArray(data) ? data : []];
         })
       );
       const mapa = Object.fromEntries(respuestas);
       setEmpleadosPorServicio(mapa);
+
+      const faltantes = seleccionados.filter((servicio) => !(mapa[servicio.id] || []).length);
+      if (faltantes.length > 0) {
+        Promise.all(faltantes.map((servicio) => cargarSedesServicio(servicio.id).catch(() => []))).catch(() => {});
+      }
 
       const conteo = new Map();
       Object.values(mapa).flat().forEach((empleado) => {
@@ -412,6 +725,71 @@ export default function NuevaReserva() {
     } finally {
       setCargandoEquipo(false);
     }
+  };
+
+  const abrirSedesModal = async (servicio) => {
+    setSedesModal({
+      servicio,
+      sedes: [],
+      seleccionada: '',
+      cargando: true,
+      error: '',
+    });
+    try {
+      const sedes = await cargarSedesServicio(servicio.id);
+      setSedesModal((prev) => (
+        prev && prev.servicio.id === servicio.id
+          ? { ...prev, sedes, seleccionada: sedes[0] ? String(sedes[0].id) : '', cargando: false }
+          : prev
+      ));
+    } catch (error) {
+      setSedesModal((prev) => (
+        prev && prev.servicio.id === servicio.id
+          ? { ...prev, cargando: false, error: error.message }
+          : prev
+      ));
+    }
+  };
+
+  const cambiarSedeDesdeModal = async (sede) => {
+    if (!sede) return;
+    setCambiandoSede(true);
+    try {
+      setUbicacionSeleccionada(sede);
+      setEmpleadosPorServicio({});
+      setAsignaciones({});
+      setDisponibilidad({});
+      setSlotSeleccionado(null);
+      setDiaSeleccionado(null);
+      setSedesModal(null);
+      await cargarEquipo(sede);
+      mostrarToast(`Ahora estás en ${sede.nombre}`);
+    } finally {
+      setCambiandoSede(false);
+    }
+  };
+
+  const quitarServicioDesdeModal = () => {
+    const servicio = sedesModal?.servicio;
+    if (!servicio) return;
+    const restantes = seleccionados.filter((item) => item.id !== servicio.id);
+    setSeleccionados(restantes);
+    setAsignaciones((prev) => {
+      const siguiente = { ...prev };
+      delete siguiente[servicio.id];
+      return siguiente;
+    });
+    setEmpleadosPorServicio((prev) => {
+      const siguiente = { ...prev };
+      delete siguiente[servicio.id];
+      return siguiente;
+    });
+    setDisponibilidad({});
+    setSlotSeleccionado(null);
+    setDiaSeleccionado(null);
+    setSedesModal(null);
+    mostrarToast('Quitamos el servicio que no tenía estilista en esta sede', 'warning');
+    if (restantes.length === 0) setPaso(2);
   };
 
   const cargarCalendario = useCallback(
@@ -928,9 +1306,9 @@ export default function NuevaReserva() {
             </Badge>
           </div>
 
-          <Card padding={false} className="overflow-hidden">
-            <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
-              <aside className="border-b border-borde bg-panel/40 p-2 lg:border-b-0 lg:border-r">
+          <Card padding={false} className="flex h-[clamp(300px,calc(100dvh-24rem),520px)] flex-col overflow-hidden lg:h-[clamp(420px,calc(100dvh-21rem),640px)]">
+            <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+              <aside className="shrink-0 border-b border-borde bg-panel/40 p-2 lg:w-[220px] lg:overflow-y-auto lg:border-b-0 lg:border-r scroll-thin">
                 <p className="hidden px-2 py-1 text-[11px] font-medium text-tenue lg:block">
                   Categorías
                 </p>
@@ -957,8 +1335,8 @@ export default function NuevaReserva() {
                 </div>
               </aside>
 
-              <div className="min-w-0 p-4">
-                <div className="relative">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 sm:p-4">
+                <div className="relative shrink-0">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tenue" strokeWidth={1.7} aria-hidden="true" />
                   <input
                     type="search"
@@ -981,49 +1359,71 @@ export default function NuevaReserva() {
                 </div>
 
                 {cargando ? (
-                  <div className="flex justify-center py-12"><Spinner /></div>
+                  <div className="flex flex-1 items-center justify-center"><Spinner /></div>
                 ) : serviciosFiltrados.length === 0 ? (
-                  <EmptyState
-                    className="mt-4"
-                    title="No encontramos servicios"
-                    description="Prueba con otra palabra o cambia de categoría."
-                  />
+                  <div className="mt-4 flex min-h-0 flex-1 items-start justify-center">
+                    <EmptyState
+                      title="No encontramos servicios"
+                      description="Prueba con otra palabra o cambia de categoría."
+                    />
+                  </div>
                 ) : (
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {serviciosFiltrados.map((servicio) => {
-                      const seleccionado = seleccionados.some((item) => item.id === servicio.id);
-                      const bloqueado = !seleccionado && seleccionados.length >= maxServicios;
-                      return (
-                        <div
-                          key={servicio.id}
-                          className={`flex gap-3 rounded-lg border p-2.5 transition-colors sm:flex-col sm:gap-0 ${
-                            seleccionado
-                              ? 'border-acento bg-acento-suave/30 ring-1 ring-acento/20'
-                              : 'border-borde bg-superficie'
-                          }`}
-                        >
-                          <ImagenServicio src={servicio.imagen_url} nombre={servicio.nombre} />
-                          <div className="flex min-w-0 flex-1 flex-col sm:pt-2.5">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-medium text-tenue">
+                  <div
+                    className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 scroll-thin"
+                    role="region"
+                    aria-label="Lista de servicios"
+                    tabIndex={0}
+                  >
+                    <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {serviciosFiltrados.map((servicio) => {
+                        const seleccionado = seleccionados.some((item) => item.id === servicio.id);
+                        const bloqueado = !seleccionado && seleccionados.length >= maxServicios;
+                        const totalImagenes = Number(servicio.total_imagenes) || (servicio.imagen_url ? 1 : 0);
+                        return (
+                          <div
+                            key={servicio.id}
+                            className={`flex gap-3 rounded-lg border p-2.5 transition-colors sm:flex-col sm:gap-0 ${
+                              seleccionado
+                                ? 'border-acento bg-acento-suave/30 ring-1 ring-acento/20'
+                                : 'border-borde bg-superficie'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setDetalleServicio(servicio)}
+                              aria-label={`Ver detalle de ${servicio.nombre}`}
+                              className="flex min-w-0 flex-1 items-start gap-3 text-left sm:flex-col sm:items-stretch"
+                            >
+                              <span className="relative block shrink-0 sm:w-full">
+                                <ImagenServicio src={servicio.imagen_url} nombre={servicio.nombre} />
+                                {seleccionado && (
+                                  <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-acento text-acento-texto">
+                                    <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
+                                  </span>
+                                )}
+                                {totalImagenes > 1 && (
+                                  <Badge variant="accent" className="absolute bottom-1.5 right-1.5">
+                                    {totalImagenes} fotos
+                                  </Badge>
+                                )}
+                              </span>
+                              <span className="min-w-0 flex-1 sm:pt-2.5">
+                                <span className="block text-[10px] font-medium text-tenue">
                                   {servicio.categoria_nombre || 'Servicio'}
-                                </p>
-                                <p className="mt-0.5 truncate text-sm font-medium text-texto-principal">{servicio.nombre}</p>
-                              </div>
-                              {seleccionado && (
-                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-acento text-acento-texto">
-                                  <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
                                 </span>
-                              )}
-                            </div>
-                            {servicio.descripcion && (
-                              <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-texto-secundario">{servicio.descripcion}</p>
-                            )}
-                            <div className="mt-auto flex items-end justify-between gap-2 pt-2">
-                              <div>
+                                <span className="mt-0.5 block truncate text-sm font-medium text-texto-principal">{servicio.nombre}</span>
+                                {servicio.descripcion && (
+                                  <span className="mt-1 line-clamp-2 block text-[11px] leading-4 text-texto-secundario">{servicio.descripcion}</span>
+                                )}
+                                <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-acento">
+                                  Ver detalle <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                                </span>
+                              </span>
+                            </button>
+                            <div className="flex shrink-0 flex-col items-end justify-between gap-2 sm:flex-row sm:items-end sm:pt-2">
+                              <div className="text-right sm:text-left">
                                 <p className="num text-sm font-semibold text-texto-principal">{dinero(servicio.precio_base)}</p>
-                                <p className="mt-0.5 flex items-center gap-1 text-[10px] text-tenue">
+                                <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-tenue sm:justify-start">
                                   <Clock className="h-3 w-3" strokeWidth={1.7} aria-hidden="true" />
                                   {servicio.duracion_base_minutos || 30} min
                                 </p>
@@ -1044,33 +1444,32 @@ export default function NuevaReserva() {
                               </button>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
+            <div className="hidden shrink-0 items-center justify-between gap-3 border-t border-borde p-3 md:flex">
+              <div className="text-xs text-texto-secundario">
+                {seleccionados.length === 0 ? (
+                  'Elige al menos un servicio'
+                ) : (
+                  <>
+                    <span className="font-medium text-texto-principal">{seleccionados.length} servicio(s)</span> ·{' '}
+                    {duracionTotal} min · <span className="num">{dinero(totalServicios)}</span>
+                  </>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
+                <Button onClick={irAEquipo} disabled={seleccionados.length === 0}>
+                  Continuar con equipo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
           </Card>
-
-          <div className="hidden items-center justify-between gap-3 border-t border-borde pt-4 md:flex">
-            <div className="text-xs text-texto-secundario">
-              {seleccionados.length === 0 ? (
-                'Elige al menos un servicio'
-              ) : (
-                <>
-                  <span className="font-medium text-texto-principal">{seleccionados.length} servicio(s)</span> ·{' '}
-                  {duracionTotal} min · <span className="num">{dinero(totalServicios)}</span>
-                </>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
-              <Button onClick={irAEquipo} disabled={seleccionados.length === 0}>
-                Continuar con equipo <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1091,10 +1490,34 @@ export default function NuevaReserva() {
             </Badge>
           </div>
 
+          {!cargandoEquipo && sinEstilista.length > 0 && (
+            <div className="rounded-lg border border-advertencia/30 bg-advertencia/10 p-4">
+              <p className="text-sm font-medium text-advertencia">
+                Faltan estilistas en {ubicacionSeleccionada?.nombre}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-advertencia">
+                Estos servicios sí están disponibles en otras sedes. Puedes cambiar de sede o quitar el servicio.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {sinEstilista.map((servicio) => (
+                  <Button
+                    key={servicio.id}
+                    variant="secundario"
+                    size="sm"
+                    onClick={() => abrirSedesModal(servicio)}
+                  >
+                    <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                    {servicio.nombre} · Ver sedes
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {cargandoEquipo ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 lg:max-h-[calc(100dvh-24rem)] lg:overflow-y-auto lg:pr-1 scroll-thin">
               {equipo.map((servicio) => {
                 const opciones = (empleadosPorServicio[servicio.id] || []).map((empleado) => ({
                   value: String(empleado.id),
@@ -1130,7 +1553,15 @@ export default function NuevaReserva() {
                       <div className="w-full sm:w-72">
                         {opciones.length === 0 ? (
                           <div className="rounded-md border border-advertencia/30 bg-advertencia/10 p-3 text-xs text-advertencia">
-                            No hay estilistas en esta sede para este servicio.
+                            <p>No hay estilista en esta sede.</p>
+                            <Button
+                              variant="secundario"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => abrirSedesModal(servicio)}
+                            >
+                              Ver sedes con este servicio
+                            </Button>
                           </div>
                         ) : (
                           <BuscadorSelect
@@ -1153,18 +1584,6 @@ export default function NuevaReserva() {
                 );
               })}
 
-              {sinEstilista.length > 0 && (
-                <div className="rounded-lg border border-advertencia/30 bg-advertencia/10 p-4 text-xs leading-5 text-advertencia">
-                  {sinEstilista.length === 1
-                    ? `No hay estilistas para "${sinEstilista[0].nombre}" en ${ubicacionSeleccionada?.nombre}.`
-                    : `Hay ${sinEstilista.length} servicios sin estilista en esta sede.`}{' '}
-                  Puedes quitar esos servicios o cambiar de sede.
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Button variant="secundario" size="sm" onClick={volverAtras}>Cambiar servicios</Button>
-                    <Button variant="secundario" size="sm" onClick={cambiarUbicacion}>Cambiar sede</Button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -1659,6 +2078,31 @@ export default function NuevaReserva() {
           </Button>
         </div>
       )}
+
+      <ModalDetalleServicio
+        servicio={detalleServicio}
+        abierto={Boolean(detalleServicio)}
+        onClose={() => setDetalleServicio(null)}
+        seleccionado={Boolean(detalleServicio && seleccionados.some((servicio) => servicio.id === detalleServicio.id))}
+        puedeAgregar={Boolean(detalleServicio && (seleccionados.some((servicio) => servicio.id === detalleServicio.id) || seleccionados.length < maxServicios))}
+        onToggle={toggleServicio}
+      />
+
+      <ModalSedesServicio
+        abierto={Boolean(sedesModal)}
+        servicio={sedesModal?.servicio}
+        sedeActual={ubicacionSeleccionada}
+        sedes={sedesModal?.sedes || []}
+        cargando={sedesModal?.cargando}
+        error={sedesModal?.error}
+        seleccionada={sedesModal?.seleccionada}
+        cambiando={cambiandoSede}
+        onSeleccionar={(id) => setSedesModal((prev) => (prev ? { ...prev, seleccionada: id } : prev))}
+        onCambiar={cambiarSedeDesdeModal}
+        onQuedarse={quitarServicioDesdeModal}
+        onCerrar={() => setSedesModal(null)}
+        onReintentar={() => sedesModal?.servicio && abrirSedesModal(sedesModal.servicio)}
+      />
     </div>
   );
 }
