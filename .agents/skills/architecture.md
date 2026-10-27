@@ -7,7 +7,8 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 | Capa | Tecnologia | Version |
 |------|-----------|---------|
 | Frontend | React + Vite + JavaScript | 19 / 6 |
-| UI | shadcn/ui + Tailwind CSS | latest |
+| UI | Componentes propios (`frontend/src/componentes/ui/`) + Tailwind CSS | - |
+| Diseno | `docs/diseno/nueva-interfaz.md` + `.agents/skills/diseno-sgp/SKILL.md` | - |
 | Ruteo | react-router-dom | latest |
 | Backend | Node.js + Express (CommonJS) | 22 / 4 |
 | BD | PostgreSQL Alpine | 17 |
@@ -25,6 +26,15 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 | Contenedores | Podman (kube play) | latest |
 | Seguridad | HTTPS (Nginx reverse proxy + Let's Encrypt) + express-rate-limit | latest |
 
+## Diseno frontend
+
+- La direccion visual vigente es `framed-sheet`: marco piedra, hoja blanca, borde de 1px y sin sombra en reposo.
+- Tokens en `frontend/src/index.css`; componentes base en `frontend/src/componentes/ui/`.
+- Shell fijo para empleado/admin: sidebar y barra superior quietas, scroll interno del contenido.
+- Sheets de altura automatica con `max-height` y scroll interno; acciones en barras sticky.
+- Antes de cambiar UI leer `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md` y las skills indicadas en `AGENTS.md`.
+- Verificar con build, lint de design-taste, inspector y capturas Chromium 1440/768/390.
+
 ## Comandos de ejecucion
 
 ### Desarrollo local
@@ -33,7 +43,8 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 pnpm install                          # Instalar dependencias (raiz + paquetes)
 pnpm --filter backend dev             # Backend en modo desarrollo (nodemon)
 pnpm --filter frontend dev            # Frontend en modo desarrollo (Vite HMR)
-pnpm run lint                         # ESLint en frontend y backend
+pnpm run lint                         # ESLint backend
+npx pnpm@11 --filter frontend build   # Build del frontend
 ```
 
 ### Contenedores
@@ -43,13 +54,20 @@ podman network create sgp-net                     # Crear red (una sola vez)
 podman build -t localhost/sgp-backend:latest -f backend/Containerfile .
 podman build -t localhost/sgp-frontend:latest -f frontend/Containerfile .
 podman kube play sgp-db-pod.yaml --network sgp-net # PRIMERO la BD
-podman kube play sgp-app-pod.yaml --network sgp-net
+podman kube play --replace --network sgp-net sgp-app-pod.yaml # Recrear con imagenes nuevas
 ```
 
 ### Pruebas
 
 ```bash
-bash tests/api.sh                     # Pruebas de integracion bash + curl
+bash tests/api.sh                     # Integracion (34)
+bash tests/datos.sh                   # Integridad del dataset (6)
+bash tests/esquema.sh                 # Esquema vs modelo (48)
+pnpm run test:unit                    # Unitarias (50)
+pnpm run test:coverage                # Cobertura
+python3 tests/e2e.py                  # Extremo a extremo (42)
+python3 tests/regresion_10x10.py      # Regresion 10x10 (122)
+pnpm run seed:pruebas                 # Seed determinista 10x10
 ```
 
 ## Estructura del proyecto
@@ -71,10 +89,12 @@ sgp/
 │   │   └── memory.md
 │   └── skills/
 │       ├── architecture.md   # Este archivo
-│       └── contexto.md
+│       ├── contexto.md       # Reglas del agente
+│       └── diseno-sgp/       # Reglas operativas de diseno
 ├── docs/                     # Documentacion plana (un tema por archivo)
 │   ├── formato_ieee830.md    # Requisitos + apendices A/B/C
 │   ├── diseno-tecnico.md     # Arquitectura y decisiones
+│   ├── diseno/               # Sistema de diseno vigente
 │   ├── diagrama.drawio       # Flujo de trabajo (pagina "Flujo actual")
 │   ├── modelos-uml.drawio    # Casos de uso, clases, secuencias, estados, despliegue, ER
 │   ├── mockups.md            # Capturas reales por rol (ES/EN, movil)

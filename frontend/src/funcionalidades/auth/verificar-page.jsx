@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/use-auth';
 import api from '../../api/cliente';
 import { Button, Input } from '../../componentes/ui';
+import AuthShell from '../../componentes/auth/auth-shell.jsx';
 
 function formatearTiempo(segundos) {
   const m = String(Math.floor(segundos / 60)).padStart(2, '0');
@@ -14,10 +15,11 @@ export default function VerificarPage() {
   const { verificarCuenta } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const inputsRef = useRef([]);
 
   const ttlMinutos = location.state?.ttlMinutos || 5;
   const [email, setEmail] = useState(location.state?.email || '');
-  const [codigo, setCodigo] = useState('');
+  const [digitos, setDigitos] = useState(Array(6).fill(''));
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -31,6 +33,7 @@ export default function VerificarPage() {
   const [correoEnviado] = useState(location.state?.correoEnviado !== false);
 
   const expirado = restante <= 0;
+  const codigo = digitos.join('');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -40,24 +43,43 @@ export default function VerificarPage() {
   }, [expiraEn]);
 
   useEffect(() => {
-    if (contador <= 0) return;
+    if (contador <= 0) return undefined;
     const timer = setTimeout(() => setContador((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [contador]);
 
-  function handleEmailChange(e) {
-    setEmail(e.target.value);
-  }
-
-  function handleCodigoChange(e) {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setCodigo(value);
-  }
-
   function marcarExpirado(mensaje) {
     setExpiraEn(new Date(0).toISOString());
     setRestante(0);
-    setError(mensaje || 'Tu registro expiro y el correo quedo libre.');
+    setError(mensaje || 'Tu registro expiró y el correo quedó libre.');
+  }
+
+  function escribirDigito(indice, valor) {
+    const limpio = valor.replace(/\D/g, '').slice(-1);
+    const siguiente = [...digitos];
+    siguiente[indice] = limpio;
+    setDigitos(siguiente);
+    if (limpio && indice < 5) inputsRef.current[indice + 1]?.focus();
+  }
+
+  function manejarTecla(indice, evento) {
+    if (evento.key === 'Backspace' && !digitos[indice] && indice > 0) {
+      inputsRef.current[indice - 1]?.focus();
+    }
+    if (evento.key === 'ArrowLeft' && indice > 0) inputsRef.current[indice - 1]?.focus();
+    if (evento.key === 'ArrowRight' && indice < 5) inputsRef.current[indice + 1]?.focus();
+  }
+
+  function pegarCodigo(evento) {
+    const texto = (evento.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+    if (!texto) return;
+    evento.preventDefault();
+    const siguiente = Array(6).fill('');
+    texto.split('').forEach((d, i) => {
+      siguiente[i] = d;
+    });
+    setDigitos(siguiente);
+    inputsRef.current[Math.min(texto.length, 5)]?.focus();
   }
 
   async function handleSubmit(e) {
@@ -66,11 +88,11 @@ export default function VerificarPage() {
     setInfo('');
     if (expirado) return;
     if (!email.trim()) {
-      setError('Ingresa tu correo electronico.');
+      setError('Ingresa tu correo electrónico.');
       return;
     }
     if (codigo.length !== 6) {
-      setError('Ingresa el codigo de 6 digitos enviado a tu correo.');
+      setError('Ingresa el código de 6 dígitos enviado a tu correo.');
       return;
     }
     setCargando(true);
@@ -93,7 +115,7 @@ export default function VerificarPage() {
     setError('');
     setInfo('');
     if (!email.trim()) {
-      setError('Ingresa tu correo electronico para reenviar el codigo.');
+      setError('Ingresa tu correo electrónico para reenviar el código.');
       return;
     }
     setCargando(true);
@@ -102,10 +124,10 @@ export default function VerificarPage() {
       const nuevoExpira = data?.expiraEn || new Date(Date.now() + ttlMinutos * 60000).toISOString();
       setExpiraEn(nuevoExpira);
       setRestante(Math.max(0, Math.floor((new Date(nuevoExpira).getTime() - Date.now()) / 1000)));
-      setInfo('Codigo reenviado. Revisa tu correo.');
+      setInfo('Código reenviado. Revisa tu correo.');
       setContador(60);
     } catch (err) {
-      const mensaje = err.message || 'No se pudo reenviar el codigo';
+      const mensaje = err.message || 'No se pudo reenviar el código';
       if (/no encontrado|expiro|expirado/i.test(mensaje)) marcarExpirado(mensaje);
       else setError(mensaje);
     } finally {
@@ -114,122 +136,105 @@ export default function VerificarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-pattern flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-primario items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primario/90 to-texto-principal/80" />
-        <div className="relative z-10 text-center px-12">
-          <h1 className="font-display text-5xl font-bold text-white mb-4">SGP</h1>
-          <p className="text-white/80 text-lg font-body">Sistema de Gestión de Peluquería</p>
-          <p className="text-white/60 text-sm mt-6 font-body max-w-md">
-            Confirma tu correo para completar el registro de tu cuenta.
+    <AuthShell
+      title="Verifica tu correo"
+      subtitle="Enviamos un código de 6 dígitos. Ingrésalo para activar tu cuenta y empezar a reservar."
+      footer={
+        <p className="text-center text-sm text-texto-secundario">
+          ¿Ya tienes cuenta? <Link to="/login" className="font-medium text-acento underline-offset-2 hover:underline">Inicia sesión</Link>
+        </p>
+      }
+    >
+      {expirado ? (
+        <div className="rounded-md border border-[#edcf9c] bg-[#fff6e8] p-4">
+          <p className="text-sm font-medium text-[#7a4a10]">Tu registro expiró y el correo quedó libre.</p>
+          <p className="mt-1 text-xs leading-5 text-[#7a4a10]/80">Regístrate de nuevo para recibir un código de verificación.</p>
+          <Button className="mt-4 w-full" onClick={() => navigate('/register')}>
+            Registrarme de nuevo
+          </Button>
+        </div>
+      ) : (
+        <div className="mb-5 rounded-md border border-borde bg-panel px-3 py-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-texto-secundario">Tiempo para verificar</p>
+            <p className={`mono text-sm font-medium ${restante <= 60 ? 'text-error' : 'text-texto-principal'}`} aria-live="polite">
+              {formatearTiempo(restante)}
+            </p>
+          </div>
+          <p className="mt-1 text-[11px] leading-4 text-tenue">
+            Si no verificas en este tiempo, el registro se elimina y el correo queda libre.
           </p>
         </div>
-      </div>
+      )}
 
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8 lg:hidden">
-            <h1 className="font-display text-3xl font-bold text-primario">SGP</h1>
-            <p className="text-texto-secundario text-sm mt-1 font-body">Sistema de Gestión de Peluquería</p>
-          </div>
+      {!correoEnviado && !expirado && (
+        <div className="mb-4 rounded-md border border-[#edcf9c] bg-[#fff6e8] px-3 py-2.5 text-xs leading-5 text-[#7a4a10]">
+          No se pudo enviar el código a tu correo. Usa “Reenviar código” para intentarlo de nuevo.
+        </div>
+      )}
 
-          <div className="bg-superficie rounded-2xl border border-borde shadow-sm p-6 sm:p-8">
-            <h2 className="font-display text-2xl font-bold text-texto-principal mb-2">Verificar cuenta</h2>
+      {error && (
+        <div className="mb-4 rounded-md border border-[#e9b8b5] bg-[#fbe9e8] px-3 py-2.5 text-xs font-medium leading-5 text-[#8e2420]" role="alert">
+          {error}
+        </div>
+      )}
+      {info && (
+        <div className="mb-4 rounded-md border border-[#b9dfc9] bg-[#e8f5ee] px-3 py-2.5 text-xs font-medium leading-5 text-[#145c39]" role="status">
+          {info}
+        </div>
+      )}
 
-            {expirado ? (
-              <div className="mb-5 p-4 bg-advertencia/10 border border-advertencia/30 rounded-lg">
-                <p className="font-semibold text-advertencia text-sm">Tu registro expiro y el correo quedo libre.</p>
-                <p className="text-texto-secundario text-xs mt-1">
-                  Registrate de nuevo para recibir un nuevo codigo de verificacion.
-                </p>
-                <Button className="mt-3 w-full" onClick={() => navigate('/register')}>
-                  Registrarme de nuevo
-                </Button>
-              </div>
-            ) : (
-              <div className="mb-5 space-y-2">
-                <p className="text-sm text-texto-secundario font-body">
-                  Enviamos un codigo de 6 digitos a tu correo. Ingresalo para activar tu cuenta.
-                </p>
-                <p
-                  className={`text-sm font-semibold ${restante <= 60 ? 'text-error' : 'text-texto-principal'}`}
-                  aria-live="polite"
-                >
-                  Tiempo para verificar: {formatearTiempo(restante)}
-                </p>
-                <p className="text-xs text-texto-secundario">
-                  Si no verificas en este tiempo, el registro se elimina y el correo queda libre.
-                </p>
-              </div>
-            )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Correo electrónico"
+          name="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@correo.com"
+          required
+          autoComplete="email"
+          disabled={expirado}
+        />
 
-            {!correoEnviado && !expirado && (
-              <div className="mb-4 p-3 bg-advertencia/10 border border-advertencia/20 rounded-lg text-advertencia text-sm font-medium">
-                No se pudo enviar el codigo a tu correo. Usa &quot;Reenviar codigo&quot; para intentarlo de nuevo.
-              </div>
-            )}
-
-            {error && (
-              <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-lg text-error text-sm font-medium">
-                {error}
-              </div>
-            )}
-            {info && (
-              <div className="mb-4 p-3 bg-exito/10 border border-exito/20 rounded-lg text-exito text-sm font-medium">
-                {info}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Correo electrónico"
-                name="email"
-                type="email"
-                value={email}
-                onChange={handleEmailChange}
-                placeholder="tu@correo.com"
-                required
-                autoComplete="email"
-                disabled={expirado}
-              />
-              <Input
-                label="Código de verificación"
-                name="codigo"
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-texto-principal">Código de verificación</p>
+          <div className="flex gap-2" onPaste={pegarCodigo}>
+            {digitos.map((digito, indice) => (
+              <input
+                key={indice}
+                ref={(el) => {
+                  inputsRef.current[indice] = el;
+                }}
                 type="text"
                 inputMode="numeric"
-                value={codigo}
-                onChange={handleCodigoChange}
-                placeholder="000000"
-                required
-                autoComplete="one-time-code"
-                maxLength={6}
+                autoComplete={indice === 0 ? 'one-time-code' : 'off'}
+                maxLength={1}
+                value={digito}
+                onChange={(e) => escribirDigito(indice, e.target.value)}
+                onKeyDown={(e) => manejarTecla(indice, e)}
                 disabled={expirado}
+                aria-label={`Dígito ${indice + 1} de 6`}
+                className="mono h-12 w-full rounded-md border border-control bg-superficie text-center text-lg font-medium text-texto-principal transition-colors focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20 disabled:bg-panel disabled:text-tenue"
               />
-              <Button type="submit" variant="primario" className="w-full" size="lg" disabled={cargando || expirado}>
-                {cargando ? 'Verificando…' : 'Verificar cuenta'}
-              </Button>
-            </form>
-
-            <div className="mt-6 space-y-3 text-center">
-              <Button
-                type="button"
-                variant="secundario"
-                className="w-full"
-                onClick={handleReenviar}
-                disabled={cargando || contador > 0 || expirado}
-              >
-                {contador > 0 ? `Reenviar codigo en ${contador}s` : 'Reenviar codigo'}
-              </Button>
-              <p className="text-sm text-texto-secundario font-body">
-                ¿Ya tienes cuenta?{' '}
-                <Link to="/login" className="text-primario font-semibold hover:underline">
-                  Inicia sesión
-                </Link>
-              </p>
-            </div>
+            ))}
           </div>
         </div>
-      </div>
-    </div>
+
+        <Button type="submit" className="mt-2 w-full" size="lg" disabled={cargando || expirado || codigo.length !== 6}>
+          {cargando ? 'Verificando…' : 'Verificar cuenta'}
+        </Button>
+      </form>
+
+      <Button
+        type="button"
+        variant="secundario"
+        className="mt-3 w-full"
+        onClick={handleReenviar}
+        disabled={cargando || contador > 0 || expirado}
+      >
+        {contador > 0 ? `Reenviar código en ${contador}s` : 'Reenviar código'}
+      </Button>
+    </AuthShell>
   );
 }

@@ -408,6 +408,7 @@ pnpm run test:regresion        # Suite funcional 10x10
 - [Diseno tecnico](docs/diseno-tecnico.md) — arquitectura, decisiones y estructura del codigo
 - [Modelos UML](docs/modelos-uml.drawio) — casos de uso, clases, secuencias, estados, despliegue y ER (+ [flujo actual](docs/diagrama.drawio))
 - [Mockups e interfaz](docs/mockups.md) — capturas reales por rol (ES/EN, movil)
+- [Nueva interfaz](docs/diseno/nueva-interfaz.md) — direccion, tokens, rutas, componentes y verificacion visual
 - [Modelo de datos](docs/modelo-datos.md) — ER y diccionario de las 11 tablas
 - [Plan de pruebas](docs/plan-pruebas.md) — estrategia, matriz, regresion 10x10 y cobertura
 - [Guia de despliegue](docs/despliegue.md) — Podman, datos demo, operacion y problemas conocidos

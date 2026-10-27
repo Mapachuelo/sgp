@@ -35,7 +35,7 @@ export default function CobroModal({ open, onClose, onToast, onActualizar }) {
   };
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Registrar cobro">
+    <SheetAdmin open={open} onClose={onClose} title="Registrar cobro" size="normal">
       {resultado ? (
         <div className="text-center py-4 space-y-3">
           <CheckCircle2 className="w-14 h-14 mx-auto text-exito" aria-hidden="true" />

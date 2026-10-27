@@ -6,8 +6,8 @@ export default function RutaProtegida({ children, roles }) {
 
   if (cargando) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-fondo">
-        <div className="w-8 h-8 border-4 border-primario/30 border-t-primario rounded-full animate-spin" />
+      <div className="flex min-h-[100dvh] items-center justify-center bg-fondo">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-control border-t-acento" />
       </div>
     );
   }

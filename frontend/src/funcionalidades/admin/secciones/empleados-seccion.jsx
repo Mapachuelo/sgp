@@ -245,7 +245,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
   );
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Gestion de empleados">
+    <SheetAdmin open={open} onClose={onClose} title="Gestión de empleados">
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative">
@@ -275,12 +275,12 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
               <Input label="Apellido" value={form.apellido} onChange={(e) => setForm((p) => ({ ...p, apellido: e.target.value }))} />
               <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
               <Input label={editId ? 'Nuevo password (opcional)' : 'Password'} type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={editId ? 'Dejar vacio para no cambiar' : ''} />
-              <CampoTelefono label="Telefono" value={form.telefono} onChange={(telefono) => setForm((p) => ({ ...p, telefono }))} />
-              <Input label="Identificacion" value={form.identificacion} onChange={(e) => setForm((p) => ({ ...p, identificacion: e.target.value }))} />
+              <CampoTelefono label="Teléfono" value={form.telefono} onChange={(telefono) => setForm((p) => ({ ...p, telefono }))} />
+              <Input label="Identificación" value={form.identificacion} onChange={(e) => setForm((p) => ({ ...p, identificacion: e.target.value }))} />
             </div>
 
             <div className="mt-5 space-y-2">
-              <span className="block text-xs font-bold text-texto-secundario uppercase tracking-wider">Sedes de trabajo (una por dia)</span>
+              <span className="block text-[11px] font-medium text-texto-secundario">Sedes de trabajo (una por dia)</span>
               <div className="flex flex-wrap gap-2">
                 {ubicaciones.map((u) => (
                   <label key={u.id} className="flex items-center gap-2 text-xs font-semibold text-texto-principal bg-fondo border border-borde p-2 rounded-xl cursor-pointer hover:bg-superficie transition select-none">
@@ -350,7 +350,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
             )}
 
             <div className="mt-5 border-t border-borde/60 pt-4 space-y-3">
-              <span className="block text-xs font-bold text-texto-secundario uppercase tracking-wider">Servicios y duraciones</span>
+              <span className="block text-[11px] font-medium text-texto-secundario">Servicios y duraciones</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
                 {servicios.map((servicio) => {
                   const config = form.servicios_asignados?.[servicio.id] || { checked: false, duracion: servicio.duracion_base_minutos || 30 };
@@ -371,7 +371,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                             type="number"
                             min="5"
                             value={config.duracion}
-                            aria-label={`Duracion de ${servicio.nombre}`}
+                            aria-label={`Duración de ${servicio.nombre}`}
                             onChange={(e) => setForm((p) => ({ ...p, servicios_asignados: { ...p.servicios_asignados, [servicio.id]: { ...config, duracion: Number(e.target.value) } } }))}
                             className="w-16 px-1.5 py-0.5 border border-borde rounded bg-superficie text-xs text-center focus:outline-none"
                           />
@@ -385,7 +385,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
             </div>
 
             {error && <p className="text-error text-sm mt-3 font-medium">{error}</p>}
-            <div className="flex gap-2 mt-5">
+            <div className="sticky bottom-0 z-20 mt-5 flex gap-2 border-t border-borde bg-superficie pt-3">
               <Button variant="primario" onClick={guardar} disabled={guardando}>
                 {guardando ? <Spinner /> : editId ? 'Actualizar empleado' : 'Crear empleado'}
               </Button>
@@ -403,8 +403,8 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                 <tr className="text-left text-texto-secundario text-xs uppercase">
                   <th className="py-3 px-3">Nombre</th>
                   <th className="py-3 px-3">Email</th>
-                  <th className="py-3 px-3">Telefono</th>
-                  <th className="py-3 px-3">Identificacion</th>
+                  <th className="py-3 px-3">Teléfono</th>
+                  <th className="py-3 px-3">Identificación</th>
                   <th className="py-3 px-3 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -420,7 +420,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                         <Button variant="outline" size="sm" onClick={() => editar(emp)} aria-label={`Editar ${emp.nombre}`}>
                           <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
-                        <Button variant="danger" size="sm" onClick={() => eliminar(emp)} aria-label={`Eliminar ${emp.nombre}`}>
+                        <Button variant="dangerSuave" size="sm" onClick={() => eliminar(emp)} aria-label={`Eliminar ${emp.nombre}`}>
                           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       </div>

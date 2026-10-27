@@ -28,7 +28,7 @@ function EditorHorario({ empleado, dia, fecha, filaActual, sedes, onGuardar, onC
   return (
     <Card padding={false} className="overflow-hidden">
       <div className="p-4 border-b border-borde bg-fondo/40">
-        <p className="text-xs font-bold uppercase tracking-wider text-texto-secundario">Editar horario</p>
+        <p className="text-[11px] font-medium text-texto-secundario">Editar horario</p>
         <p className="font-display text-lg font-bold text-texto-principal mt-1">
           {empleado.nombre} {empleado.apellido}
         </p>
@@ -55,7 +55,7 @@ function EditorHorario({ empleado, dia, fecha, filaActual, sedes, onGuardar, onC
           Un empleado solo puede tener una sede por dia. Si cambia la sede de un dia con reservas futuras, se cancelaran
           automaticamente con el motivo <strong>&quot;El empleado cambió de sede&quot;</strong> y se notificara a los clientes.
         </p>
-        <div className="flex gap-2">
+        <div className="sticky bottom-0 z-20 flex gap-2 border-t border-borde bg-superficie pt-3">
           <Button
             variant="primario"
             className="flex-1"
@@ -273,7 +273,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
             <div className="overflow-x-auto max-h-[62vh] overflow-y-auto">
               <table className="w-full text-xs border-collapse min-w-[880px] sm:min-w-[1080px]">
                 <thead className="sticky top-0 z-20">
-                  <tr className="bg-fondo/95 backdrop-blur border-b border-borde">
+                  <tr className="bg-superficie border-b border-borde">
                     <th className="sticky left-0 z-30 bg-fondo/95 text-left px-4 py-3 font-bold text-texto-secundario uppercase tracking-wider w-36 sm:w-56">
                       Empleado
                     </th>

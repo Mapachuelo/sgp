@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Button, Card, Input, Toast } from '../../componentes/ui/index.jsx';
+import { useEffect, useState } from 'react';
+import { toast as notificar } from 'sonner';
+import { Button, Card, ConfirmDialog, Input, PageHeader } from '../../componentes/ui/index.jsx';
 import CampoTelefono from '../../componentes/telefono/campo-telefono.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
@@ -9,27 +10,33 @@ export default function MiPerfil() {
   const [form, setForm] = useState({ nombre: '', apellido: '', telefono: '', email: '' });
   const [cargando, setCargando] = useState(false);
   const [cargaInicial, setCargaInicial] = useState(true);
-  const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
-  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+  const [confirmarEliminar, setConfirmarEliminar] = useState(false);
 
   useEffect(() => {
-    api.clientes.me().then((data) => {
-      setUsuario(data);
-      setForm({ nombre: data.nombre || '', apellido: data.apellido || '', telefono: data.telefono || '', email: data.email || '' });
-    }).catch(() => {
-      if (usuario) setForm({ nombre: usuario.nombre || '', apellido: usuario.apellido || '', telefono: usuario.telefono || '', email: usuario.email || '' });
-    }).finally(() => setCargaInicial(false));
+    api.clientes
+      .me()
+      .then((data) => {
+        setUsuario(data);
+        setForm({ nombre: data.nombre || '', apellido: data.apellido || '', telefono: data.telefono || '', email: data.email || '' });
+      })
+      .catch(() => {
+        if (usuario) {
+          setForm({
+            nombre: usuario.nombre || '',
+            apellido: usuario.apellido || '',
+            telefono: usuario.telefono || '',
+            email: usuario.email || '',
+          });
+        }
+      })
+      .finally(() => setCargaInicial(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const mostrarToast = (message, type = 'success') => {
-    setToast({ open: true, message, type });
-    setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 3000);
-  };
 
   const handleGuardar = async (e) => {
     e.preventDefault();
     if (!form.nombre.trim() && !form.apellido.trim() && !form.telefono.trim()) {
-      mostrarToast('Modifica al menos un campo', 'warning');
+      notificar.warning('Modifica al menos un campo');
       return;
     }
     try {
@@ -46,9 +53,9 @@ export default function MiPerfil() {
         telefono: data.telefono || '',
         email: data.email || '',
       });
-      mostrarToast('Perfil actualizado');
+      notificar.success('Perfil actualizado');
     } catch (err) {
-      mostrarToast(err.message, 'error');
+      notificar.error(err.message);
     } finally {
       setCargando(false);
     }
@@ -60,93 +67,83 @@ export default function MiPerfil() {
       await api.clientes.deleteMe();
       logout();
     } catch (err) {
-      mostrarToast(err.message, 'error');
+      notificar.error(err.message);
       setCargando(false);
     }
   };
 
-  return (
-    <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
-      <Toast open={toast.open} message={toast.message} type={toast.type} />
+  if (cargaInicial) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <PageHeader title="Mi perfil" subtitle="Cargando tus datos…" />
+      </div>
+    );
+  }
 
-      <div className="bg-superficie border border-borde rounded-2xl p-6 shadow-premium space-y-4">
-        <h2 className="font-display text-xl font-bold text-texto-principal border-b border-borde pb-2">Información del Cliente</h2>
-        <form onSubmit={handleGuardar} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Nombre</label>
-              <input
-                type="text"
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Apellido</label>
-              <input
-                type="text"
-                value={form.apellido}
-                onChange={(e) => setForm({ ...form, apellido: e.target.value })}
-                className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo/20 focus:outline-none focus:ring-2 focus:ring-primario/30 focus:border-primario transition"
-              />
-            </div>
+  return (
+    <div className="mx-auto max-w-2xl space-y-5">
+      <PageHeader title="Mi perfil" subtitle="Actualiza tus datos de contacto. El correo de acceso no se puede cambiar." />
+
+      <Card>
+        <h2 className="text-sm font-semibold text-texto-principal">Datos personales</h2>
+        <form onSubmit={handleGuardar} className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
+              label="Nombre"
+              value={form.nombre}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              autoComplete="given-name"
+            />
+            <Input
+              label="Apellido"
+              value={form.apellido}
+              onChange={(e) => setForm({ ...form, apellido: e.target.value })}
+              autoComplete="family-name"
+            />
           </div>
+
           <CampoTelefono
             label="Teléfono"
             value={form.telefono}
             onChange={(telefono) => setForm({ ...form, telefono })}
           />
-          <div>
-            <label className="block text-xs font-semibold text-texto-principal uppercase mb-1">Correo Electrónico (No editable)</label>
-            <input
-              type="email"
-              value={form.email}
-              disabled
-              className="w-full px-3 py-2 border border-borde rounded-lg text-sm bg-fondo text-texto-secundario cursor-not-allowed"
-            />
-          </div>
 
-          <button
-            type="submit"
-            disabled={cargando}
-            className="w-full py-2.5 bg-primario hover:bg-primario-hover text-white rounded-xl text-sm font-semibold transition mt-4 flex justify-center items-center gap-2"
-          >
-            {cargando ? 'Guardando...' : 'Guardar Información'}
-          </button>
+          <Input
+            label="Correo electrónico"
+            type="email"
+            value={form.email}
+            disabled
+            hint="El correo de acceso no se puede editar desde aquí."
+          />
+
+          <div className="flex justify-end border-t border-borde pt-4">
+            <Button type="submit" disabled={cargando}>
+              {cargando ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
+          </div>
         </form>
-      </div>
+      </Card>
 
-      <div className="bg-superficie border border-error/25 bg-red-50/10 rounded-2xl p-6 shadow-premium space-y-4">
-        <h3 className="font-display text-lg font-bold text-error border-b border-error/15 pb-2">Zona de Peligro</h3>
-        <p className="text-texto-secundario text-xs">
-          Una vez que elimines tu cuenta, no hay marcha atrás. Todas tus reservas y accesos serán eliminados de manera permanente.
+      <Card className="border-[#e9b8b5]">
+        <h2 className="text-sm font-semibold text-error">Eliminar cuenta</h2>
+        <p className="mt-1 text-xs leading-5 text-texto-secundario">
+          Esta acción es permanente. Se eliminan tus reservas y tus accesos al salón. No se puede deshacer.
         </p>
-        {!mostrarConfirmacion ? (
-          <button
-            onClick={() => setMostrarConfirmacion(true)}
-            className="px-4 py-2 border border-error/30 hover:bg-error/10 text-error rounded-xl text-xs font-semibold transition"
-          >
-            Eliminar mi cuenta
-          </button>
-        ) : (
-          <div className="flex gap-3 items-center">
-            <button
-              onClick={handleEliminarCuenta}
-              disabled={cargando}
-              className="px-4 py-2 bg-error hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition"
-            >
-              {cargando ? 'Eliminando...' : 'Confirmar eliminación'}
-            </button>
-            <button
-              onClick={() => setMostrarConfirmacion(false)}
-              className="px-4 py-2 bg-fondo border border-borde hover:bg-superficie rounded-xl text-xs font-semibold text-texto-principal transition"
-            >
-              Cancelar
-            </button>
-          </div>
-        )}
-      </div>
+        <Button variant="dangerSuave" size="sm" className="mt-4" onClick={() => setConfirmarEliminar(true)}>
+          Eliminar mi cuenta
+        </Button>
+      </Card>
+
+      <ConfirmDialog
+        open={confirmarEliminar}
+        onClose={() => setConfirmarEliminar(false)}
+        onConfirm={handleEliminarCuenta}
+        title="Eliminar mi cuenta"
+        description="Se eliminarán tu cuenta, tus reservas y tus accesos. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar cuenta"
+        danger
+        cargando={cargando}
+      />
     </div>
   );
 }

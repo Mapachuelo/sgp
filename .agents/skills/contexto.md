@@ -17,8 +17,13 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 │       ├── architecture.md
 │       └── contexto.md
 ├── docs
+│   ├── diseno
+│   │   └── nueva-interfaz.md
+│   └── img
 ├── frontend
 │   ├── src
+│   │   └── componentes
+│   │       └── ui
 │   └── public
 ├── backend
 │   └── src
@@ -36,6 +41,7 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 - **Documentacion nueva:** Guardarla en la carpeta `docs/`. Cada tema en una subcarpeta diferente. Si hay coincidencia entre temas, hacer referencias cruzadas con enlaces relativos. No duplicar carpetas: por ejemplo, usar `docs/podman/` en vez de separar por `docs/podman/` y `docs/podman-compose/`.
 - **README.md:** Debe contener enlaces a toda la documentacion dentro de `docs/`. Actualizarlo siempre que haya cambios de despliegue, con instrucciones paso a paso segun el formato de `docs/formato_ieee830.md` y las plataformas disponibles.
 - **Arquitectura:** Al iniciar la infraestructura del software, crear o actualizar `.agents/skills/architecture.md` con las tecnologias, comandos de ejecucion, pruebas, y convenciones del proyecto.
+- **Diseno:** La guia vigente es `docs/diseno/nueva-interfaz.md`. Cualquier cambio de UI debe leer tambien `.agents/skills/diseno-sgp/SKILL.md`. No crear una segunda guia visual ni duplicar tokens.
 
 ## Reglas de comportamiento del agente
 
@@ -59,7 +65,7 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 
 ### Stack tecnologico y monorepo
 - **Monorepo pnpm workspaces:** `frontend/` y `backend/` como paquetes independientes dentro del mismo repositorio. Usar `pnpm` para todo.
-- **Frontend:** React + Vite + JavaScript (sin TypeScript). Componentes con **shadcn/ui** + **Tailwind CSS**. Sin CSS vanilla fuera de Tailwind. Navegacion con react-router-dom.
+- **Frontend:** React + Vite + JavaScript (sin TypeScript). Componentes propios en `frontend/src/componentes/ui/` + **Tailwind CSS**. Los tokens estan en `frontend/src/index.css`. Sin CSS vanilla fuera de Tailwind. Navegacion con react-router-dom.
 - **Backend:** Node.js + Express (CommonJS). Arquitectura feature-based (`backend/src/features/auth/`, `backend/src/features/reservas/`, etc). Autenticacion JWT con middleware de roles.
 - **Base de datos:** PostgreSQL 17. Esquema definido en `db/init.sql`. Sin ORM, consultas SQL directas con `pg`.
 - **Tiempo real:** WebSocket (`ws`) para notificaciones de disponibilidad.
@@ -71,6 +77,15 @@ Esta skill se activa automaticamente en cada sesion. Sus reglas aplican a todas 
 - Siempre ejecutar lint despues de hacer cambios de codigo (`pnpm run lint` con ESLint). No hay typecheck por ser JavaScript sin TypeScript.
 - Si el proyecto tiene tests, ejecutarlos despues de cambios significativos.
 - No commitear cambios a menos que el usuario lo pida explicitamente.
+
+### Diseno de interfaz
+- Antes de tocar una pantalla, leer `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md` y las skills de diseno indicadas en `AGENTS.md`.
+- Usar solo los tokens de `frontend/src/index.css` y los componentes de `frontend/src/componentes/ui/` antes de crear variantes.
+- Mantener el shell fijo de empleado/admin: sidebar y barra superior quietas, scroll interno del contenido.
+- Los sheets son de altura automatica con scroll interno; las acciones van en barras sticky.
+- Verificar en Chromium a 1440, 768 y 390; revisar consola y scroll horizontal.
+- Ejecutar `npx pnpm@11 --filter frontend build`, el lint de design-taste y el inspector cuando se cambie UI.
+- No cambiar logica de negocio, endpoints ni tablas para resolver un problema visual.
 
 ### Git
 - Antes de commitear, revisar `git status`, `git diff` y `git log --oneline -10`.

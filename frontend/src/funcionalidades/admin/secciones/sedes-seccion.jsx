@@ -76,7 +76,7 @@ export default function SedesSeccion({ open, onClose, onToast }) {
   };
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Gestion de sedes">
+    <SheetAdmin open={open} onClose={onClose} title="Gestión de sedes">
       <div className="space-y-5">
         <div className="flex justify-end">
           <Button variant="primario" onClick={() => { resetForm(); setMostrarForm(true); }}>
@@ -92,7 +92,7 @@ export default function SedesSeccion({ open, onClose, onToast }) {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Input label="Nombre" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
-              <Input label="Direccion" value={form.direccion} onChange={(e) => setForm((p) => ({ ...p, direccion: e.target.value }))} />
+              <Input label="Dirección" value={form.direccion} onChange={(e) => setForm((p) => ({ ...p, direccion: e.target.value }))} />
               <Input label="Latitud" type="number" step="any" value={form.latitud} onChange={(e) => setForm((p) => ({ ...p, latitud: e.target.value }))} />
               <Input label="Longitud" type="number" step="any" value={form.longitud} onChange={(e) => setForm((p) => ({ ...p, longitud: e.target.value }))} />
             </div>
@@ -109,7 +109,7 @@ export default function SedesSeccion({ open, onClose, onToast }) {
                 }
               />
             </div>
-            <div className="flex gap-2 mt-4">
+            <div className="sticky bottom-0 z-20 mt-4 flex gap-2 border-t border-borde bg-superficie pt-3">
               <Button variant="primario" onClick={guardar} disabled={guardando}>{guardando ? <Spinner /> : editId ? 'Actualizar' : 'Crear'}</Button>
               <Button variant="secundario" onClick={resetForm}>Cancelar</Button>
             </div>
@@ -124,7 +124,7 @@ export default function SedesSeccion({ open, onClose, onToast }) {
               <thead className="bg-fondo/60">
                 <tr className="text-left text-texto-secundario text-xs uppercase">
                   <th className="py-3 px-3">Nombre</th>
-                  <th className="py-3 px-3">Direccion</th>
+                  <th className="py-3 px-3">Dirección</th>
                   <th className="py-3 px-3">Latitud</th>
                   <th className="py-3 px-3">Longitud</th>
                   <th className="py-3 px-3 text-right">Acciones</th>
@@ -142,7 +142,7 @@ export default function SedesSeccion({ open, onClose, onToast }) {
                         <Button variant="outline" size="sm" aria-label={`Editar ${sede.nombre}`} onClick={() => { setEditId(sede.id); setMostrarForm(true); setForm({ nombre: sede.nombre || '', direccion: sede.direccion || '', latitud: sede.latitud ?? '', longitud: sede.longitud ?? '' }); }}>
                           <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
-                        <Button variant="danger" size="sm" aria-label={`Eliminar ${sede.nombre}`} onClick={() => eliminar(sede)}>
+                        <Button variant="dangerSuave" size="sm" aria-label={`Eliminar ${sede.nombre}`} onClick={() => eliminar(sede)}>
                           <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </Button>
                       </div>

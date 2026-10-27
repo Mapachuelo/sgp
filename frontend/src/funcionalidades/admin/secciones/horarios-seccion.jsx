@@ -17,7 +17,7 @@ export default function HorariosSeccion({ open, onClose, onToast, onValidarCita 
   }, [open]);
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Horarios y planificacion">
+    <SheetAdmin open={open} onClose={onClose} title="Horarios y planificación">
       <div className="flex flex-wrap gap-1 bg-fondo border border-borde rounded-xl p-1 mb-5 w-fit">
         {TABS.map(({ clave, etiqueta, icono: Icono }) => (
           <button
@@ -26,7 +26,7 @@ export default function HorariosSeccion({ open, onClose, onToast, onValidarCita 
             onClick={() => setTab(clave)}
             aria-pressed={tab === clave}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
-              tab === clave ? 'bg-superficie shadow-sm text-primario' : 'text-texto-secundario hover:text-texto-principal'
+              tab === clave ? 'bg-superficie text-primario' : 'text-texto-secundario hover:text-texto-principal'
             }`}
           >
             <Icono className="w-4 h-4" aria-hidden="true" /> {etiqueta}

@@ -1,5 +1,7 @@
 # Mockups e interfaz — SGP
 
+> Nota: la interfaz fue rediseñada en 2026. La guía vigente de dirección, tokens, rutas y componentes está en [`docs/diseno/nueva-interfaz.md`](diseno/nueva-interfaz.md). Las capturas de este documento conservan la versión anterior como referencia histórica.
+
 Capturas reales de la aplicación desplegada (Chromium, 1600×1000 salvo móvil 400×900). Sirven como mockups del producto final y como manual visual. Todas las imágenes están en `docs/img/`.
 
 ## Guía de estilo
