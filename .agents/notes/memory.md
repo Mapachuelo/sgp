@@ -618,3 +618,14 @@
 - **Mapas**: filtro CSS al `.leaflet-tile-pane` en oscuro; marcadores/popups/controles no se invierten. QR siempre sobre blanco.
 - **Documentación**: `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md`, `AGENTS.md`, `contexto.md`, `architecture.md`.
 - **Verificación**: Chromium en claro/oscuro para login, cliente, admin, empleado, reserva, disponibilidad, sheets y perfil; cambio sin recarga, persistencia, sistema oscuro/claro y sin errores de consola.
+
+## Servicios multi-servicio — 27 Octubre 2026
+
+- **Catálogo jerárquico**: `servicio_categoria` (Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros) → `servicio_catalogo` con `categoria_id`, `imagen_url` (data URL comprimida), `activo`, precio y duración editables.
+- **Admin**: pestañas Catálogo, Categorías, Duraciones y Configuración. Formulario con imagen, duración, precio y categoría; borrado protegido (servicio con reservas se desactiva, categoría con servicios no se elimina).
+- **Reserva del cliente**: 6 pasos (Sede → Servicios → Equipo → Horario → Confirmar → Pago), carrito de hasta `max_servicios_reserva`, búsqueda de servicios y equipo por servicio con `BuscadorSelect`.
+- **Multi-estilista**: `reserva_servicio` guarda servicio, `empleado_id`, `inicia_en`, `termina_en`, `nombre`, `precio` y `duracion_minutos` congelados. `reserva.servicio_id`/`empleado_id` son el primer segmento.
+- **Calendario**: `POST /reservas/disponibilidad-combo` calcula slots donde toda la secuencia cabe y cada estilista está libre.
+- **Pagos/check-in/reportes**: usan la suma de `reserva_servicio`; los reportes reparten el cobro proporcionalmente entre servicios.
+- **Configuración**: `configuracion.max_servicios_reserva` (1..10, default 5) editable en Servicios → Configuración.
+- **Pruebas**: unitarias 51, api 46, datos 10, esquema 66, e2e 47, regresión 128; cobertura 89.69 % líneas / 72.25 % ramas / 91.37 % funciones. `tests/fixtures/seed-10x10.json` actualizado.

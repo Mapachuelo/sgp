@@ -3,12 +3,17 @@ const pool = require('../../config/db');
 const reportesModel = {
   async ventasDiarias(fecha) {
     const { rows } = await pool.query(
-      `SELECT s.nombre as servicio, COUNT(*) as cantidad, SUM(c.monto) as total
+      `SELECT rs.nombre as servicio,
+              COUNT(DISTINCT r.id) as cantidad,
+              SUM(c.monto * (rs.precio / NULLIF(t.total, 0))) as total
        FROM cobro c
        JOIN reserva r ON c.reserva_id = r.id
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+       JOIN reserva_servicio rs ON rs.reserva_id = r.id
+       JOIN LATERAL (
+         SELECT SUM(precio) as total FROM reserva_servicio WHERE reserva_id = r.id
+       ) t ON true
        WHERE (c.cobrado_en AT TIME ZONE 'America/Bogota')::date = $1
-       GROUP BY s.nombre
+       GROUP BY rs.nombre
        ORDER BY total DESC`,
       [fecha]
     );

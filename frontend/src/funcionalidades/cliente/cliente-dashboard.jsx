@@ -137,7 +137,7 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
           </div>
           <p className="mt-3 text-base font-medium text-texto-principal">{reserva.servicio_nombre || 'Servicio'}</p>
           <p className="mt-1 text-sm text-texto-secundario">
-            {reserva.empleado_nombre} {reserva.empleado_apellido || ''} · {personas(reserva.cantidad_personas)}
+            {reserva.equipo_nombre || `${reserva.empleado_nombre || ''} ${reserva.empleado_apellido || ''}`.trim()} · {personas(reserva.cantidad_personas)}
           </p>
         </div>
 
@@ -179,7 +179,7 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
           <div>
             <p className="text-[11px] text-tenue">Total</p>
             <p className="num mt-0.5 font-medium text-texto-principal">
-              {dinero(reserva.pago_monto || Number(reserva.precio_base || 0) * Number(reserva.cantidad_personas || 1))}
+              {dinero(reserva.pago_monto || Number(reserva.precio_total || reserva.precio_base || 0) * Number(reserva.cantidad_personas || 1))}
             </p>
           </div>
           <div>
@@ -365,7 +365,7 @@ export default function ClienteDashboard() {
                 <p className="mt-3 text-lg font-medium text-texto-principal">{proxima.servicio_nombre || 'Servicio'}</p>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-texto-secundario">
                   <Scissors className="h-3.5 w-3.5" aria-hidden="true" />
-                  {proxima.empleado_nombre} {proxima.empleado_apellido || ''}
+                  {proxima.equipo_nombre || `${proxima.empleado_nombre || ''} ${proxima.empleado_apellido || ''}`.trim()}
                 </p>
               </div>
               <div className="min-w-[180px] rounded-lg border border-borde bg-panel/60 p-3">
@@ -394,7 +394,7 @@ export default function ClienteDashboard() {
                 {proxima.duracion_minutos ? `${proxima.duracion_minutos} min` : 'Duración según servicio'}
               </span>
               <span className="num inline-flex items-center gap-1.5 font-medium text-texto-principal">
-                {dinero(proxima.pago_monto || Number(proxima.precio_base || 0) * Number(proxima.cantidad_personas || 1))}
+                {dinero(proxima.pago_monto || Number(proxima.precio_total || proxima.precio_base || 0) * Number(proxima.cantidad_personas || 1))}
               </span>
             </div>
 
@@ -488,7 +488,7 @@ export default function ClienteDashboard() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-texto-principal">{reserva.servicio_nombre || 'Servicio'}</p>
                         <p className="mt-0.5 truncate text-xs text-texto-secundario">
-                          {reserva.ubicacion_nombre || 'Sede'} · {reserva.empleado_nombre} {reserva.empleado_apellido || ''}
+                          {reserva.ubicacion_nombre || 'Sede'} · {reserva.equipo_nombre || `${reserva.empleado_nombre || ''} ${reserva.empleado_apellido || ''}`.trim()}
                         </p>
                         <p className="mt-1 text-[11px] text-tenue">
                           {fecha(reserva.inicia_en)} · {personas(reserva.cantidad_personas)}

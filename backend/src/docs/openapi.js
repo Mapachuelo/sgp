@@ -230,12 +230,24 @@ const openapi = {
       delete: { tags: ['Ubicaciones'], summary: 'Elimina sede (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede eliminada' } } },
     },
     '/reservas/servicios': {
-      get: { tags: ['Reservas'], summary: 'Catalogo de servicios (publico)', security: [], responses: { 200: { description: 'Servicios' } } },
-      post: { tags: ['Reservas'], summary: 'Crea servicio (admin)', responses: { 201: { description: 'Servicio creado' } } },
+      get: { tags: ['Reservas'], summary: 'Catalogo de servicios activos (publico); admin puede incluir inactivos y filtrar por categoria', security: [], parameters: [{ name: 'incluir_inactivos', in: 'query', schema: { type: 'string', enum: ['1'] } }, { name: 'categoria_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Servicios con categoria, precio, duracion, imagen y estado' } } },
+      post: { tags: ['Reservas'], summary: 'Crea servicio (admin) con categoria, duracion, imagen y estado', responses: { 201: { description: 'Servicio creado' } } },
     },
     '/reservas/servicios/{id}': {
       put: { tags: ['Reservas'], summary: 'Actualiza servicio (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Servicio actualizado' } } },
-      delete: { tags: ['Reservas'], summary: 'Elimina servicio (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Servicio eliminado' } } },
+      delete: { tags: ['Reservas'], summary: 'Elimina o desactiva un servicio con reservas (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Servicio eliminado o desactivado' } } },
+    },
+    '/reservas/categorias': {
+      get: { tags: ['Reservas'], summary: 'Categorias o titulos del catalogo (publico)', security: [], responses: { 200: { description: 'Categorias con total de servicios' } } },
+      post: { tags: ['Reservas'], summary: 'Crea categoria (admin)', responses: { 201: { description: 'Categoria creada' } } },
+    },
+    '/reservas/categorias/{id}': {
+      put: { tags: ['Reservas'], summary: 'Actualiza categoria (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Categoria actualizada' } } },
+      delete: { tags: ['Reservas'], summary: 'Elimina categoria vacia (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Categoria eliminada' }, 409: { description: 'Tiene servicios asignados' } } },
+    },
+    '/reservas/configuracion': {
+      get: { tags: ['Reservas'], summary: 'Configuracion publica de reservas', security: [], responses: { 200: { description: 'max_servicios_reserva' } } },
+      put: { tags: ['Reservas'], summary: 'Actualiza el maximo de servicios por reserva (admin)', responses: { 200: { description: 'Configuracion actualizada' } } },
     },
     '/reservas/disponibilidad': {
       get: {
@@ -258,7 +270,13 @@ const openapi = {
       put: { tags: ['Reservas'], summary: 'Asigna servicios y duraciones a empleado (admin/empleado)', responses: { 200: { description: 'Tiempos actualizados' } } },
     },
     '/reservas/empleados-disponibles': {
-      get: { tags: ['Reservas'], summary: 'Empleados disponibles por sede/fecha (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'fecha', in: 'query', required: true, schema: { type: 'string', format: 'date' } }], responses: { 200: { description: 'Empleados' } } },
+      get: { tags: ['Reservas'], summary: 'Empleados disponibles por sede/fecha y servicio opcional (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'fecha', in: 'query', required: true, schema: { type: 'string', format: 'date' } }, { name: 'servicio_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Empleados con duracion/precio del servicio' } } },
+    },
+    '/reservas/empleados-por-servicio': {
+      get: { tags: ['Reservas'], summary: 'Empleados que ofrecen un servicio en una sede (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'servicio_id', in: 'query', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleados y duracion del servicio' } } },
+    },
+    '/reservas/disponibilidad-combo': {
+      post: { tags: ['Reservas'], summary: 'Calcula horarios disponibles para varios servicios y estilistas en secuencia (publico)', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ubicacion_id', 'fecha', 'servicios'], properties: { ubicacion_id: { type: 'integer' }, fecha: { type: 'string', format: 'date' }, granularidad: { type: 'integer', enum: [15, 30, 60] }, servicios: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'object', required: ['servicio_id', 'empleado_id'], properties: { servicio_id: { type: 'integer' }, empleado_id: { type: 'integer' } } } } } } } } }, responses: { 200: { description: 'Slots con plan por servicio y estilista' }, 400: { description: 'Servicios repetidos, limite o datos invalidos' } } },
     },
     '/reservas/agenda': {
       get: {
@@ -275,26 +293,27 @@ const openapi = {
     '/reservas': {
       post: {
         tags: ['Reservas'],
-        summary: 'Crea reserva (cliente): valida 5 activas, 60 min de anticipacion, solape y disponibilidad; genera QR',
+        summary: 'Crea reserva (cliente) con uno o varios servicios y estilistas en secuencia; valida limite configurable, 5 activas, 60 min, solape y disponibilidad',
         requestBody: {
           required: true,
           content: {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['empleado_id', 'servicio_id', 'ubicacion_id', 'inicia_en'],
+                required: ['empleado_id', 'ubicacion_id', 'inicia_en'],
                 properties: {
-                  empleado_id: { type: 'integer' },
-                  servicio_id: { type: 'integer' },
+                  empleado_id: { type: 'integer', description: 'Estilista principal (compatibilidad)' },
+                  servicio_id: { type: 'integer', description: 'Servicio unico (compatibilidad)' },
                   ubicacion_id: { type: 'integer' },
                   inicia_en: { type: 'string', format: 'date-time' },
                   cantidad_personas: { type: 'integer', minimum: 1, maximum: 5 },
+                  servicios: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'object', required: ['servicio_id', 'empleado_id'], properties: { servicio_id: { type: 'integer' }, empleado_id: { type: 'integer' } } } },
                 },
               },
             },
           },
         },
-        responses: { 201: { description: 'Reserva creada con qr_data_url' }, 409: { description: 'Solape o limite de reservas' } },
+        responses: { 201: { description: 'Reserva creada con servicios, precio_total y qr_data_url' }, 409: { description: 'Solape o limite de reservas' } },
       },
       get: { tags: ['Reservas'], summary: 'Lista reservas con filtros (empleado/admin)', parameters: [{ name: 'fecha', in: 'query', schema: { type: 'string', format: 'date' } }, { name: 'ubicacion_id', in: 'query', schema: { type: 'integer' } }, { name: 'estado', in: 'query', schema: { type: 'string' } }], responses: { 200: { description: 'Reservas' } } },
     },
@@ -476,7 +495,7 @@ const openapi = {
         tags: ['Pagos'],
         summary: 'Crea una intencion de pago Wompi para una reserva (cliente dueno, empleado o admin)',
         description:
-          'Recalcula el monto en el servidor (precio_base x cantidad_personas), genera una referencia unica y devuelve la configuracion del widget de Wompi, la URL de checkout y un QR para pagar desde el celular del cliente (tarjeta, PSE, Nequi, Bancolombia). El cliente solo puede pagar sus reservas; el empleado solo las suyas.',
+          'Recalcula el monto en el servidor (suma de precios congelados de reserva_servicio x cantidad_personas), genera una referencia unica y devuelve la configuracion del widget de Wompi, la URL de checkout y un QR para pagar desde el celular del cliente (tarjeta, PSE, Nequi, Bancolombia). El cliente solo puede pagar sus reservas; el empleado solo las suyas.',
         requestBody: {
           required: true,
           content: {

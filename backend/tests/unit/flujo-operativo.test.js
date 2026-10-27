@@ -150,7 +150,7 @@ test('reservas: validaciones, creacion, disponibilidad y cancelacion', async () 
 
   const lunes = proximoLunes();
 
-  await assert.rejects(() => reservasService.createReserva(clienteId, {}), /requeridos/);
+  await assert.rejects(() => reservasService.createReserva(clienteId, {}), /al menos un servicio|requeridos/);
   await assert.rejects(
     () => reservasService.createReserva(clienteId, {
       empleado_id: empleadoId, servicio_id: servicio.id, ubicacion_id: sedeA.id,

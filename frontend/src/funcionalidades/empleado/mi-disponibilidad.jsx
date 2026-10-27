@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/cliente';
-import { Button, Card, Modal, PageHeader, Select, Spinner, Toast } from '../../componentes/ui/index.jsx';
+import { BuscadorSelect, Button, Card, Modal, PageHeader, Select, Spinner, Toast } from '../../componentes/ui/index.jsx';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -486,16 +486,18 @@ export default function EmpleadoDisponibilidad() {
 
             <div className="mt-4 space-y-3 border-t border-borde pt-4">
               <p className="text-[11px] font-medium text-texto-principal">Vincular servicio</p>
-              <Select
-                options={[
-                  { value: '', label: 'Seleccionar…' },
-                  ...servicios
-                    .filter((s) => !misServicios.find((ms) => ms.servicio_id === s.id))
-                    .map((s) => ({ value: String(s.id), label: s.nombre })),
-                ]}
+              <BuscadorSelect
+                options={servicios
+                  .filter((s) => !misServicios.find((ms) => ms.servicio_id === s.id))
+                  .map((s) => ({
+                    value: String(s.id),
+                    label: s.nombre,
+                    description: s.categoria_nombre || 'Sin categoría',
+                  }))}
                 value={servicioSeleccionado}
-                onChange={(e) => setServicioSeleccionado(e.target.value)}
-                className="text-xs"
+                onChange={setServicioSeleccionado}
+                placeholder="Buscar servicio..."
+                allowClear={false}
               />
               <Select
                 options={[

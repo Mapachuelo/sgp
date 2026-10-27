@@ -25,7 +25,7 @@ function instanteBogota(objetivo, hora) {
 }
 
 test('reservas: CRUD de servicios y validaciones del catalogo', async () => {
-  await assert.rejects(() => reservasService.createServicio({}), /requeridos/);
+  await assert.rejects(() => reservasService.createServicio({}), /obligatorio|requeridos/);
   const servicio = await reservasService.createServicio({ nombre: `Cat ${sufijo()}`, precio_base: 10000, duracion_base_minutos: 20 });
   ids.servicios.push(servicio.id);
 
@@ -38,6 +38,99 @@ test('reservas: CRUD de servicios y validaciones del catalogo', async () => {
 
   await reservasService.deleteServicio(servicio.id);
   await assert.rejects(() => reservasService.deleteServicio(servicio.id), /no encontrado/);
+});
+
+test('reservas: categorias, varios servicios y varios estilistas', async () => {
+  const sufijoPrueba = sufijo();
+  const categoria = await reservasService.createCategoria({
+    nombre: `Cat Multi ${sufijoPrueba}`,
+    descripcion: 'Prueba multi-servicio',
+  });
+  const servicioA = await reservasService.createServicio({
+    nombre: `Multi A ${sufijoPrueba}`, precio_base: 12000, duracion_base_minutos: 20, categoria_id: categoria.id,
+  });
+  const servicioB = await reservasService.createServicio({
+    nombre: `Multi B ${sufijoPrueba}`, precio_base: 8000, duracion_base_minutos: 15, categoria_id: categoria.id,
+  });
+  ids.servicios.push(servicioA.id, servicioB.id);
+
+  await assert.rejects(
+    () => reservasService.deleteCategoria(categoria.id),
+    /servicios asignados/
+  );
+
+  const empleadoA = await crearUsuario({ rol: 'empleado' });
+  const empleadoB = await crearUsuario({ rol: 'empleado' });
+  const sede = await crearSede();
+  ids.usuarios.push(empleadoA, empleadoB);
+  ids.sedes.push(sede.id);
+  await asignarServicio(empleadoA, servicioA.id, 20);
+  await asignarServicio(empleadoB, servicioB.id, 15);
+  await crearDisponibilidad(empleadoA, sede.id, 1, '09:00', '18:00');
+  await crearDisponibilidad(empleadoB, sede.id, 1, '09:00', '18:00');
+
+  const lunes = proximoLunes();
+  const fecha = `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
+  const disponibles = await reservasService.getEmpleadosDisponibles({
+    fecha, ubicacion_id: sede.id, servicio_id: servicioA.id,
+  });
+  assert.ok(disponibles.some((empleado) => empleado.id === empleadoA));
+  assert.ok(!disponibles.some((empleado) => empleado.id === empleadoB));
+
+  const combo = await reservasService.getDisponibilidadCombo({
+    ubicacion_id: sede.id,
+    fecha,
+    granularidad: 30,
+    servicios: [
+      { servicio_id: servicioA.id, empleado_id: empleadoA },
+      { servicio_id: servicioB.id, empleado_id: empleadoB },
+    ],
+  });
+  assert.equal(combo.duracion_total, 35);
+  assert.equal(combo.precio_total, 20000);
+  assert.ok(combo.slots.length > 0);
+  assert.equal(combo.slots[0].plan.length, 2);
+  assert.equal(combo.slots[0].plan[1].empleado_id, empleadoB);
+
+  const clienteId = await crearUsuario({ rol: 'cliente' });
+  ids.usuarios.push(clienteId);
+  const horario = combo.slots.find((slot) => slot.hora === '10:00') || combo.slots[0];
+  const reserva = await reservasService.createReserva(clienteId, {
+    empleado_id: empleadoA,
+    ubicacion_id: sede.id,
+    inicia_en: horario.inicia_en,
+    cantidad_personas: 1,
+    servicios: [
+      { servicio_id: servicioA.id, empleado_id: empleadoA },
+      { servicio_id: servicioB.id, empleado_id: empleadoB },
+    ],
+  });
+  assert.equal(Number(reserva.precio_total), 20000);
+  assert.equal(Number(reserva.duracion_total), 35);
+  assert.equal(reserva.servicios.length, 2);
+  assert.equal(reserva.servicios[0].empleado_id, empleadoA);
+  assert.equal(reserva.servicios[1].empleado_id, empleadoB);
+  const inicio = new Date(reserva.inicia_en).getTime();
+  const fin = new Date(reserva.termina_en).getTime();
+  assert.equal((fin - inicio) / 60000, 35);
+
+  await assert.rejects(
+    () => reservasService.createReserva(clienteId, {
+      empleado_id: empleadoA,
+      ubicacion_id: sede.id,
+      inicia_en: horario.inicia_en,
+      cantidad_personas: 1,
+      servicios: [
+        { servicio_id: servicioA.id, empleado_id: empleadoA },
+        { servicio_id: servicioA.id, empleado_id: empleadoA },
+      ],
+    }),
+    /repetir/
+  );
+
+  await reservasService.deleteCategoria(categoria.id).catch(() => {});
+  await limpiar({ usuarios: [empleadoA, empleadoB, clienteId], sedes: [sede.id], servicios: [servicioA.id, servicioB.id] });
+  await reservasService.deleteCategoria(categoria.id).catch(() => {});
 });
 
 test('reservas: jornada por sede', async () => {
@@ -101,7 +194,7 @@ test('reservas: getAllReservas con filtros y agenda por rango', async () => {
   assert.ok(filtradas.some((r) => r.id === reserva.id));
 
   const agenda = await reservasService.getAgenda({ desde: fecha, hasta: fecha, empleado_id: empleadoId });
-  assert.ok(agenda.some((r) => r.id === reserva.id));
+  assert.ok(agenda.some((r) => r.reserva_id === reserva.id));
   assert.equal(agenda[0].ubicacion_nombre, sede.nombre);
 
   await assert.rejects(() => reservasService.getAgenda({ desde: '2026-99-99', hasta: fecha }), /formato/);

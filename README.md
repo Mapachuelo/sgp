@@ -52,7 +52,7 @@ sgp/
 │       ├── componentes/             # Layout, RutaProtegida, ui/ (Button, Input, Card, Badge, Sheet, Modal, Select, Toast)
 │       └── funcionalidades/
 │           ├── auth/                # login-page, registro-page
-│           ├── cliente/             # dashboard kanban + mapa, nueva-reserva (stepper 5 pasos), mi-perfil
+│           ├── cliente/             # dashboard kanban + mapa, nueva-reserva (stepper 6 pasos, multi-servicio), mi-perfil
 │           ├── empleado/            # dashboard, validar-qr, mi-disponibilidad, mi-perfil
 │           ├── admin/               # dashboard + secciones/ (empleados, servicios, sedes,
 │           │                        #   horarios con planificador, reportes, clientes, logs) + modales QR/Cobro
@@ -163,8 +163,11 @@ podman volume rm sgp-pgdata
 | `ubicacion` | Sedes fisicas con lat/lng |
 | `app_user` | Usuarios con roles: cliente, empleado, admin |
 | `empleado_perfil` | Datos extra de empleados |
-| `servicio_catalogo` | Catalogo de servicios |
+| `servicio_categoria` | Titulos del menu: Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros |
+| `servicio_catalogo` | Catalogo de servicios con categoria, imagen, precio, duracion y estado |
 | `empleado_tiempo_servicio` | Duracion personalizada empleado/servicio |
+| `reserva_servicio` | Segmentos de una reserva: servicio, estilista, horario y precio congelado |
+| `configuracion` | Parametros del negocio, como el maximo de servicios por reserva |
 | `jornada` | Horario global por sede y fecha |
 | `empleado_disponibilidad` | Disponibilidad semanal por empleado/sede |
 | `reserva` | Citas con QR token y estados |
@@ -172,7 +175,7 @@ podman volume rm sgp-pgdata
 | `pago` | Intentos de pago digital Wompi, referencias, transacciones y estado |
 | `preferencia_usuario` | Rango horario, granularidad, tema por usuario |
 
-Seed: Sede Centro (Bogota), 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S.
+Seed: Sede Centro (Bogota), 7 categorias, 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S. Las reservas existentes se backfillean a `reserva_servicio` al arrancar.
 `app_user.telefono` se almacena cifrado con AES-256 (TEXT), en formato E.164 internacional; Colombia usa `+57` + 10 digitos y es la opcion por defecto en la interfaz. `preferencia_usuario.idioma` guarda ES/EN.
 
 El formulario de sedes incluye un mapa Leaflet/OpenStreetMap: al hacer clic, arrastrar el marcador o usar la ubicacion actual se llenan latitud y longitud automaticamente.
@@ -209,7 +212,7 @@ podman exec -w /app/backend sgp-app-backend node src/utils/semillar-pruebas.js
 pnpm run seed:pruebas
 ```
 
-Crea exactamente **10 clientes, 10 empleados, 3 sedes, 5 servicios y 30 reservas** (hoy, +10 dias y ayer), con pagos aprobados/declinados/pendientes, cobros fisicos/online, cola de atencion y un manifiesto en `tests/fixtures/seed-10x10.json`.
+Crea exactamente **10 clientes, 10 empleados, 3 sedes, 7 categorias, 5 servicios y 30 reservas** (hoy, +10 dias y ayer), con pagos aprobados/declinados/pendientes, cobros fisicos/online, cola de atencion, algunas reservas con dos servicios en secuencia y un manifiesto en `tests/fixtures/seed-10x10.json`.
 
 Credenciales:
 
@@ -270,6 +273,14 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | POST | `/api/reservas/servicios` | Admin |
 | PUT | `/api/reservas/servicios/:id` | Admin |
 | DELETE | `/api/reservas/servicios/:id` | Admin |
+| GET | `/api/reservas/categorias` | Publico |
+| POST | `/api/reservas/categorias` | Admin |
+| PUT | `/api/reservas/categorias/:id` | Admin |
+| DELETE | `/api/reservas/categorias/:id` | Admin |
+| GET | `/api/reservas/configuracion` | Publico |
+| PUT | `/api/reservas/configuracion` | Admin |
+| GET | `/api/reservas/empleados-por-servicio` | Publico |
+| POST | `/api/reservas/disponibilidad-combo` | Publico |
 | GET | `/api/reservas/disponibilidad` | Autenticado |
 | GET | `/api/reservas/jornada` | Publico |
 | PUT | `/api/reservas/jornada` | Admin |
@@ -370,6 +381,11 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Eliminar empleado solo sin cobros asociados
 - Metodos de cobro: `fisico` (efectivo) o `online`
 - Estados BD: pendiente → confirmada → en_curso → cobrado (cancelada)
+- Una reserva puede tener 1..N servicios; cada uno puede tener un estilista distinto y se agenda en secuencia. El total y la duracion son la suma de los segmentos.
+- El maximo de servicios por reserva es configurable por el admin (1 a 10; por defecto 5).
+- El precio y la duracion de cada servicio se congelan en `reserva_servicio` al reservar; los cambios posteriores del catalogo no alteran reservas existentes.
+- Las categorias con servicios no se pueden eliminar; los servicios con reservas se desactivan en lugar de borrarse.
+- El cliente busca servicios por texto y puede filtrar por categoria; los selectores largos del admin usan busqueda incremental.
 - Rango horario default: 06:00-22:00, granularidad default: 30 min
 - Registro: un correo sin verificar se reemplaza si el cliente vuelve a registrarse; la cuenta sin verificar se elimina a los **5 minutos** (configurable con `REGISTRO_TTL_MINUTOS`) y el correo queda libre; si el envio del OTP falla se puede usar `Reenviar codigo` (reinicia el tiempo de registro)
 
@@ -387,7 +403,7 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
 - Tema claro/oscuro con opcion Sistema, persistencia local (`sgp_tema`) y soporte de `prefers-color-scheme`
 
-Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, servicios CRUD, disponibilidad (incluye vista completa admin), reservas (crear/listar/cancelar/solape/agenda), checkin y cola (llegada, efectivo, inicio, finalizacion), pagos Wompi (intencion RBAC, QR, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, categorias y servicios CRUD con imagen, configuracion de maximo de servicios, disponibilidad simple y combinada, empleados por servicio, reservas multi-servicio con varios estilistas, checkin y cola (llegada, efectivo, inicio, finalizacion), pagos Wompi (intencion RBAC, QR, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
 Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura), `tests/e2e.py` (flujo completo) y `tests/regresion_10x10.py` (10 clientes x 10 empleados).
 
 ## Desarrollo local

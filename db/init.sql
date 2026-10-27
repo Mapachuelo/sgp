@@ -38,13 +38,31 @@ CREATE TABLE IF NOT EXISTS empleado_perfil (
   ubicacion_base_id INTEGER REFERENCES ubicacion(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS servicio_categoria (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(120) NOT NULL,
+  descripcion TEXT,
+  orden INTEGER NOT NULL DEFAULT 0,
+  creado_en TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_servicio_categoria_nombre
+  ON servicio_categoria (LOWER(nombre));
+
 CREATE TABLE IF NOT EXISTS servicio_catalogo (
   id SERIAL PRIMARY KEY,
   nombre VARCHAR(200) NOT NULL,
   descripcion TEXT,
   precio_base DECIMAL(10, 2) NOT NULL,
-  duracion_base_minutos INTEGER NOT NULL
+  duracion_base_minutos INTEGER NOT NULL,
+  categoria_id INTEGER REFERENCES servicio_categoria(id) ON DELETE RESTRICT,
+  imagen_url TEXT,
+  activo BOOLEAN NOT NULL DEFAULT TRUE
 );
+
+ALTER TABLE servicio_catalogo ADD COLUMN IF NOT EXISTS categoria_id INTEGER REFERENCES servicio_categoria(id) ON DELETE RESTRICT;
+ALTER TABLE servicio_catalogo ADD COLUMN IF NOT EXISTS imagen_url TEXT;
+ALTER TABLE servicio_catalogo ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE TABLE IF NOT EXISTS empleado_tiempo_servicio (
   id SERIAL PRIMARY KEY,
@@ -95,6 +113,26 @@ CREATE TABLE IF NOT EXISTS reserva (
 ALTER TABLE reserva ADD COLUMN IF NOT EXISTS llego_en TIMESTAMPTZ;
 ALTER TABLE reserva ADD COLUMN IF NOT EXISTS inicio_servicio TIMESTAMPTZ;
 ALTER TABLE reserva ADD COLUMN IF NOT EXISTS fin_servicio TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS reserva_servicio (
+  id SERIAL PRIMARY KEY,
+  reserva_id INTEGER NOT NULL REFERENCES reserva(id) ON DELETE CASCADE,
+  servicio_id INTEGER REFERENCES servicio_catalogo(id) ON DELETE SET NULL,
+  empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+  nombre VARCHAR(200) NOT NULL,
+  precio DECIMAL(10, 2) NOT NULL,
+  duracion_minutos INTEGER NOT NULL,
+  inicia_en TIMESTAMPTZ NOT NULL,
+  termina_en TIMESTAMPTZ NOT NULL,
+  orden INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (reserva_id, orden)
+);
+
+CREATE TABLE IF NOT EXISTS configuracion (
+  clave VARCHAR(80) PRIMARY KEY,
+  valor TEXT NOT NULL,
+  actualizado_en TIMESTAMPTZ DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS cobro (
   id SERIAL PRIMARY KEY,
@@ -147,28 +185,108 @@ CREATE INDEX IF NOT EXISTS idx_pago_reserva_id ON pago(reserva_id);
 CREATE INDEX IF NOT EXISTS idx_pago_estado ON pago(estado);
 CREATE INDEX IF NOT EXISTS idx_pago_referencia ON pago(referencia);
 CREATE INDEX IF NOT EXISTS idx_app_user_rol_bloqueado ON app_user(rol, esta_bloqueado);
+CREATE INDEX IF NOT EXISTS idx_servicio_catalogo_categoria_id ON servicio_catalogo(categoria_id);
+CREATE INDEX IF NOT EXISTS idx_reserva_servicio_reserva_id ON reserva_servicio(reserva_id);
+CREATE INDEX IF NOT EXISTS idx_reserva_servicio_empleado_inicia ON reserva_servicio(empleado_id, inicia_en);
+CREATE INDEX IF NOT EXISTS idx_reserva_servicio_servicio_id ON reserva_servicio(servicio_id);
 
 -- Seed data
+
+INSERT INTO configuracion (clave, valor)
+SELECT 'max_servicios_reserva', '5'
+WHERE NOT EXISTS (SELECT 1 FROM configuracion WHERE clave = 'max_servicios_reserva');
 
 INSERT INTO ubicacion (nombre, direccion, latitud, longitud)
 SELECT 'Sede Centro', 'Calle 123 #45-67, Bogota', 4.60971, -74.08175
 WHERE NOT EXISTS (SELECT 1 FROM ubicacion WHERE nombre = 'Sede Centro');
 
-INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos)
-SELECT 'Corte clasico', 'Corte de cabello clasico', 25000.00, 30
+INSERT INTO servicio_categoria (nombre, descripcion, orden)
+SELECT 'Peluqueada', 'Cortes y peinados de cabello', 1
+WHERE NOT EXISTS (SELECT 1 FROM servicio_categoria WHERE LOWER(nombre) = 'peluqueada');
+
+INSERT INTO servicio_categoria (nombre, descripcion, orden)
+SELECT 'Planchada', 'Alisados y planchados', 2
+WHERE NOT EXISTS (SELECT 1 FROM servicio_categoria WHERE LOWER(nombre) = 'planchada');
+
+INSERT INTO servicio_categoria (nombre, descripcion, orden)
+SELECT 'Barba', 'Arreglo y perfilado de barba', 3
+WHERE NOT EXISTS (SELECT 1 FROM servicio_categoria WHERE LOWER(nombre) = 'barba');
+
+INSERT INTO servicio_categoria (nombre, descripcion, orden)
+SELECT 'Color', 'Tintes y coloracion', 4
+WHERE NOT EXISTS (SELECT 1 FROM servicio_categoria WHERE LOWER(nombre) = 'color');
+
+INSERT INTO servicio_categoria (nombre, descripcion, orden)
+SELECT 'Peinado', 'Peinados para eventos', 5
+WHERE NOT EXISTS (SELECT 1 FROM servicio_categoria WHERE LOWER(nombre) = 'peinado');
+
+INSERT INTO servicio_categoria (nombre, descripcion, orden)
+SELECT 'Tratamientos', 'Manicure, masajes e hidratacion', 6
+WHERE NOT EXISTS (SELECT 1 FROM servicio_categoria WHERE LOWER(nombre) = 'tratamientos');
+
+INSERT INTO servicio_categoria (nombre, descripcion, orden)
+SELECT 'Otros', 'Servicios sin clasificar', 99
+WHERE NOT EXISTS (SELECT 1 FROM servicio_categoria WHERE LOWER(nombre) = 'otros');
+
+INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos, categoria_id)
+SELECT 'Corte clasico', 'Corte de cabello clasico', 25000.00, 30,
+       (SELECT id FROM servicio_categoria WHERE LOWER(nombre) = 'peluqueada')
 WHERE NOT EXISTS (SELECT 1 FROM servicio_catalogo WHERE nombre = 'Corte clasico');
 
-INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos)
-SELECT 'Barba', 'Arreglo de barba', 15000.00, 20
+INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos, categoria_id)
+SELECT 'Barba', 'Arreglo de barba', 15000.00, 20,
+       (SELECT id FROM servicio_categoria WHERE LOWER(nombre) = 'barba')
 WHERE NOT EXISTS (SELECT 1 FROM servicio_catalogo WHERE nombre = 'Barba');
 
-INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos)
-SELECT 'Tinte', 'Tinte de cabello', 60000.00, 90
+INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos, categoria_id)
+SELECT 'Tinte', 'Tinte de cabello', 60000.00, 90,
+       (SELECT id FROM servicio_categoria WHERE LOWER(nombre) = 'color')
 WHERE NOT EXISTS (SELECT 1 FROM servicio_catalogo WHERE nombre = 'Tinte');
 
-INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos)
-SELECT 'Corte + Barba', 'Combo corte y barba', 35000.00, 45
+INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos, categoria_id)
+SELECT 'Corte + Barba', 'Combo corte y barba', 35000.00, 45,
+       (SELECT id FROM servicio_categoria WHERE LOWER(nombre) = 'peluqueada')
 WHERE NOT EXISTS (SELECT 1 FROM servicio_catalogo WHERE nombre = 'Corte + Barba');
+
+UPDATE servicio_catalogo s
+SET categoria_id = (
+  SELECT c.id
+  FROM servicio_categoria c
+  WHERE c.nombre = CASE
+    WHEN s.nombre ILIKE '%corte%' OR s.nombre ILIKE '%peluqu%' OR s.descripcion ILIKE '%corte%' THEN 'Peluqueada'
+    WHEN s.nombre ILIKE '%barba%' THEN 'Barba'
+    WHEN s.nombre ILIKE '%alisado%' OR s.nombre ILIKE '%planch%' THEN 'Planchada'
+    WHEN s.nombre ILIKE '%tinte%' OR s.nombre ILIKE '%color%' THEN 'Color'
+    WHEN s.nombre ILIKE '%peinado%' THEN 'Peinado'
+    WHEN s.nombre ILIKE '%uña%' OR s.nombre ILIKE '%manicure%' OR s.nombre ILIKE '%masaje%' OR s.nombre ILIKE '%hidrat%' THEN 'Tratamientos'
+    ELSE 'Otros'
+  END
+  LIMIT 1
+)
+WHERE s.categoria_id IS NULL;
+
+INSERT INTO reserva_servicio (reserva_id, servicio_id, empleado_id, nombre, precio, duracion_minutos, inicia_en, termina_en, orden)
+SELECT r.id,
+       r.servicio_id,
+       r.empleado_id,
+       s.nombre,
+       COALESCE(
+         (SELECT c.monto / GREATEST(r.cantidad_personas, 1) FROM cobro c WHERE c.reserva_id = r.id LIMIT 1),
+         s.precio_base
+       ),
+       GREATEST(
+         1,
+         COALESCE(
+           NULLIF(ROUND(EXTRACT(EPOCH FROM (r.termina_en - r.inicia_en)) / 60)::int, 0),
+           s.duracion_base_minutos
+         )
+       ),
+       r.inicia_en,
+       r.termina_en,
+       1
+FROM reserva r
+JOIN servicio_catalogo s ON s.id = r.servicio_id
+WHERE NOT EXISTS (SELECT 1 FROM reserva_servicio rs WHERE rs.reserva_id = r.id);
 
 DO $$
 DECLARE

@@ -219,7 +219,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                 <p className="text-sm font-bold text-texto-principal flex items-center gap-2">
                   <CalendarRange className="w-4 h-4 text-primario" aria-hidden="true" /> {rangoTexto}
                 </p>
-                <p className="text-[11px] text-texto-secundario">{empleadosFiltrados.length} empleado(s) · {totalCitasSemana} cita(s)</p>
+                <p className="text-[11px] text-texto-secundario">{empleadosFiltrados.length} empleado(s) · {totalCitasSemana} segmento(s) de cita</p>
               </div>
               <Button variant="outline" size="sm" aria-label="Semana siguiente" onClick={() => setSemanaInicio((s) => sumarDias(s, 7))}>
                 <ChevronRight className="w-4 h-4" aria-hidden="true" />

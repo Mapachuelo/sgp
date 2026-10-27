@@ -53,11 +53,24 @@ const api = {
     delete: (id) => request(`/ubicaciones/${id}`, { method: 'DELETE' }),
   },
   reservas: {
-    servicios: () => request('/reservas/servicios'),
+    servicios: (params = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      return request(`/reservas/servicios${query ? `?${query}` : ''}`);
+    },
     createServicio: (body) => request('/reservas/servicios', { method: 'POST', body: JSON.stringify(body) }),
     updateServicio: (id, body) => request(`/reservas/servicios/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     deleteServicio: (id) => request(`/reservas/servicios/${id}`, { method: 'DELETE' }),
+    categorias: () => request('/reservas/categorias'),
+    createCategoria: (body) => request('/reservas/categorias', { method: 'POST', body: JSON.stringify(body) }),
+    updateCategoria: (id, body) => request(`/reservas/categorias/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteCategoria: (id) => request(`/reservas/categorias/${id}`, { method: 'DELETE' }),
+    configuracion: () => request('/reservas/configuracion'),
+    updateConfiguracion: (body) => request('/reservas/configuracion', { method: 'PUT', body: JSON.stringify(body) }),
     disponibilidad: (params) => request(`/reservas/disponibilidad?${new URLSearchParams(params)}`),
+    disponibilidadCombo: (body) => request('/reservas/disponibilidad-combo', { method: 'POST', body: JSON.stringify(body) }),
+    empleadosPorServicio: (params) => request(`/reservas/empleados-por-servicio?${new URLSearchParams(params)}`),
     jornada: {
       get: (ubicacion_id) => request(`/reservas/jornada?ubicacion_id=${ubicacion_id}`),
       update: (body) => request('/reservas/jornada', { method: 'PUT', body: JSON.stringify(body) }),
@@ -66,7 +79,12 @@ const api = {
       get: (empleado_id) => request(`/reservas/empleado-tiempos-servicio?empleado_id=${empleado_id}`),
       update: (body) => request('/reservas/empleado-tiempos-servicio', { method: 'PUT', body: JSON.stringify(body) }),
     },
-    empleadosDisponibles: (params) => request(`/reservas/empleados-disponibles?${new URLSearchParams(params)}`),
+    empleadosDisponibles: (params) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      return request(`/reservas/empleados-disponibles${query ? `?${query}` : ''}`);
+    },
     empleadoServiciosUpdate: (items) => request('/reservas/empleado-tiempos-servicio', { method: 'PUT', body: JSON.stringify({ items }) }),
     create: (body) => request('/reservas', { method: 'POST', body: JSON.stringify(body) }),
     misReservas: () => request('/reservas/me'),

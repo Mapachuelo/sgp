@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Clock, ImageOff, MapPin, Search, Users, X } from 'lucide-react';
 import {
   Badge,
+  BuscadorSelect,
   Button,
   Card,
   EmptyState,
   Input,
-  Modal,
   PageHeader,
   Select,
   Spinner,
@@ -31,40 +31,29 @@ const customMarkerIcon = new L.DivIcon({
   iconAnchor: [15, 30],
 });
 
-function MapRecenter({ lat, lng }) {
-  const map = useMap();
-  useEffect(() => {
-    if (lat && lng) {
-      map.setView([lat, lng], 15);
-    }
-  }, [lat, lng, map]);
-  return null;
-}
-
-function AjustarMapa({ puntos }) {
-  const map = useMap();
-  const clave = puntos.map((p) => p.join(',')).join(';');
-  useEffect(() => {
-    const validos = puntos.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-    if (validos.length > 1) {
-      map.fitBounds(L.latLngBounds(validos), { padding: [28, 28], maxZoom: 14 });
-    } else if (validos.length === 1) {
-      map.setView(validos[0], 14);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave, map]);
-  return null;
-}
-
 const PASOS = [
   { num: 1, label: 'Sede' },
-  { num: 2, label: 'Estilista' },
-  { num: 3, label: 'Horario' },
-  { num: 4, label: 'Confirmar' },
-  { num: 5, label: 'Pago' },
+  { num: 2, label: 'Servicios' },
+  { num: 3, label: 'Equipo' },
+  { num: 4, label: 'Horario' },
+  { num: 5, label: 'Confirmar' },
+  { num: 6, label: 'Pago' },
 ];
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+function normalizar(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function dinero(valor) {
+  return `$${Number(valor || 0).toLocaleString('es-CO')}`;
+}
 
 function formatearFechaLocal(date) {
   const y = date.getFullYear();
@@ -89,58 +78,108 @@ function fechaBonita(valor) {
   }).format(new Date(anio, mes - 1, dia));
 }
 
+function horaDeIso(iso) {
+  if (!iso) return '';
+  return new Intl.DateTimeFormat('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Bogota',
+  }).format(new Date(iso));
+}
+
+function horasDelRango(preferencias, granularidad) {
+  const desde = preferencias?.rango_hora_desde?.slice(0, 5) || '09:00';
+  const hasta = preferencias?.rango_hora_hasta?.slice(0, 5) || '18:00';
+  const [hI, mI] = desde.split(':').map(Number);
+  const [hF, mF] = hasta.split(':').map(Number);
+  let actual = hI * 60 + mI;
+  const fin = hF * 60 + mF;
+  const horas = [];
+  while (actual < fin) {
+    horas.push(`${String(Math.floor(actual / 60)).padStart(2, '0')}:${String(actual % 60).padStart(2, '0')}`);
+    actual += granularidad;
+  }
+  return horas;
+}
+
+function MapRecenter({ lat, lng }) {
+  const map = useMap();
+  useEffect(() => {
+    if (lat && lng) map.setView([lat, lng], 15);
+  }, [lat, lng, map]);
+  return null;
+}
+
+function AjustarMapa({ puntos }) {
+  const map = useMap();
+  const clave = puntos.map((p) => p.join(',')).join(';');
+  useEffect(() => {
+    const validos = puntos.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (validos.length > 1) {
+      map.fitBounds(L.latLngBounds(validos), { padding: [28, 28], maxZoom: 14 });
+    } else if (validos.length === 1) {
+      map.setView(validos[0], 14);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave, map]);
+  return null;
+}
+
+function ImagenServicio({ src, nombre }) {
+  if (!src) {
+    return (
+      <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md border border-borde bg-panel text-tenue sm:h-auto sm:w-full sm:aspect-[4/3]">
+        <ImageOff className="h-5 w-5" strokeWidth={1.6} aria-hidden="true" />
+      </span>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={`Imagen de ${nombre}`}
+      loading="lazy"
+      className="h-20 w-20 shrink-0 rounded-md border border-borde object-cover sm:h-auto sm:w-full sm:aspect-[4/3]"
+    />
+  );
+}
+
 export default function NuevaReserva() {
   const navigate = useNavigate();
   const { ultimoEvento } = useWebSocket();
   const [paso, setPaso] = useState(1);
   const [cargando, setCargando] = useState(false);
+  const [cargandoCalendario, setCargandoCalendario] = useState(false);
+  const [creando, setCreando] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
   const [isMobile, setIsMobile] = useState(false);
   const [diaInicioMovil, setDiaInicioMovil] = useState(0);
-  const [fechaBase, setFechaBase] = useState(null);
-  const fechaBaseRef = useRef(fechaBase);
-  const empleadoSeleccionadoRef = useRef(null);
-  const ubicacionSeleccionadaRef = useRef(null);
-  const pasoRef = useRef(paso);
 
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
   const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroCiudad, setFiltroCiudad] = useState('Todas');
 
-  const obtenerCiudad = (direccion) => {
-    if (!direccion) return 'Otras';
-    const partes = direccion.split(',');
-    if (partes.length > 1) {
-      return partes[partes.length - 1].trim();
-    }
-    return 'Otras';
-  };
+  const [catalogo, setCatalogo] = useState([]);
+  const [categoriasApi, setCategoriasApi] = useState([]);
+  const [categoriaActiva, setCategoriaActiva] = useState('todas');
+  const [busquedaServicio, setBusquedaServicio] = useState('');
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [configuracion, setConfiguracion] = useState({ max_servicios_reserva: 5 });
 
-  const ciudades = ['Todas', ...new Set(ubicaciones.map((u) => obtenerCiudad(u.direccion)))];
-
-  const ubicacionesFiltradas = ubicaciones.filter((u) => {
-    const coincideNombre = u.nombre.toLowerCase().includes(filtroNombre.toLowerCase()) ||
-                          (u.direccion && u.direccion.toLowerCase().includes(filtroNombre.toLowerCase()));
-    const ciudad = obtenerCiudad(u.direccion);
-    const coincideCiudad = filtroCiudad === 'Todas' || ciudad.toLowerCase() === filtroCiudad.toLowerCase();
-    return coincideNombre && coincideCiudad;
-  });
-
-
-  const [empleados, setEmpleados] = useState([]);
-  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null);
+  const [empleadosPorServicio, setEmpleadosPorServicio] = useState({});
+  const [asignaciones, setAsignaciones] = useState({});
+  const [cargandoEquipo, setCargandoEquipo] = useState(false);
 
   const [semana, setSemana] = useState([]);
-  const [slots, setSlots] = useState({});
-  const [servicios, setServicios] = useState([]);
-  const [slotSeleccionado, setSlotSeleccionado] = useState(null);
-  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
-  const [servicioSeleccionado, setServicioSeleccionado] = useState('');
-  const [cantidad, setCantidad] = useState(1);
+  const [disponibilidad, setDisponibilidad] = useState({});
   const [preferencias, setPreferencias] = useState(null);
   const [granularidad, setGranularidad] = useState(30);
+  const [fechaBase, setFechaBase] = useState(null);
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+  const [slotSeleccionado, setSlotSeleccionado] = useState(null);
 
+  const [cantidad, setCantidad] = useState(1);
   const [reservaCreada, setReservaCreada] = useState(null);
   const [metodoPago, setMetodoPago] = useState('efectivo');
   const [pagoEstado, setPagoEstado] = useState('inicial');
@@ -149,32 +188,9 @@ export default function NuevaReserva() {
   const [pagoCompletado, setPagoCompletado] = useState(false);
   const [transaccionManual, setTransaccionManual] = useState('');
   const intentosPagoRef = useRef(0);
-
-  useEffect(() => { fechaBaseRef.current = fechaBase; }, [fechaBase]);
-  useEffect(() => { empleadoSeleccionadoRef.current = empleadoSeleccionado; }, [empleadoSeleccionado]);
-  useEffect(() => { ubicacionSeleccionadaRef.current = ubicacionSeleccionada; }, [ubicacionSeleccionada]);
-  useEffect(() => { pasoRef.current = paso; }, [paso]);
-
-  useEffect(() => {
-    if (!ultimoEvento) return;
-    if (ultimoEvento.tipo === 'disponibilidad.actualizada' && pasoRef.current === 3) {
-      const emp = empleadoSeleccionadoRef.current;
-      const base = fechaBaseRef.current;
-      if (emp) {
-        cargarCalendario(base || new Date(), emp).catch(() => {});
-      }
-    }
-    if (ultimoEvento.tipo === 'reserva.actualizada' && pasoRef.current === 3) {
-      const base = fechaBaseRef.current;
-      cargarCalendario(base || new Date(), empleadoSeleccionadoRef.current).catch(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ultimoEvento]);
-
-  const mostrarToast = (message, type = 'success') => {
-    setToast({ open: true, message, type });
-    setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 3000);
-  };
+  const pasoRef = useRef(paso);
+  const fechaBaseRef = useRef(fechaBase);
+  const cargarCalendarioRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -183,140 +199,389 @@ export default function NuevaReserva() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => { cargarUbicaciones(); }, []);
+  useEffect(() => { pasoRef.current = paso; }, [paso]);
+  useEffect(() => { fechaBaseRef.current = fechaBase; }, [fechaBase]);
 
-  const cargarUbicaciones = async () => {
-    setCargando(true);
-    try { setUbicaciones(await api.ubicaciones.list() || []); } catch (err) { mostrarToast(err.message, 'error'); }
-    finally { setCargando(false); }
+  const mostrarToast = (message, type = 'success') => {
+    setToast({ open: true, message, type });
+    setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 3200);
   };
 
-  const irAPaso2 = async () => {
-    if (!ubicacionSeleccionada) return;
-    setPaso(2);
+  useEffect(() => {
+    let activo = true;
     setCargando(true);
-    try {
-      const base = new Date();
-      base.setHours(0, 0, 0, 0);
-      const fechas = [];
-      for (let i = 0; i < 6; i++) {
-        const f = new Date(base);
-        f.setDate(base.getDate() + i);
-        fechas.push(formatearFechaLocal(f));
-      }
-      const listas = await Promise.all(
-        fechas.map((fecha) =>
-          api.reservas
-            .empleadosDisponibles({ ubicacion_id: ubicacionSeleccionada.id, fecha })
-            .catch(() => [])
-        )
-      );
-      const porId = new Map();
-      listas.flat().forEach((emp) => {
-        if (emp?.id != null) porId.set(emp.id, emp);
-      });
-      const ordenados = [...porId.values()].sort((a, b) =>
-        `${a.nombre} ${a.apellido || ''}`.localeCompare(`${b.nombre} ${b.apellido || ''}`)
-      );
-      setEmpleados(ordenados);
-    } catch (err) { mostrarToast(err.message, 'error'); }
-    finally { setCargando(false); }
+    Promise.all([
+      api.ubicaciones.list().catch(() => []),
+      api.reservas.servicios().catch(() => []),
+      api.reservas.categorias().catch(() => []),
+      api.reservas.configuracion().catch(() => ({ max_servicios_reserva: 5 })),
+      api.preferencias.get().catch(() => null),
+    ])
+      .then(([ubis, servs, cats, cfg, prefs]) => {
+        if (!activo) return;
+        setUbicaciones(Array.isArray(ubis) ? ubis : []);
+        setCatalogo(Array.isArray(servs) ? servs.filter((servicio) => servicio.activo !== false) : []);
+        setCategoriasApi(Array.isArray(cats) ? cats : []);
+        setConfiguracion(cfg || { max_servicios_reserva: 5 });
+        setPreferencias(prefs || null);
+        if ([15, 30, 60].includes(Number(prefs?.granularidad_calendario))) {
+          setGranularidad(Number(prefs.granularidad_calendario));
+        }
+      })
+      .catch((error) => mostrarToast(error.message, 'error'))
+      .finally(() => { if (activo) setCargando(false); });
+    return () => { activo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const obtenerCiudad = (direccion) => {
+    if (!direccion) return 'Otras';
+    const partes = direccion.split(',');
+    return partes.length > 1 ? partes[partes.length - 1].trim() : 'Otras';
   };
 
-  const cargarCalendario = async (baseDate, empleadoParam) => {
-    const emp = empleadoParam || empleadoSeleccionado;
-    if (!emp) return;
-    setCargando(true);
-    try {
-      const [empServs, prefs] = await Promise.all([
-        api.reservas.empleadoTiempos.get(emp.id),
-        api.preferencias.get()
-      ]);
-      const mappedServs = (empServs || []).map(s => ({
-        id: s.servicio_id,
-        nombre: s.servicio_nombre,
-        duracion_base_minutos: s.duracion_minutos || 30,
-        precio_base: s.precio_base
-      }));
-      setServicios(mappedServs);
-      setPreferencias(prefs);
-      const g = prefs?.granularidad_calendario || 30;
-      setGranularidad(g);
+  const ciudades = useMemo(
+    () => ['Todas', ...new Set(ubicaciones.map((u) => obtenerCiudad(u.direccion)))],
+    [ubicaciones]
+  );
 
-      // Generar los 6 días a partir de baseDate
-      const dias = [];
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      
-      const base = new Date(baseDate);
-      base.setHours(0, 0, 0, 0);
+  const ubicacionesFiltradas = useMemo(() => {
+    const termino = normalizar(filtroNombre);
+    return ubicaciones.filter((ubicacion) => {
+      const coincideNombre =
+        !termino ||
+        normalizar(ubicacion.nombre).includes(termino) ||
+        normalizar(ubicacion.direccion).includes(termino);
+      const ciudad = obtenerCiudad(ubicacion.direccion);
+      const coincideCiudad = filtroCiudad === 'Todas' || normalizar(ciudad) === normalizar(filtroCiudad);
+      return coincideNombre && coincideCiudad;
+    });
+  }, [ubicaciones, filtroNombre, filtroCiudad]);
 
-      for (let i = 0; i < 6; i++) {
-        const fecha = new Date(base);
-        fecha.setDate(base.getDate() + i);
-        dias.push({
-          fecha: formatearFechaLocal(fecha),
-          diaSemana: DIAS_SEMANA[fecha.getDay() === 0 ? 6 : fecha.getDay() - 1] || 'Lun',
-          esHoy: fecha.getTime() === hoy.getTime(),
-          esPasado: fecha < hoy,
-          objetoFecha: fecha
+  const categoriasCliente = useMemo(() => {
+    const conServicios = new Map();
+    catalogo.forEach((servicio) => {
+      const id = servicio.categoria_id ?? 'otros';
+      if (!conServicios.has(id)) {
+        conServicios.set(id, {
+          id,
+          nombre: servicio.categoria_nombre || 'Otros',
+          orden: servicio.categoria_orden ?? 999,
+          total: 0,
         });
       }
-      setSemana(dias);
-      setFechaBase(base);
-      setDiaInicioMovil(0);
+      conServicios.get(id).total += 1;
+    });
+    const base = categoriasApi.length
+      ? categoriasApi
+          .filter((categoria) => conServicios.has(categoria.id))
+          .map((categoria) => ({
+            id: categoria.id,
+            nombre: categoria.nombre,
+            orden: categoria.orden,
+            total: conServicios.get(categoria.id)?.total || 0,
+          }))
+      : [...conServicios.values()];
+    return [
+      { id: 'todas', nombre: 'Todos', orden: -1, total: catalogo.length },
+      ...base.sort((a, b) => Number(a.orden) - Number(b.orden) || a.nombre.localeCompare(b.nombre)),
+    ];
+  }, [catalogo, categoriasApi]);
 
-      // Cargar disponibilidad en paralelo para los 6 días
-      const promesas = dias.map(d =>
-        api.reservas.disponibilidad({ empleado_id: emp.id, ubicacion_id: ubicacionSeleccionada.id, fecha: d.fecha })
-          .then(res => ({ fecha: d.fecha, data: res || { slots_ocupados: [] } }))
-          .catch(() => ({ fecha: d.fecha, data: { slots_ocupados: [] } }))
+  useEffect(() => {
+    if (categoriaActiva !== 'todas' && !categoriasCliente.some((c) => String(c.id) === String(categoriaActiva))) {
+      setCategoriaActiva('todas');
+    }
+  }, [categoriasCliente, categoriaActiva]);
+
+  const serviciosFiltrados = useMemo(() => {
+    const termino = normalizar(busquedaServicio);
+    return catalogo.filter((servicio) => {
+      const coincideCategoria =
+        categoriaActiva === 'todas' || String(servicio.categoria_id) === String(categoriaActiva);
+      if (!coincideCategoria) return false;
+      if (!termino) return true;
+      const contenido = normalizar(
+        `${servicio.nombre} ${servicio.descripcion || ''} ${servicio.categoria_nombre || ''}`
       );
-      const resultados = await Promise.all(promesas);
-      const mapaSlots = {};
-      resultados.forEach(r => {
-        mapaSlots[r.fecha] = r.data;
+      return contenido.includes(termino);
+    });
+  }, [catalogo, categoriaActiva, busquedaServicio]);
+
+  const maxServicios = Number(configuracion?.max_servicios_reserva) || 5;
+  const totalServicios = seleccionados.reduce((sum, servicio) => sum + Number(servicio.precio_base || 0), 0);
+  const duracionTotal = seleccionados.reduce((sum, servicio) => sum + Number(servicio.duracion_base_minutos || 30), 0);
+
+  const equipo = useMemo(
+    () =>
+      seleccionados.map((servicio) => {
+        const opciones = empleadosPorServicio[servicio.id] || [];
+        const empleado = opciones.find((item) => String(item.id) === String(asignaciones[servicio.id]));
+        return { ...servicio, empleado };
+      }),
+    [seleccionados, empleadosPorServicio, asignaciones]
+  );
+
+  const equipoListo = equipo.length > 0 && equipo.every((item) => item.empleado);
+  const equipoUnico = equipoListo && new Set(equipo.map((item) => item.empleado.id)).size === 1;
+  const duracionEquipo = equipo.reduce(
+    (sum, item) => sum + Number(item.empleado?.duracion_minutos || item.duracion_base_minutos || 30),
+    0
+  );
+  const duracionPlan = (slotSeleccionado?.plan || []).reduce(
+    (sum, segmento) => sum + Number(segmento.duracion_minutos || 0),
+    0
+  ) || duracionEquipo;
+  const sinEstilista = seleccionados.filter((servicio) => !(empleadosPorServicio[servicio.id] || []).length);
+
+  const horas = useMemo(() => horasDelRango(preferencias, granularidad), [preferencias, granularidad]);
+  const totalReserva = Number(reservaCreada?.precio_total ?? totalServicios) * Number(reservaCreada?.cantidad_personas ?? cantidad);
+
+  const toggleServicio = (servicio) => {
+    const ya = seleccionados.some((item) => item.id === servicio.id);
+    if (ya) {
+      setSeleccionados((prev) => prev.filter((item) => item.id !== servicio.id));
+      setAsignaciones((prev) => {
+        const next = { ...prev };
+        delete next[servicio.id];
+        return next;
       });
-      setSlots(mapaSlots);
-    } catch (err) { mostrarToast(err.message, 'error'); }
-    finally { setCargando(false); }
+      setDisponibilidad({});
+      setSlotSeleccionado(null);
+      setDiaSeleccionado(null);
+      return;
+    }
+    if (seleccionados.length >= maxServicios) {
+      mostrarToast(`Puedes elegir hasta ${maxServicios} servicios por reserva`, 'warning');
+      return;
+    }
+    setSeleccionados((prev) => [...prev, servicio]);
+    setDisponibilidad({});
+    setSlotSeleccionado(null);
+    setDiaSeleccionado(null);
   };
 
-  const irAPaso3 = async (empleadoParam) => {
-    const emp = empleadoParam || empleadoSeleccionado;
-    if (!emp) return;
+  const cargarEquipo = async () => {
+    if (!ubicacionSeleccionada || seleccionados.length === 0) return;
+    setCargandoEquipo(true);
+    try {
+      const respuestas = await Promise.all(
+        seleccionados.map(async (servicio) => {
+          const data = await api.reservas
+            .empleadosPorServicio({ ubicacion_id: ubicacionSeleccionada.id, servicio_id: servicio.id })
+            .catch(() => []);
+          return [servicio.id, Array.isArray(data) ? data : []];
+        })
+      );
+      const mapa = Object.fromEntries(respuestas);
+      setEmpleadosPorServicio(mapa);
+
+      const conteo = new Map();
+      Object.values(mapa).flat().forEach((empleado) => {
+        conteo.set(empleado.id, (conteo.get(empleado.id) || 0) + 1);
+      });
+      let principal = null;
+      let maximo = 0;
+      conteo.forEach((total, id) => {
+        if (total > maximo) {
+          maximo = total;
+          principal = id;
+        }
+      });
+
+      setAsignaciones((prev) => {
+        const siguiente = {};
+        seleccionados.forEach((servicio) => {
+          const opciones = mapa[servicio.id] || [];
+          if (!opciones.length) {
+            siguiente[servicio.id] = '';
+            return;
+          }
+          const previo = prev[servicio.id];
+          if (previo && opciones.some((empleado) => String(empleado.id) === String(previo))) {
+            siguiente[servicio.id] = String(previo);
+            return;
+          }
+          const candidato = opciones.find((empleado) => empleado.id === principal) || opciones[0];
+          siguiente[servicio.id] = String(candidato.id);
+        });
+        return siguiente;
+      });
+    } catch (error) {
+      mostrarToast(error.message, 'error');
+    } finally {
+      setCargandoEquipo(false);
+    }
+  };
+
+  const cargarCalendario = useCallback(
+    async (baseDate, pasoGranularidad = granularidad) => {
+      if (!ubicacionSeleccionada || seleccionados.length === 0 || !equipoListo) return;
+      setCargandoCalendario(true);
+      try {
+        const prefs = preferencias || (await api.preferencias.get().catch(() => null));
+        if (prefs) setPreferencias(prefs);
+        const candidata = Number(pasoGranularidad) || Number(prefs?.granularidad_calendario) || 30;
+        const g = [15, 30, 60].includes(candidata) ? candidata : 30;
+        setGranularidad(g);
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const base = new Date(baseDate || new Date());
+        base.setHours(0, 0, 0, 0);
+        if (base < hoy) base.setTime(hoy.getTime());
+
+        const dias = [];
+        for (let i = 0; i < 6; i += 1) {
+          const fecha = new Date(base);
+          fecha.setDate(base.getDate() + i);
+          dias.push({
+            fecha: formatearFechaLocal(fecha),
+            objetoFecha: fecha,
+            esHoy: fecha.getTime() === hoy.getTime(),
+            esPasado: fecha < hoy,
+          });
+        }
+
+        const resultados = await Promise.all(
+          dias.map(async (dia) => {
+            try {
+              const data = await api.reservas.disponibilidadCombo({
+                ubicacion_id: ubicacionSeleccionada.id,
+                fecha: dia.fecha,
+                granularidad: g,
+                servicios: seleccionados.map((servicio) => ({
+                  servicio_id: servicio.id,
+                  empleado_id: Number(asignaciones[servicio.id]),
+                })),
+              });
+              return [dia.fecha, data || { slots: [] }];
+            } catch {
+              return [dia.fecha, { slots: [] }];
+            }
+          })
+        );
+
+        const mapa = Object.fromEntries(resultados);
+        const primerDiaConSlots = dias.findIndex((dia) => (mapa[dia.fecha]?.slots || []).length > 0);
+        setSemana(dias);
+        setFechaBase(base);
+        setDiaInicioMovil(
+          primerDiaConSlots >= 0 ? Math.min(primerDiaConSlots, Math.max(0, dias.length - 2)) : 0
+        );
+        setDisponibilidad(mapa);
+      } catch (error) {
+        mostrarToast(error.message, 'error');
+      } finally {
+        setCargandoCalendario(false);
+      }
+    },
+    [ubicacionSeleccionada, seleccionados, asignaciones, equipoListo, preferencias, granularidad]
+  );
+
+  useEffect(() => { cargarCalendarioRef.current = cargarCalendario; }, [cargarCalendario]);
+
+  useEffect(() => {
+    if (!ultimoEvento) return;
+    if (
+      ['disponibilidad.actualizada', 'reserva.actualizada'].includes(ultimoEvento.tipo) &&
+      pasoRef.current === 4
+    ) {
+      cargarCalendarioRef.current?.(fechaBaseRef.current || new Date(), granularidad);
+    }
+  }, [ultimoEvento, granularidad]);
+
+  const volverAtras = () => {
+    if (paso === 2) {
+      setPaso(1);
+    } else if (paso === 3) {
+      setPaso(2);
+      setEmpleadosPorServicio({});
+      setAsignaciones({});
+    } else if (paso === 4) {
+      setPaso(3);
+      setDisponibilidad({});
+      setSlotSeleccionado(null);
+      setDiaSeleccionado(null);
+    } else if (paso === 5) {
+      setPaso(4);
+    }
+  };
+
+  const irAServicios = () => {
+    if (!ubicacionSeleccionada) return;
+    setPaso(2);
+    setEmpleadosPorServicio({});
+    setAsignaciones({});
+    setDisponibilidad({});
+    setSlotSeleccionado(null);
+    setDiaSeleccionado(null);
+  };
+
+  const irAEquipo = () => {
+    if (seleccionados.length === 0) {
+      mostrarToast('Elige al menos un servicio', 'warning');
+      return;
+    }
     setPaso(3);
-    await cargarCalendario(new Date(), emp);
+    cargarEquipo();
+  };
+
+  const irAHorario = () => {
+    if (!equipoListo) {
+      mostrarToast('Completa el equipo de estilistas', 'warning');
+      return;
+    }
+    setPaso(4);
+    cargarCalendario(new Date());
+  };
+
+  const cambiarUbicacion = () => {
+    setUbicacionSeleccionada(null);
+    setSeleccionados([]);
+    setAsignaciones({});
+    setEmpleadosPorServicio({});
+    setDisponibilidad({});
+    setSlotSeleccionado(null);
+    setDiaSeleccionado(null);
+    setPaso(1);
+  };
+
+  const slotEnDia = (fecha, hora) =>
+    (disponibilidad[fecha]?.slots || []).find((slot) => slot.hora === hora) || null;
+
+  const estadoCelda = (dia, hora) => {
+    const slot = slotEnDia(dia.fecha, hora);
+    const instante = new Date(`${dia.fecha}T${hora}:00-05:00`);
+    const ahora = new Date();
+    const diffMin = (instante - ahora) / 60000;
+    if (diffMin <= 0) return { clase: 'slot-pasado', label: 'Pasado', disponible: false, slot: null };
+    if (diffMin < 60) return { clase: 'slot-antelacion', label: '< 60 min', disponible: false, slot: null };
+    if (slot) return { clase: 'slot-libre', label: 'Libre', disponible: true, slot };
+    return { clase: 'slot-no-disponible', label: 'No disp.', disponible: false, slot: null };
   };
 
   const handleSlotClick = (dia, hora) => {
-    const ahora = new Date();
-    const [h, m] = hora.split(':');
-    const slotDate = new Date(dia.fecha + 'T00:00:00');
-    slotDate.setHours(parseInt(h), parseInt(m), 0, 0);
-    const diffMin = (slotDate - ahora) / 60000;
-    if (diffMin < 0 || diffMin < 60) return;
-    setSlotSeleccionado(hora);
+    const estado = estadoCelda(dia, hora);
+    if (!estado.disponible || !estado.slot) return;
     setDiaSeleccionado(dia);
-    setServicioSeleccionado(servicios.length > 0 ? String(servicios[0].id) : '');
-    setCantidad(1);
-    setPaso(4);
+    setSlotSeleccionado(estado.slot);
+    setPaso(5);
   };
 
   const handleCrearReserva = async () => {
-    if (!servicioSeleccionado || !slotSeleccionado || !diaSeleccionado || !empleadoSeleccionado || !ubicacionSeleccionada) return;
-    setCargando(true);
+    if (!slotSeleccionado || !diaSeleccionado || !equipoListo) return;
+    setCreando(true);
     try {
-      const serv = servicios.find((s) => String(s.id) === String(servicioSeleccionado));
-      if (!serv) { mostrarToast('Selecciona un servicio', 'error'); setCargando(false); return; }
-      const localInicio = new Date(`${diaSeleccionado.fecha}T${slotSeleccionado}:00`);
-
       const data = await api.reservas.create({
-        empleado_id: empleadoSeleccionado.id,
-        servicio_id: parseInt(servicioSeleccionado),
+        empleado_id: Number(asignaciones[seleccionados[0].id]),
         ubicacion_id: ubicacionSeleccionada.id,
-        inicia_en: localInicio.toISOString(),
+        inicia_en: slotSeleccionado.inicia_en,
         cantidad_personas: cantidad,
+        servicios: seleccionados.map((servicio) => ({
+          servicio_id: servicio.id,
+          empleado_id: Number(asignaciones[servicio.id]),
+        })),
       });
       setReservaCreada(data);
       setPagoEstado('inicial');
@@ -324,19 +589,21 @@ export default function NuevaReserva() {
       setIntencionPago(null);
       setTransaccionManual('');
       setMetodoPago('efectivo');
-      setPaso(5);
-      mostrarToast('Reserva creada con exito', 'success');
-    } catch (err) {
-      if (/superpone|fuera de la disponibilidad/i.test(err.message)) {
-        mostrarToast(`${err.message}. Te sugerimos elegir otro horario.`, 'error');
+      setPaso(6);
+      mostrarToast('Reserva creada con éxito');
+    } catch (error) {
+      if (/superpone|fuera de la disponibilidad|no esta disponible/i.test(error.message)) {
+        mostrarToast(`${error.message}. Elige otro horario.`, 'error');
         setSlotSeleccionado(null);
-        setPaso(3);
+        setDiaSeleccionado(null);
+        setPaso(4);
         cargarCalendario(fechaBase || new Date());
       } else {
-        mostrarToast(err.message, 'error');
+        mostrarToast(error.message, 'error');
       }
+    } finally {
+      setCreando(false);
     }
-    finally { setCargando(false); }
   };
 
   const cargarScriptWompi = () =>
@@ -364,7 +631,7 @@ export default function NuevaReserva() {
     if (!pago) return;
     if (pago.estado === 'aprobado') {
       setPagoEstado('aprobado');
-      setPagoMensaje('Pago aprobado. Tu reserva quedo confirmada.');
+      setPagoMensaje('Pago aprobado. Tu reserva quedó confirmada.');
       setPagoCompletado(true);
       mostrarToast('Pago aprobado correctamente');
     } else if (pago.estado === 'declinado' || pago.estado === 'error') {
@@ -372,11 +639,11 @@ export default function NuevaReserva() {
       setPagoMensaje(
         pago.estado === 'declinado'
           ? 'El pago fue rechazado. Puedes intentar con otro medio o pagar en el local.'
-          : 'Ocurrio un error procesando el pago. Intenta de nuevo.'
+          : 'Ocurrió un error procesando el pago. Intenta de nuevo.'
       );
     } else {
       setPagoEstado('pendiente');
-      setPagoMensaje('El pago aun no aparece aprobado. Si ya pagaste, verifica el estado.');
+      setPagoMensaje('El pago aún no aparece aprobado. Si ya pagaste, verifica el estado.');
     }
   };
 
@@ -385,8 +652,8 @@ export default function NuevaReserva() {
     try {
       const pago = await api.pagos.estado(intencionPago.pago_id);
       aplicarEstadoPago(pago);
-    } catch (err) {
-      mostrarToast(err.message, 'error');
+    } catch (error) {
+      mostrarToast(error.message, 'error');
     }
   };
 
@@ -395,10 +662,10 @@ export default function NuevaReserva() {
     try {
       const pago = await api.pagos.verificar(intencionPago.pago_id, transactionId);
       aplicarEstadoPago(pago);
-    } catch (err) {
+    } catch (error) {
       setPagoEstado('error');
-      setPagoMensaje(err.message);
-      mostrarToast(err.message, 'error');
+      setPagoMensaje(error.message);
+      mostrarToast(error.message, 'error');
     }
   };
 
@@ -424,18 +691,15 @@ export default function NuevaReserva() {
       });
       checkout.open(async (resultado) => {
         const transaccion = resultado?.transaction;
-        if (transaccion?.id) {
-          await verificarPago(transaccion.id);
-        } else {
-          await consultarEstadoPago();
-        }
+        if (transaccion?.id) await verificarPago(transaccion.id);
+        else await consultarEstadoPago();
       });
       setPagoEstado('esperando');
       setPagoMensaje('Completa el pago en la ventana segura de Wompi.');
-    } catch (err) {
+    } catch (error) {
       setPagoEstado('error');
-      setPagoMensaje(err.message);
-      mostrarToast(err.message, 'error');
+      setPagoMensaje(error.message);
+      mostrarToast(error.message, 'error');
     }
   };
 
@@ -452,102 +716,20 @@ export default function NuevaReserva() {
       if (intentosPagoRef.current > 6) {
         clearInterval(intervalo);
         setPagoEstado('pendiente');
-        setPagoMensaje('No detectamos el pago aun. Usa "Verificar estado" si ya pagaste.');
+        setPagoMensaje('No detectamos el pago aún. Usa "Ya pagué, actualizar estado" si ya pagaste.');
         return;
       }
       try {
         const pago = await api.pagos.estado(intencionPago.pago_id);
         if (pago.estado !== 'pendiente') aplicarEstadoPago(pago);
       } catch {
-        /* reintenta en el siguiente ciclo */
+        /* reintenta */
       }
     }, 5000);
     return () => clearInterval(intervalo);
   }, [intencionPago, pagoEstado]);
 
-  const getPasoVariant = (num) => { if (num < paso) return 'success'; if (num === paso) return 'info'; return 'default'; };
-
-  const volverAtras = () => {
-    if (paso === 2) { setPaso(1); setEmpleadoSeleccionado(null); }
-    else if (paso === 3) { setPaso(2); setSlots({}); }
-    else if (paso === 4) setPaso(3);
-    else if (paso === 5) setPaso(4);
-  };
-
-  const generarSlotsDelDia = () => {
-    const horaDesde = preferencias?.rango_hora_desde || '09:00:00';
-    const horaHasta = preferencias?.rango_hora_hasta || '17:00:00';
-    const g = granularidad || 30;
-    const slotsArr = [];
-    const [hI, mI] = horaDesde.split(':').map(Number);
-    const [hF, mF] = horaHasta.split(':').map(Number);
-    let actual = hI * 60 + mI;
-    const fin = hF * 60 + mF;
-    while (actual < fin) {
-      const hh = Math.floor(actual / 60);
-      const mm = actual % 60;
-      slotsArr.push(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
-      actual += g;
-    }
-    return slotsArr;
-  };
-
-  const esSlotOcupado = (fecha, hora) => {
-    const slotsDia = slots?.[fecha]?.slots_ocupados;
-    if (!slotsDia) return false;
-    const slotDate = new Date(fecha + 'T' + hora + ':00');
-    const slotMin = slotDate.getHours() * 60 + slotDate.getMinutes();
-    return slotsDia.some((s) => {
-      const ini = new Date(s.inicia_en);
-      const fin = new Date(s.termina_en);
-      const iniMin = ini.getHours() * 60 + ini.getMinutes();
-      const finMin = fin.getHours() * 60 + fin.getMinutes();
-      return slotMin >= iniMin && slotMin < finMin;
-    });
-  };
-
-  const esSlotAntelacion = (fecha, hora) => {
-    const ahora = new Date();
-    const [h, m] = hora.split(':');
-    const slotDate = new Date(fecha + 'T00:00:00');
-    slotDate.setHours(parseInt(h), parseInt(m), 0, 0);
-    const diffMin = (slotDate - ahora) / 60000;
-    return diffMin > 0 && diffMin < 60;
-  };
-
-  const esSlotPasado = (fecha, hora) => {
-    const ahora = new Date();
-    const [h, m] = hora.split(':');
-    const slotDate = new Date(fecha + 'T00:00:00');
-    slotDate.setHours(parseInt(h), parseInt(m), 0, 0);
-    return slotDate <= ahora;
-  };
-
-  const esSlotFueraDeDisponibilidad = (fecha, hora) => {
-    const disp = slots?.[fecha]?.disponibilidad_empleado;
-    if (!disp) return true;
-    const [h, m] = hora.split(':').map(Number);
-    const slotMin = h * 60 + m;
-    const [hIni, mIni] = disp.hora_inicio.split(':').map(Number);
-    const iniMin = hIni * 60 + mIni;
-    const [hFin, mFin] = disp.hora_fin.split(':').map(Number);
-    const finMin = hFin * 60 + mFin;
-    return slotMin < iniMin || slotMin >= finMin;
-  };
-
-  const descargarQR = () => {
-    descargarQrReserva(reservaCreada);
-  };
-
-  const selectedServ = servicios.find((s) => String(s.id) === String(servicioSeleccionado));
-  const totalPrecio = selectedServ ? parseFloat(selectedServ.precio_base || selectedServ.precio || 0) * cantidad : 0;
-  const duracionSeleccionada = selectedServ?.duracion_base_minutos || selectedServ?.duracion || 30;
-  const calcularHoraFin = () => {
-    if (!slotSeleccionado) return '';
-    const [hh, mm] = slotSeleccionado.split(':').map(Number);
-    const totalMin = hh * 60 + mm + duracionSeleccionada;
-    return `${String(Math.floor(totalMin / 60) % 24).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
-  };
+  const descargarQR = () => descargarQrReserva(reservaCreada);
 
   if (pagoCompletado) {
     return (
@@ -582,14 +764,12 @@ export default function NuevaReserva() {
     );
   }
 
-  const diasSem = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
   return (
-    <div className="mx-auto max-w-[1000px] space-y-6 pb-20 md:pb-0">
+    <div className="mx-auto max-w-[1000px] space-y-6 pb-32 md:pb-0">
       <Toast open={toast.open} message={toast.message} type={toast.type} />
       <PageHeader
         title="Reservar cita"
-        subtitle="Elige sede, estilista y horario. El total se confirma al finalizar."
+        subtitle="Elige sede, servicios, equipo y horario. Puedes sumar varios servicios en una sola cita."
         actions={
           <Button variant="ghost" onClick={() => navigate('/cliente')}>
             Cancelar
@@ -634,12 +814,13 @@ export default function NuevaReserva() {
         </div>
       </div>
 
-      {/* STEP 1 */}
       {paso === 1 && (
         <div className="space-y-5">
           <div>
             <h2 className="text-base font-semibold text-texto-principal">Elige la sede</h2>
-            <p className="mt-0.5 text-xs text-texto-secundario">Busca por nombre o ciudad, o selecciona un punto en el mapa.</p>
+            <p className="mt-0.5 text-xs text-texto-secundario">
+              Busca por nombre o ciudad, o selecciona un punto en el mapa.
+            </p>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
@@ -649,13 +830,13 @@ export default function NuevaReserva() {
                   label="Buscar sede"
                   placeholder="Nombre o dirección..."
                   value={filtroNombre}
-                  onChange={(e) => setFiltroNombre(e.target.value)}
+                  onChange={(evento) => setFiltroNombre(evento.target.value)}
                 />
                 <Select
                   label="Ciudad"
                   value={filtroCiudad}
-                  onChange={(e) => setFiltroCiudad(e.target.value)}
-                  options={ciudades.map((c) => ({ value: c, label: c }))}
+                  onChange={(evento) => setFiltroCiudad(evento.target.value)}
+                  options={ciudades.map((ciudad) => ({ value: ciudad, label: ciudad }))}
                 />
               </div>
 
@@ -665,21 +846,25 @@ export default function NuevaReserva() {
                 <EmptyState title="No encontramos sedes" description="Prueba con otro nombre o quita el filtro de ciudad." />
               ) : (
                 <div className="max-h-[330px] space-y-2 overflow-y-auto pr-1 scroll-thin">
-                  {ubicacionesFiltradas.map((ubic) => {
-                    const isSel = ubicacionSeleccionada?.id === ubic.id;
+                  {ubicacionesFiltradas.map((ubicacion) => {
+                    const seleccionada = ubicacionSeleccionada?.id === ubicacion.id;
                     return (
                       <button
-                        key={ubic.id}
+                        key={ubicacion.id}
                         type="button"
-                        onClick={() => setUbicacionSeleccionada(ubic)}
+                        onClick={() => setUbicacionSeleccionada(ubicacion)}
                         className={`flex w-full items-start gap-3 rounded-lg border p-3.5 text-left transition-colors ${
-                          isSel ? 'border-acento bg-acento-suave/40 ring-1 ring-acento/20' : 'border-borde bg-superficie hover:bg-panel/60'
+                          seleccionada
+                            ? 'border-acento bg-acento-suave/40 ring-1 ring-acento/20'
+                            : 'border-borde bg-superficie hover:bg-panel/60'
                         }`}
                       >
-                        <MapPin className={`mt-0.5 h-4 w-4 shrink-0 ${isSel ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
+                        <MapPin className={`mt-0.5 h-4 w-4 shrink-0 ${seleccionada ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
                         <span className="min-w-0">
-                          <span className="block text-sm font-medium text-texto-principal">{ubic.nombre}</span>
-                          {ubic.direccion && <span className="mt-0.5 block text-xs leading-5 text-texto-secundario">{ubic.direccion}</span>}
+                          <span className="block text-sm font-medium text-texto-principal">{ubicacion.nombre}</span>
+                          {ubicacion.direccion && (
+                            <span className="mt-0.5 block text-xs leading-5 text-texto-secundario">{ubicacion.direccion}</span>
+                          )}
                         </span>
                       </button>
                     );
@@ -704,89 +889,307 @@ export default function NuevaReserva() {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
-                  {ubicacionesFiltradas.map((u) => (
+                  {ubicacionesFiltradas.map((ubicacion) => (
                     <Marker
-                      key={u.id}
-                      position={[parseFloat(u.latitud), parseFloat(u.longitud)]}
+                      key={ubicacion.id}
+                      position={[parseFloat(ubicacion.latitud), parseFloat(ubicacion.longitud)]}
                       icon={customMarkerIcon}
-                      eventHandlers={{ click: () => setUbicacionSeleccionada(u) }}
+                      eventHandlers={{ click: () => setUbicacionSeleccionada(ubicacion) }}
                     />
                   ))}
-                  <AjustarMapa
-                    puntos={ubicacionesFiltradas.map((u) => [parseFloat(u.latitud), parseFloat(u.longitud)])}
-                  />
+                  <AjustarMapa puntos={ubicacionesFiltradas.map((u) => [parseFloat(u.latitud), parseFloat(u.longitud)])} />
                   {ubicacionSeleccionada && (
                     <MapRecenter lat={parseFloat(ubicacionSeleccionada.latitud)} lng={parseFloat(ubicacionSeleccionada.longitud)} />
                   )}
                 </MapContainer>
               </div>
-              <Button onClick={irAPaso2} disabled={!ubicacionSeleccionada} className="hidden w-full md:inline-flex">
-                {cargando ? <Spinner /> : 'Continuar con estilista'}
+              <Button onClick={irAServicios} disabled={!ubicacionSeleccionada} className="hidden w-full md:inline-flex">
+                Continuar con servicios
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* STEP 2 */}
       {paso === 2 && (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <button type="button" onClick={volverAtras} className="inline-flex items-center gap-1 text-xs font-medium text-acento hover:underline">
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Volver
               </button>
-              <h2 className="mt-1 text-base font-semibold text-texto-principal">Elige estilista</h2>
-              <p className="mt-0.5 text-xs text-texto-secundario">Sede: {ubicacionSeleccionada?.nombre}</p>
+              <h2 className="mt-1 text-base font-semibold text-texto-principal">Elige tus servicios</h2>
+              <p className="mt-0.5 text-xs text-texto-secundario">
+                {ubicacionSeleccionada?.nombre} · hasta {maxServicios} servicios por cita.
+              </p>
             </div>
+            <Badge variant={seleccionados.length >= maxServicios ? 'warning' : 'accent'}>
+              {seleccionados.length}/{maxServicios} seleccionados
+            </Badge>
           </div>
 
-          {cargando ? (
-            <div className="flex justify-center py-12"><Spinner /></div>
-          ) : empleados.length === 0 ? (
-            <EmptyState title="No hay estilistas disponibles" description="Prueba con otra sede o revisa los próximos días." />
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {empleados.map((emp) => {
-                const isSel = empleadoSeleccionado?.id === emp.id;
-                return (
-                  <button
-                    key={emp.id}
-                    type="button"
-                    onClick={() => {
-                      setEmpleadoSeleccionado(emp);
-                      setTimeout(() => irAPaso3(emp), 180);
-                    }}
-                    className={`flex items-center gap-3 rounded-lg border p-3.5 text-left transition-colors ${
-                      isSel ? 'border-acento bg-acento-suave/40 ring-1 ring-acento/20' : 'border-borde bg-superficie hover:bg-panel/60'
-                    }`}
-                  >
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-activo text-sm font-semibold text-texto-secundario">
-                      {obtenerIniciales(`${emp.nombre || ''} ${emp.apellido || ''}`)}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-texto-principal">
-                        {emp.nombre} {emp.apellido}
-                      </span>
-                      <span className="mt-0.5 block truncate text-xs text-texto-secundario">
-                        {emp.especialidad || 'Elegir estilista'}
-                      </span>
-                    </span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-tenue" aria-hidden="true" />
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <Card padding={false} className="overflow-hidden">
+            <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
+              <aside className="border-b border-borde bg-panel/40 p-2 lg:border-b-0 lg:border-r">
+                <p className="hidden px-2 py-1 text-[11px] font-medium text-tenue lg:block">
+                  Categorías
+                </p>
+                <div className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+                  {categoriasCliente.map((categoria) => {
+                    const activa = String(categoriaActiva) === String(categoria.id);
+                    return (
+                      <button
+                        key={categoria.id}
+                        type="button"
+                        onClick={() => setCategoriaActiva(String(categoria.id))}
+                        aria-pressed={activa}
+                        className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs transition-colors lg:w-full ${
+                          activa
+                            ? 'bg-superficie font-medium text-texto-principal ring-1 ring-borde'
+                            : 'text-texto-secundario hover:bg-superficie/70 hover:text-texto-principal'
+                        }`}
+                      >
+                        <span className="whitespace-nowrap">{categoria.nombre}</span>
+                        <span className="num text-[10px] text-tenue">{categoria.total}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </aside>
 
-          <div className="flex justify-start border-t border-borde pt-4">
-            <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
+              <div className="min-w-0 p-4">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tenue" strokeWidth={1.7} aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={busquedaServicio}
+                    onChange={(evento) => setBusquedaServicio(evento.target.value)}
+                    placeholder="Buscar corte, barba, tinte..."
+                    aria-label="Buscar servicio"
+                    className="h-10 w-full rounded-md border border-control bg-superficie pl-9 pr-9 text-sm text-texto-principal placeholder:text-tenue/70 focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+                  />
+                  {busquedaServicio && (
+                    <button
+                      type="button"
+                      onClick={() => setBusquedaServicio('')}
+                      aria-label="Limpiar búsqueda"
+                      className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-tenue hover:bg-panel hover:text-texto-principal"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+
+                {cargando ? (
+                  <div className="flex justify-center py-12"><Spinner /></div>
+                ) : serviciosFiltrados.length === 0 ? (
+                  <EmptyState
+                    className="mt-4"
+                    title="No encontramos servicios"
+                    description="Prueba con otra palabra o cambia de categoría."
+                  />
+                ) : (
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {serviciosFiltrados.map((servicio) => {
+                      const seleccionado = seleccionados.some((item) => item.id === servicio.id);
+                      const bloqueado = !seleccionado && seleccionados.length >= maxServicios;
+                      return (
+                        <div
+                          key={servicio.id}
+                          className={`flex gap-3 rounded-lg border p-2.5 transition-colors sm:flex-col sm:gap-0 ${
+                            seleccionado
+                              ? 'border-acento bg-acento-suave/30 ring-1 ring-acento/20'
+                              : 'border-borde bg-superficie'
+                          }`}
+                        >
+                          <ImagenServicio src={servicio.imagen_url} nombre={servicio.nombre} />
+                          <div className="flex min-w-0 flex-1 flex-col sm:pt-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-medium text-tenue">
+                                  {servicio.categoria_nombre || 'Servicio'}
+                                </p>
+                                <p className="mt-0.5 truncate text-sm font-medium text-texto-principal">{servicio.nombre}</p>
+                              </div>
+                              {seleccionado && (
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-acento text-acento-texto">
+                                  <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
+                                </span>
+                              )}
+                            </div>
+                            {servicio.descripcion && (
+                              <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-texto-secundario">{servicio.descripcion}</p>
+                            )}
+                            <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+                              <div>
+                                <p className="num text-sm font-semibold text-texto-principal">{dinero(servicio.precio_base)}</p>
+                                <p className="mt-0.5 flex items-center gap-1 text-[10px] text-tenue">
+                                  <Clock className="h-3 w-3" strokeWidth={1.7} aria-hidden="true" />
+                                  {servicio.duracion_base_minutos || 30} min
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleServicio(servicio)}
+                                disabled={bloqueado}
+                                className={`h-7 rounded-md border px-2 text-[11px] font-medium transition-colors ${
+                                  seleccionado
+                                    ? 'border-acento/30 bg-superficie text-acento-tinta hover:bg-panel'
+                                    : bloqueado
+                                      ? 'cursor-not-allowed border-borde text-tenue opacity-50'
+                                      : 'border-control bg-superficie text-texto-principal hover:bg-panel'
+                                }`}
+                              >
+                                {seleccionado ? 'Quitar' : 'Agregar'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <div className="hidden items-center justify-between gap-3 border-t border-borde pt-4 md:flex">
+            <div className="text-xs text-texto-secundario">
+              {seleccionados.length === 0 ? (
+                'Elige al menos un servicio'
+              ) : (
+                <>
+                  <span className="font-medium text-texto-principal">{seleccionados.length} servicio(s)</span> ·{' '}
+                  {duracionTotal} min · <span className="num">{dinero(totalServicios)}</span>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
+              <Button onClick={irAEquipo} disabled={seleccionados.length === 0}>
+                Continuar con equipo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* STEP 3 */}
       {paso === 3 && (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <button type="button" onClick={volverAtras} className="inline-flex items-center gap-1 text-xs font-medium text-acento hover:underline">
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Volver
+              </button>
+              <h2 className="mt-1 text-base font-semibold text-texto-principal">Elige tu equipo</h2>
+              <p className="mt-0.5 text-xs text-texto-secundario">
+                Cada servicio puede tener un estilista distinto. El sistema propone uno disponible.
+              </p>
+            </div>
+            <Badge variant={equipoUnico ? 'accent' : 'info'}>
+              {equipoListo ? (equipoUnico ? 'Un estilista' : `${new Set(equipo.map((item) => item.empleado.id)).size} estilistas`) : 'Equipo pendiente'}
+            </Badge>
+          </div>
+
+          {cargandoEquipo ? (
+            <div className="flex justify-center py-12"><Spinner /></div>
+          ) : (
+            <div className="space-y-3">
+              {equipo.map((servicio) => {
+                const opciones = (empleadosPorServicio[servicio.id] || []).map((empleado) => ({
+                  value: String(empleado.id),
+                  label: `${empleado.nombre} ${empleado.apellido || ''}`,
+                  description: `${empleado.duracion_minutos || servicio.duracion_base_minutos} min · ${dinero(empleado.precio_base || servicio.precio_base)}`,
+                }));
+                return (
+                  <Card key={servicio.id} className="p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        {servicio.imagen_url ? (
+                          <img
+                            src={servicio.imagen_url}
+                            alt={`Imagen de ${servicio.nombre}`}
+                            className="h-12 w-12 rounded-md border border-borde object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="flex h-12 w-12 items-center justify-center rounded-md border border-borde bg-panel text-tenue">
+                            <ImageOff className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-medium text-tenue">
+                            {servicio.categoria_nombre || 'Servicio'}
+                          </p>
+                          <p className="truncate text-sm font-medium text-texto-principal">{servicio.nombre}</p>
+                          <p className="mt-0.5 text-[11px] text-texto-secundario">
+                            {servicio.duracion_base_minutos || 30} min · <span className="num">{dinero(servicio.precio_base)}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="w-full sm:w-72">
+                        {opciones.length === 0 ? (
+                          <div className="rounded-md border border-advertencia/30 bg-advertencia/10 p-3 text-xs text-advertencia">
+                            No hay estilistas en esta sede para este servicio.
+                          </div>
+                        ) : (
+                          <BuscadorSelect
+                            label="Estilista"
+                            value={asignaciones[servicio.id] || ''}
+                            onChange={(valor) => {
+                              setAsignaciones((prev) => ({ ...prev, [servicio.id]: valor }));
+                              setDisponibilidad({});
+                              setSlotSeleccionado(null);
+                              setDiaSeleccionado(null);
+                            }}
+                            options={opciones}
+                            placeholder="Buscar estilista..."
+                            allowClear={false}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+
+              {sinEstilista.length > 0 && (
+                <div className="rounded-lg border border-advertencia/30 bg-advertencia/10 p-4 text-xs leading-5 text-advertencia">
+                  {sinEstilista.length === 1
+                    ? `No hay estilistas para "${sinEstilista[0].nombre}" en ${ubicacionSeleccionada?.nombre}.`
+                    : `Hay ${sinEstilista.length} servicios sin estilista en esta sede.`}{' '}
+                  Puedes quitar esos servicios o cambiar de sede.
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button variant="secundario" size="sm" onClick={volverAtras}>Cambiar servicios</Button>
+                    <Button variant="secundario" size="sm" onClick={cambiarUbicacion}>Cambiar sede</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="hidden items-center justify-between gap-3 border-t border-borde pt-4 md:flex">
+            <div className="text-xs text-texto-secundario">
+              {equipoListo ? (
+                <>
+                  <Users className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
+                  {equipoUnico ? 'Un solo estilista' : 'Varios estilistas en secuencia'} · {duracionEquipo} min
+                </>
+              ) : (
+                'Completa el estilista de cada servicio'
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
+              <Button onClick={irAHorario} disabled={!equipoListo || cargandoEquipo}>
+                Continuar con horario <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paso === 4 && (
         <div className="space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -795,7 +1198,8 @@ export default function NuevaReserva() {
               </button>
               <h2 className="mt-1 text-base font-semibold text-texto-principal">Elige día y hora</h2>
               <p className="mt-0.5 text-xs text-texto-secundario">
-                Estilista: {empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido} · mínimo 60 min de anticipación.
+                {seleccionados.length} servicio(s) · {duracionEquipo} min ·{' '}
+                {equipoUnico ? 'un estilista' : `${new Set(equipo.map((item) => item.empleado.id)).size} estilistas`} · mínimo 60 min de anticipación.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -809,25 +1213,20 @@ export default function NuevaReserva() {
                       nueva.setDate(nueva.getDate() - 6);
                       const hoy = new Date();
                       hoy.setHours(0, 0, 0, 0);
-                      cargarCalendario(nueva < hoy ? hoy : nueva);
+                      cargarCalendario(nueva < hoy ? hoy : nueva, granularidad);
                     }}
-                    disabled={fechaBase.getTime() <= new Date().setHours(0, 0, 0, 0)}
                     aria-label="Ver 6 días anteriores"
                   >
                     ←
                   </Button>
                   <input
                     type="date"
-                    value={fechaBase ? `${fechaBase.getFullYear()}-${String(fechaBase.getMonth() + 1).padStart(2, '0')}-${String(fechaBase.getDate()).padStart(2, '0')}` : ''}
-                    min={(() => {
-                      const hoy = new Date();
-                      return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-                    })()}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        const partes = e.target.value.split('-').map(Number);
-                        cargarCalendario(new Date(partes[0], partes[1] - 1, partes[2]));
-                      }
+                    value={fechaBase ? formatearFechaLocal(fechaBase) : ''}
+                    min={formatearFechaLocal(new Date())}
+                    onChange={(evento) => {
+                      if (!evento.target.value) return;
+                      const [anio, mes, dia] = evento.target.value.split('-').map(Number);
+                      cargarCalendario(new Date(anio, mes - 1, dia), granularidad);
                     }}
                     className="h-8 rounded border-0 bg-transparent px-1 text-xs text-texto-principal focus:outline-none"
                     aria-label="Fecha de inicio"
@@ -838,7 +1237,7 @@ export default function NuevaReserva() {
                     onClick={() => {
                       const nueva = new Date(fechaBase);
                       nueva.setDate(nueva.getDate() + 6);
-                      cargarCalendario(nueva);
+                      cargarCalendario(nueva, granularidad);
                     }}
                     aria-label="Ver siguientes 6 días"
                   >
@@ -848,7 +1247,11 @@ export default function NuevaReserva() {
               )}
               <select
                 value={granularidad}
-                onChange={(e) => setGranularidad(Number(e.target.value))}
+                onChange={(evento) => {
+                  const valor = Number(evento.target.value);
+                  setGranularidad(valor);
+                  cargarCalendario(fechaBase || new Date(), valor);
+                }}
                 className="h-9 rounded-md border border-control bg-superficie px-2 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
                 aria-label="Intervalo de horarios"
               >
@@ -859,109 +1262,108 @@ export default function NuevaReserva() {
             </div>
           </div>
 
-          {cargando ? (
+          {cargandoCalendario ? (
             <div className="flex justify-center py-12"><Spinner /></div>
-          ) : (() => {
-            const maxInicio = Math.max(0, semana.length - 2);
-            const inicio = Math.min(diaInicioMovil, maxInicio);
-            const diasVisibles = isMobile ? semana.slice(inicio, inicio + 2) : semana;
-            
-            return (
-              <>
-                <Card padding={false} className="max-w-4xl mx-auto overflow-hidden">
-                  <div className="max-h-[42vh] overflow-x-auto overflow-y-auto scroll-thin">
-                    <table className={`w-full border-collapse text-xs ${isMobile ? '' : 'min-w-[700px]'}`}>
-                      <thead className="sticky top-0 z-20">
-                        <tr className="border-b border-borde bg-superficie">
-                          <th className="sticky left-0 z-30 w-24 border-b border-borde bg-superficie px-3 py-3 text-left text-[11px] font-medium text-texto-secundario">Hora</th>
-                          {diasVisibles.map((dia) => (
-                            <th key={dia.fecha} className="border-b border-borde px-2 py-2.5 text-center">
-                              <span className="block text-[10px] font-medium text-texto-secundario">{diasSem[dia.objetoFecha.getDay()]}</span>
-                              <span className="num block text-sm font-medium text-texto-principal">{dia.objetoFecha.getDate()}</span>
+          ) : semana.every((dia) => !(disponibilidad[dia.fecha]?.slots || []).length) ? (
+            <EmptyState
+              title="No hay horarios para este equipo"
+              description="Prueba con otros días, cambia un estilista o cambia de sede."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button variant="secundario" onClick={volverAtras}>Cambiar equipo</Button>
+                  <Button variant="secundario" onClick={cambiarUbicacion}>Cambiar sede</Button>
+                </div>
+              }
+            />
+          ) : (
+            (() => {
+              const maxInicio = Math.max(0, semana.length - 2);
+              const inicio = Math.min(diaInicioMovil, maxInicio);
+              const diasVisibles = isMobile ? semana.slice(inicio, inicio + 2) : semana;
+              return (
+                <>
+                  <Card padding={false} className="mx-auto max-w-4xl overflow-hidden">
+                    <div className="max-h-[46vh] overflow-x-auto overflow-y-auto scroll-thin">
+                      <table className={`w-full border-collapse text-xs ${isMobile ? '' : 'min-w-[760px]'}`}>
+                        <thead className="sticky top-0 z-20">
+                          <tr className="border-b border-borde bg-superficie">
+                            <th className="sticky left-0 z-30 w-20 border-b border-borde bg-superficie px-3 py-3 text-left text-[11px] font-medium text-texto-secundario">
+                              Hora
                             </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {generarSlotsDelDia().map((hora) => (
-                          <tr key={hora} className="transition-colors hover:bg-panel/50">
-                            <td className="sticky left-0 z-10 whitespace-nowrap border-b border-regla bg-superficie px-3 py-2 text-[11px] font-medium text-texto-secundario">{hora}</td>
-                            {diasVisibles.map((dia) => {
-                              const fueraDeDisponibilidad = esSlotFueraDeDisponibilidad(dia.fecha, hora);
-                              const ocupado = !fueraDeDisponibilidad && esSlotOcupado(dia.fecha, hora);
-                              const pasado = esSlotPasado(dia.fecha, hora);
-                              const antelacion = !pasado && !fueraDeDisponibilidad && !ocupado && esSlotAntelacion(dia.fecha, hora);
-                              const libre = !pasado && !fueraDeDisponibilidad && !ocupado && !antelacion;
-
-                              let clase = 'slot-libre';
-                              let label = 'Disponible';
-                              if (pasado) {
-                                clase = 'slot-pasado';
-                                label = 'Pasado';
-                              } else if (fueraDeDisponibilidad) {
-                                clase = 'slot-no-disponible';
-                                label = 'No disponible';
-                              } else if (ocupado) {
-                                clase = 'slot-ocupado';
-                                label = 'Ocupado';
-                              } else if (antelacion) {
-                                clase = 'slot-antelacion';
-                                label = '< 60 min';
-                              }
-
-                              return (
-                                <td key={dia.fecha} className="border-b border-r border-regla p-0.5 last:border-r-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => libre && handleSlotClick(dia, hora)}
-                                    disabled={!libre}
-                                    className={`relative w-full rounded px-1 py-1.5 text-[10px] font-medium transition-colors ${clase}`}
-                                  >
-                                    {label}
-                                  </button>
-                                </td>
-                              );
-                            })}
+                            {diasVisibles.map((dia) => (
+                              <th key={dia.fecha} className="border-b border-borde px-2 py-2.5 text-center">
+                                <span className="block text-[10px] font-medium text-texto-secundario">
+                                  {DIAS_CORTOS[dia.objetoFecha.getDay()]}
+                                </span>
+                                <span className="num block text-sm font-medium text-texto-principal">
+                                  {dia.objetoFecha.getDate()}
+                                </span>
+                              </th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-                {isMobile && (
-                  <div className="flex items-center justify-center gap-3 max-w-4xl mx-auto">
-                    <button
-                      type="button"
-                      onClick={() => setDiaInicioMovil(Math.max(0, inicio - 1))}
-                      disabled={inicio <= 0}
-                      aria-label="Ver días anteriores"
-                      className="px-3 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
-                    >
-                      ←
-                    </button>
-                    <span className="text-xs text-texto-secundario font-semibold">
-                      Días {inicio + 1}–{inicio + diasVisibles.length} de {semana.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setDiaInicioMovil(Math.min(maxInicio, inicio + 1))}
-                      disabled={inicio >= maxInicio}
-                      aria-label="Ver días siguientes"
-                      className="px-3 py-1.5 border border-borde rounded bg-superficie hover:bg-fondo text-xs font-semibold disabled:opacity-50 transition cursor-pointer"
-                    >
-                      →
-                    </button>
-                  </div>
-                )}
-              </>
-            );
-          })()}
+                        </thead>
+                        <tbody>
+                          {horas.map((hora) => (
+                            <tr key={hora} className="transition-colors hover:bg-panel/50">
+                              <td className="sticky left-0 z-10 whitespace-nowrap border-b border-regla bg-superficie px-3 py-2 text-[11px] font-medium text-texto-secundario">
+                                {hora}
+                              </td>
+                              {diasVisibles.map((dia) => {
+                                const estado = estadoCelda(dia, hora);
+                                return (
+                                  <td key={dia.fecha} className="border-b border-r border-regla p-0.5 last:border-r-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSlotClick(dia, hora)}
+                                      disabled={!estado.disponible}
+                                      title={estado.disponible ? `Elegir ${hora} con ${equipo.map((item) => item.empleado?.nombre).filter(Boolean).join(', ')}` : estado.label}
+                                      className={`relative w-full rounded px-1 py-1.5 text-[10px] font-medium transition-colors ${estado.clase}`}
+                                    >
+                                      {estado.label}
+                                    </button>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                  {isMobile && (
+                    <div className="mx-auto flex max-w-4xl items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setDiaInicioMovil(Math.max(0, inicio - 1))}
+                        disabled={inicio <= 0}
+                        aria-label="Ver días anteriores"
+                        className="rounded border border-borde bg-superficie px-3 py-1.5 text-xs font-semibold transition hover:bg-panel disabled:opacity-50"
+                      >
+                        ←
+                      </button>
+                      <span className="text-xs font-semibold text-texto-secundario">
+                        Días {inicio + 1}–{inicio + diasVisibles.length} de {semana.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDiaInicioMovil(Math.min(maxInicio, inicio + 1))}
+                        disabled={inicio >= maxInicio}
+                        aria-label="Ver días siguientes"
+                        className="rounded border border-borde bg-superficie px-3 py-1.5 text-xs font-semibold transition hover:bg-panel disabled:opacity-50"
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()
+          )}
 
           <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-x-5 gap-y-2 border-t border-borde pt-4 text-[11px] text-texto-secundario">
-            <span className="flex items-center gap-1.5"><span className="slot-libre h-3.5 w-3.5 rounded-sm border" /> Disponible</span>
-            <span className="flex items-center gap-1.5"><span className="slot-ocupado h-3.5 w-3.5 rounded-sm border" /> Ocupado</span>
-            <span className="flex items-center gap-1.5"><span className="slot-pasado h-3.5 w-3.5 rounded-sm border" /> Pasado</span>
+            <span className="flex items-center gap-1.5"><span className="slot-libre h-3.5 w-3.5 rounded-sm border" /> Libre</span>
             <span className="flex items-center gap-1.5"><span className="slot-no-disponible h-3.5 w-3.5 rounded-sm border" /> No disponible</span>
+            <span className="flex items-center gap-1.5"><span className="slot-pasado h-3.5 w-3.5 rounded-sm border" /> Pasado</span>
             <span className="flex items-center gap-1.5"><span className="slot-antelacion h-3.5 w-3.5 rounded-sm border" /> Anticipación &lt;60m</span>
           </div>
 
@@ -971,97 +1373,116 @@ export default function NuevaReserva() {
         </div>
       )}
 
-      {/* STEP 4 */}
-      <Modal
-        open={paso === 4 && !!diaSeleccionado && !!slotSeleccionado}
-        onClose={volverAtras}
-        title="Confirma tu cita"
-      >
-        {diaSeleccionado && slotSeleccionado && (
-          <div className="space-y-5">
-            <div className="rounded-md border border-borde bg-panel/50 p-3.5">
-              <div className="grid grid-cols-2 gap-y-2 text-sm">
-                <span className="text-texto-secundario">Sede</span>
-                <span className="text-right font-medium text-texto-principal">{ubicacionSeleccionada?.nombre}</span>
-                <span className="text-texto-secundario">Estilista</span>
-                <span className="text-right font-medium text-texto-principal">{empleadoSeleccionado?.nombre} {empleadoSeleccionado?.apellido}</span>
-                <span className="text-texto-secundario">Fecha</span>
-                <span className="text-right font-medium capitalize text-texto-principal">{fechaBonita(diaSeleccionado.fecha)}</span>
-                <span className="text-texto-secundario">Horario</span>
-                <span className="num text-right font-medium text-texto-principal">
-                  {slotSeleccionado} → {calcularHoraFin()} ({duracionSeleccionada} min)
-                </span>
-              </div>
+      {paso === 5 && slotSeleccionado && diaSeleccionado && (
+        <div className="space-y-5">
+          <div>
+            <button type="button" onClick={volverAtras} className="inline-flex items-center gap-1 text-xs font-medium text-acento hover:underline">
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Volver al horario
+            </button>
+            <h2 className="mt-1 text-base font-semibold text-texto-principal">Confirma tu cita</h2>
+            <p className="mt-0.5 text-xs text-texto-secundario">Revisa los servicios, el equipo y el total antes de reservar.</p>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-4">
+              <Card className="p-4">
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  <span className="text-texto-secundario">Sede</span>
+                  <span className="text-right font-medium text-texto-principal">{ubicacionSeleccionada?.nombre}</span>
+                  <span className="text-texto-secundario">Fecha</span>
+                  <span className="text-right font-medium text-texto-principal">{fechaBonita(diaSeleccionado.fecha)}</span>
+                  <span className="text-texto-secundario">Inicio</span>
+                  <span className="num text-right font-medium text-texto-principal">{horaDeIso(slotSeleccionado.inicia_en)}</span>
+                  <span className="text-texto-secundario">Fin</span>
+                  <span className="num text-right font-medium text-texto-principal">{horaDeIso(slotSeleccionado.termina_en)}</span>
+                  <span className="text-texto-secundario">Duración</span>
+                  <span className="text-right font-medium text-texto-principal">{duracionPlan} min</span>
+                </div>
+              </Card>
+
+              <Card padding={false} className="overflow-hidden">
+                <div className="border-b border-borde bg-panel/40 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-texto-principal">Servicios y equipo</h3>
+                </div>
+                <div className="divide-y divide-regla">
+                  {(slotSeleccionado.plan || []).map((segmento) => (
+                    <div key={`${segmento.servicio_id}-${segmento.orden}`} className="flex items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-texto-principal">{segmento.nombre}</p>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-texto-secundario">
+                          <span>{segmento.empleado_nombre}</span>
+                          <span className="text-tenue">·</span>
+                          <span className="num">{horaDeIso(segmento.inicia_en)}–{horaDeIso(segmento.termina_en)}</span>
+                          <span className="text-tenue">·</span>
+                          <span>{segmento.duracion_minutos} min</span>
+                        </p>
+                      </div>
+                      <span className="num shrink-0 text-sm font-medium text-texto-principal">{dinero(segmento.precio)}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label htmlFor="servicio-reserva" className="mb-1.5 block text-xs font-medium text-texto-principal">
-                  Servicio
-                </label>
-                <select
-                  id="servicio-reserva"
-                  value={servicioSeleccionado}
-                  onChange={(e) => setServicioSeleccionado(e.target.value)}
-                  className="h-10 w-full rounded-md border border-control bg-superficie px-3 text-sm text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
-                >
-                  {servicios.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre} ({s.duracion_base_minutos || s.duracion || 30} min · ${parseFloat(s.precio_base || s.precio || 0).toLocaleString('es-CO')})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 items-end gap-4">
-                <div>
-                  <span className="mb-1.5 block text-xs font-medium text-texto-principal">Personas</span>
-                  <div className="flex items-center gap-2" role="group" aria-label="Cantidad de personas">
-                    <button
-                      type="button"
-                      aria-label="Quitar una persona"
-                      onClick={() => setCantidad((c) => Math.max(1, c - 1))}
-                      className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
-                    >
-                      −
-                    </button>
-                    <span className="num w-8 text-center text-sm font-medium" aria-live="polite">{cantidad}</span>
-                    <button
-                      type="button"
-                      aria-label="Agregar una persona"
-                      onClick={() => setCantidad((c) => Math.min(5, c + 1))}
-                      className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
-                    >
-                      +
-                    </button>
+              <Card className="p-4">
+                <span className="text-[11px] text-texto-secundario">Personas</span>
+                <div className="mt-1.5 flex items-center gap-2" role="group" aria-label="Cantidad de personas">
+                  <button
+                    type="button"
+                    aria-label="Quitar una persona"
+                    onClick={() => setCantidad((valor) => Math.max(1, valor - 1))}
+                    className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
+                  >
+                    −
+                  </button>
+                  <span className="num w-8 text-center text-sm font-medium" aria-live="polite">{cantidad}</span>
+                  <button
+                    type="button"
+                    aria-label="Agregar una persona"
+                    onClick={() => setCantidad((valor) => Math.min(5, valor + 1))}
+                    className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="mt-4 border-t border-borde pt-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-texto-secundario">Servicios</span>
+                    <span className="num text-texto-principal">{dinero(totalServicios)}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-texto-secundario">Personas</span>
+                    <span className="num text-texto-principal">× {cantidad}</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-borde pt-3">
+                    <span className="text-sm font-medium text-texto-principal">Total estimado</span>
+                    <span className="num text-xl font-semibold text-texto-principal">{dinero(totalServicios * cantidad)}</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-texto-secundario">Total estimado</span>
-                  <p className="num text-2xl font-medium text-texto-principal">${totalPrecio.toLocaleString('es-CO')}</p>
-                </div>
+                <p className="mt-3 text-[11px] leading-5 text-tenue">
+                  El monto final se calcula en el servidor al confirmar la reserva. La disponibilidad puede cambiar mientras completas el pago.
+                </p>
+              </Card>
+
+              <div className="hidden gap-2 md:flex">
+                <Button variant="secundario" className="flex-1" onClick={volverAtras}>Atrás</Button>
+                <Button className="flex-1" onClick={handleCrearReserva} disabled={creando}>
+                  {creando ? <Spinner /> : 'Confirmar reserva'}
+                </Button>
               </div>
             </div>
-
-            <p className="text-[11px] leading-5 text-tenue">
-              El monto final se calcula en el servidor al confirmar la reserva. La disponibilidad puede cambiar mientras completas el pago.
-            </p>
-
-            <div className="flex gap-2 border-t border-borde pt-4">
-              <Button variant="secundario" className="flex-1" onClick={volverAtras}>Atrás</Button>
-              <Button className="flex-1" onClick={handleCrearReserva} disabled={cargando}>
-                {cargando ? <Spinner /> : 'Confirmar reserva'}
-              </Button>
-            </div>
           </div>
-        )}
-      </Modal>
+        </div>
+      )}
 
-      {paso === 5 && reservaCreada && (
+      {paso === 6 && reservaCreada && (
         <div className="space-y-5">
           <div>
             <h2 className="text-base font-semibold text-texto-principal">Elige cómo pagar</h2>
-            <p className="mt-0.5 text-xs text-texto-secundario">Tu cita ya está registrada. El pago en línea o en efectivo la deja lista.</p>
+            <p className="mt-0.5 text-xs text-texto-secundario">
+              Tu cita ya está registrada. El pago en línea o en efectivo la deja lista.
+            </p>
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
@@ -1082,12 +1503,8 @@ export default function NuevaReserva() {
                 </div>
               )}
               <div className="mt-3 flex flex-wrap justify-center gap-2">
-                <Button variant="secundario" size="sm" onClick={descargarQR}>
-                  Descargar QR
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/cliente')}>
-                  Ir a mis citas
-                </Button>
+                <Button variant="secundario" size="sm" onClick={descargarQR}>Descargar QR</Button>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/cliente')}>Ir a mis citas</Button>
               </div>
             </div>
 
@@ -1141,7 +1558,7 @@ export default function NuevaReserva() {
                     </div>
                   </div>
                   <p className="text-xs leading-5 text-texto-secundario">
-                    Total: <strong className="num text-texto-principal">${totalPrecio.toLocaleString('es-CO')}</strong>. El cobro lo procesa Wompi; el SGP no almacena datos de tarjeta.
+                    Total: <strong className="num text-texto-principal">{dinero(totalReserva)}</strong>. El cobro lo procesa Wompi; el SGP no almacena datos de tarjeta.
                   </p>
                   {pagoMensaje && (
                     <p
@@ -1178,7 +1595,7 @@ export default function NuevaReserva() {
                         <input
                           type="text"
                           value={transaccionManual}
-                          onChange={(e) => setTransaccionManual(e.target.value)}
+                          onChange={(evento) => setTransaccionManual(evento.target.value)}
                           placeholder="01-1531231271-19365"
                           className="h-9 w-full rounded-md border border-control bg-superficie px-3 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
                         />
@@ -1204,14 +1621,41 @@ export default function NuevaReserva() {
               )}
             </div>
           </div>
-
         </div>
       )}
 
       {paso === 1 && (
         <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-30 border-t border-borde bg-superficie p-3 md:hidden">
-          <Button onClick={irAPaso2} disabled={!ubicacionSeleccionada || cargando} className="w-full">
-            {cargando ? <Spinner /> : 'Continuar con estilista'}
+          <Button onClick={irAServicios} disabled={!ubicacionSeleccionada || cargando} className="w-full">
+            Continuar con servicios
+          </Button>
+        </div>
+      )}
+
+      {paso === 2 && (
+        <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-30 border-t border-borde bg-superficie p-3 md:hidden">
+          <div className="mb-2 flex items-center justify-between text-[11px] text-texto-secundario">
+            <span>{seleccionados.length} servicio(s) · {duracionTotal} min</span>
+            <span className="num font-medium text-texto-principal">{dinero(totalServicios)}</span>
+          </div>
+          <Button onClick={irAEquipo} disabled={seleccionados.length === 0} className="w-full">
+            Continuar con equipo
+          </Button>
+        </div>
+      )}
+
+      {paso === 3 && (
+        <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-30 border-t border-borde bg-superficie p-3 md:hidden">
+          <Button onClick={irAHorario} disabled={!equipoListo || cargandoEquipo} className="w-full">
+            Continuar con horario
+          </Button>
+        </div>
+      )}
+
+      {paso === 5 && (
+        <div className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom,0px))] z-30 border-t border-borde bg-superficie p-3 md:hidden">
+          <Button onClick={handleCrearReserva} disabled={creando} className="w-full">
+            {creando ? <Spinner /> : `Confirmar reserva · ${dinero(totalServicios * cantidad)}`}
           </Button>
         </div>
       )}

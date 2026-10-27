@@ -178,6 +178,30 @@ status, data = req('POST', '/reservas', {
 reserva3 = data.get('data') or {}
 check('Tercera reserva para pago digital', status == 201 and bool(reserva3.get('id')), f'{status} {data}')
 
+inicio4_local = datetime(lunes.year, lunes.month, lunes.day, 13, 0, tzinfo=BOGOTA)
+inicia4 = inicio4_local.astimezone(ZoneInfo('UTC')).isoformat().replace('+00:00', 'Z')
+status, data = req('POST', '/reservas', {
+    'empleado_id': empleado_id, 'ubicacion_id': ubicacion_id,
+    'inicia_en': inicia4, 'cantidad_personas': 1,
+    'servicios': [
+        {'servicio_id': 1, 'empleado_id': empleado_id},
+        {'servicio_id': 2, 'empleado_id': empleado_id},
+    ],
+}, token_cli)
+reserva4 = data.get('data') or {}
+check('Reserva con dos servicios creada', status == 201 and len(reserva4.get('servicios', [])) == 2, f'{status} {data}')
+inicio4_dt = datetime.fromisoformat(reserva4.get('inicia_en', '').replace('Z', '+00:00'))
+fin4_dt = datetime.fromisoformat(reserva4.get('termina_en', '').replace('Z', '+00:00'))
+check('Duracion de la reserva combo = suma de servicios', (fin4_dt - inicio4_dt) == timedelta(minutes=75), (fin4_dt - inicio4_dt))
+check('Precio congelado del combo = suma de servicios', float(reserva4.get('precio_total', 0)) == 85000, reserva4.get('precio_total'))
+
+status, data = req('POST', '/pagos/intencion', {'reserva_id': reserva4.get('id')}, token_cli)
+combo_intencion = data.get('data') or {}
+check('Intencion de pago del combo usa el total', status == 201 and combo_intencion.get('monto_en_centavos') == 8500000, f'{status} {data}')
+
+status, _ = req('DELETE', f"/reservas/me/{reserva4.get('id')}", token=token_cli)
+check('Cancelar reserva combo de prueba', status == 200, status)
+
 status, data = req('POST', '/pagos/intencion', {'reserva_id': reserva3.get('id')}, token_cli)
 intencion = data.get('data') or {}
 check('Intencion de pago Wompi creada (201)', status == 201 and intencion.get('monto_en_centavos') == 6000000, f'{status} {data}')

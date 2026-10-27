@@ -73,6 +73,16 @@ La fuente de verdad de los tokens es `frontend/src/index.css`. Los componentes b
 - QR siempre sobre blanco; mapas con filtro solo al tile pane.
 - Probar ambos temas en 1440, 768 y 390, y el modo sistema en oscuro y claro.
 
+## Catálogo y reservas multi-servicio
+
+- Jerarquía: `servicio_categoria` (título) → `servicio_catalogo` (servicio). El admin crea ambos.
+- Cada servicio tiene imagen opcional, descripción, precio, duración y estado activo/inactivo.
+- El cliente elige 1..N servicios; el máximo se configura en el admin (`configuracion.max_servicios_reserva`).
+- Cada servicio puede tener un estilista distinto; el calendario valida la secuencia completa.
+- `reserva_servicio` guarda servicio, estilista, horario y precio/duración congelados. No mostrar precios actuales del catálogo en reservas existentes.
+- Las listas largas (empleados, servicios, categorías) usan `BuscadorSelect`; la búsqueda de servicios del cliente filtra tarjetas en vivo.
+- Las imágenes de servicio se comprimen antes de subirlas y se muestran con placeholder `ImageOff` cuando faltan.
+
 ## Movimiento
 
 - Press: `scale(0.97)`, 120ms, `--ease-out`.
@@ -97,7 +107,8 @@ Ademas, revisar en Chromium a 1440, 768 y 390:
 - acciones sticky visibles;
 - sin scroll horizontal;
 - consola sin errores;
-- tema claro y oscuro, y persistencia de `sgp_tema`.
+- tema claro y oscuro, y persistencia de `sgp_tema`;
+- carrito multi-servicio, equipo por servicio y calendario combinado sin desbordes.
 
 ## Cierre
 

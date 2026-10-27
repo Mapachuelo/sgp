@@ -6,9 +6,10 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const ESTADOS_CERRADOS = new Set(['cancelada', 'cobrado']);
 
 function validarAcceso(reserva, usuario) {
-  if (usuario?.rol === 'empleado' && reserva.empleado_id !== usuario.id) {
-    throw new HttpError(403, 'La reserva pertenece a otro empleado');
-  }
+  if (usuario?.rol !== 'empleado') return;
+  if (reserva.empleado_id === usuario.id) return;
+  if (Array.isArray(reserva.empleados_ids) && reserva.empleados_ids.includes(usuario.id)) return;
+  throw new HttpError(403, 'La reserva pertenece a otro empleado');
 }
 
 function validarQr(qr_token) {
@@ -35,7 +36,7 @@ function parsearMonto(valor) {
 }
 
 function resumen(reserva, pagoAprobado, ultimoPago, cobro) {
-  const total = Number(reserva.precio_base) * Number(reserva.cantidad_personas || 1);
+  const total = Number(reserva.precio_total) * Number(reserva.cantidad_personas || 1);
   const pagoMonto = pagoAprobado ? Number(pagoAprobado.monto) : ultimoPago ? Number(ultimoPago.monto) : null;
   const monto = cobro ? Number(cobro.monto) : pagoAprobado ? Number(pagoAprobado.monto) : total;
   const pagado = Boolean(pagoAprobado || cobro);
@@ -53,7 +54,8 @@ function resumen(reserva, pagoAprobado, ultimoPago, cobro) {
     inicia_en: reserva.inicia_en,
     termina_en: reserva.termina_en,
     cantidad_personas: reserva.cantidad_personas,
-    precio_base: Number(reserva.precio_base),
+    precio_total: Number(reserva.precio_total),
+    precio_base: Number(reserva.precio_total),
     total,
     llego_en: reserva.llego_en,
     inicio_servicio: reserva.inicio_servicio,
@@ -221,7 +223,7 @@ const checkinService = {
       if (reserva.estado === 'cancelada') throw new HttpError(409, 'La reserva esta cancelada');
       if (reserva.estado === 'cobrado') throw new HttpError(409, 'La reserva ya fue cobrada');
 
-      const total = Number(reserva.precio_base) * Number(reserva.cantidad_personas || 1);
+      const total = Number(reserva.precio_total) * Number(reserva.cantidad_personas || 1);
       const ahora = new Date();
       const inicio = new Date(reserva.inicia_en);
       const diffMin = (ahora - inicio) / (1000 * 60);

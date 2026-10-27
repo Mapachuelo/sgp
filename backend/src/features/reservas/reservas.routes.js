@@ -5,6 +5,16 @@ const { authenticate, authorize } = require('../../shared/middlewares/auth.middl
 const router = Router();
 
 router.get('/empleados-disponibles', reservasController.empleadosDisponibles);
+router.get('/empleados-por-servicio', reservasController.empleadosPorServicio);
+router.post('/disponibilidad-combo', reservasController.disponibilidadCombo);
+
+router.get('/configuracion', reservasController.getConfiguracion);
+router.put('/configuracion', authenticate, authorize('admin'), reservasController.updateConfiguracion);
+
+router.get('/categorias', reservasController.listarCategorias);
+router.post('/categorias', authenticate, authorize('admin'), reservasController.crearCategoria);
+router.put('/categorias/:id', authenticate, authorize('admin'), reservasController.actualizarCategoria);
+router.delete('/categorias/:id', authenticate, authorize('admin'), reservasController.eliminarCategoria);
 
 router.get('/servicios', reservasController.listarServicios);
 router.post('/servicios', authenticate, authorize('admin'), reservasController.crearServicio);

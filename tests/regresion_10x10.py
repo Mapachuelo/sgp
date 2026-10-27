@@ -174,15 +174,31 @@ check('Eliminar sede', status == 200, status)
 
 status, data = req('GET', '/reservas/servicios')
 check('Listar servicios', status == 200 and len(data.get('data', [])) >= 5, len(data.get('data', [])))
+status, data = req('GET', '/reservas/categorias')
+check('Listar categorias', status == 200 and len(data.get('data', [])) >= 5, len(data.get('data', [])))
+status, data = req('GET', '/reservas/configuracion')
+check('Leer configuracion de reservas', status == 200 and int((data.get('data') or {}).get('max_servicios_reserva', 0)) >= 1, data)
+status, data = req('PUT', '/reservas/configuracion', {'max_servicios_reserva': 5}, admin)
+check('Actualizar maximo de servicios', status == 200 and int((data.get('data') or {}).get('max_servicios_reserva', 0)) == 5, data)
+status, data = req('PUT', '/reservas/configuracion', {'max_servicios_reserva': 99}, admin)
+check('Rechazar maximo fuera de rango', status == 400, status)
+status, data = req('POST', '/reservas/categorias', {
+    'nombre': f'Categoria Regresion {int(time.time())}', 'descripcion': 'Prueba', 'orden': 60,
+}, admin)
+categoria_id = (data.get('data') or {}).get('id')
+check('Crear categoria', status == 201 and bool(categoria_id), f'{status} {data}')
 status, data = req('POST', '/reservas/servicios', {
-    'nombre': 'Servicio Regresion', 'descripcion': 'Prueba', 'precio_base': 10000, 'duracion_base_minutos': 20,
+    'nombre': 'Servicio Regresion', 'descripcion': 'Prueba', 'precio_base': 10000,
+    'duracion_base_minutos': 20, 'categoria_id': categoria_id,
 }, admin)
 servicio_id = (data.get('data') or {}).get('id')
-check('Crear servicio', status == 201 and bool(servicio_id), f'{status} {data}')
-status, data = req('PUT', f'/reservas/servicios/{servicio_id}', {'precio_base': 12000}, admin)
+check('Crear servicio con categoria', status == 201 and bool(servicio_id), f'{status} {data}')
+status, data = req('PUT', f'/reservas/servicios/{servicio_id}', {'precio_base': 12000, 'duracion_base_minutos': 25}, admin)
 check('Editar servicio', status == 200 and float(data.get('data', {}).get('precio_base', 0)) == 12000, data)
 status, _ = req('DELETE', f'/reservas/servicios/{servicio_id}', token=admin)
 check('Eliminar servicio', status == 200, status)
+status, _ = req('DELETE', f'/reservas/categorias/{categoria_id}', token=admin)
+check('Eliminar categoria vacia', status == 200, status)
 
 status, data = req('GET', '/auth/empleados', token=admin)
 check('Admin lista 10 empleados', status == 200 and len(data.get('data', [])) >= 10, len(data.get('data', [])))

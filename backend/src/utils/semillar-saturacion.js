@@ -24,11 +24,12 @@ async function main() {
     const empleadoId = empRes.rows[0].id;
 
     // 3. Obtener un Servicio
-    const srvRes = await pool.query('SELECT id FROM servicio_catalogo LIMIT 1');
+    const srvRes = await pool.query('SELECT id, nombre, precio_base, duracion_base_minutos FROM servicio_catalogo WHERE activo = TRUE LIMIT 1');
     if (srvRes.rows.length === 0) {
       throw new Error('No hay servicios registrados en la base de datos.');
     }
-    const servicioId = srvRes.rows[0].id;
+    const servicio = srvRes.rows[0];
+    const servicioId = servicio.id;
 
     // 4. Asegurar que exista al menos un cliente de prueba
     let clienteId;
@@ -64,9 +65,10 @@ async function main() {
       
       const estado = estados[i % estados.length];
       
-      await pool.query(`
+      const reserva = await pool.query(`
         INSERT INTO reserva (cliente_id, empleado_id, servicio_id, ubicacion_id, inicia_en, termina_en, cantidad_personas, estado)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
       `, [
         clienteId,
         empleadoId,
@@ -76,6 +78,20 @@ async function main() {
         terminaEn.toISOString(),
         (i % 3) + 1, // Cantidad de personas (1 a 3)
         estado
+      ]);
+      await pool.query(`
+        INSERT INTO reserva_servicio
+          (reserva_id, servicio_id, empleado_id, nombre, precio, duracion_minutos, inicia_en, termina_en, orden)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1)
+      `, [
+        reserva.rows[0].id,
+        servicioId,
+        empleadoId,
+        servicio.nombre,
+        servicio.precio_base,
+        15,
+        iniciaEn.toISOString(),
+        terminaEn.toISOString(),
       ]);
     }
 

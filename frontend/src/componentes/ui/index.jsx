@@ -341,7 +341,7 @@ export function Modal({ open, onClose, children, title, size = 'normal' }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center overlay p-0 animate-fade-in sm:items-center sm:p-4"
+      className="fixed inset-0 z-[90] flex items-end justify-center overlay p-0 animate-fade-in sm:items-center sm:p-4"
       onClick={onClose}
       role="presentation"
     >
@@ -457,7 +457,7 @@ export function Skeleton({ className = '' }) {
 
 export function Tabs({ items = [], value, onChange, className = '', label = 'Secciones' }) {
   return (
-    <div className={cn('flex gap-5 overflow-x-auto border-b border-borde', className)} role="tablist" aria-label={label}>
+    <div className={cn('flex gap-5 overflow-x-auto overflow-y-hidden border-b border-borde', className)} role="tablist" aria-label={label}>
       {items.map((item) => {
         const activo = item.value === value;
         return (
@@ -572,3 +572,5 @@ export function Avatar({ nombre = '', apellido = '', size = 'md', className = ''
     </span>
   );
 }
+
+export { default as BuscadorSelect } from './buscador-select.jsx';

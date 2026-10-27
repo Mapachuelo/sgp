@@ -216,6 +216,59 @@ verificar "GET /ubicaciones publico devuelve 200" "200" "$RESP"
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/servicios")
 verificar "GET /reservas/servicios publico devuelve 200" "200" "$RESP"
 
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/categorias")
+verificar "GET /reservas/categorias publico devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/configuracion")
+verificar "GET /reservas/configuracion publico devuelve 200" "200" "$RESP"
+MAX_SERVICIOS=$(grep -o '"max_servicios_reserva":[0-9]*' /tmp/sgp_resp.json | cut -d: -f2)
+[ -n "$MAX_SERVICIOS" ] && echo "INFO: maximo configurado de servicios por reserva: $MAX_SERVICIOS"
+
+SUFIJO_API=$(date +%s)
+RESP=$(curl -s -o /tmp/sgp_categoria.json -w "%{http_code}" -X POST "$BASE_URL/reservas/categorias" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d "{\"nombre\":\"Categoria API $SUFIJO_API\",\"descripcion\":\"Prueba\",\"orden\":50}")
+verificar "Crear categoria (admin) devuelve 201" "201" "$RESP"
+CATEGORIA_ID=$(grep -o '"id":[0-9]*' /tmp/sgp_categoria.json | head -1 | cut -d: -f2)
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/reservas/servicios" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d "{\"nombre\":\"Servicio API $SUFIJO_API\",\"descripcion\":\"Prueba\",\"precio_base\":10000,\"duracion_base_minutos\":25,\"categoria_id\":$CATEGORIA_ID}")
+verificar "Crear servicio con categoria devuelve 201" "201" "$RESP"
+SERVICIO_ID=$(grep -o '"id":[0-9]*' /tmp/sgp_resp.json | head -1 | cut -d: -f2)
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X PUT "$BASE_URL/reservas/servicios/$SERVICIO_ID" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"precio_base":12000,"duracion_base_minutos":30,"activo":false}')
+verificar "Editar duracion, precio y estado del servicio devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/reservas/servicios" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d "{\"nombre\":\"Servicio Imagen Invalida $SUFIJO_API\",\"precio_base\":10000,\"duracion_base_minutos\":20,\"categoria_id\":$CATEGORIA_ID,\"imagen_url\":\"data:image/svg+xml;base64,PHN2Zy8+\"}")
+verificar "Rechazar imagen SVG en servicio devuelve 400" "400" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/reservas/servicios/$SERVICIO_ID" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "Eliminar servicio sin reservas devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/reservas/categorias/$CATEGORIA_ID" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "Eliminar categoria vacia devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$BASE_URL/reservas/configuracion"   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN"   -d '{"max_servicios_reserva":5}')
+verificar "Actualizar maximo de servicios (admin) devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$BASE_URL/reservas/configuracion"   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN"   -d '{"max_servicios_reserva":99}')
+verificar "Rechazar maximo de servicios fuera de rango devuelve 400" "400" "$RESP"
+
+UBICACION_API=$(sql "SELECT id FROM ubicacion LIMIT 1")
+SERVICIO_COMBO=$(sql "SELECT id FROM servicio_catalogo WHERE activo = TRUE LIMIT 1")
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/empleados-por-servicio?ubicacion_id=$UBICACION_API&servicio_id=$SERVICIO_COMBO")
+verificar "GET /reservas/empleados-por-servicio devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/reservas/disponibilidad-combo"   -H "Content-Type: application/json" -d '{}')
+verificar "Combo sin datos devuelve 400" "400" "$RESP"
+
 echo ""
 echo "Resultados: $PASS pasadas, $FAIL fallidas"
 echo "Nota: el codigo OTP real llega por correo; verificar la cuenta manualmente con el codigo recibido."

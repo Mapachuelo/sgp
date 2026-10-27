@@ -39,12 +39,26 @@ validar "Reservas cobradas sin registro de cobro" \
 validar "Citas fuera de la disponibilidad del empleado" \
   "SELECT COUNT(*) FROM reserva r JOIN app_user u ON u.id = r.empleado_id WHERE u.email LIKE '%@demo.sgp' AND r.estado IN ('pendiente','confirmada') AND NOT EXISTS (SELECT 1 FROM empleado_disponibilidad ed WHERE ed.empleado_id = r.empleado_id AND ed.ubicacion_id = r.ubicacion_id AND ed.dia_semana = EXTRACT(ISODOW FROM (r.inicia_en AT TIME ZONE 'America/Bogota'))::int AND (r.inicia_en AT TIME ZONE 'America/Bogota')::time >= ed.hora_inicio AND (r.termina_en AT TIME ZONE 'America/Bogota')::time <= ed.hora_fin)"
 
+validar "Servicios sin categoria" \
+  "SELECT COUNT(*) FROM servicio_catalogo WHERE categoria_id IS NULL"
+
+validar "Reservas sin detalle en reserva_servicio" \
+  "SELECT COUNT(*) FROM reserva r WHERE NOT EXISTS (SELECT 1 FROM reserva_servicio rs WHERE rs.reserva_id = r.id)"
+
+validar "Segmentos con estilista que no ofrece el servicio" \
+  "SELECT COUNT(*) FROM reserva_servicio rs WHERE rs.servicio_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM empleado_tiempo_servicio etp WHERE etp.empleado_id = rs.empleado_id AND etp.servicio_id = rs.servicio_id)"
+
+validar "Segmentos con precio negativo o duracion invalida" \
+  "SELECT COUNT(*) FROM reserva_servicio WHERE precio < 0 OR duracion_minutos <= 0"
+
 echo ""
 echo "Datos actuales:"
 podman exec "$CONTENEDOR_DB" psql -U sgp_user -d sgp -c \
   "SELECT (SELECT COUNT(*) FROM app_user WHERE email LIKE '%@demo.sgp') AS usuarios_demo,
           (SELECT COUNT(*) FROM ubicacion WHERE nombre LIKE 'Demo %') AS sedes_demo,
           (SELECT COUNT(*) FROM servicio_catalogo WHERE nombre LIKE 'Demo %') AS servicios_demo,
+          (SELECT COUNT(*) FROM servicio_categoria) AS categorias,
+          (SELECT COUNT(*) FROM reserva_servicio) AS segmentos,
           (SELECT COUNT(*) FROM empleado_disponibilidad) AS bloques_disponibilidad,
           (SELECT COUNT(*) FROM reserva) AS reservas,
           (SELECT COUNT(*) FROM cobro) AS cobros;"

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
-import { Badge, Button, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { Badge, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
 import CampoTelefono from '../../../componentes/telefono/campo-telefono.jsx';
 import { SheetAdmin } from './navegacion.jsx';
 import api from '../../../api/cliente.js';
@@ -54,6 +54,8 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [sedeActiva, setSedeActiva] = useState(null);
   const [busqueda, setBusqueda] = useState('');
+  const [busquedaServicios, setBusquedaServicios] = useState('');
+  const [categoriaServicio, setCategoriaServicio] = useState('');
   const [error, setError] = useState('');
 
   const cargar = useCallback(async () => {
@@ -77,6 +79,28 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
   useEffect(() => {
     if (open) cargar();
   }, [open, cargar]);
+
+  const categoriasServicios = useMemo(() => {
+    const mapa = new Map();
+    servicios.forEach((servicio) => {
+      if (servicio.categoria_id && !mapa.has(servicio.categoria_id)) {
+        mapa.set(servicio.categoria_id, servicio.categoria_nombre || 'Sin categoría');
+      }
+    });
+    return [...mapa.entries()].map(([id, nombre]) => ({ value: String(id), label: nombre }));
+  }, [servicios]);
+
+  const serviciosFiltrados = useMemo(() => {
+    const termino = busquedaServicios.trim().toLowerCase();
+    return servicios.filter((servicio) => {
+      const coincideTexto =
+        !termino ||
+        `${servicio.nombre} ${servicio.categoria_nombre || ''}`.toLowerCase().includes(termino);
+      const coincideCategoria =
+        !categoriaServicio || String(servicio.categoria_id) === String(categoriaServicio);
+      return coincideTexto && coincideCategoria;
+    });
+  }, [servicios, busquedaServicios, categoriaServicio]);
 
   const resetForm = () => {
     setForm(FORM_INICIAL);
@@ -351,8 +375,22 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
 
             <div className="mt-5 border-t border-borde/60 pt-4 space-y-3">
               <span className="block text-[11px] font-medium text-texto-secundario">Servicios y duraciones</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                {servicios.map((servicio) => {
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]">
+                <Input
+                  placeholder="Buscar servicio..."
+                  value={busquedaServicios}
+                  onChange={(evento) => setBusquedaServicios(evento.target.value)}
+                  aria-label="Buscar servicio"
+                />
+                <Select
+                  options={[{ value: '', label: 'Todas las categorías' }, ...categoriasServicios]}
+                  value={categoriaServicio}
+                  onChange={(evento) => setCategoriaServicio(evento.target.value)}
+                  aria-label="Filtrar servicios por categoría"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1 scroll-thin">
+                {serviciosFiltrados.map((servicio) => {
                   const config = form.servicios_asignados?.[servicio.id] || { checked: false, duracion: servicio.duracion_base_minutos || 30 };
                   return (
                     <div key={servicio.id} className="flex items-center justify-between p-2 bg-fondo/40 rounded-xl border border-borde/40 text-xs">
@@ -363,7 +401,12 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                           onChange={(e) => setForm((p) => ({ ...p, servicios_asignados: { ...p.servicios_asignados, [servicio.id]: { ...config, checked: e.target.checked } } }))}
                           className="rounded border-borde text-primario w-4 h-4 cursor-pointer"
                         />
-                        {servicio.nombre}
+                        <span className="block">
+                          <span className="block">{servicio.nombre}</span>
+                          <span className="block text-[10px] font-normal text-texto-secundario">
+                            {servicio.categoria_nombre || 'Sin categoría'}
+                          </span>
+                        </span>
                       </label>
                       {config.checked && (
                         <span className="flex items-center gap-1.5">
@@ -381,6 +424,11 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                     </div>
                   );
                 })}
+                {serviciosFiltrados.length === 0 && (
+                  <p className="rounded-lg border border-dashed border-control bg-panel/40 p-4 text-center text-xs text-texto-secundario sm:col-span-2">
+                    No hay servicios para los filtros seleccionados.
+                  </p>
+                )}
               </div>
             </div>
 

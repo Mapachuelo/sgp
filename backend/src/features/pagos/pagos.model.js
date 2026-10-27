@@ -3,10 +3,21 @@ const pool = require('../../config/db');
 const pagosModel = {
   async findReservaParaPago(reservaId, db = pool) {
     const { rows } = await db.query(
-      `SELECT r.*, s.precio_base, s.nombre AS servicio_nombre,
+      `SELECT r.*,
+              COALESCE(rs.precio_total, s.precio_base) AS precio_total,
+              COALESCE(rs.precio_total, s.precio_base) AS precio_base,
+              COALESCE(rs.servicio_nombre, s.nombre) AS servicio_nombre,
+              COALESCE(rs.empleados_ids, ARRAY[]::int[]) AS empleados_ids,
               cli.email AS cliente_email, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido
        FROM reserva r
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+       LEFT JOIN servicio_catalogo s ON r.servicio_id = s.id
+       LEFT JOIN LATERAL (
+         SELECT SUM(rsx.precio) AS precio_total,
+                STRING_AGG(rsx.nombre, ' + ' ORDER BY rsx.orden) AS servicio_nombre,
+                ARRAY_AGG(DISTINCT rsx.empleado_id) AS empleados_ids
+         FROM reserva_servicio rsx
+         WHERE rsx.reserva_id = r.id
+       ) rs ON true
        JOIN app_user cli ON r.cliente_id = cli.id
        WHERE r.id = $1`,
       [reservaId]
@@ -26,7 +37,8 @@ const pagosModel = {
 
   async findById(id, db = pool) {
     const { rows } = await db.query(
-      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en
+      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en,
+              COALESCE((SELECT ARRAY_AGG(DISTINCT rs.empleado_id) FROM reserva_servicio rs WHERE rs.reserva_id = r.id), ARRAY[]::int[]) AS empleados_ids
        FROM pago p
        JOIN reserva r ON p.reserva_id = r.id
        WHERE p.id = $1`,
@@ -37,7 +49,8 @@ const pagosModel = {
 
   async findByIdForUpdate(id, db = pool) {
     const { rows } = await db.query(
-      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en
+      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en,
+              COALESCE((SELECT ARRAY_AGG(DISTINCT rs.empleado_id) FROM reserva_servicio rs WHERE rs.reserva_id = r.id), ARRAY[]::int[]) AS empleados_ids
        FROM pago p
        JOIN reserva r ON p.reserva_id = r.id
        WHERE p.id = $1
@@ -49,7 +62,8 @@ const pagosModel = {
 
   async findByReferencia(referencia, db = pool) {
     const { rows } = await db.query(
-      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en
+      `SELECT p.*, r.estado AS reserva_estado, r.cliente_id, r.empleado_id, r.inicia_en,
+              COALESCE((SELECT ARRAY_AGG(DISTINCT rs.empleado_id) FROM reserva_servicio rs WHERE rs.reserva_id = r.id), ARRAY[]::int[]) AS empleados_ids
        FROM pago p
        JOIN reserva r ON p.reserva_id = r.id
        WHERE p.referencia = $1`,

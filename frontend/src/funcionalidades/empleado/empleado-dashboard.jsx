@@ -278,7 +278,7 @@ function CobroEfectivoModal({ open, cita, onClose, onSuccess, onToast }) {
   const [monto, setMonto] = useState('');
   const [cargando, setCargando] = useState(false);
 
-  const total = cita ? Number(cita.precio_base || 0) * Number(cita.cantidad_personas || 1) : 0;
+  const total = cita ? Number(cita.precio_total || cita.precio_base || 0) * Number(cita.cantidad_personas || 1) : 0;
 
   useEffect(() => {
     if (open && cita) setMonto(String(total || ''));
@@ -313,7 +313,7 @@ function CobroEfectivoModal({ open, cita, onClose, onSuccess, onToast }) {
           <div className="rounded-md border border-borde bg-panel/60 p-3">
             <p className="text-sm font-medium text-texto-principal">{cita.cliente_nombre || 'Cliente'}</p>
             <p className="mt-0.5 text-xs text-texto-secundario">
-              {cita.servicio_nombre || 'Servicio'} · Total {dinero(total)}
+              {cita.mis_servicios || cita.servicio_nombre || 'Servicio'} · Total {dinero(total)}
             </p>
           </div>
           <Input
@@ -428,13 +428,13 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const enAtencion = enCurso[0] || null;
   const enEspera = citas
     .filter((c) => c.llego_en && !['en_curso', 'cobrado', 'completada', 'cancelada'].includes(c.estado))
-    .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en));
+    .sort((a, b) => new Date(a.mi_inicia_en || a.inicia_en) - new Date(b.mi_inicia_en || b.inicia_en));
   const programados = citas
     .filter((c) => !c.llego_en && ['pendiente', 'confirmada'].includes(c.estado))
-    .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en));
+    .sort((a, b) => new Date(a.mi_inicia_en || a.inicia_en) - new Date(b.mi_inicia_en || b.inicia_en));
   const siguientes = enEspera.length > 0 ? enEspera : programados;
   const totalRevenue = cobrados.reduce(
-    (sum, c) => sum + (parseFloat(c.monto) || parseFloat(c.precio) || parseFloat(c.precio_base) || 0),
+    (sum, c) => sum + (parseFloat(c.monto) || parseFloat(c.precio) || parseFloat(c.precio_total) || parseFloat(c.precio_base) || 0),
     0
   );
 
@@ -485,9 +485,9 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
 
   const timelineCitas = (() => {
     if (!disponibilidadHoy?.hora_inicio || !disponibilidadHoy?.hora_fin) {
-      return [...citas].sort((a, b) => (a.inicia_en || '').localeCompare(b.inicia_en || ''));
+      return [...citas].sort((a, b) => (a.mi_inicia_en || a.inicia_en || '').localeCompare(b.mi_inicia_en || b.inicia_en || ''));
     }
-    const sortedCitas = [...citas].sort((a, b) => (a.inicia_en || '').localeCompare(b.inicia_en || ''));
+    const sortedCitas = [...citas].sort((a, b) => (a.mi_inicia_en || a.inicia_en || '').localeCompare(b.mi_inicia_en || b.inicia_en || ''));
     const timeline = [];
     const toMinutes = (timeStr) => {
       const [h, m] = timeStr.split(':').map(Number);
@@ -502,9 +502,9 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
     const endMin = toMinutes(disponibilidadHoy.hora_fin.slice(0, 5));
     let currentMin = startMin;
     sortedCitas.forEach((cita) => {
-      const cStart = new Date(cita.inicia_en);
+      const cStart = new Date(cita.mi_inicia_en || cita.inicia_en);
       const cStartMin = cStart.getHours() * 60 + cStart.getMinutes();
-      const cEnd = new Date(cita.termina_en);
+      const cEnd = new Date(cita.mi_termina_en || cita.termina_en);
       const cEndMin = cEnd.getHours() * 60 + cEnd.getMinutes();
       if (cStartMin > currentMin) {
         timeline.push({
@@ -550,8 +550,8 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
       <div className={`rounded-lg border border-borde bg-superficie ${compacta ? 'px-3 py-2.5' : 'p-3.5'}`}>
         <div className="flex flex-wrap items-start gap-3">
           <div className="w-12 shrink-0 text-center">
-            <p className="num text-base font-semibold leading-tight text-texto-principal">{formatearHoraLocal(cita.inicia_en)}</p>
-            <p className="mt-0.5 text-[10px] text-tenue">{(cita.duracion_minutos || 30)} min</p>
+            <p className="num text-base font-semibold leading-tight text-texto-principal">{formatearHoraLocal(cita.mi_inicia_en || cita.inicia_en)}</p>
+            <p className="mt-0.5 text-[10px] text-tenue">{(cita.mi_duracion_minutos || cita.duracion_minutos || 30)} min</p>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -560,7 +560,7 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
               {!pagada && <Badge variant="warning">Sin pago</Badge>}
             </div>
             <p className="mt-0.5 truncate text-xs text-texto-secundario">
-              {cita.servicio_nombre || 'Servicio'} · {cita.ubicacion_nombre || 'Sede'}
+              {cita.mis_servicios || cita.servicio_nombre || 'Servicio'} · {cita.ubicacion_nombre || 'Sede'}
             </p>
             {cita.llego_en && (
               <p className="mt-1 text-[11px] text-tenue">
@@ -694,7 +694,7 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
                   </div>
                   {siguientes[0] && !enAtencion && (
                     <Badge variant="accent">
-                      Siguiente: {siguientes[0].cliente_nombre || 'cliente'} · {formatearHoraLocal(siguientes[0].inicia_en)}
+                      Siguiente: {siguientes[0].cliente_nombre || 'cliente'} · {formatearHoraLocal(siguientes[0].mi_inicia_en || siguientes[0].inicia_en)}
                     </Badge>
                   )}
                 </div>
@@ -708,7 +708,7 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
                           {enAtencion.cliente_nombre || 'Cliente'}
                         </p>
                         <p className="mt-1 text-sm text-texto-secundario">
-                          {enAtencion.servicio_nombre || 'Servicio'} · {formatearHoraLocal(enAtencion.inicia_en)}
+                          {enAtencion.mis_servicios || enAtencion.servicio_nombre || 'Servicio'} · {formatearHoraLocal(enAtencion.mi_inicia_en || enAtencion.inicia_en)}
                         </p>
                         <p className="mt-2 text-xs text-texto-secundario">
                           Inició {formatearHoraLocal(enAtencion.inicio_servicio)}

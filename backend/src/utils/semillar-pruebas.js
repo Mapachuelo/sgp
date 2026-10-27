@@ -15,12 +15,22 @@ const SEDES = [
   { nombre: 'Pruebas Sede Sur', direccion: 'Avenida 1 de Mayo # 60-10, Bogota', latitud: 4.6282, longitud: -74.1481 },
 ];
 
+const CATEGORIAS = [
+  { nombre: 'Peluqueada', descripcion: 'Cortes y peinados', orden: 1 },
+  { nombre: 'Planchada', descripcion: 'Alisados y planchados', orden: 2 },
+  { nombre: 'Barba', descripcion: 'Arreglo de barba', orden: 3 },
+  { nombre: 'Color', descripcion: 'Tintes y coloracion', orden: 4 },
+  { nombre: 'Peinado', descripcion: 'Peinados para eventos', orden: 5 },
+  { nombre: 'Tratamientos', descripcion: 'Manicure, masajes e hidratacion', orden: 6 },
+  { nombre: 'Otros', descripcion: 'Servicios sin clasificar', orden: 99 },
+];
+
 const SERVICIOS = [
-  { nombre: 'Pruebas Corte Caballero', descripcion: 'Corte de cabello caballero', precio: 30000, duracion: 30 },
-  { nombre: 'Pruebas Corte Dama', descripcion: 'Corte y estilo dama', precio: 55000, duracion: 45 },
-  { nombre: 'Pruebas Barba', descripcion: 'Arreglo y perfilado de barba', precio: 20000, duracion: 20 },
-  { nombre: 'Pruebas Tinte', descripcion: 'Coloracion completa', precio: 90000, duracion: 90 },
-  { nombre: 'Pruebas Combo', descripcion: 'Corte y barba', precio: 45000, duracion: 45 },
+  { nombre: 'Pruebas Corte Caballero', descripcion: 'Corte de cabello caballero', precio: 30000, duracion: 30, categoria: 'Peluqueada' },
+  { nombre: 'Pruebas Corte Dama', descripcion: 'Corte y estilo dama', precio: 55000, duracion: 45, categoria: 'Peluqueada' },
+  { nombre: 'Pruebas Barba', descripcion: 'Arreglo y perfilado de barba', precio: 20000, duracion: 20, categoria: 'Barba' },
+  { nombre: 'Pruebas Tinte', descripcion: 'Coloracion completa', precio: 90000, duracion: 90, categoria: 'Color' },
+  { nombre: 'Pruebas Combo', descripcion: 'Corte y barba', precio: 45000, duracion: 45, categoria: 'Peluqueada' },
 ];
 
 const NOMBRES_CLIENTES = ['Ana', 'Bruno', 'Carla', 'David', 'Elena', 'Felipe', 'Gloria', 'Hugo', 'Ines', 'Jorge'];
@@ -70,8 +80,9 @@ function referencia(prefijo, indice) {
 async function resetear(client) {
   await client.query(`
     TRUNCATE TABLE
-      pago, cobro, reserva, empleado_disponibilidad, empleado_tiempo_servicio,
-      jornada, empleado_perfil, preferencia_usuario, app_user, servicio_catalogo, ubicacion
+      pago, cobro, reserva_servicio, reserva, empleado_disponibilidad, empleado_tiempo_servicio,
+      jornada, empleado_perfil, preferencia_usuario, app_user, servicio_catalogo,
+      servicio_categoria, configuracion, ubicacion
     RESTART IDENTITY CASCADE
   `);
 }
@@ -95,6 +106,25 @@ async function insertarUsuarios(client, usuarios, hash) {
     ids.set(usuario.email, rows[0].id);
   }
   return ids;
+}
+
+async function insertarSegmento(client, reserva, servicio, empleadoId, inicio, fin, orden) {
+  await client.query(
+    `INSERT INTO reserva_servicio
+       (reserva_id, servicio_id, empleado_id, nombre, precio, duracion_minutos, inicia_en, termina_en, orden)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      reserva.id,
+      servicio.id,
+      empleadoId,
+      servicio.nombre,
+      Number(servicio.precio_base),
+      Math.max(1, Math.round((fin.getTime() - inicio.getTime()) / 60000)),
+      inicio,
+      fin,
+      orden,
+    ]
+  );
 }
 
 async function insertarReserva(client, datos) {
@@ -133,6 +163,18 @@ async function main() {
   try {
     await client.query('BEGIN');
     await resetear(client);
+    await client.query(
+      "INSERT INTO configuracion (clave, valor) VALUES ('max_servicios_reserva', '5') ON CONFLICT (clave) DO NOTHING"
+    );
+    const categorias = [];
+    for (const categoria of CATEGORIAS) {
+      const { rows } = await client.query(
+        'INSERT INTO servicio_categoria (nombre, descripcion, orden) VALUES ($1, $2, $3) RETURNING *',
+        [categoria.nombre, categoria.descripcion, categoria.orden]
+      );
+      categorias.push(rows[0]);
+    }
+    const categoriaPorNombre = new Map(categorias.map((c) => [c.nombre, c.id]));
 
     const hashAdmin = await bcrypt.hash('admin123', 10);
     const hashCliente = await bcrypt.hash('cliente123', 10);
@@ -178,10 +220,12 @@ async function main() {
     const servicios = [];
     for (const servicio of SERVICIOS) {
       const { rows } = await client.query(
-        'INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos) VALUES ($1, $2, $3, $4) RETURNING *',
-        [servicio.nombre, servicio.descripcion, servicio.precio, servicio.duracion]
+        `INSERT INTO servicio_catalogo
+           (nombre, descripcion, precio_base, duracion_base_minutos, categoria_id)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [servicio.nombre, servicio.descripcion, servicio.precio, servicio.duracion, categoriaPorNombre.get(servicio.categoria) || null]
       );
-      servicios.push(rows[0]);
+      servicios.push({ ...rows[0], categoria: servicio.categoria });
     }
 
     const idsTodos = [...admin.values(), ...idsClientes.values(), ...idsEmpleados.values()];
@@ -277,6 +321,7 @@ async function main() {
         inicio_servicio: inicioServicio,
         fin_servicio: finServicio,
       });
+      await insertarSegmento(client, reserva, servicio, empleadoId, inicio, fin, 1);
 
       const total = Number(servicio.precio_base) * ((i % 2) + 1);
       if (plan.pago === 'aprobado') {
@@ -322,9 +367,11 @@ async function main() {
       const clienteId = idsClientes.get(cliente.email);
       const empleadoId = idsEmpleados.get(empleado.email);
       const servicio = servicios[(i + 2) % servicios.length];
+      const comboServicio = i % 3 === 0 ? servicios[(i + 4) % servicios.length] : null;
       const sede = sedePara((i + 3) % 10, diaSemanaIso(proximaSemana));
       const inicio = instanteBogota(proximaSemana, 9 * 60 + i * 45);
-      const fin = sumarMinutos(inicio, servicio.duracion_base_minutos);
+      const finPrimero = sumarMinutos(inicio, servicio.duracion_base_minutos);
+      const fin = comboServicio ? sumarMinutos(finPrimero, comboServicio.duracion_base_minutos) : finPrimero;
       const reserva = await insertarReserva(client, {
         cliente_id: clienteId,
         empleado_id: empleadoId,
@@ -335,11 +382,15 @@ async function main() {
         cantidad_personas: 1,
         estado: i % 2 === 0 ? 'confirmada' : 'pendiente',
       });
+      await insertarSegmento(client, reserva, servicio, empleadoId, inicio, finPrimero, 1);
+      if (comboServicio) {
+        await insertarSegmento(client, reserva, comboServicio, empleadoId, finPrimero, fin, 2);
+      }
       manifiesto.reservas.push({
         id: reserva.id,
         cliente: cliente.email,
         empleado: empleado.email,
-        servicio: servicio.nombre,
+        servicio: comboServicio ? `${servicio.nombre} + ${comboServicio.nombre}` : servicio.nombre,
         estado: reserva.estado,
         pago: null,
         qr_token: reserva.qr_token,
@@ -370,6 +421,7 @@ async function main() {
         inicio_servicio: inicio,
         fin_servicio: fin,
       });
+      await insertarSegmento(client, reserva, servicio, empleadoId, inicio, fin, 1);
       if (i !== 9) {
         await client.query(
           `INSERT INTO cobro (reserva_id, monto, metodo, registrado_por)

@@ -72,7 +72,7 @@ El tema oscuro es neutro, no azul marino:
 ## Rutas
 
 - `/cliente`: próxima cita, listas de próximas, historial y canceladas.
-- `/cliente/reservar`: flujo de sede, estilista, horario, confirmación y pago.
+- `/cliente/reservar`: flujo de sede, servicios (hasta el máximo configurado), equipo por servicio, horario combinado, confirmación y pago.
 - `/cliente/perfil`: datos y eliminación de cuenta.
 - `/empleado`: cola con “Ahora”, “En espera” y “Programadas”.
 - `/empleado/agenda`: agenda del día con espacios libres y acciones.
@@ -84,9 +84,23 @@ El tema oscuro es neutro, no azul marino:
 
 ## Componentes
 
-`Button`, `Input`, `Select`, `Textarea`, `Card`, `Badge`, `StatusPill`, `Sheet`, `Modal`, `ConfirmDialog`, `PageHeader`, `KpiStrip`, `DataTable`, `EmptyState`, `Skeleton`, `Tabs`, `SegmentedControl`, `Spinner`, `Toast`, `BotonTema`, `TemaSelect`.
+`Button`, `Input`, `Select`, `Textarea`, `BuscadorSelect`, `Card`, `Badge`, `StatusPill`, `Sheet`, `Modal`, `ConfirmDialog`, `PageHeader`, `KpiStrip`, `DataTable`, `EmptyState`, `Skeleton`, `Tabs`, `SegmentedControl`, `Spinner`, `Toast`, `BotonTema`, `TemaSelect`.
 
 Los formularios usan etiquetas arriba, altura de 40px y foco visible de 2px. Los estados vacíos conservan el marco y una acción. Las cargas usan barras planas, sin shimmer. Los errores se muestran dentro del bloque afectado, con reintento.
+
+`BuscadorSelect` es el selector para listas largas: búsqueda sin tildes, teclado (flechas, Enter, Escape), `aria-activedescendant`, lista en portal y estado "Sin resultados". No se usa para listas cortas de 2 a 5 opciones.
+
+## Servicios y reservas multi-servicio
+
+- El catálogo se organiza en **categorías o títulos** (Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros) y servicios dentro de cada una.
+- Cada servicio puede tener imagen de referencia, descripción, precio, duración y estado activo/inactivo. La imagen se comprime en el navegador y se guarda como data URL.
+- El cliente elige uno o varios servicios; la barra de resumen muestra cantidad, duración y total.
+- Cada servicio puede tener un estilista distinto; el sistema propone un equipo y el cliente puede cambiarlo.
+- El calendario solo muestra horas donde la secuencia completa cabe y todos los estilistas están libres.
+- La confirmación lista cada segmento con su estilista, horario y precio; el pago usa el total calculado por el servidor.
+- El admin configura el máximo de servicios por reserva en **Servicios → Configuración**.
+- Las imágenes de servicio usan un placeholder neutro con `ImageOff`; no se inventan degradados ni ilustraciones.
+- Las tarjetas de servicio son compactas en móvil (miniatura + datos) y muestran la imagen completa en escritorio.
 
 ## Movimiento
 

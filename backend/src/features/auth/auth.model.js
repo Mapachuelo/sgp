@@ -150,6 +150,16 @@ const authModel = {
     return parseInt(rows[0].count, 10) > 0;
   },
 
+  async hasReservas(empleado_id) {
+    const { rows } = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM reserva WHERE empleado_id = $1) +
+         (SELECT COUNT(*) FROM reserva_servicio WHERE empleado_id = $1) AS count`,
+      [empleado_id]
+    );
+    return parseInt(rows[0].count, 10) > 0;
+  },
+
   async ensurePreferencias(usuario_id) {
     await pool.query(
       `INSERT INTO preferencia_usuario (usuario_id) VALUES ($1) ON CONFLICT (usuario_id) DO NOTHING`,

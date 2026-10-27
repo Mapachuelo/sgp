@@ -1,13 +1,27 @@
 const pool = require('../../config/db');
 
+const RESERVA_SELECT = `
+  SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
+         COALESCE(rs.precio_total, s.precio_base) AS precio_total,
+         COALESCE(rs.precio_total, s.precio_base) AS precio_base,
+         COALESCE(rs.servicio_nombre, s.nombre) AS servicio_nombre,
+         COALESCE(rs.empleados_ids, ARRAY[]::int[]) AS empleados_ids
+  FROM reserva r
+  JOIN app_user cli ON r.cliente_id = cli.id
+  LEFT JOIN servicio_catalogo s ON r.servicio_id = s.id
+  LEFT JOIN LATERAL (
+    SELECT SUM(rsx.precio) AS precio_total,
+           STRING_AGG(rsx.nombre, ' + ' ORDER BY rsx.orden) AS servicio_nombre,
+           ARRAY_AGG(DISTINCT rsx.empleado_id) AS empleados_ids
+    FROM reserva_servicio rsx
+    WHERE rsx.reserva_id = r.id
+  ) rs ON true
+`;
+
 const checkinModel = {
   async findReservaByQrTokenForUpdate(qr_token, db = pool) {
     const { rows } = await db.query(
-      `SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
-              s.nombre AS servicio_nombre, s.precio_base
-       FROM reserva r
-       JOIN app_user cli ON r.cliente_id = cli.id
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+      `${RESERVA_SELECT}
        WHERE r.qr_token = $1::uuid
        FOR UPDATE OF r`,
       [qr_token]
@@ -17,11 +31,7 @@ const checkinModel = {
 
   async findReservaByIdForUpdate(id, db = pool) {
     const { rows } = await db.query(
-      `SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
-              s.nombre AS servicio_nombre, s.precio_base
-       FROM reserva r
-       JOIN app_user cli ON r.cliente_id = cli.id
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+      `${RESERVA_SELECT}
        WHERE r.id = $1
        FOR UPDATE OF r`,
       [id]
@@ -31,11 +41,7 @@ const checkinModel = {
 
   async findReservaByQrToken(qr_token, db = pool) {
     const { rows } = await db.query(
-      `SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
-              s.nombre AS servicio_nombre, s.precio_base
-       FROM reserva r
-       JOIN app_user cli ON r.cliente_id = cli.id
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+      `${RESERVA_SELECT}
        WHERE r.qr_token = $1::uuid`,
       [qr_token]
     );

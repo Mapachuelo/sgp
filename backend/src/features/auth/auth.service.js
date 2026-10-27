@@ -260,6 +260,10 @@ const authService = {
     if (tieneCobros) {
       throw new HttpError(409, 'No se puede eliminar el empleado porque tiene cobros asociados');
     }
+    const tieneReservas = await authModel.hasReservas(id);
+    if (tieneReservas) {
+      throw new HttpError(409, 'No se puede eliminar el empleado porque tiene reservas asociadas');
+    }
 
     await authModel.deleteEmpleado(id);
     return { eliminado: true };

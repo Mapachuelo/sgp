@@ -21,17 +21,27 @@ const SEDES = [
   { nombre: 'Demo Sede Suba', direccion: 'Carrera 91 # 145-20, Bogota', latitud: 4.7422, longitud: -74.0841 },
 ];
 
+const CATEGORIAS = [
+  { nombre: 'Peluqueada', descripcion: 'Cortes y peinados', orden: 1 },
+  { nombre: 'Planchada', descripcion: 'Alisados y planchados', orden: 2 },
+  { nombre: 'Barba', descripcion: 'Arreglo de barba', orden: 3 },
+  { nombre: 'Color', descripcion: 'Tintes y coloracion', orden: 4 },
+  { nombre: 'Peinado', descripcion: 'Peinados para eventos', orden: 5 },
+  { nombre: 'Tratamientos', descripcion: 'Manicure, masajes e hidratacion', orden: 6 },
+  { nombre: 'Otros', descripcion: 'Servicios sin clasificar', orden: 99 },
+];
+
 const SERVICIOS = [
-  { nombre: 'Demo Corte Caballero', descripcion: 'Corte de cabello caballero', precio: 30000, duracion: 30 },
-  { nombre: 'Demo Corte Dama', descripcion: 'Corte y estilo dama', precio: 55000, duracion: 45 },
-  { nombre: 'Demo Barba', descripcion: 'Arreglo y perfilado de barba', precio: 20000, duracion: 20 },
-  { nombre: 'Demo Tinte', descripcion: 'Coloracion completa', precio: 90000, duracion: 90 },
-  { nombre: 'Demo Peinado', descripcion: 'Peinado para evento', precio: 45000, duracion: 40 },
-  { nombre: 'Demo Uñas', descripcion: 'Manicure y pedicure', precio: 40000, duracion: 50 },
-  { nombre: 'Demo Masaje Capilar', descripcion: 'Masaje relajante capilar', precio: 35000, duracion: 30 },
-  { nombre: 'Demo Corte Niño', descripcion: 'Corte para niño', precio: 22000, duracion: 25 },
-  { nombre: 'Demo Alisado', descripcion: 'Alisado profesional', precio: 120000, duracion: 120 },
-  { nombre: 'Demo Hidratacion', descripcion: 'Hidratacion profunda', precio: 50000, duracion: 45 },
+  { nombre: 'Demo Corte Caballero', descripcion: 'Corte de cabello caballero', precio: 30000, duracion: 30, categoria: 'Peluqueada' },
+  { nombre: 'Demo Corte Dama', descripcion: 'Corte y estilo dama', precio: 55000, duracion: 45, categoria: 'Peluqueada' },
+  { nombre: 'Demo Barba', descripcion: 'Arreglo y perfilado de barba', precio: 20000, duracion: 20, categoria: 'Barba' },
+  { nombre: 'Demo Tinte', descripcion: 'Coloracion completa', precio: 90000, duracion: 90, categoria: 'Color' },
+  { nombre: 'Demo Peinado', descripcion: 'Peinado para evento', precio: 45000, duracion: 40, categoria: 'Peinado' },
+  { nombre: 'Demo Uñas', descripcion: 'Manicure y pedicure', precio: 40000, duracion: 50, categoria: 'Tratamientos' },
+  { nombre: 'Demo Masaje Capilar', descripcion: 'Masaje relajante capilar', precio: 35000, duracion: 30, categoria: 'Tratamientos' },
+  { nombre: 'Demo Corte Niño', descripcion: 'Corte para niño', precio: 22000, duracion: 25, categoria: 'Peluqueada' },
+  { nombre: 'Demo Alisado', descripcion: 'Alisado profesional', precio: 120000, duracion: 120, categoria: 'Planchada' },
+  { nombre: 'Demo Hidratacion', descripcion: 'Hidratacion profunda', precio: 50000, duracion: 45, categoria: 'Tratamientos' },
 ];
 
 const NOMBRES = [
@@ -202,6 +212,16 @@ function escribirCsv(ruta, encabezados, filas) {
 async function resetearDemo(client) {
   await client.query(
     `DELETE FROM cobro WHERE registrado_por IN (SELECT id FROM app_user WHERE email LIKE '%${DOMINIO_DEMO}')`
+  );
+  await client.query(
+    `DELETE FROM reserva_servicio WHERE reserva_id IN (
+       SELECT id FROM reserva WHERE cliente_id IN (SELECT id FROM app_user WHERE email LIKE '%${DOMINIO_DEMO}')
+          OR empleado_id IN (SELECT id FROM app_user WHERE email LIKE '%${DOMINIO_DEMO}')
+     )`
+  );
+  await client.query(
+    `DELETE FROM reserva WHERE cliente_id IN (SELECT id FROM app_user WHERE email LIKE '%${DOMINIO_DEMO}')
+        OR empleado_id IN (SELECT id FROM app_user WHERE email LIKE '%${DOMINIO_DEMO}')`
   );
   await client.query(`DELETE FROM app_user WHERE email LIKE '%${DOMINIO_DEMO}'`);
   await client.query("DELETE FROM ubicacion WHERE nombre LIKE 'Demo %'");
@@ -499,12 +519,31 @@ async function main() {
       idsSedes.push(rows[0].id);
     }
 
+    const categoriaPorNombre = new Map();
+    for (const categoria of CATEGORIAS) {
+      const { rows } = await client.query(
+        `INSERT INTO servicio_categoria (nombre, descripcion, orden)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (LOWER(nombre)) DO UPDATE SET descripcion = EXCLUDED.descripcion
+         RETURNING id, nombre`,
+        [categoria.nombre, categoria.descripcion, categoria.orden]
+      );
+      categoriaPorNombre.set(rows[0].nombre, rows[0].id);
+    }
+
     const idsServicios = [];
     for (const servicio of servicios) {
       const { rows } = await client.query(
-        `INSERT INTO servicio_catalogo (nombre, descripcion, precio_base, duracion_base_minutos)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [servicio.nombre, servicio.descripcion, servicio.precio, servicio.duracion]
+        `INSERT INTO servicio_catalogo
+           (nombre, descripcion, precio_base, duracion_base_minutos, categoria_id)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [
+          servicio.nombre,
+          servicio.descripcion,
+          servicio.precio,
+          servicio.duracion,
+          categoriaPorNombre.get(servicio.categoria) || null,
+        ]
       );
       idsServicios.push(rows[0].id);
     }
@@ -693,6 +732,8 @@ async function main() {
             motivo_cancelacion: motivo,
             creado_en: creadoEn.toISOString(),
             precio: servicio.precio,
+            servicio_nombre: servicios[servicio.idx].nombre,
+            duracion_minutos: servicio.duracion,
           });
 
           if (estado === 'cobrado') {
@@ -752,6 +793,24 @@ async function main() {
       'cobro',
       ['reserva_id', 'monto', 'metodo', 'cobrado_en', 'registrado_por'],
       filasCobro
+    );
+
+    const filasReservaServicio = reservasCreadas.map((r, indice) => [
+      idsReservas[indice],
+      r.servicio_id,
+      r.empleado_id,
+      r.servicio_nombre,
+      r.precio,
+      r.duracion_minutos,
+      r.inicia_en,
+      r.termina_en,
+      1,
+    ]);
+    await insertarFilas(
+      client,
+      'reserva_servicio',
+      ['reserva_id', 'servicio_id', 'empleado_id', 'nombre', 'precio', 'duracion_minutos', 'inicia_en', 'termina_en', 'orden'],
+      filasReservaServicio
     );
 
     await client.query('COMMIT');

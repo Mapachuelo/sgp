@@ -31,7 +31,7 @@ esperar_tabla() {
 
 echo "== Validacion del esquema (docs/modelo-datos.md) =="
 
-for tabla in ubicacion app_user empleado_perfil servicio_catalogo empleado_tiempo_servicio jornada empleado_disponibilidad reserva cobro pago preferencia_usuario; do
+for tabla in ubicacion app_user empleado_perfil servicio_categoria servicio_catalogo empleado_tiempo_servicio jornada empleado_disponibilidad reserva reserva_servicio cobro pago preferencia_usuario configuracion; do
   validar "Tabla $tabla existe" "SELECT to_regclass('public.$tabla') IS NOT NULL"
 done
 
@@ -104,13 +104,43 @@ validar "empleado_tiempo_servicio UNIQUE (empleado, servicio)" \
 validar "preferencia_usuario.idioma existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='preferencia_usuario' AND column_name='idioma')"
 
+validar "servicio_catalogo.categoria_id existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicio_catalogo' AND column_name='categoria_id')"
+
+validar "servicio_catalogo.imagen_url existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicio_catalogo' AND column_name='imagen_url' AND data_type='text')"
+
+validar "servicio_catalogo.activo existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicio_catalogo' AND column_name='activo' AND data_type='boolean')"
+
+validar "FK servicio_catalogo.categoria_id -> servicio_categoria ON DELETE RESTRICT" \
+  "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='servicio_catalogo'::regclass AND contype='f' AND confrelid='servicio_categoria'::regclass AND confdeltype='r')"
+
+validar "reserva_servicio.empleado_id existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reserva_servicio' AND column_name='empleado_id')"
+
+validar "reserva_servicio.precio existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reserva_servicio' AND column_name='precio' AND data_type='numeric')"
+
+validar "reserva_servicio.inicia_en existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='reserva_servicio' AND column_name='inicia_en' AND data_type='timestamp with time zone')"
+
+validar "FK reserva_servicio.reserva_id -> reserva ON DELETE CASCADE" \
+  "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='reserva_servicio'::regclass AND contype='f' AND confrelid='reserva'::regclass AND confdeltype='c')"
+
+validar "reserva_servicio UNIQUE (reserva, orden)" \
+  "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='reserva_servicio' AND indexdef LIKE '%UNIQUE%reserva_id%orden%')"
+
+validar "configuracion.max_servicios_reserva existe" \
+  "SELECT EXISTS (SELECT 1 FROM configuracion WHERE clave='max_servicios_reserva')"
+
 validar "FK empleado_perfil.usuario_id -> app_user ON DELETE CASCADE" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='empleado_perfil'::regclass AND contype='f' AND confdeltype='c')"
 
 validar "FK reserva.servicio_id -> servicio_catalogo" \
   "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='reserva'::regclass AND contype='f' AND confrelid='servicio_catalogo'::regclass)"
 
-for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_reserva_llego_en idx_cobro_cobrado_en idx_cobro_pago_id idx_pago_reserva_id idx_pago_estado idx_pago_referencia idx_app_user_rol_bloqueado; do
+for indice in idx_reserva_inicia_en idx_reserva_cliente_id idx_reserva_empleado_id idx_reserva_estado idx_reserva_ubicacion_id idx_reserva_llego_en idx_reserva_servicio_reserva_id idx_reserva_servicio_empleado_inicia idx_reserva_servicio_servicio_id idx_servicio_catalogo_categoria_id idx_servicio_categoria_nombre idx_cobro_cobrado_en idx_cobro_pago_id idx_pago_reserva_id idx_pago_estado idx_pago_referencia idx_app_user_rol_bloqueado; do
   validar "Indice $indice existe" "SELECT to_regclass('public.$indice') IS NOT NULL"
 done
 

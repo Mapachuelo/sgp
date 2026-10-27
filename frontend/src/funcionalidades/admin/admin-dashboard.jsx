@@ -419,7 +419,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
       className: 'hidden lg:table-cell',
       render: (r) => (
         <span className="text-texto-secundario">
-          {r.empleado_nombre || '—'} {r.empleado_apellido || ''}
+          {r.equipo_nombre || `${r.empleado_nombre || ''} ${r.empleado_apellido || ''}`.trim() || '—'}
         </span>
       ),
     },
@@ -429,7 +429,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
       align: 'right',
       width: '14%',
       render: (r) => {
-        const monto = Number(r.monto ?? r.precio_base ?? 0) * (r.monto != null ? 1 : Number(r.cantidad_personas || 1));
+        const monto = Number(r.monto ?? r.precio_total ?? r.precio_base ?? 0) * (r.monto != null ? 1 : Number(r.cantidad_personas || 1));
         return <span className="num font-medium text-texto-principal">{dinero(monto)}</span>;
       },
     },

@@ -32,6 +32,11 @@ Guia tecnica del stack, comandos, seguridad, y convenciones para desarrollo.
 - Tokens en `frontend/src/index.css`; componentes base en `frontend/src/componentes/ui/`.
 - Shell fijo para empleado/admin: sidebar y barra superior quietas, scroll interno del contenido.
 - Sheets de altura automatica con `max-height` y scroll interno; acciones en barras sticky.
+- Catalogo jerarquico `servicio_categoria` → `servicio_catalogo`; imagen opcional, precio, duracion y estado.
+- Reservas multi-servicio con `reserva_servicio`: cada segmento tiene estilista, horario y precio/duracion congelados.
+- `configuracion.max_servicios_reserva` limita el carrito y se edita en el admin.
+- Pagos, check-in, agenda y reportes leen la suma de segmentos, no el precio actual del catalogo.
+- `BuscadorSelect` para listas largas.
 - Tema claro/oscuro con `TemaProvider`, `data-theme`, `sgp_tema` y tokens en `:root[data-theme="dark"]`.
 - QR siempre sobre blanco; mapas oscuros con filtro solo al tile pane.
 - Antes de cambiar UI leer `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md` y las skills indicadas en `AGENTS.md`.

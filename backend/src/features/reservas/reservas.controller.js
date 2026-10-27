@@ -5,8 +5,8 @@ const logger = require('../../shared/logger');
 const { emitReservaActualizada } = require('../../integrations/realtime/ws-hub');
 
 const reservasController = {
-  listarServicios: asyncHandler(async (_req, res) => {
-    const servicios = await reservasService.getServicios();
+  listarServicios: asyncHandler(async (req, res) => {
+    const servicios = await reservasService.getServicios(req.query);
     res.json({ ok: true, data: servicios });
   }),
 
@@ -21,12 +21,47 @@ const reservasController = {
   }),
 
   eliminarServicio: asyncHandler(async (req, res) => {
-    await reservasService.deleteServicio(parseInt(req.params.id, 10));
-    res.json({ ok: true, data: { eliminado: true } });
+    const resultado = await reservasService.deleteServicio(parseInt(req.params.id, 10));
+    res.json({ ok: true, data: resultado });
+  }),
+
+  listarCategorias: asyncHandler(async (_req, res) => {
+    const categorias = await reservasService.getCategorias();
+    res.json({ ok: true, data: categorias });
+  }),
+
+  crearCategoria: asyncHandler(async (req, res) => {
+    const categoria = await reservasService.createCategoria(req.body);
+    res.status(201).json({ ok: true, data: categoria });
+  }),
+
+  actualizarCategoria: asyncHandler(async (req, res) => {
+    const categoria = await reservasService.updateCategoria(parseInt(req.params.id, 10), req.body);
+    res.json({ ok: true, data: categoria });
+  }),
+
+  eliminarCategoria: asyncHandler(async (req, res) => {
+    const resultado = await reservasService.deleteCategoria(parseInt(req.params.id, 10));
+    res.json({ ok: true, data: resultado });
+  }),
+
+  getConfiguracion: asyncHandler(async (_req, res) => {
+    const configuracion = await reservasService.getConfiguracion();
+    res.json({ ok: true, data: configuracion });
+  }),
+
+  updateConfiguracion: asyncHandler(async (req, res) => {
+    const configuracion = await reservasService.updateConfiguracion(req.body);
+    res.json({ ok: true, data: configuracion });
   }),
 
   disponibilidad: asyncHandler(async (req, res) => {
     const result = await reservasService.getDisponibilidad(req.query);
+    res.json({ ok: true, data: result });
+  }),
+
+  disponibilidadCombo: asyncHandler(async (req, res) => {
+    const result = await reservasService.getDisponibilidadCombo(req.body || req.query);
     res.json({ ok: true, data: result });
   }),
 
@@ -83,12 +118,12 @@ const reservasController = {
   }),
 
   empleadosDisponibles: asyncHandler(async (req, res) => {
-    const { ubicacion_id, fecha } = req.query;
-    if (!ubicacion_id || !fecha) {
-      throw new HttpError(400, 'ubicacion_id y fecha son requeridos');
-    }
-    const reservasModel = require('./reservas.model');
-    const empleados = await reservasModel.findEmpleadosDisponibles(fecha, ubicacion_id);
+    const empleados = await reservasService.getEmpleadosDisponibles(req.query);
+    res.json({ ok: true, data: empleados });
+  }),
+
+  empleadosPorServicio: asyncHandler(async (req, res) => {
+    const empleados = await reservasService.getEmpleadosPorServicio(req.query);
     res.json({ ok: true, data: empleados });
   }),
 

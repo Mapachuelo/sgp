@@ -47,6 +47,11 @@ Reglas que no se negocian:
 - Las acciones de formularios, reservas y sheets van en barras sticky.
 - No gradientes, glass, sombras en tarjetas, iconos en KPI ni tablas con cebra.
 - Usar los componentes de `frontend/src/componentes/ui/` antes de crear variantes nuevas.
+- Para listas largas usar `BuscadorSelect`; no dejar un `<select>` con decenas de opciones.
+- El catálogo es jerárquico: `servicio_categoria` (título) → `servicio_catalogo` (servicio con imagen, precio y duración).
+- Una reserva usa `reserva_servicio`: 1..N segmentos, cada uno con servicio, estilista, horario y precio congelado. `reserva.servicio_id` y `reserva.empleado_id` son solo el primer segmento para compatibilidad.
+- El máximo de servicios por reserva vive en `configuracion.max_servicios_reserva` y se edita en Servicios → Configuración (1 a 10).
+- No calcular totales desde el navegador: el servidor suma los precios congelados de `reserva_servicio`.
 - Revisar ES/EN, móvil, foco visible y `prefers-reduced-motion`.
 - Mantener tema claro y oscuro: tokens en `:root[data-theme="dark"]`, preferencia en `sgp_tema`, QR sobre blanco y mapas con filtro solo al tile pane.
 - `TemaProvider`, `BotonTema` y `TemaSelect` viven en `frontend/src/contexto/`, `componentes/tema/` y `hooks/use-tema.js`.
@@ -76,13 +81,13 @@ pnpm install                          # Instalar dependencias
 pnpm --filter backend dev             # Backend en :3000
 pnpm --filter frontend dev            # Frontend en :5173
 pnpm run lint                         # ESLint
-bash tests/api.sh                     # Pruebas de integración (34)
-bash tests/datos.sh                   # Integridad del dataset (6)
-bash tests/esquema.sh                 # Esquema vs modelo de datos (48)
-pnpm run test:unit                    # Unitarias en el contenedor backend (50)
+bash tests/api.sh                     # Pruebas de integración (46)
+bash tests/datos.sh                   # Integridad del dataset (10)
+bash tests/esquema.sh                 # Esquema vs modelo de datos (66)
+pnpm run test:unit                    # Unitarias en el contenedor backend (51)
 pnpm run test:coverage                # Cobertura (>= 80%)
-python3 tests/e2e.py                  # Extremo a extremo (42)
-python3 tests/regresion_10x10.py      # Regresión funcional 10x10 (122)
+python3 tests/e2e.py                  # Extremo a extremo (47)
+python3 tests/regresion_10x10.py      # Regresión funcional 10x10 (128)
 pnpm run seed:pruebas                 # Seed determinista 10 clientes / 10 empleados
 pnpm run seed:demo -- --reset         # Datos de demostración
 node scripts/generar-drawio.js        # Regenerar diagramas draw.io
