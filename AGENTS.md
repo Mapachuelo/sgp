@@ -92,6 +92,7 @@ pnpm run test:unit                    # Unitarias en el contenedor backend (52)
 pnpm run test:coverage                # Cobertura (>= 80%)
 python3 tests/e2e.py                  # Extremo a extremo (47)
 python3 tests/regresion_10x10.py      # Regresión funcional 10x10 (128)
+python3 tests/verificacion_semana.py  # Verificación semanal con canceladas, pagadas y pendientes (79); deja datos de la semana cargados
 pnpm run seed:pruebas                 # Seed determinista 10 clientes / 10 empleados
 pnpm run seed:demo -- --reset         # Datos de demostración
 node scripts/generar-drawio.js        # Regenerar diagramas draw.io

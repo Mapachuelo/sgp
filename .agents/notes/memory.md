@@ -641,3 +641,11 @@
 - **Nginx**: `index.html` sin caché y `/assets/` inmutable; `client_max_body_size 10m`.
 - **Pruebas**: unitarias 52, API 53, datos 13, esquema 74, e2e 47, regresión 128; cobertura 90.15 % líneas / 72.58 % ramas / 92.08 % funciones.
 - **Despliegue**: imágenes `sgp-backend` y `sgp-frontend` reconstruidas, pod recreado, seed 10x10 final (10 clientes, 10 empleados, 30 reservas, 34 segmentos, 5 servicios, 7 categorías, 0 imágenes hasta que el admin suba las suyas), `index.html` y `/api/` sin caché, `/assets/` inmutable.
+
+## Verificación semanal con datos reales — 27 Octubre 2026
+
+- **Script**: `tests/verificacion_semana.py` (79/79). Crea 15 reservas de miércoles a domingo sobre el seed 10x10; lunes y martes vienen del seed. Cada día futuro tiene una cancelada, una pagada con webhook Wompi aprobado y una pendiente; una pendiente queda con pago declinado.
+- **Validaciones**: healthcheck, catálogo, categorías, configuración, sedes por servicio, galería, agenda semanal admin, reportes de ventas/ocupación de los 7 días, clientes recurrentes, logs, portal del cliente (pago aprobado + pendiente), agenda de empleado, `reserva_servicio` sin solapes y pagos/cobros coherentes.
+- **Entrada/salida**: exporta `pg_dump` y CSV de la semana a `/tmp/opencode/sgp-verificacion-<timestamp>/`, verifica el dump con `pg_restore -l` y reimporta el CSV en una tabla temporal del contenedor; las filas importadas coinciden con el CSV.
+- **Estado dejado**: 10 clientes, 10 empleados, 45 reservas (30 seed + 15 semana), 50 segmentos, 3 sedes, 5 servicios, 7 categorías. Para volver al 10x10: `pnpm run seed:pruebas`.
+- **UI verificada**: dashboard de cliente01/cliente02 con pagado, pendiente y cancelada; agenda semanal admin con 36 segmentos y agenda de empleado01 del sábado 31 con el combo pagado.
