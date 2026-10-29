@@ -161,7 +161,7 @@ podman volume rm sgp-pgdata
 
 | Tabla | Proposito |
 |-------|-----------|
-| `ubicacion` | Sedes fisicas con lat/lng |
+| `ubicacion` | Sedes fisicas con departamento, ciudad y lat/lng |
 | `app_user` | Usuarios con roles: cliente, empleado, admin |
 | `empleado_perfil` | Datos extra de empleados |
 | `servicio_categoria` | Titulos del menu: Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros |
@@ -175,12 +175,13 @@ podman volume rm sgp-pgdata
 | `reserva` | Citas con QR token y estados |
 | `cobro` | Pagos fisicos/online, vinculados a `pago` cuando aplica |
 | `pago` | Intentos de pago digital Wompi, referencias, transacciones y estado |
-| `preferencia_usuario` | Rango horario, granularidad, tema por usuario |
+| `preferencia_usuario` | Rango horario, granularidad, tema y ubicacion preferida |
+| `empleado_perfil` | Identificacion, sede base y foto opcional del empleado |
 
 Seed: Sede Centro (Bogota), 7 categorias, 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S. Las reservas existentes se backfillean a `reserva_servicio` y las portadas a `servicio_imagen` al arrancar.
-`app_user.telefono` se almacena cifrado con AES-256 (TEXT), en formato E.164 internacional; Colombia usa `+57` + 10 digitos y es la opcion por defecto en la interfaz. `preferencia_usuario.idioma` guarda ES/EN.
+`app_user.telefono` se almacena cifrado con AES-256 (TEXT), en formato E.164 internacional; Colombia usa `+57` + 10 digitos y es la opcion por defecto en la interfaz. `preferencia_usuario` guarda departamento y ciudad preferidos.
 
-El formulario de sedes incluye un mapa Leaflet/OpenStreetMap: al hacer clic, arrastrar el marcador o usar la ubicacion actual se llenan latitud y longitud automaticamente.
+El formulario de sedes incluye departamento, ciudad y un mapa Leaflet/OpenStreetMap: al hacer clic, arrastrar el marcador o usar la ubicacion actual se llenan latitud, longitud y, cuando es posible, ciudad y departamento automaticamente.
 
 ## Datos de demostracion (seed masivo)
 
@@ -228,11 +229,12 @@ La suite `python3 tests/regresion_10x10.py` recorre autenticacion de los 20 usua
 
 El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidades/admin/`:
 
-- **Dashboard:** acciones rapidas (Validar QR, Registrar cobro, actualizar), tarjeta de **Gestion** con los 9 accesos, 4 KPIs (recaudacion, reservas del dia, ocupacion promedio por sede, clientes activos) y timeline de reservas con filtros por fecha y sede.
-- **Secciones (ventanas flotantes, RF11 intacto):** empleados, servicios, sedes, reportes, moderacion de clientes y logs; modales centrados de Validar QR y Cobro.
-- **Planificador de horarios** (sheet ancho, pestaña por defecto): matriz **empleados x LUN-DOM** con una sede por dia (colores por sede), **citas superpuestas** por estado (clic en una cita pendiente/confirmada abre el modal de validacion), filtros por empleado/sede, navegacion por semanas y editor lateral por celda.
+- **Dashboard:** acciones rapidas (Validar QR, Registrar cobro, actualizar), tarjeta de **Gestion** con los accesos, 4 KPIs (recaudacion, reservas del dia, ocupacion promedio por sede, clientes activos) y timeline de reservas con filtros por fecha y sede.
+- **Secciones (páginas independientes):** empleados, servicios, presentación, sedes, horarios/agenda, reportes, moderación de clientes y logs se abren en su propia ruta dentro del shell de administración.
+- **Acciones rápidas:** Validar QR y Cobro siguen como ventanas flotantes; las confirmaciones y la carga de medios usan modales de acción.
+- **Planificador de horarios** (página completa, pestaña por defecto): matriz **empleados x LUN-DOM** con una sede por dia (colores por sede), **citas superpuestas** por estado (clic en una cita pendiente/confirmada abre el modal de validacion), filtros por empleado/sede, navegacion por semanas y editor lateral por celda.
 - Al cambiar la sede de un dia se advierte y, al guardar, se cancelan las reservas futuras de ese dia con el motivo `"El empleado cambió de sede"` (RF9) mostrando el conteo en un toast. La pestaña **Jornada por sede** conserva la edicion de `jornada` (horario de la sede).
-- Interfaz con iconos (lucide-react), i18n ES/EN ampliado y accesibilidad mantenida (dialogos, foco, Escape, labels).
+- Interfaz con iconos (lucide-react), textos en español y accesibilidad mantenida (dialogos, foco, Escape, labels).
 
 ## API — Endpoints completos
 
@@ -260,10 +262,24 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | PUT | `/api/clientes/:id/desbloquear` | Admin |
 | DELETE | `/api/clientes/:id` | Admin (3+ no-shows) |
 
+### Presentacion publica
+| Metodo | Ruta | Rol |
+|--------|------|-----|
+| GET | `/api/presentacion` | Publico |
+| GET | `/api/presentacion/archivos/:archivo` | Publico |
+| GET | `/api/presentacion/admin` | Admin |
+| PUT | `/api/presentacion/config` | Admin |
+| POST | `/api/presentacion/media` | Admin (multipart) |
+| POST | `/api/presentacion/media/:id/fuentes` | Admin |
+| PUT | `/api/presentacion/media/:id` y `/media/orden` | Admin |
+| DELETE | `/api/presentacion/media/:id` | Admin |
+
+La presentacion usa una base separada `sgp_presentacion` y el volumen `sgp-presentacion-media`; no toca las tablas de reservas, pagos o usuarios.
+
 ### Ubicaciones (RF6)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| GET | `/api/ubicaciones` | Publico |
+| GET | `/api/ubicaciones?departamento=&ciudad=` | Publico |
 | POST | `/api/ubicaciones` | Admin |
 | PUT | `/api/ubicaciones/:id` | Admin |
 | DELETE | `/api/ubicaciones/:id` | Admin |
@@ -271,7 +287,7 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 ### Reservas (RF2, RF8)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| GET | `/api/reservas/servicios` | Publico (portada y total de imagenes) |
+| GET | `/api/reservas/servicios?categoria_id&ubicacion_id&empleado_id` | Publico (portada, total de imagenes y estilistas) |
 | GET | `/api/reservas/servicios/:id/imagenes` | Publico (galeria bajo demanda) |
 | POST | `/api/reservas/servicios` | Admin |
 | PUT | `/api/reservas/servicios/:id` | Admin |
@@ -282,7 +298,8 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | DELETE | `/api/reservas/categorias/:id` | Admin |
 | GET | `/api/reservas/configuracion` | Publico |
 | PUT | `/api/reservas/configuracion` | Admin |
-| GET | `/api/reservas/empleados-por-servicio` | Publico |
+| GET | `/api/reservas/empleados-por-servicio?ubicacion_id&servicio_id` | Publico |
+| GET | `/api/reservas/empleados-por-sede?ubicacion_id` | Publico |
 | GET | `/api/reservas/sedes-por-servicio` | Publico |
 | POST | `/api/reservas/disponibilidad-combo` | Publico |
 | GET | `/api/reservas/disponibilidad` | Autenticado |
@@ -293,7 +310,7 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | POST | `/api/reservas` | Cliente |
 | GET | `/api/reservas/me` | Cliente |
 | DELETE | `/api/reservas/me/:id` | Cliente |
-| GET | `/api/reservas/agenda?desde&hasta` | Admin (rango de citas para el planificador) |
+| GET | `/api/reservas/agenda?desde&hasta&departamento&ciudad` | Admin (rango de citas para el planificador) |
 | GET | `/api/reservas` | Empleado/Admin |
 
 ### Checkin y cola de atencion (RF3)
@@ -302,6 +319,7 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | POST | `/api/checkin/consultar` | Empleado/Admin |
 | POST | `/api/checkin/llegada` | Empleado/Admin |
 | POST | `/api/checkin/cobro-efectivo` | Empleado/Admin |
+| POST | `/api/checkin/confirmar-pago` | Empleado/Admin (QR o reserva, sin finalizar) |
 | POST | `/api/checkin/iniciar` | Empleado/Admin |
 | POST | `/api/checkin/finalizar` | Empleado/Admin |
 | POST | `/api/checkin/validar` | Empleado/Admin (atajo legacy) |
@@ -406,10 +424,12 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - CORS configurado para origen del frontend
 - SQL injection prevenido con consultas parametrizadas (pg)
 - Documentacion API en `/api/docs` (Swagger UI + OpenAPI 3)
-- Interfaz multilingue ES/EN con toggle en la barra de navegacion (preferencia por usuario en `preferencia_usuario.idioma`)
+- Interfaz siempre en español, sin selector de idioma.
+- Portada pública `/` con carrusel de imágenes y videos administrable desde Admin → Presentación.
+- Fotos opcionales de empleados y pestaña Mis servicios con duración editable (precio solo admin).
 - Tema claro/oscuro con opcion Sistema, persistencia local (`sgp_tema`) y soporte de `prefers-color-scheme`
 
-Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, categorias y servicios CRUD con imagen, configuracion de maximo de servicios, disponibilidad simple y combinada, empleados por servicio, reservas multi-servicio con varios estilistas, checkin y cola (llegada, efectivo, inicio, finalizacion), pagos Wompi (intencion RBAC, QR, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye idioma), rate limiting.
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, categorias y servicios CRUD con imagen, configuracion de maximo de servicios, disponibilidad simple y combinada, empleados por servicio, reservas multi-servicio con varios estilistas, checkin y cola (llegada, efectivo, inicio, finalizacion), pagos Wompi (intencion RBAC, QR, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye departamento y ciudad), rate limiting.
 Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura), `tests/e2e.py` (flujo completo) y `tests/regresion_10x10.py` (10 clientes x 10 empleados).
 
 ## Desarrollo local
@@ -430,7 +450,7 @@ pnpm run test:regresion        # Suite funcional 10x10
 - [Requisitos IEEE 830](docs/formato_ieee830.md) — funcionalidades, RF/RNF, apendices y matriz RF↔F↔modulo↔prueba
 - [Diseno tecnico](docs/diseno-tecnico.md) — arquitectura, decisiones y estructura del codigo
 - [Modelos UML](docs/modelos-uml.drawio) — casos de uso, clases, secuencias, estados, despliegue y ER (+ [flujo actual](docs/diagrama.drawio))
-- [Mockups e interfaz](docs/mockups.md) — capturas reales por rol (ES/EN, movil)
+- [Mockups e interfaz](docs/mockups.md) — capturas reales por rol (español, movil)
 - [Nueva interfaz](docs/diseno/nueva-interfaz.md) — direccion, tokens, rutas, componentes y verificacion visual
 - [Modelo de datos](docs/modelo-datos.md) — ER y diccionario de las 11 tablas
 - [Plan de pruebas](docs/plan-pruebas.md) — estrategia, matriz, regresion 10x10 y cobertura

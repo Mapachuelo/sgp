@@ -649,3 +649,36 @@
 - **Entrada/salida**: exporta `pg_dump` y CSV de la semana a `/tmp/opencode/sgp-verificacion-<timestamp>/`, verifica el dump con `pg_restore -l` y reimporta el CSV en una tabla temporal del contenedor; las filas importadas coinciden con el CSV.
 - **Estado dejado**: 10 clientes, 10 empleados, 45 reservas (30 seed + 15 semana), 50 segmentos, 3 sedes, 5 servicios, 7 categorías. Para volver al 10x10: `pnpm run seed:pruebas`.
 - **UI verificada**: dashboard de cliente01/cliente02 con pagado, pendiente y cancelada; agenda semanal admin con 36 segmentos y agenda de empleado01 del sábado 31 con el combo pagado.
+
+## Interfaz español, sedes por departamento/ciudad y cobro QR — 28 Octubre 2026
+
+- Se eliminó el conmutador ES/EN, `I18nProvider`, el diccionario y `preferencia_usuario.idioma`; la interfaz queda siempre en español.
+- `ubicacion` ahora exige `departamento` y `ciudad`; `preferencia_usuario` guarda `departamento_preferido` y `ciudad_preferida`. Admin → Sedes filtra por ambos, el formulario los pide antes de nombre/dirección y el mapa intenta detectarlos con Nominatim; si falla, quedan manuales.
+- El cliente filtra por departamento/ciudad, puede usar “Usar mi ubicación” para elegir la sede más cercana y guarda su preferencia en el perfil.
+- La reserva ofrece dos modos: elegir estilista (solo sus servicios) o buscar servicio (solo los de la sede y sus estilistas). En modo estilista se omite el paso Equipo y el progreso muestra 5 pasos.
+- `/empleado/disponibilidad` tiene vista Lista/Semana, selector de intervalo dentro del modal de edición, servicios con imagen/precio y duración editable por el empleado.
+- El cobro quedó en un único panel `CobroCitaSheet` con cámara QR real (`jsQR`), lista de citas del día, token manual opcional y botón “Aceptar pago”. Admin y empleado comparten el flujo; se eliminaron `CobroModal` y `ValidarQrModal`.
+- Se agregó `POST /checkin/confirmar-pago`, que registra cobro físico u online sin finalizar el servicio. El QR nuevo codifica el UUID; el backend acepta también JSON legado y URLs.
+- Pruebas: unitarias 53/53, API 56/56, datos 15/15, esquema 76/76, E2E 47/47, regresión 128/128, verificación semanal 76/76. Cobertura 89.29 % líneas / 71.05 % ramas / 91.54 % funciones.
+- Dataset final limpio: 10 clientes, 10 empleados, 30 reservas, 3 sedes en Bogotá D.C. / Bogotá.
+
+## Portada pública, medios, servicios del empleado y control de inicio — 28 Octubre 2026
+
+- Presentación pública en `/` con dirección editorial “hoja de turnos”, carrusel mixto de imágenes/videos, catálogo real y accesos a reserva/login.
+- Nueva pestaña Admin → Presentación para editar textos y medios. Usa base separada `sgp_presentacion` (`presentacion_config`, `presentacion_media`, `presentacion_fuente`) y volumen `sgp-presentacion-media`; no toca la base de negocio.
+- Subida con `multer`, límite 200 MB por archivo y 4 versiones por video. Se aceptan MP4/M4V/WebM/OGG/MOV; el navegador elige entre varios `<source>`. AV1/H.264 se soportan como códecs dentro de esos contenedores; no hay transcodificación en servidor.
+- Nueva pestaña `/empleado/servicios`: autoservicio de servicios, precio de solo lectura y duración editable. Se retiró la edición de servicios de Disponibilidad.
+- Foto opcional del empleado en `empleado_perfil.foto_url`, subida desde su perfil, mostrada en cabecera, agenda y selección de estilista.
+- `checkin.iniciar` ahora exige llegada, ventana de 30 minutos antes, turno del empleado, jornada de sede, duración real y ausencia de cruces con otras reservas. El botón Atender se deshabilita hasta la ventana.
+- Planificador de Horarios corregido para la ventana flotante: sheet más ancho, encabezado en dos filas, fecha sin cortes y matriz con scroll interno.
+- Suites finales: unitarias 54/54, API 58/58, datos 15/15, esquema 77/77, presentación 6/6, E2E 47/47, regresión 129/129, semana 76/76. Cobertura 88.74 % líneas / 70.16 % ramas / 91.07 % funciones.
+- Dataset final limpio: 10 clientes, 10 empleados, 30 reservas; presentación sin medios de prueba.
+
+## Carrusel de servicios, login y secciones admin como páginas — 28 Octubre 2026
+
+- La portada `/` muestra los servicios activos en un carrusel horizontal con scroll-snap, flechas, contador, teclado y swipe; cada tarjeta abre un modal grande con galería, flechas, miniaturas y CTA de reserva. La galería se extrajo a `componentes/servicios/galeria-servicio.jsx` y se reutiliza en `nueva-reserva.jsx`.
+- El login, registro y verificación comparten un botón visible “Volver al inicio” en `AuthShell`; la marca SGP también enlaza a `/`.
+- Las secciones de admin (equipo, servicios, presentación, sedes, horarios/agenda, clientes, reportes y actividad) dejaron de abrirse como `SheetAdmin`: ahora son páginas independientes en sus rutas dentro del shell fijo. El dashboard `/admin` conserva solo KPIs, agenda y acciones rápidas.
+- Validar QR y Cobro siguen como ventanas flotantes; confirmaciones, carga de medios y vista previa siguen siendo modales de acción.
+- El empleado ve el detalle de cada servicio en un modal con galería; el precio es de solo lectura y la única edición sigue siendo la duración en la tarjeta, que se refleja en el modal.
+- Verificado con Chromium en 1440, 768 y 390, tema claro y oscuro; sin scroll horizontal de página. Build y lint correctos.

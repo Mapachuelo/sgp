@@ -227,6 +227,16 @@ verificar "GET /reservas/categorias publico devuelve 200" "200" "$RESP"
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/configuracion")
 verificar "GET /reservas/configuracion publico devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/presentacion")
+verificar "GET /presentacion publico devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/presentacion/admin")
+verificar "GET /presentacion/admin sin token devuelve 401" "401" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_presentacion.json -w "%{http_code}" "$BASE_URL/presentacion/admin" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /presentacion/admin con admin devuelve 200" "200" "$RESP"
 MAX_SERVICIOS=$(grep -o '"max_servicios_reserva":[0-9]*' /tmp/sgp_resp.json | cut -d: -f2)
 [ -n "$MAX_SERVICIOS" ] && echo "INFO: maximo configurado de servicios por reserva: $MAX_SERVICIOS"
 
@@ -293,6 +303,17 @@ UBICACION_API=$(sql "SELECT id FROM ubicacion LIMIT 1")
 SERVICIO_COMBO=$(sql "SELECT id FROM servicio_catalogo WHERE activo = TRUE LIMIT 1")
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/empleados-por-servicio?ubicacion_id=$UBICACION_API&servicio_id=$SERVICIO_COMBO")
 verificar "GET /reservas/empleados-por-servicio devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/empleados-por-sede?ubicacion_id=$UBICACION_API")
+verificar "GET /reservas/empleados-por-sede devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/servicios?ubicacion_id=$UBICACION_API&empleado_id=1")
+verificar "GET /reservas/servicios con filtros devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/ubicaciones" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d "{\"nombre\":\"Sede sin ciudad $SUFIJO_API\",\"direccion\":\"Calle 1\",\"latitud\":4.6,\"longitud\":-74.1}")
+verificar "Crear sede sin ciudad devuelve 400" "400" "$RESP"
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/reservas/disponibilidad-combo"   -H "Content-Type: application/json" -d '{}')
 verificar "Combo sin datos devuelve 400" "400" "$RESP"

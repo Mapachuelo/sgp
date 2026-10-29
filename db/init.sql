@@ -2,9 +2,41 @@ CREATE TABLE IF NOT EXISTS ubicacion (
   id SERIAL PRIMARY KEY,
   nombre VARCHAR(200) NOT NULL,
   direccion TEXT NOT NULL,
+  departamento VARCHAR(120) NOT NULL DEFAULT 'Sin departamento',
+  ciudad VARCHAR(120) NOT NULL DEFAULT 'Sin ciudad',
   latitud DOUBLE PRECISION NOT NULL,
   longitud DOUBLE PRECISION NOT NULL
 );
+
+ALTER TABLE ubicacion ADD COLUMN IF NOT EXISTS departamento VARCHAR(120);
+ALTER TABLE ubicacion ADD COLUMN IF NOT EXISTS ciudad VARCHAR(120);
+
+UPDATE ubicacion
+SET ciudad = CASE
+  WHEN ciudad IS NULL OR BTRIM(ciudad) = '' THEN
+    CASE
+      WHEN POSITION(',' IN direccion) > 0
+        THEN BTRIM(REGEXP_REPLACE(direccion, '^.*,', ''))
+      ELSE 'Sin ciudad'
+    END
+  ELSE ciudad
+END
+WHERE ciudad IS NULL OR BTRIM(ciudad) = '';
+
+UPDATE ubicacion
+SET departamento = 'Sin departamento'
+WHERE departamento IS NULL OR BTRIM(departamento) = '';
+
+UPDATE ubicacion SET departamento = 'Bogotá D.C.', ciudad = 'Bogotá'
+WHERE ciudad ILIKE 'bogot%' OR direccion ILIKE '%bogot%';
+
+ALTER TABLE ubicacion ALTER COLUMN ciudad SET DEFAULT 'Sin ciudad';
+ALTER TABLE ubicacion ALTER COLUMN departamento SET DEFAULT 'Sin departamento';
+ALTER TABLE ubicacion ALTER COLUMN ciudad SET NOT NULL;
+ALTER TABLE ubicacion ALTER COLUMN departamento SET NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_ubicacion_departamento_ciudad
+  ON ubicacion (departamento, ciudad);
 
 CREATE TABLE IF NOT EXISTS app_user (
   id SERIAL PRIMARY KEY,
@@ -35,8 +67,11 @@ CREATE TABLE IF NOT EXISTS empleado_perfil (
   usuario_id INTEGER PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
   identificacion VARCHAR(30),
   password_asignada_hash TEXT,
-  ubicacion_base_id INTEGER REFERENCES ubicacion(id) ON DELETE SET NULL
+  ubicacion_base_id INTEGER REFERENCES ubicacion(id) ON DELETE SET NULL,
+  foto_url TEXT
 );
+
+ALTER TABLE empleado_perfil ADD COLUMN IF NOT EXISTS foto_url TEXT;
 
 CREATE TABLE IF NOT EXISTS servicio_categoria (
   id SERIAL PRIMARY KEY,
@@ -177,10 +212,13 @@ CREATE TABLE IF NOT EXISTS preferencia_usuario (
   rango_hora_hasta TIME DEFAULT '22:00',
   granularidad_calendario INTEGER DEFAULT 30,
   tema VARCHAR(10) DEFAULT 'claro',
-  idioma VARCHAR(5) DEFAULT 'es'
+  departamento_preferido VARCHAR(120),
+  ciudad_preferida VARCHAR(120)
 );
 
-ALTER TABLE preferencia_usuario ADD COLUMN IF NOT EXISTS idioma VARCHAR(5) DEFAULT 'es';
+ALTER TABLE preferencia_usuario ADD COLUMN IF NOT EXISTS departamento_preferido VARCHAR(120);
+ALTER TABLE preferencia_usuario ADD COLUMN IF NOT EXISTS ciudad_preferida VARCHAR(120);
+ALTER TABLE preferencia_usuario DROP COLUMN IF EXISTS idioma;
 
 CREATE INDEX IF NOT EXISTS idx_reserva_inicia_en ON reserva(inicia_en);
 CREATE INDEX IF NOT EXISTS idx_reserva_cliente_id ON reserva(cliente_id);
@@ -206,9 +244,13 @@ INSERT INTO configuracion (clave, valor)
 SELECT 'max_servicios_reserva', '5'
 WHERE NOT EXISTS (SELECT 1 FROM configuracion WHERE clave = 'max_servicios_reserva');
 
-INSERT INTO ubicacion (nombre, direccion, latitud, longitud)
-SELECT 'Sede Centro', 'Calle 123 #45-67, Bogota', 4.60971, -74.08175
+INSERT INTO ubicacion (nombre, direccion, departamento, ciudad, latitud, longitud)
+SELECT 'Sede Centro', 'Calle 123 #45-67, Bogota', 'Bogotá D.C.', 'Bogotá', 4.60971, -74.08175
 WHERE NOT EXISTS (SELECT 1 FROM ubicacion WHERE nombre = 'Sede Centro');
+
+UPDATE ubicacion
+SET departamento = 'Bogotá D.C.', ciudad = 'Bogotá'
+WHERE nombre IN ('Sede Centro') OR direccion ILIKE '%bogot%';
 
 INSERT INTO servicio_categoria (nombre, descripcion, orden)
 SELECT 'Peluqueada', 'Cortes y peinados de cabello', 1

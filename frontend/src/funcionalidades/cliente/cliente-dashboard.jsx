@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast as notificar } from 'sonner';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
@@ -189,6 +190,11 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
           <p className="text-[11px] font-medium text-texto-secundario">Sede</p>
           <p className="mt-1 text-sm font-medium text-texto-principal">{reserva.ubicacion_nombre || 'Sede por confirmar'}</p>
           {reserva.ubicacion_direccion && <p className="mt-0.5 text-xs text-texto-secundario">{reserva.ubicacion_direccion}</p>}
+          {(reserva.ubicacion_ciudad || reserva.ubicacion_departamento) && (
+            <p className="mt-0.5 text-[11px] text-tenue">
+              {[reserva.ubicacion_ciudad, reserva.ubicacion_departamento].filter(Boolean).join(' · ')}
+            </p>
+          )}
           {tieneMapa ? (
             <div className="relative z-0 mt-3 h-40 overflow-hidden rounded-md border border-borde">
               <MapContainer center={[lat, lng]} zoom={15} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
@@ -253,12 +259,12 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
         )}
 
         {reserva.qr_data_url && (
-          <div className="text-center">
-            <p className="mb-2 text-[11px] font-medium text-texto-secundario">Código QR de acceso</p>
-            <div className="inline-block rounded-md border border-borde bg-white p-3">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p className="text-[11px] font-medium text-texto-secundario">Código QR de acceso</p>
+            <div className="rounded-md border border-borde bg-white p-3">
               <img src={reserva.qr_data_url} alt={`Código QR de la cita ${reserva.id}`} className="h-40 w-40" />
             </div>
-            <Button variant="secundario" size="sm" className="mt-2" onClick={() => descargarQrReserva(reserva)}>
+            <Button variant="secundario" size="sm" className="w-full sm:w-auto" onClick={() => descargarQrReserva(reserva)}>
               <QrCode className="h-4 w-4" aria-hidden="true" /> Descargar QR
             </Button>
           </div>
@@ -422,7 +428,7 @@ export default function ClienteDashboard() {
                 </p>
                 <p className="mt-3 text-lg font-medium text-texto-principal">{proxima.servicio_nombre || 'Servicio'}</p>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-texto-secundario">
-                  <Scissors className="h-3.5 w-3.5" aria-hidden="true" />
+                  <Avatar nombre={proxima.empleado_nombre} apellido={proxima.empleado_apellido} fotoUrl={proxima.empleado_foto_url} size="sm" />
                   {proxima.equipo_nombre || `${proxima.empleado_nombre || ''} ${proxima.empleado_apellido || ''}`.trim()}
                 </p>
               </div>

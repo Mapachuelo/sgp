@@ -6,8 +6,6 @@ Hair Salon Management System user guide for customers, employees and administrat
 
 1. Open `http://localhost:8080`.
 2. On **Iniciar sesión / Sign in**, enter email and password. The system detects the role and redirects automatically.
-3. Use the **EN/ES** button in the top bar to switch language; the preference is saved per user.
-
 ![Sign in](img/login.png)
 
 ### 1.1 Create an account (customers only)
@@ -96,7 +94,7 @@ When changing the venue of a day with future bookings, a confirmation is shown: 
 
 - **KPIs:** daily revenue, daily bookings, average occupancy rate and recurring customers.
 - **Timeline:** all appointments of the day, filterable by date and venue, with a Validate button per booking.
-- **Management:** 9 floating-window shortcuts: Validate QR, Payment, Employees, Services, Venues, Schedules, Reports, Customer moderation and Logs.
+- **Management:** management shortcuts. Employees, Services, Presentation, Venues, Schedules/Agenda, Reports, Customer moderation and Logs open as independent pages inside the admin shell; Validate QR and Payment remain floating windows.
 
 ![Admin dashboard](img/admin-dashboard.png)
 
@@ -137,7 +135,7 @@ The **Venue shifts** tab edits opening hours per date.
 
 ## 5. Mobile and English
 
-The UI is responsive (hamburger menu, scrollable tables, horizontally scrollable planner). The EN/ES button translates the whole interface.
+The UI is responsive (hamburger menu, scrollable tables, horizontally scrollable planner) and is always displayed in Spanish.
 
 ![Mobile](img/cliente-kanban-movil.png)
 

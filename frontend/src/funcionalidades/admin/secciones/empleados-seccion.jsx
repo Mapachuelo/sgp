@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
-import { Badge, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
+import { ImageOff, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { PageHeader, Avatar, Badge, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
 import CampoTelefono from '../../../componentes/telefono/campo-telefono.jsx';
-import { SheetAdmin } from './navegacion.jsx';
+import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
+
+const dinero = (valor) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
+    .format(Number(valor) || 0)
+    .replace(/\u00a0/g, '');
 
 const DIAS = [
   { dia: 1, label: 'Lunes' },
@@ -43,7 +48,7 @@ const FORM_INICIAL = {
   servicios_asignados: {},
 };
 
-export default function EmpleadosSeccion({ open, onClose, onToast }) {
+export default function EmpleadosSeccion() {
   const [empleados, setEmpleados] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
   const [servicios, setServicios] = useState([]);
@@ -70,15 +75,15 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       setUbicaciones(Array.isArray(ubis) ? ubis : []);
       setServicios(Array.isArray(servs) ? servs : []);
     } catch (errorCarga) {
-      onToast?.(errorCarga.message, 'error');
+      avisarAdmin(errorCarga.message, 'error');
     } finally {
       setCargando(false);
     }
-  }, [onToast]);
+  }, []);
 
   useEffect(() => {
-    if (open) cargar();
-  }, [open, cargar]);
+    cargar();
+  }, [cargar]);
 
   const categoriasServicios = useMemo(() => {
     const mapa = new Map();
@@ -138,7 +143,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       if (duplicada) {
         const nombreSede = ubicaciones.find((u) => u.id === Number(duplicada[0]))?.nombre || `Sede #${duplicada[0]}`;
         const nombreDia = DIAS.find((d) => d.dia === dia)?.label || `Dia ${dia}`;
-        onToast?.(`El empleado ya tiene horario en ${nombreSede} el ${nombreDia}`, 'error');
+        avisarAdmin(`El empleado ya tiene horario en ${nombreSede} el ${nombreDia}`, 'error');
         return;
       }
     }
@@ -199,11 +204,11 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
         await api.disponibilidad.updateByAdmin(empleadoId, disponibilidadItems);
         await api.reservas.empleadoTiempos.update({ empleado_id: empleadoId, items: serviciosItems });
       }
-      onToast?.(editId ? 'Empleado actualizado' : 'Empleado creado');
+      avisarAdmin(editId ? 'Empleado actualizado' : 'Empleado creado');
       resetForm();
       await cargar();
     } catch (errorGuardar) {
-      onToast?.(errorGuardar.message, 'error');
+      avisarAdmin(errorGuardar.message, 'error');
     } finally {
       setGuardando(false);
     }
@@ -213,10 +218,10 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
     if (!window.confirm(`¿Eliminar a ${empleado.nombre} ${empleado.apellido}?`)) return;
     try {
       await api.auth.empleados.delete(empleado.id);
-      onToast?.('Empleado eliminado');
+      avisarAdmin('Empleado eliminado');
       await cargar();
     } catch (errorEliminar) {
-      onToast?.(errorEliminar.message, 'error');
+      avisarAdmin(errorEliminar.message, 'error');
     }
   };
 
@@ -260,7 +265,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       setForm((prev) => ({ ...prev, sedes_asignadas: sedes, horarios: horariosMap, servicios_asignados: serviciosMap }));
       setSedeActiva(sedes[0] || null);
     } catch {
-      onToast?.('Error al cargar los datos del empleado', 'error');
+      avisarAdmin('Error al cargar los datos del empleado', 'error');
     }
   };
 
@@ -269,7 +274,11 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
   );
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Gestión de empleados">
+    <div className="space-y-5">
+      <PageHeader
+        title="Equipo"
+        subtitle="Gestiona empleados, sedes, horarios y servicios que realizan."
+      />
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative">
@@ -393,18 +402,25 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                 {serviciosFiltrados.map((servicio) => {
                   const config = form.servicios_asignados?.[servicio.id] || { checked: false, duracion: servicio.duracion_base_minutos || 30 };
                   return (
-                    <div key={servicio.id} className="flex items-center justify-between p-2 bg-fondo/40 rounded-xl border border-borde/40 text-xs">
-                      <label className="flex items-center gap-2 font-semibold text-texto-principal cursor-pointer select-none">
+                    <div key={servicio.id} className="flex items-center justify-between gap-2 p-2 bg-fondo/40 rounded-xl border border-borde/40 text-xs">
+                      <label className="flex min-w-0 items-center gap-2 font-semibold text-texto-principal cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={config.checked}
                           onChange={(e) => setForm((p) => ({ ...p, servicios_asignados: { ...p.servicios_asignados, [servicio.id]: { ...config, checked: e.target.checked } } }))}
                           className="rounded border-borde text-primario w-4 h-4 cursor-pointer"
                         />
-                        <span className="block">
-                          <span className="block">{servicio.nombre}</span>
-                          <span className="block text-[10px] font-normal text-texto-secundario">
-                            {servicio.categoria_nombre || 'Sin categoría'}
+                        {servicio.imagen_url ? (
+                          <img src={servicio.imagen_url} alt="" className="h-8 w-8 shrink-0 rounded border border-borde object-cover" loading="lazy" />
+                        ) : (
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-borde bg-panel text-tenue">
+                            <ImageOff className="h-3.5 w-3.5" aria-hidden="true" />
+                          </span>
+                        )}
+                        <span className="block min-w-0">
+                          <span className="block truncate">{servicio.nombre}</span>
+                          <span className="block truncate text-[10px] font-normal text-texto-secundario">
+                            {servicio.categoria_nombre || 'Sin categoría'} · {dinero(servicio.precio_base)}
                           </span>
                         </span>
                       </label>
@@ -459,7 +475,12 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
               <tbody>
                 {filtrados.map((emp) => (
                   <tr key={emp.id} className="border-t border-borde/50 hover:bg-fondo/30 transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-texto-principal">{emp.nombre} {emp.apellido}</td>
+                    <td className="py-2.5 px-3 font-semibold text-texto-principal">
+                      <span className="flex items-center gap-2">
+                        <Avatar nombre={emp.nombre} apellido={emp.apellido} fotoUrl={emp.foto_url} size="sm" />
+                        {emp.nombre} {emp.apellido}
+                      </span>
+                    </td>
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{emp.email}</td>
                     <td className="py-2.5 px-3 text-xs">{emp.telefono}</td>
                     <td className="py-2.5 px-3 text-xs">{emp.identificacion}</td>
@@ -483,6 +504,6 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
           </div>
         )}
       </div>
-    </SheetAdmin>
+    </div>
   );
 }

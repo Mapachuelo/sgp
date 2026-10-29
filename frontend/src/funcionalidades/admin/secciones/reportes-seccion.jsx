@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BarChart3 } from 'lucide-react';
-import { Badge, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
-import { SheetAdmin } from './navegacion.jsx';
+import { PageHeader, Badge, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
 import { hoy } from '../utils.js';
 
@@ -11,7 +11,7 @@ const TABS = [
   { clave: 'recurrentes', etiqueta: 'Clientes recurrentes' },
 ];
 
-export default function ReportesSeccion({ open, onClose, onToast }) {
+export default function ReportesSeccion() {
   const [tab, setTab] = useState('ventas');
   const [fecha, setFecha] = useState(hoy());
   const [datos, setDatos] = useState(null);
@@ -26,18 +26,22 @@ export default function ReportesSeccion({ open, onClose, onToast }) {
       else respuesta = await api.reportes.clientesRecurrentes();
       setDatos(respuesta ?? []);
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setCargando(false);
     }
-  }, [tab, fecha, onToast]);
+  }, [tab, fecha]);
 
   useEffect(() => {
-    if (open) cargar();
-  }, [open, cargar]);
+    cargar();
+  }, [cargar]);
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Reportes">
+    <div className="space-y-5">
+      <PageHeader
+        title="Reportes"
+        subtitle="Ventas, ocupación y clientes recurrentes."
+      />
       <div className="space-y-4">
         <div className="flex flex-wrap gap-1 bg-fondo border border-borde rounded-xl p-1 w-fit">
           {TABS.map((t) => (
@@ -167,6 +171,6 @@ export default function ReportesSeccion({ open, onClose, onToast }) {
           </Card>
         ) : null}
       </div>
-    </SheetAdmin>
+    </div>
   );
 }

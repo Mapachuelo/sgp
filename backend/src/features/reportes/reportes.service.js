@@ -23,16 +23,18 @@ function resolverFecha(fecha) {
 }
 
 const reportesService = {
-  async ventasDiarias(fecha) {
+  async ventasDiarias(fecha, filtros = {}) {
     const f = resolverFecha(fecha);
-    const desglose = await reportesModel.ventasDiarias(f);
-    const total = await reportesModel.totalDia(f);
+    const ciudad = filtros.ciudad || null;
+    const departamento = filtros.departamento || null;
+    const desglose = await reportesModel.ventasDiarias(f, ciudad, departamento);
+    const total = await reportesModel.totalDia(f, ciudad, departamento);
     return { fecha: f, total, desglose };
   },
 
-  async ocupacion(fecha) {
+  async ocupacion(fecha, filtros = {}) {
     const f = resolverFecha(fecha);
-    return reportesModel.ocupacion(f);
+    return reportesModel.ocupacion(f, filtros.ciudad || null, filtros.departamento || null);
   },
 
   async clientesRecurrentes() {

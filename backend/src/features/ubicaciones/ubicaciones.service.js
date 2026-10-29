@@ -15,17 +15,35 @@ function validarCoordenadas(latitud, longitud) {
   }
 }
 
+function validarTexto(valor, campo, maximo = 120) {
+  if (typeof valor !== 'string' || !valor.trim()) {
+    throw new HttpError(400, `${campo} es requerido`);
+  }
+  const texto = valor.trim();
+  if (texto.length > maximo) {
+    throw new HttpError(400, `${campo} no puede superar ${maximo} caracteres`);
+  }
+  return texto;
+}
+
 const ubicacionesService = {
-  async findAll() {
-    return ubicacionesModel.findAll();
+  async findAll(filtros = {}) {
+    return ubicacionesModel.findAll(filtros);
   },
 
   async create(data) {
     if (!data.nombre || !data.direccion || data.latitud == null || data.longitud == null) {
-      throw new HttpError(400, 'Todos los campos son requeridos: nombre, direccion, latitud, longitud');
+      throw new HttpError(400, 'Todos los campos son requeridos: nombre, direccion, departamento, ciudad, latitud, longitud');
     }
     validarCoordenadas(data.latitud, data.longitud);
-    return ubicacionesModel.create(data);
+    return ubicacionesModel.create({
+      nombre: String(data.nombre).trim(),
+      direccion: String(data.direccion).trim(),
+      departamento: validarTexto(data.departamento, 'departamento'),
+      ciudad: validarTexto(data.ciudad, 'ciudad'),
+      latitud: Number(data.latitud),
+      longitud: Number(data.longitud),
+    });
   },
 
   async update(id, data) {
@@ -38,7 +56,10 @@ const ubicacionesService = {
       const longitud = data.longitud !== undefined ? data.longitud : ubicacion.longitud;
       validarCoordenadas(latitud, longitud);
     }
-    return ubicacionesModel.update(id, data);
+    const payload = { ...data };
+    if (data.departamento !== undefined) payload.departamento = validarTexto(data.departamento, 'departamento');
+    if (data.ciudad !== undefined) payload.ciudad = validarTexto(data.ciudad, 'ciudad');
+    return ubicacionesModel.update(id, payload);
   },
 
   async delete(id) {

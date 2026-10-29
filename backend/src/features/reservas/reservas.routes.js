@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/empleados-disponibles', reservasController.empleadosDisponibles);
 router.get('/empleados-por-servicio', reservasController.empleadosPorServicio);
+router.get('/empleados-por-sede', reservasController.empleadosPorSede);
 router.get('/sedes-por-servicio', reservasController.listarSedesPorServicio);
 router.post('/disponibilidad-combo', reservasController.disponibilidadCombo);
 

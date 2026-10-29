@@ -27,7 +27,7 @@ import {
   Spinner,
   StatusPill,
 } from '../../componentes/ui/index.jsx';
-import PagoReservaModal from '../../componentes/pagos/pago-reserva-modal.jsx';
+import CobroCitaSheet from '../../componentes/pagos/cobro-cita-sheet.jsx';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -274,71 +274,6 @@ function LlegadaQRModal({ open, onClose, onSuccess, qrInicial = '' }) {
   );
 }
 
-function CobroEfectivoModal({ open, cita, onClose, onSuccess, onToast }) {
-  const [monto, setMonto] = useState('');
-  const [cargando, setCargando] = useState(false);
-
-  const total = cita ? Number(cita.precio_total || cita.precio_base || 0) * Number(cita.cantidad_personas || 1) : 0;
-
-  useEffect(() => {
-    if (open && cita) setMonto(String(total || ''));
-  }, [open, cita, total]);
-
-  const cobrar = async () => {
-    const valor = Number(monto);
-    if (!Number.isFinite(valor) || valor <= 0) {
-      onToast?.('Ingresa un monto mayor a 0', 'warning');
-      return;
-    }
-    setCargando(true);
-    try {
-      await api.checkin.cobroEfectivo(cita.id, valor);
-      onToast?.('Cobro en efectivo registrado');
-      onSuccess?.();
-      onClose?.();
-    } catch (err) {
-      onToast?.(err.message, 'error');
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  const recibido = Number(monto) || 0;
-  const cambio = Math.max(0, recibido - total);
-
-  return (
-    <Modal open={open} onClose={onClose} title="Cobro en efectivo" size="sm">
-      {cita && (
-        <div className="space-y-4">
-          <div className="rounded-md border border-borde bg-panel/60 p-3">
-            <p className="text-sm font-medium text-texto-principal">{cita.cliente_nombre || 'Cliente'}</p>
-            <p className="mt-0.5 text-xs text-texto-secundario">
-              {cita.mis_servicios || cita.servicio_nombre || 'Servicio'} · Total {dinero(total)}
-            </p>
-          </div>
-          <Input
-            label="Monto recibido"
-            type="number"
-            min="1"
-            step="100"
-            inputMode="decimal"
-            value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-          />
-          {recibido > total && (
-            <p className="text-xs text-texto-secundario">
-              Cambio: <span className="num font-medium text-texto-principal">{dinero(cambio)}</span>
-            </p>
-          )}
-          <Button className="w-full" onClick={cobrar} disabled={cargando}>
-            {cargando ? <Spinner /> : 'Registrar cobro'}
-          </Button>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
 export default function EmpleadoDashboard({ vista = 'cola' }) {
   const { usuario } = useAuth();
   const { ultimoEvento } = useWebSocket();
@@ -346,16 +281,21 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [modalQR, setModalQR] = useState(false);
-  const [pagoReserva, setPagoReserva] = useState(null);
-  const [cobroEfectivoCita, setCobroEfectivoCita] = useState(null);
+  const [cobroCita, setCobroCita] = useState(null);
   const [finalizarCita, setFinalizarCita] = useState(null);
   const [finalizando, setFinalizando] = useState(false);
   const [fecha, setFecha] = useState(formatearFechaLocal(new Date()));
+  const [, setReloj] = useState(Date.now());
 
   const fechaRef = useRef(fecha);
   useEffect(() => {
     fechaRef.current = fecha;
   }, [fecha]);
+
+  useEffect(() => {
+    const intervalo = setInterval(() => setReloj(Date.now()), 30000);
+    return () => clearInterval(intervalo);
+  }, []);
 
   const [sedeHoy, setSedeHoy] = useState(null);
   const [disponibilidadHoy, setDisponibilidadHoy] = useState(null);
@@ -455,8 +395,8 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
 
   const handleAtender = async (cita) => {
     if (!estaPagada(cita)) {
-      setPagoReserva(cita);
-      notificar.warning('Primero registra el pago por QR o en efectivo');
+      setCobroCita(cita);
+      notificar.warning('Primero registra el pago de la cita');
       return;
     }
     try {
@@ -546,6 +486,15 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const CitaRow = ({ cita, compacta = false }) => {
     const pagada = estaPagada(cita);
     const espera = minutosDesde(cita.llego_en);
+    const inicioCita = new Date(cita.mi_inicia_en || cita.inicia_en);
+    const ventanaDesde = new Date(inicioCita.getTime() - 30 * 60000);
+    const puedeAtender = Date.now() >= ventanaDesde.getTime();
+    const horaVentana = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(ventanaDesde);
     return (
       <div className={`rounded-lg border border-borde bg-superficie ${compacta ? 'px-3 py-2.5' : 'p-3.5'}`}>
         <div className="flex flex-wrap items-start gap-3">
@@ -575,18 +524,18 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
                 Finalizar
               </Button>
             ) : cita.llego_en && pagada ? (
-              <Button size="sm" onClick={() => handleAtender(cita)}>
-                Atender
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                {!puedeAtender && (
+                  <span className="text-[10px] text-tenue">Disponible desde {horaVentana}</span>
+                )}
+                <Button size="sm" onClick={() => handleAtender(cita)} disabled={!puedeAtender} title={!puedeAtender ? `Podrás atender desde ${horaVentana}` : undefined}>
+                  Atender
+                </Button>
+              </div>
             ) : cita.llego_en && !pagada ? (
-              <>
-                <Button size="sm" onClick={() => setPagoReserva(cita)}>
-                  Cobrar QR
-                </Button>
-                <Button variant="secundario" size="sm" onClick={() => setCobroEfectivoCita(cita)}>
-                  Efectivo
-                </Button>
-              </>
+              <Button size="sm" onClick={() => setCobroCita(cita)}>
+                Cobrar
+              </Button>
             ) : (
               <Button variant="secundario" size="sm" onClick={() => handleRegistrarLlegada(cita)}>
                 Registrar llegada
@@ -907,24 +856,11 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
 
       <LlegadaQRModal open={modalQR} onClose={() => setModalQR(false)} onSuccess={() => refrescar()} />
 
-      <PagoReservaModal
-        open={Boolean(pagoReserva)}
-        reservaId={pagoReserva?.id}
-        modo="qr"
-        onClose={() => setPagoReserva(null)}
-        onPagado={refrescar}
-        onToast={(mensaje, tipo) => {
-          if (tipo === 'error') notificar.error(mensaje);
-          else if (tipo === 'warning') notificar.warning(mensaje);
-          else notificar.success(mensaje);
-        }}
-      />
-
-      <CobroEfectivoModal
-        open={Boolean(cobroEfectivoCita)}
-        cita={cobroEfectivoCita}
-        onClose={() => setCobroEfectivoCita(null)}
-        onSuccess={refrescar}
+      <CobroCitaSheet
+        open={Boolean(cobroCita)}
+        reserva={cobroCita}
+        onClose={() => setCobroCita(null)}
+        onActualizado={refrescar}
         onToast={(mensaje, tipo) => {
           if (tipo === 'error') notificar.error(mensaje);
           else if (tipo === 'warning') notificar.warning(mensaje);

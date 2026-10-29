@@ -18,7 +18,10 @@ const preferenciasModel = {
       );
     }
 
-    const { rango_hora_desde, rango_hora_hasta, granularidad_calendario, tema, idioma } = data;
+    const {
+      rango_hora_desde, rango_hora_hasta, granularidad_calendario, tema,
+      departamento_preferido, ciudad_preferida,
+    } = data;
     const fields = [];
     const values = [];
     let idx = 1;
@@ -27,7 +30,8 @@ const preferenciasModel = {
     if (rango_hora_hasta !== undefined) { fields.push(`rango_hora_hasta = $${idx++}`); values.push(rango_hora_hasta); }
     if (granularidad_calendario !== undefined) { fields.push(`granularidad_calendario = $${idx++}`); values.push(granularidad_calendario); }
     if (tema !== undefined) { fields.push(`tema = $${idx++}`); values.push(tema); }
-    if (idioma !== undefined) { fields.push(`idioma = $${idx++}`); values.push(idioma); }
+    if (departamento_preferido !== undefined) { fields.push(`departamento_preferido = $${idx++}`); values.push(departamento_preferido || null); }
+    if (ciudad_preferida !== undefined) { fields.push(`ciudad_preferida = $${idx++}`); values.push(ciudad_preferida || null); }
 
     if (fields.length > 0) {
       values.push(usuario_id);

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Clock, ImageOff, MapPin, Search, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronRight, Clock, ImageOff, MapPin, Search, Users, X } from 'lucide-react';
 import {
+  Avatar,
   Badge,
   BuscadorSelect,
   Button,
@@ -15,8 +16,10 @@ import {
   Toast,
 } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
+import GaleriaServicio from '../../componentes/servicios/galeria-servicio.jsx';
 import useWebSocket from '../../hooks/use-websocket.js';
 import { descargarQrReserva } from '../../lib/descargas.js';
+import { ciudadesDeDepartamento } from '../../lib/colombia.js';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -167,117 +170,12 @@ function InvalidarMapa() {
 }
 
 function ModalDetalleServicio({ servicio, abierto, onClose, seleccionado, puedeAgregar, onToggle }) {
-  const [imagenes, setImagenes] = useState([]);
-  const [indice, setIndice] = useState(0);
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!abierto || !servicio?.id) return undefined;
-    let activo = true;
-    setIndice(0);
-    setError('');
-    setImagenes(servicio.imagen_url ? [servicio.imagen_url] : []);
-    setCargando(true);
-    api.reservas
-      .imagenesServicio(servicio.id)
-      .then((data) => {
-        if (!activo) return;
-        const urls = (Array.isArray(data) ? data : [])
-          .sort((a, b) => Number(a.orden) - Number(b.orden))
-          .map((imagen) => imagen.imagen_url)
-          .filter(Boolean);
-        if (urls.length > 0) setImagenes(urls);
-      })
-      .catch((err) => {
-        if (activo) setError(err.message);
-      })
-      .finally(() => {
-        if (activo) setCargando(false);
-      });
-    return () => { activo = false; };
-  }, [abierto, servicio?.id, servicio?.imagen_url]);
-
-  const total = imagenes.length;
-  const irA = (delta) => {
-    if (total <= 1) return;
-    setIndice((actual) => (actual + delta + total) % total);
-  };
-
   return (
-    <Modal open={abierto && Boolean(servicio)} onClose={onClose} title={servicio?.nombre || 'Detalle del servicio'} size="wide">
+    <Modal open={abierto && Boolean(servicio)} onClose={onClose} title={servicio?.nombre || 'Detalle del servicio'} size="xl">
       {servicio && (
         <div className="space-y-4">
           <div className="grid gap-5 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <div>
-              <div
-                className="relative overflow-hidden rounded-lg border border-borde bg-panel"
-                tabIndex={0}
-                onKeyDown={(evento) => {
-                  if (evento.key === 'ArrowLeft') { evento.preventDefault(); irA(-1); }
-                  if (evento.key === 'ArrowRight') { evento.preventDefault(); irA(1); }
-                }}
-                aria-label={total > 1 ? `Galería de ${servicio.nombre}. Usa las flechas para cambiar de imagen.` : `Imagen de ${servicio.nombre}`}
-              >
-                {cargando && total === 0 ? (
-                  <div className="flex aspect-[4/3] items-center justify-center"><Spinner /></div>
-                ) : total === 0 ? (
-                  <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 text-tenue">
-                    <ImageOff className="h-7 w-7" strokeWidth={1.5} aria-hidden="true" />
-                    <span className="text-[11px]">Sin imágenes</span>
-                  </div>
-                ) : (
-                  <img
-                    src={imagenes[indice]}
-                    alt={`${servicio.nombre}, imagen ${indice + 1} de ${total}`}
-                    className="aspect-[4/3] w-full object-cover"
-                  />
-                )}
-                {total > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => irA(-1)}
-                      aria-label="Imagen anterior"
-                      className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-borde bg-superficie text-texto-principal hover:bg-panel"
-                    >
-                      <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => irA(1)}
-                      aria-label="Imagen siguiente"
-                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-borde bg-superficie text-texto-principal hover:bg-panel"
-                    >
-                      <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                    </button>
-                    <span className="num absolute bottom-2 right-2 rounded border border-borde bg-superficie px-1.5 py-0.5 text-[10px] font-medium text-texto-secundario" aria-live="polite">
-                      {indice + 1} / {total}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {total > 1 && (
-                <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 scroll-thin" aria-label="Miniaturas de imágenes">
-                  {imagenes.map((imagen, posicion) => (
-                    <button
-                      key={`${posicion}-${imagen.slice(-16)}`}
-                      type="button"
-                      onClick={() => setIndice(posicion)}
-                      aria-label={`Ver imagen ${posicion + 1}`}
-                      aria-current={posicion === indice ? 'true' : undefined}
-                      className={`h-12 w-12 shrink-0 overflow-hidden rounded border ${
-                        posicion === indice ? 'border-acento ring-1 ring-acento/20' : 'border-borde opacity-75 hover:opacity-100'
-                      }`}
-                    >
-                      <img src={imagen} alt="" className="h-full w-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-              {error && <p className="mt-2 text-[11px] text-error">No se pudieron cargar todas las imágenes.</p>}
-            </div>
+            <GaleriaServicio servicio={servicio} />
 
             <div className="min-w-0">
               <Badge variant="accent">{servicio.categoria_nombre || 'Servicio'}</Badge>
@@ -407,6 +305,9 @@ function ModalSedesServicio({
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-texto-principal">{sede.nombre}</span>
                       {sede.direccion && <span className="mt-0.5 block text-[11px] leading-4 text-texto-secundario">{sede.direccion}</span>}
+                      <span className="mt-0.5 block text-[10px] text-tenue">
+                        {[sede.ciudad, sede.departamento].filter(Boolean).join(' · ')}
+                      </span>
                     </span>
                     <span className="shrink-0 text-right">
                       <span className="num block text-sm font-semibold text-texto-principal">{sede.total_estilistas}</span>
@@ -452,9 +353,17 @@ export default function NuevaReserva() {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
   const [filtroNombre, setFiltroNombre] = useState('');
+  const [filtroDepartamento, setFiltroDepartamento] = useState('Todos');
   const [filtroCiudad, setFiltroCiudad] = useState('Todas');
+  const [modoReserva, setModoReserva] = useState('servicio');
+  const [empleadosSede, setEmpleadosSede] = useState([]);
+  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null);
+  const [cargandoEmpleadosSede, setCargandoEmpleadosSede] = useState(false);
+  const [mensajeUbicacion, setMensajeUbicacion] = useState('');
 
   const [catalogo, setCatalogo] = useState([]);
+  const [serviciosSede, setServiciosSede] = useState(null);
+  const [serviciosEmpleado, setServiciosEmpleado] = useState([]);
   const [categoriasApi, setCategoriasApi] = useState([]);
   const [categoriaActiva, setCategoriaActiva] = useState('todas');
   const [busquedaServicio, setBusquedaServicio] = useState('');
@@ -522,6 +431,8 @@ export default function NuevaReserva() {
         setCategoriasApi(Array.isArray(cats) ? cats : []);
         setConfiguracion(cfg || { max_servicios_reserva: 5 });
         setPreferencias(prefs || null);
+        if (prefs?.departamento_preferido) setFiltroDepartamento(prefs.departamento_preferido);
+        if (prefs?.ciudad_preferida) setFiltroCiudad(prefs.ciudad_preferida);
         if ([15, 30, 60].includes(Number(prefs?.granularidad_calendario))) {
           setGranularidad(Number(prefs.granularidad_calendario));
         }
@@ -532,16 +443,20 @@ export default function NuevaReserva() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const obtenerCiudad = (direccion) => {
-    if (!direccion) return 'Otras';
-    const partes = direccion.split(',');
-    return partes.length > 1 ? partes[partes.length - 1].trim() : 'Otras';
-  };
-
-  const ciudades = useMemo(
-    () => ['Todas', ...new Set(ubicaciones.map((u) => obtenerCiudad(u.direccion)))],
+  const departamentos = useMemo(
+    () => ['Todos', ...new Set(ubicaciones.map((u) => u.departamento || 'Sin departamento').filter(Boolean))],
     [ubicaciones]
   );
+
+  const ciudades = useMemo(() => {
+    const base = filtroDepartamento === 'Todos'
+      ? ubicaciones.map((u) => u.ciudad || 'Sin ciudad')
+      : ubicaciones
+          .filter((u) => (u.departamento || 'Sin departamento') === filtroDepartamento)
+          .map((u) => u.ciudad || 'Sin ciudad');
+    const conocidas = ciudadesDeDepartamento(filtroDepartamento);
+    return ['Todas', ...new Set([...base, ...conocidas].filter(Boolean))];
+  }, [ubicaciones, filtroDepartamento]);
 
   const ubicacionesFiltradas = useMemo(() => {
     const termino = normalizar(filtroNombre);
@@ -549,16 +464,68 @@ export default function NuevaReserva() {
       const coincideNombre =
         !termino ||
         normalizar(ubicacion.nombre).includes(termino) ||
-        normalizar(ubicacion.direccion).includes(termino);
-      const ciudad = obtenerCiudad(ubicacion.direccion);
-      const coincideCiudad = filtroCiudad === 'Todas' || normalizar(ciudad) === normalizar(filtroCiudad);
-      return coincideNombre && coincideCiudad;
+        normalizar(ubicacion.direccion).includes(termino) ||
+        normalizar(ubicacion.ciudad).includes(termino);
+      const coincideDepartamento =
+        filtroDepartamento === 'Todos' ||
+        normalizar(ubicacion.departamento || 'Sin departamento') === normalizar(filtroDepartamento);
+      const coincideCiudad =
+        filtroCiudad === 'Todas' ||
+        normalizar(ubicacion.ciudad || 'Sin ciudad') === normalizar(filtroCiudad);
+      return coincideNombre && coincideDepartamento && coincideCiudad;
     });
-  }, [ubicaciones, filtroNombre, filtroCiudad]);
+  }, [ubicaciones, filtroNombre, filtroDepartamento, filtroCiudad]);
+
+  const usarMiUbicacion = () => {
+    if (!navigator.geolocation) {
+      setMensajeUbicacion('Tu navegador no permite obtener la ubicación.');
+      return;
+    }
+    setMensajeUbicacion('Buscando la sede más cercana…');
+    navigator.geolocation.getCurrentPosition(
+      (posicion) => {
+        const { latitude, longitude } = posicion.coords;
+        const distancia = (ubicacion) => {
+          const lat = Number(ubicacion.latitud);
+          const lng = Number(ubicacion.longitud);
+          const rad = Math.PI / 180;
+          const dLat = (lat - latitude) * rad;
+          const dLng = (lng - longitude) * rad;
+          const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(latitude * rad) * Math.cos(lat * rad) * Math.sin(dLng / 2) ** 2;
+          return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        };
+        const ordenadas = [...ubicaciones].sort((a, b) => distancia(a) - distancia(b));
+        const cercana = ordenadas[0];
+        if (!cercana) {
+          setMensajeUbicacion('No hay sedes registradas.');
+          return;
+        }
+        setFiltroDepartamento(cercana.departamento || 'Todos');
+        setFiltroCiudad(cercana.ciudad || 'Todas');
+        setUbicacionSeleccionada(cercana);
+        guardarPreferenciaUbicacion(cercana.departamento || '', cercana.ciudad || '');
+        setMensajeUbicacion(`Sede más cercana: ${cercana.nombre} (${distancia(cercana).toFixed(1)} km)`);
+      },
+      () => setMensajeUbicacion('No pudimos obtener tu ubicación. Elige departamento y ciudad manualmente.'),
+      { enableHighAccuracy: true, timeout: 9000 }
+    );
+  };
+
+  const guardarPreferenciaUbicacion = (departamento, ciudad) => {
+    api.preferencias
+      .update({ departamento_preferido: departamento, ciudad_preferida: ciudad })
+      .catch(() => {});
+  };
+
+  const catalogoDisponible = modoReserva === 'empleado'
+    ? serviciosEmpleado
+    : (serviciosSede === null ? catalogo : serviciosSede);
 
   const categoriasCliente = useMemo(() => {
     const conServicios = new Map();
-    catalogo.forEach((servicio) => {
+    catalogoDisponible.forEach((servicio) => {
       const id = servicio.categoria_id ?? 'otros';
       if (!conServicios.has(id)) {
         conServicios.set(id, {
@@ -581,10 +548,10 @@ export default function NuevaReserva() {
           }))
       : [...conServicios.values()];
     return [
-      { id: 'todas', nombre: 'Todos', orden: -1, total: catalogo.length },
+      { id: 'todas', nombre: 'Todos', orden: -1, total: catalogoDisponible.length },
       ...base.sort((a, b) => Number(a.orden) - Number(b.orden) || a.nombre.localeCompare(b.nombre)),
     ];
-  }, [catalogo, categoriasApi]);
+  }, [catalogoDisponible, categoriasApi]);
 
   useEffect(() => {
     if (categoriaActiva !== 'todas' && !categoriasCliente.some((c) => String(c.id) === String(categoriaActiva))) {
@@ -594,7 +561,7 @@ export default function NuevaReserva() {
 
   const serviciosFiltrados = useMemo(() => {
     const termino = normalizar(busquedaServicio);
-    return catalogo.filter((servicio) => {
+    return catalogoDisponible.filter((servicio) => {
       const coincideCategoria =
         categoriaActiva === 'todas' || String(servicio.categoria_id) === String(categoriaActiva);
       if (!coincideCategoria) return false;
@@ -604,7 +571,7 @@ export default function NuevaReserva() {
       );
       return contenido.includes(termino);
     });
-  }, [catalogo, categoriaActiva, busquedaServicio]);
+  }, [catalogoDisponible, categoriaActiva, busquedaServicio]);
 
   const maxServicios = Number(configuracion?.max_servicios_reserva) || 5;
   const totalServicios = seleccionados.reduce((sum, servicio) => sum + Number(servicio.precio_base || 0), 0);
@@ -756,6 +723,8 @@ export default function NuevaReserva() {
     setCambiandoSede(true);
     try {
       setUbicacionSeleccionada(sede);
+      if (sede.departamento) setFiltroDepartamento(sede.departamento);
+      if (sede.ciudad) setFiltroCiudad(sede.ciudad);
       setEmpleadosPorServicio({});
       setAsignaciones({});
       setDisponibilidad({});
@@ -869,6 +838,13 @@ export default function NuevaReserva() {
     }
   }, [ultimoEvento, granularidad]);
 
+  useEffect(() => {
+    if (paso === 4 && equipoListo && !cargandoCalendario && Object.keys(disponibilidad).length === 0) {
+      cargarCalendarioRef.current?.(new Date());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paso, equipoListo]);
+
   const volverAtras = () => {
     if (paso === 2) {
       setPaso(1);
@@ -877,7 +853,7 @@ export default function NuevaReserva() {
       setEmpleadosPorServicio({});
       setAsignaciones({});
     } else if (paso === 4) {
-      setPaso(3);
+      setPaso(modoReserva === 'empleado' ? 2 : 3);
       setDisponibilidad({});
       setSlotSeleccionado(null);
       setDiaSeleccionado(null);
@@ -886,19 +862,103 @@ export default function NuevaReserva() {
     }
   };
 
+  const cargarServiciosSede = async (sede = ubicacionSeleccionada) => {
+    if (!sede) return;
+    try {
+      const data = await api.reservas.servicios({ ubicacion_id: sede.id });
+      setServiciosSede(Array.isArray(data) ? data.filter((servicio) => servicio.activo !== false) : []);
+    } catch {
+      setServiciosSede([]);
+    }
+  };
+
+  const cargarEmpleadosSede = async (sede = ubicacionSeleccionada) => {
+    if (!sede) return;
+    setCargandoEmpleadosSede(true);
+    try {
+      const data = await api.reservas.empleadosPorSede(sede.id);
+      setEmpleadosSede(Array.isArray(data) ? data : []);
+    } catch {
+      setEmpleadosSede([]);
+    } finally {
+      setCargandoEmpleadosSede(false);
+    }
+  };
+
+  const elegirEmpleado = async (empleado) => {
+    setEmpleadoSeleccionado(empleado);
+    setSeleccionados([]);
+    setAsignaciones({});
+    setServiciosEmpleado([]);
+    try {
+      const data = await api.reservas.servicios({
+        ubicacion_id: ubicacionSeleccionada?.id,
+        empleado_id: empleado.id,
+      });
+      setServiciosEmpleado(Array.isArray(data) ? data.filter((servicio) => servicio.activo !== false) : []);
+    } catch {
+      setServiciosEmpleado([]);
+    }
+  };
+
+  const cambiarModo = (modo) => {
+    setModoReserva(modo);
+    setSeleccionados([]);
+    setAsignaciones({});
+    setEmpleadosPorServicio({});
+    setServiciosEmpleado([]);
+    setEmpleadoSeleccionado(null);
+    setDisponibilidad({});
+    setSlotSeleccionado(null);
+    setDiaSeleccionado(null);
+    if (modo === 'empleado') {
+      setServiciosSede(null);
+      cargarEmpleadosSede();
+    } else {
+      cargarServiciosSede();
+    }
+  };
+
   const irAServicios = () => {
     if (!ubicacionSeleccionada) return;
     setPaso(2);
+    setModoReserva('servicio');
+    setEmpleadoSeleccionado(null);
+    setServiciosEmpleado([]);
+    setServiciosSede(null);
     setEmpleadosPorServicio({});
     setAsignaciones({});
     setDisponibilidad({});
     setSlotSeleccionado(null);
     setDiaSeleccionado(null);
+    cargarServiciosSede(ubicacionSeleccionada);
+    cargarEmpleadosSede(ubicacionSeleccionada);
   };
 
   const irAEquipo = () => {
     if (seleccionados.length === 0) {
-      mostrarToast('Elige al menos un servicio', 'warning');
+      mostrarToast(modoReserva === 'empleado' ? 'Elige al menos un servicio del estilista' : 'Elige al menos un servicio', 'warning');
+      return;
+    }
+    if (modoReserva === 'empleado') {
+      if (!empleadoSeleccionado) {
+        mostrarToast('Elige un estilista', 'warning');
+        return;
+      }
+      const mapa = {};
+      const asignacionesNuevas = {};
+      seleccionados.forEach((servicio) => {
+        mapa[servicio.id] = [{
+          ...empleadoSeleccionado,
+          duracion_minutos: servicio.duracion_base_minutos || 30,
+          precio_base: servicio.precio_base,
+        }];
+        asignacionesNuevas[servicio.id] = String(empleadoSeleccionado.id);
+      });
+      setEmpleadosPorServicio(mapa);
+      setAsignaciones(asignacionesNuevas);
+      setPaso(4);
+      cargarCalendario(new Date());
       return;
     }
     setPaso(3);
@@ -917,6 +977,10 @@ export default function NuevaReserva() {
   const cambiarUbicacion = () => {
     setUbicacionSeleccionada(null);
     setSeleccionados([]);
+    setModoReserva('servicio');
+    setEmpleadoSeleccionado(null);
+    setServiciosEmpleado([]);
+    setServiciosSede(null);
     setAsignaciones({});
     setEmpleadosPorServicio({});
     setDisponibilidad({});
@@ -1142,12 +1206,18 @@ export default function NuevaReserva() {
     );
   }
 
+  const pasosVisibles = modoReserva === 'empleado'
+    ? PASOS.filter((p) => p.num !== 3)
+    : PASOS;
+  const indicePasoVisible = Math.max(0, pasosVisibles.findIndex((p) => p.num === paso));
+  const progresoPaso = indicePasoVisible + 1;
+
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 pb-32 md:pb-0">
       <Toast open={toast.open} message={toast.message} type={toast.type} />
       <PageHeader
         title="Reservar cita"
-        subtitle="Elige sede, servicios, equipo y horario. Puedes sumar varios servicios en una sola cita."
+        subtitle="Elige sede, estilista o servicio, y horario. Puedes sumar varios servicios en una sola cita."
         actions={
           <Button variant="ghost" onClick={() => navigate('/cliente')}>
             Cancelar
@@ -1158,15 +1228,15 @@ export default function NuevaReserva() {
       <div className="rounded-lg border border-borde bg-superficie px-3 py-2.5">
         <div className="flex items-center gap-3 sm:hidden">
           <span className="mono shrink-0 text-[11px] font-medium text-texto-principal">
-            {paso}/{PASOS.length}
+            {progresoPaso}/{pasosVisibles.length}
           </span>
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-panel">
-            <div className="h-full rounded-full bg-acento" style={{ width: `${(paso / PASOS.length) * 100}%` }} />
+            <div className="h-full rounded-full bg-acento" style={{ width: `${(progresoPaso / pasosVisibles.length) * 100}%` }} />
           </div>
-          <span className="shrink-0 text-[11px] font-medium text-texto-principal">{PASOS[paso - 1]?.label}</span>
+          <span className="shrink-0 text-[11px] font-medium text-texto-principal">{pasosVisibles[indicePasoVisible]?.label}</span>
         </div>
         <div className="hidden items-center gap-1 sm:flex">
-          {PASOS.map((p, i) => {
+          {pasosVisibles.map((p, i) => {
             const activo = p.num === paso;
             const completado = p.num < paso;
             return (
@@ -1180,12 +1250,12 @@ export default function NuevaReserva() {
                         : 'bg-panel text-tenue'
                   }`}
                 >
-                  {completado ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : p.num}
+                  {completado ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : i + 1}
                 </span>
                 <span className={`text-[11px] ${activo || completado ? 'font-medium text-texto-principal' : 'text-tenue'}`}>
                   {p.label}
                 </span>
-                {i < PASOS.length - 1 && <span className={`h-px flex-1 ${completado ? 'bg-acento/40' : 'bg-borde'}`} />}
+                {i < pasosVisibles.length - 1 && <span className={`h-px flex-1 ${completado ? 'bg-acento/40' : 'bg-borde'}`} />}
               </div>
             );
           })}
@@ -1203,7 +1273,7 @@ export default function NuevaReserva() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Input
                   label="Buscar sede"
                   placeholder="Nombre o dirección..."
@@ -1211,11 +1281,30 @@ export default function NuevaReserva() {
                   onChange={(evento) => setFiltroNombre(evento.target.value)}
                 />
                 <Select
+                  label="Departamento"
+                  value={filtroDepartamento}
+                  onChange={(evento) => {
+                    setFiltroDepartamento(evento.target.value);
+                    setFiltroCiudad('Todas');
+                    guardarPreferenciaUbicacion(evento.target.value === 'Todos' ? '' : evento.target.value, '');
+                  }}
+                  options={departamentos.map((departamento) => ({ value: departamento, label: departamento }))}
+                />
+                <Select
                   label="Ciudad"
                   value={filtroCiudad}
-                  onChange={(evento) => setFiltroCiudad(evento.target.value)}
+                  onChange={(evento) => {
+                    setFiltroCiudad(evento.target.value);
+                    guardarPreferenciaUbicacion(filtroDepartamento === 'Todos' ? '' : filtroDepartamento, evento.target.value === 'Todas' ? '' : evento.target.value);
+                  }}
                   options={ciudades.map((ciudad) => ({ value: ciudad, label: ciudad }))}
                 />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={usarMiUbicacion}>
+                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> Usar mi ubicación
+                </Button>
+                {mensajeUbicacion && <span className="text-[11px] text-texto-secundario">{mensajeUbicacion}</span>}
               </div>
 
               {cargando && ubicaciones.length === 0 ? (
@@ -1243,6 +1332,9 @@ export default function NuevaReserva() {
                           {ubicacion.direccion && (
                             <span className="mt-0.5 block text-xs leading-5 text-texto-secundario">{ubicacion.direccion}</span>
                           )}
+                          <span className="mt-0.5 block text-[10px] text-tenue">
+                            {[ubicacion.ciudad, ubicacion.departamento].filter(Boolean).join(' · ')}
+                          </span>
                         </span>
                       </button>
                     );
@@ -1306,6 +1398,110 @@ export default function NuevaReserva() {
             </Badge>
           </div>
 
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => cambiarModo('empleado')}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                modoReserva === 'empleado'
+                  ? 'border-acento bg-acento-suave/30 ring-1 ring-acento/20'
+                  : 'border-borde bg-superficie hover:bg-panel/60'
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium text-texto-principal">
+                <Users className="h-4 w-4" aria-hidden="true" /> Elegir estilista
+              </span>
+              <span className="mt-1 block text-[11px] leading-5 text-texto-secundario">
+                Primero eliges a quién quieres, luego ves solo los servicios que esa persona realiza.
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => cambiarModo('servicio')}
+              className={`rounded-lg border p-3 text-left transition-colors ${
+                modoReserva === 'servicio'
+                  ? 'border-acento bg-acento-suave/30 ring-1 ring-acento/20'
+                  : 'border-borde bg-superficie hover:bg-panel/60'
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium text-texto-principal">
+                <Search className="h-4 w-4" aria-hidden="true" /> Buscar servicio
+              </span>
+              <span className="mt-1 block text-[11px] leading-5 text-texto-secundario">
+                Ves los servicios disponibles en esta sede y quién los puede realizar.
+              </span>
+            </button>
+          </div>
+
+          {modoReserva === 'empleado' && (
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-texto-principal">Estilistas en {ubicacionSeleccionada?.nombre}</h3>
+                  <p className="mt-0.5 text-[11px] text-texto-secundario">
+                    Elige una persona para ver únicamente sus servicios.
+                  </p>
+                </div>
+                {empleadoSeleccionado && <Badge variant="accent">{empleadoSeleccionado.nombre} {empleadoSeleccionado.apellido}</Badge>}
+              </div>
+              {cargandoEmpleadosSede ? (
+                <div className="flex justify-center py-6"><Spinner /></div>
+              ) : empleadoSeleccionado ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-acento/30 bg-acento-suave/30 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar nombre={empleadoSeleccionado.nombre} apellido={empleadoSeleccionado.apellido} fotoUrl={empleadoSeleccionado.foto_url} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-texto-principal">
+                        {empleadoSeleccionado.nombre} {empleadoSeleccionado.apellido}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-texto-secundario">
+                        {serviciosEmpleado.length} servicios disponibles contigo
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEmpleadoSeleccionado(null);
+                      setServiciosEmpleado([]);
+                      setSeleccionados([]);
+                      setAsignaciones({});
+                    }}
+                  >
+                    Cambiar estilista
+                  </Button>
+                </div>
+              ) : empleadosSede.length === 0 ? (
+                <p className="mt-3 rounded-md border border-dashed border-control bg-panel/40 px-3 py-4 text-xs text-texto-secundario">
+                  No hay estilistas con servicios en esta sede. Prueba con “Buscar servicio” o cambia de sede.
+                </p>
+              ) : (
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {empleadosSede.map((empleado) => {
+                    const activo = String(empleadoSeleccionado?.id) === String(empleado.id);
+                    return (
+                      <button
+                        key={empleado.id}
+                        type="button"
+                        onClick={() => elegirEmpleado(empleado)}
+                        className={`flex items-center gap-3 rounded-md border p-2.5 text-left transition-colors ${
+                          activo ? 'border-acento bg-acento-suave/30' : 'border-borde bg-superficie hover:bg-panel/60'
+                        }`}
+                      >
+                        <Avatar nombre={empleado.nombre} apellido={empleado.apellido} fotoUrl={empleado.foto_url} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-medium text-texto-principal">{empleado.nombre} {empleado.apellido}</span>
+                          <span className="mt-0.5 block text-[10px] text-texto-secundario">{empleado.total_servicios} servicios</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          )}
+
           <Card padding={false} className="flex h-[clamp(300px,calc(100dvh-24rem),520px)] flex-col overflow-hidden lg:h-[clamp(420px,calc(100dvh-21rem),640px)]">
             <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
               <aside className="shrink-0 border-b border-borde bg-panel/40 p-2 lg:w-[220px] lg:overflow-y-auto lg:border-b-0 lg:border-r scroll-thin">
@@ -1363,8 +1559,10 @@ export default function NuevaReserva() {
                 ) : serviciosFiltrados.length === 0 ? (
                   <div className="mt-4 flex min-h-0 flex-1 items-start justify-center">
                     <EmptyState
-                      title="No encontramos servicios"
-                      description="Prueba con otra palabra o cambia de categoría."
+                      title={modoReserva === 'empleado' && !empleadoSeleccionado ? 'Elige un estilista' : 'No encontramos servicios'}
+                      description={modoReserva === 'empleado' && !empleadoSeleccionado
+                        ? 'Selecciona una persona arriba para ver los servicios que realiza.'
+                        : 'Prueba con otra palabra o cambia de categoría.'}
                     />
                   </div>
                 ) : (
@@ -1414,6 +1612,16 @@ export default function NuevaReserva() {
                                 <span className="mt-0.5 block truncate text-sm font-medium text-texto-principal">{servicio.nombre}</span>
                                 {servicio.descripcion && (
                                   <span className="mt-1 line-clamp-2 block text-[11px] leading-4 text-texto-secundario">{servicio.descripcion}</span>
+                                )}
+                                {modoReserva === 'servicio' && servicio.estilistas && (
+                                  <span className="mt-1 line-clamp-2 block text-[10px] leading-4 text-tenue">
+                                    Lo hacen: {servicio.estilistas}
+                                  </span>
+                                )}
+                                {modoReserva === 'empleado' && empleadoSeleccionado && (
+                                  <span className="mt-1 block text-[10px] leading-4 text-texto-secundario">
+                                    Con {empleadoSeleccionado.nombre} {empleadoSeleccionado.apellido}
+                                  </span>
                                 )}
                                 <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-acento">
                                   Ver detalle <ChevronRight className="h-3 w-3" aria-hidden="true" />
@@ -1465,7 +1673,7 @@ export default function NuevaReserva() {
               <div className="flex gap-2">
                 <Button variant="secundario" onClick={volverAtras}>Atrás</Button>
                 <Button onClick={irAEquipo} disabled={seleccionados.length === 0}>
-                  Continuar con equipo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  {modoReserva === 'empleado' ? 'Continuar con horario' : 'Continuar con equipo'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -1523,6 +1731,7 @@ export default function NuevaReserva() {
                   value: String(empleado.id),
                   label: `${empleado.nombre} ${empleado.apellido || ''}`,
                   description: `${empleado.duracion_minutos || servicio.duracion_base_minutos} min · ${dinero(empleado.precio_base || servicio.precio_base)}`,
+                  image: empleado.foto_url,
                 }));
                 return (
                   <Card key={servicio.id} className="p-4">
@@ -2058,7 +2267,7 @@ export default function NuevaReserva() {
             <span className="num font-medium text-texto-principal">{dinero(totalServicios)}</span>
           </div>
           <Button onClick={irAEquipo} disabled={seleccionados.length === 0} className="w-full">
-            Continuar con equipo
+            {modoReserva === 'empleado' ? 'Continuar con horario' : 'Continuar con equipo'}
           </Button>
         </div>
       )}

@@ -78,7 +78,7 @@ function EditorHorario({ empleado, dia, fecha, filaActual, sedes, onGuardar, onC
   );
 }
 
-export default function PlanificadorHorarios({ onToast, onValidarCita }) {
+export default function PlanificadorHorarios({ onToast, onValidarCita, recargarKey = 0 }) {
   const [empleados, setEmpleados] = useState([]);
   const [sedes, setSedes] = useState([]);
   const [disponibilidad, setDisponibilidad] = useState([]);
@@ -87,6 +87,8 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
   const [guardando, setGuardando] = useState(false);
   const [semanaInicio, setSemanaInicio] = useState(() => lunesDeSemana(fechaHoyBogota()));
   const [filtroNombre, setFiltroNombre] = useState('');
+  const [filtroDepartamento, setFiltroDepartamento] = useState('');
+  const [filtroCiudad, setFiltroCiudad] = useState('');
   const [filtroSede, setFiltroSede] = useState('');
   const [soloConHorario, setSoloConHorario] = useState(false);
   const [seleccion, setSeleccion] = useState(null);
@@ -111,7 +113,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
     } finally {
       setCargando(false);
     }
-  }, [semanaInicio, onToast]);
+  }, [semanaInicio, onToast, recargarKey]);
 
   useEffect(() => {
     cargar();
@@ -143,6 +145,37 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
     return { ...dia, fecha: formatearFechaLocal(fecha), fechaObj: fecha };
   });
 
+  const departamentos = useMemo(
+    () => [...new Set(sedes.map((s) => s.departamento).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [sedes]
+  );
+
+  const ciudades = useMemo(
+    () =>
+      [...new Set(
+        sedes
+          .filter((s) => !filtroDepartamento || s.departamento === filtroDepartamento)
+          .map((s) => s.ciudad)
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b)),
+    [sedes, filtroDepartamento]
+  );
+
+  const sedesFiltradas = useMemo(
+    () =>
+      sedes.filter((sede) => {
+        if (filtroDepartamento && sede.departamento !== filtroDepartamento) return false;
+        if (filtroCiudad && sede.ciudad !== filtroCiudad) return false;
+        return true;
+      }),
+    [sedes, filtroDepartamento, filtroCiudad]
+  );
+
+  const idsSedesFiltradas = useMemo(
+    () => new Set(sedesFiltradas.map((sede) => sede.id)),
+    [sedesFiltradas]
+  );
+
   const empleadosFiltrados = useMemo(() => {
     const termino = filtroNombre.trim().toLowerCase();
     return empleados.filter((emp) => {
@@ -150,10 +183,15 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
       if (termino && !nombreCompleto.includes(termino)) return false;
       const filas = disponibilidad.filter((d) => d.empleado_id === emp.id);
       if (soloConHorario && filas.length === 0) return false;
+      if ((filtroDepartamento || filtroCiudad) && !filas.some((d) => idsSedesFiltradas.has(d.ubicacion_id))) return false;
       if (filtroSede && !filas.some((d) => String(d.ubicacion_id) === String(filtroSede))) return false;
       return true;
     });
-  }, [empleados, disponibilidad, filtroNombre, filtroSede, soloConHorario]);
+  }, [empleados, disponibilidad, filtroNombre, filtroDepartamento, filtroCiudad, filtroSede, soloConHorario, idsSedesFiltradas]);
+
+  useEffect(() => {
+    setFiltroSede('');
+  }, [filtroDepartamento, filtroCiudad]);
 
   const totalCitasSemana = agenda.length;
   const rangoTexto = `${dias[0].fechaObj.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })} – ${dias[6].fechaObj.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}`;
@@ -210,16 +248,16 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
       <div className="space-y-4 min-w-0">
         <Card padding={false} className="p-4 space-y-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" aria-label="Semana anterior" onClick={() => setSemanaInicio((s) => sumarDias(s, -7))}>
                 <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               </Button>
-              <div className="text-center px-2">
-                <p className="text-sm font-bold text-texto-principal flex items-center gap-2">
-                  <CalendarRange className="w-4 h-4 text-primario" aria-hidden="true" /> {rangoTexto}
+              <div className="min-w-0 px-1">
+                <p className="flex items-center gap-2 whitespace-nowrap text-sm font-bold text-texto-principal">
+                  <CalendarRange className="h-4 w-4 shrink-0 text-primario" aria-hidden="true" /> {rangoTexto}
                 </p>
-                <p className="text-[11px] text-texto-secundario">{empleadosFiltrados.length} empleado(s) · {totalCitasSemana} segmento(s) de cita</p>
+                <p className="mt-0.5 whitespace-nowrap text-[11px] text-texto-secundario">{empleadosFiltrados.length} empleado(s) · {totalCitasSemana} segmento(s) de cita</p>
               </div>
               <Button variant="outline" size="sm" aria-label="Semana siguiente" onClick={() => setSemanaInicio((s) => sumarDias(s, 7))}>
                 <ChevronRight className="w-4 h-4" aria-hidden="true" />
@@ -228,8 +266,8 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                 Hoy
               </Button>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <div className="relative w-full sm:w-auto">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="relative w-full sm:w-52">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-texto-secundario" aria-hidden="true" />
                 <input
                   type="text"
@@ -241,17 +279,42 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                 />
               </div>
               <select
+                value={filtroDepartamento}
+                onChange={(e) => {
+                  setFiltroDepartamento(e.target.value);
+                  setFiltroCiudad('');
+                }}
+                aria-label="Filtrar por departamento"
+                className="w-full sm:w-auto min-w-0 px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+              >
+                <option value="">Todos los departamentos</option>
+                {departamentos.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <select
+                value={filtroCiudad}
+                onChange={(e) => setFiltroCiudad(e.target.value)}
+                aria-label="Filtrar por ciudad"
+                className="w-full sm:w-auto min-w-0 px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+              >
+                <option value="">Todas las ciudades</option>
+                {ciudades.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <select
                 value={filtroSede}
                 onChange={(e) => setFiltroSede(e.target.value)}
                 aria-label="Filtrar por sede"
-                className="w-full sm:w-auto px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+                className="w-full sm:w-auto min-w-0 px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
               >
                 <option value="">Todas las sedes</option>
-                {sedes.map((u) => (
+                {sedesFiltradas.map((u) => (
                   <option key={u.id} value={String(u.id)}>{u.nombre}</option>
                 ))}
               </select>
-              <label className="flex items-center gap-2 text-xs font-semibold text-texto-secundario select-none cursor-pointer">
+              <label className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-texto-secundario select-none cursor-pointer">
                 <input
                   type="checkbox"
                   checked={soloConHorario}
@@ -271,7 +334,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
         ) : (
           <Card padding={false} className="overflow-hidden">
             <div className="overflow-x-auto max-h-[62vh] overflow-y-auto">
-              <table className="w-full text-xs border-collapse min-w-[880px] sm:min-w-[1080px]">
+              <table className="w-full text-xs border-collapse min-w-[820px] sm:min-w-[980px]">
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-superficie border-b border-borde">
                     <th className="sticky left-0 z-30 bg-fondo/95 text-left px-4 py-3 font-bold text-texto-secundario uppercase tracking-wider w-36 sm:w-56">
@@ -394,7 +457,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
             dia={seleccion.dia}
             fecha={seleccion.dia.fecha}
             filaActual={mapaDisponibilidad.get(`${seleccion.empleado.id}-${seleccion.dia.numero}`)}
-            sedes={sedes}
+            sedes={sedesFiltradas}
             guardando={guardando}
             onGuardar={(datos) => guardarDia(seleccion.empleado, seleccion.dia, datos)}
             onCerrar={() => setSeleccion(null)}

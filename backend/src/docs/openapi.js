@@ -211,10 +211,12 @@ const openapi = {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['nombre', 'direccion', 'latitud', 'longitud'],
+                required: ['nombre', 'direccion', 'departamento', 'ciudad', 'latitud', 'longitud'],
                 properties: {
                   nombre: { type: 'string' },
                   direccion: { type: 'string' },
+                  departamento: { type: 'string' },
+                  ciudad: { type: 'string' },
                   latitud: { type: 'number' },
                   longitud: { type: 'number' },
                 },
@@ -230,7 +232,7 @@ const openapi = {
       delete: { tags: ['Ubicaciones'], summary: 'Elimina sede (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede eliminada' } } },
     },
     '/reservas/servicios': {
-      get: { tags: ['Reservas'], summary: 'Catalogo de servicios activos (publico); admin puede incluir inactivos y filtrar por categoria; incluye portada y total_imagenes', security: [], parameters: [{ name: 'incluir_inactivos', in: 'query', schema: { type: 'string', enum: ['1'] } }, { name: 'categoria_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Servicios con categoria, precio, duracion, portada, total_imagenes y estado' } } },
+      get: { tags: ['Reservas'], summary: 'Catalogo de servicios activos (publico); admin puede incluir inactivos y filtrar por categoria, sede o empleado; incluye portada, total_imagenes y estilistas', security: [], parameters: [{ name: 'incluir_inactivos', in: 'query', schema: { type: 'string', enum: ['1'] } }, { name: 'categoria_id', in: 'query', schema: { type: 'integer' } }, { name: 'ubicacion_id', in: 'query', schema: { type: 'integer' } }, { name: 'empleado_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Servicios con categoria, precio, duracion, portada, total_imagenes y estado' } } },
       post: { tags: ['Reservas'], summary: 'Crea servicio (admin) con categoria, duracion, hasta 6 imagenes y estado', responses: { 201: { description: 'Servicio creado' } } },
     },
     '/reservas/servicios/{id}': {
@@ -280,6 +282,9 @@ const openapi = {
     },
     '/reservas/empleados-por-servicio': {
       get: { tags: ['Reservas'], summary: 'Empleados que ofrecen un servicio en una sede (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', required: true, schema: { type: 'integer' } }, { name: 'servicio_id', in: 'query', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleados y duracion del servicio' } } },
+    },
+    '/reservas/empleados-por-sede': {
+      get: { tags: ['Reservas'], summary: 'Empleados con servicios en una sede (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleados, total de servicios y duracion minima' } } },
     },
     '/reservas/disponibilidad-combo': {
       post: { tags: ['Reservas'], summary: 'Calcula horarios disponibles para varios servicios y estilistas en secuencia (publico)', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ubicacion_id', 'fecha', 'servicios'], properties: { ubicacion_id: { type: 'integer' }, fecha: { type: 'string', format: 'date' }, granularidad: { type: 'integer', enum: [15, 30, 60] }, servicios: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'object', required: ['servicio_id', 'empleado_id'], properties: { servicio_id: { type: 'integer' }, empleado_id: { type: 'integer' } } } } } } } } }, responses: { 200: { description: 'Slots con plan por servicio y estilista' }, 400: { description: 'Servicios repetidos, limite o datos invalidos' } } },
@@ -369,6 +374,32 @@ const openapi = {
           },
         },
         responses: { 200: { description: 'Llegada registrada' }, 409: { description: 'Reserva cancelada' } },
+      },
+    },
+    '/checkin/confirmar-pago': {
+      post: {
+        tags: ['Checkin'],
+        summary: 'Registra el pago de una cita por QR o reserva sin finalizar el servicio (empleado/admin)',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  reserva_id: { type: 'integer' },
+                  qr_token: { type: 'string' },
+                  monto: { type: 'number' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Pago registrado' },
+          400: { description: 'Datos invalidos o monto requerido' },
+          409: { description: 'Reserva cancelada o ya atendida' },
+        },
       },
     },
     '/checkin/cobro-efectivo': {
@@ -493,7 +524,7 @@ const openapi = {
       get: { tags: ['Logs'], summary: 'Exporta lineas filtradas a .txt (admin)', parameters: [{ name: 'tipo', in: 'query', schema: { type: 'string', enum: ['actividad', 'errores'] } }, { name: 'desde', in: 'query', schema: { type: 'integer' } }, { name: 'hasta', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Archivo .txt', content: { 'text/plain': {} } } } },
     },
     '/preferencias': {
-      get: { tags: ['Preferencias'], summary: 'Preferencias del usuario (rango horario, granularidad, tema, idioma)', responses: { 200: { description: 'Preferencias' } } },
+      get: { tags: ['Preferencias'], summary: 'Preferencias del usuario (rango horario, granularidad, tema, departamento y ciudad)', responses: { 200: { description: 'Preferencias' } } },
       put: { tags: ['Preferencias'], summary: 'Actualiza preferencias', responses: { 200: { description: 'Preferencias actualizadas' } } },
     },
     '/pagos/intencion': {

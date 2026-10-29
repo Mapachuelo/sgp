@@ -1,40 +1,52 @@
 const pool = require('../../config/db');
 
 const reportesModel = {
-  async ventasDiarias(fecha) {
+  async ventasDiarias(fecha, ciudad = null, departamento = null) {
     const { rows } = await pool.query(
       `SELECT rs.nombre as servicio,
               COUNT(DISTINCT r.id) as cantidad,
               SUM(c.monto * (rs.precio / NULLIF(t.total, 0))) as total
        FROM cobro c
        JOIN reserva r ON c.reserva_id = r.id
+       JOIN ubicacion u ON u.id = r.ubicacion_id
        JOIN reserva_servicio rs ON rs.reserva_id = r.id
        JOIN LATERAL (
          SELECT SUM(precio) as total FROM reserva_servicio WHERE reserva_id = r.id
        ) t ON true
        WHERE (c.cobrado_en AT TIME ZONE 'America/Bogota')::date = $1
+         AND ($2::text IS NULL OR u.ciudad = $2)
+         AND ($3::text IS NULL OR u.departamento = $3)
        GROUP BY rs.nombre
        ORDER BY total DESC`,
-      [fecha]
+      [fecha, ciudad, departamento]
     );
     return rows;
   },
 
-  async totalDia(fecha) {
+  async totalDia(fecha, ciudad = null, departamento = null) {
     const { rows } = await pool.query(
-      `SELECT COALESCE(SUM(monto), 0) as total FROM cobro WHERE (cobrado_en AT TIME ZONE 'America/Bogota')::date = $1`,
-      [fecha]
+      `SELECT COALESCE(SUM(c.monto), 0) as total
+       FROM cobro c
+       JOIN reserva r ON c.reserva_id = r.id
+       JOIN ubicacion u ON u.id = r.ubicacion_id
+       WHERE (c.cobrado_en AT TIME ZONE 'America/Bogota')::date = $1
+         AND ($2::text IS NULL OR u.ciudad = $2)
+         AND ($3::text IS NULL OR u.departamento = $3)`,
+      [fecha, ciudad, departamento]
     );
     return parseFloat(rows[0].total);
   },
 
-  async ocupacion(fecha) {
+  async ocupacion(fecha, ciudad = null, departamento = null) {
     const { rows } = await pool.query(
       `WITH cap AS (
          SELECT ed.ubicacion_id,
                 SUM(EXTRACT(EPOCH FROM (ed.hora_fin - ed.hora_inicio)) / 1800) AS slots
          FROM empleado_disponibilidad ed
+         JOIN ubicacion u ON u.id = ed.ubicacion_id
          WHERE ed.dia_semana = EXTRACT(ISODOW FROM $1::date)
+           AND ($2::text IS NULL OR u.ciudad = $2)
+           AND ($3::text IS NULL OR u.departamento = $3)
          GROUP BY ed.ubicacion_id
        ),
        occ AS (
@@ -47,6 +59,8 @@ const reportesModel = {
        )
        SELECT
          u.nombre as sede,
+         u.ciudad,
+         u.departamento,
          COUNT(r.id) as total,
          COUNT(CASE WHEN r.estado = 'cobrado' THEN 1 END) as completadas,
          COUNT(CASE WHEN r.estado = 'cancelada' THEN 1 END) as canceladas,
@@ -59,9 +73,11 @@ const reportesModel = {
        LEFT JOIN cap ON cap.ubicacion_id = r.ubicacion_id
        LEFT JOIN occ ON occ.ubicacion_id = r.ubicacion_id
        WHERE (r.inicia_en AT TIME ZONE 'America/Bogota')::date = $1
-       GROUP BY u.nombre, cap.slots, occ.slots_ocupados
+         AND ($2::text IS NULL OR u.ciudad = $2)
+         AND ($3::text IS NULL OR u.departamento = $3)
+       GROUP BY u.nombre, u.ciudad, u.departamento, cap.slots, occ.slots_ocupados
        ORDER BY u.nombre`,
-      [fecha]
+      [fecha, ciudad, departamento]
     );
     return rows;
   },

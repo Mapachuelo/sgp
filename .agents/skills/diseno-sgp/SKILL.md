@@ -2,7 +2,7 @@
 name: diseno-sgp
 description: >-
   Reglas de diseno de la interfaz SGP para cualquier cambio visual en cliente, empleado o administrador.
-  Activa esta skill antes de tocar pantallas, componentes, tokens, motion, responsive o i18n visual.
+  Activa esta skill antes de tocar pantallas, componentes, tokens, motion o responsive.
 ---
 
 # Diseno SGP

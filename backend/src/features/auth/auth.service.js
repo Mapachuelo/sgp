@@ -86,6 +86,7 @@ const authService = {
         apellido: usuario.apellido,
         telefono: usuario.telefono,
         rol: usuario.rol,
+        foto_url: usuario.foto_url || null,
       },
       correoEnviado,
       expiraEn: expiracion.toISOString(),
@@ -186,6 +187,7 @@ const authService = {
         apellido: usuario.apellido,
         telefono: usuario.telefono,
         rol: usuario.rol,
+        foto_url: usuario.foto_url || null,
       },
     };
   },

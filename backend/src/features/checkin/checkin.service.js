@@ -12,11 +12,31 @@ function validarAcceso(reserva, usuario) {
   throw new HttpError(403, 'La reserva pertenece a otro empleado');
 }
 
+function extraerTokenQr(valor) {
+  if (typeof valor !== 'string') return '';
+  const texto = valor.trim();
+  if (!texto) return '';
+  if (UUID_REGEX.test(texto)) return texto;
+  if (texto.startsWith('{')) {
+    try {
+      const datos = JSON.parse(texto);
+      if (typeof datos?.qr_token === 'string' && UUID_REGEX.test(datos.qr_token.trim())) {
+        return datos.qr_token.trim();
+      }
+    } catch {
+      return texto;
+    }
+  }
+  const encontrado = texto.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  return encontrado ? encontrado[0] : texto;
+}
+
 function validarQr(qr_token) {
-  if (!qr_token || typeof qr_token !== 'string' || !UUID_REGEX.test(qr_token.trim())) {
+  const token = extraerTokenQr(qr_token);
+  if (!token || !UUID_REGEX.test(token)) {
     throw new HttpError(400, 'qr_token es requerido y debe ser un UUID valido');
   }
-  return qr_token.trim();
+  return token;
 }
 
 function validarReservaId(valor) {
@@ -25,6 +45,22 @@ function validarReservaId(valor) {
     throw new HttpError(400, 'reserva_id es requerido y debe ser un numero valido');
   }
   return id;
+}
+
+function minutosBogota(fecha) {
+  const texto = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(fecha);
+  const [h, m] = texto.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutosDeHora(hora) {
+  const [h, m] = String(hora).split(':').map(Number);
+  return h * 60 + m;
 }
 
 function parsearMonto(valor) {
@@ -178,6 +214,82 @@ const checkinService = {
       }
 
       if (reserva.estado !== 'en_curso') {
+        if (!reserva.llego_en) {
+          throw new HttpError(409, 'El cliente aun no ha registrado su llegada');
+        }
+
+        const empleadoId = usuario.rol === 'empleado' ? usuario.id : reserva.empleado_id;
+        const segmentos = await checkinModel.findSegmentosEmpleado(reserva.id, empleadoId, client);
+        const inicioProgramado = segmentos.length
+          ? new Date(Math.min(...segmentos.map((segmento) => new Date(segmento.inicia_en).getTime())))
+          : new Date(reserva.inicia_en);
+        const duracionMinutos = segmentos.length
+          ? segmentos.reduce((suma, segmento) => suma + Number(segmento.duracion_minutos || 0), 0)
+          : Math.max(1, Math.round((new Date(reserva.termina_en) - new Date(reserva.inicia_en)) / 60000));
+        const ahora = new Date();
+        const minutosAntes = (inicioProgramado - ahora) / 60000;
+
+        if (minutosAntes > 30) {
+          throw new HttpError(
+            409,
+            `Aun no puedes atender: faltan ${Math.ceil(minutosAntes - 30)} minutos para la ventana de 30 minutos`
+          );
+        }
+
+        const finReal = new Date(ahora.getTime() + duracionMinutos * 60000);
+        const turno = await checkinModel.findDisponibilidadEmpleado(
+          empleadoId,
+          reserva.ubicacion_id,
+          ahora,
+          client
+        );
+        if (!turno) {
+          throw new HttpError(409, 'El empleado no tiene turno configurado para este dia');
+        }
+        if (minutosBogota(ahora) < minutosDeHora(turno.hora_inicio)) {
+          throw new HttpError(409, `Tu turno comienza a las ${String(turno.hora_inicio).slice(0, 5)}`);
+        }
+        if (minutosBogota(finReal) > minutosDeHora(turno.hora_fin)) {
+          throw new HttpError(
+            409,
+            `El servicio terminaria despues de tu turno (${String(turno.hora_fin).slice(0, 5)})`
+          );
+        }
+
+        const jornada = await checkinModel.findJornada(reserva.ubicacion_id, ahora, client);
+        if (jornada) {
+          if (minutosBogota(ahora) < minutosDeHora(jornada.hora_inicio)) {
+            throw new HttpError(409, `La sede abre a las ${String(jornada.hora_inicio).slice(0, 5)}`);
+          }
+          if (minutosBogota(finReal) > minutosDeHora(jornada.hora_fin)) {
+            throw new HttpError(409, `La sede cierra a las ${String(jornada.hora_fin).slice(0, 5)}`);
+          }
+        }
+
+        const choques = await checkinModel.findReservasEmpleadoEnRango(
+          empleadoId,
+          ahora,
+          finReal,
+          reserva.id,
+          client
+        );
+        if (choques.length > 0) {
+          const choque = choques[0];
+          const desde = new Intl.DateTimeFormat('es-CO', {
+            timeZone: 'America/Bogota',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).format(new Date(choque.inicia_en));
+          const hasta = new Intl.DateTimeFormat('es-CO', {
+            timeZone: 'America/Bogota',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).format(new Date(choque.termina_en));
+          throw new HttpError(409, `Hay otra cita de ${desde} a ${hasta} que se cruza con este servicio`);
+        }
+
         await checkinModel.iniciarServicio(reserva.id, client);
       }
       const actualizada = await checkinModel.findReservaByIdForUpdate(reserva.id, client);
@@ -207,6 +319,42 @@ const checkinService = {
       if (reserva.estado !== 'cobrado') {
         await checkinModel.finalizarServicio(reserva.id, client);
       }
+      const actualizada = await checkinModel.findReservaByIdForUpdate(reserva.id, client);
+      return cargarResumen(actualizada, client);
+    });
+  },
+
+  async confirmarPago(data, usuario) {
+    const qrToken = data?.qr_token ? validarQr(data.qr_token) : null;
+    const reservaId = !qrToken && data?.reserva_id != null ? validarReservaId(data.reserva_id) : null;
+    if (!qrToken && !reservaId) {
+      throw new HttpError(400, 'qr_token o reserva_id es requerido');
+    }
+    const monto = parsearMonto(data?.monto);
+
+    return withTransaction(async (client) => {
+      const reserva = qrToken
+        ? await checkinModel.findReservaByQrTokenForUpdate(qrToken, client)
+        : await checkinModel.findReservaByIdForUpdate(reservaId, client);
+      if (!reserva) throw new HttpError(404, 'Reserva no encontrada');
+      validarAcceso(reserva, usuario);
+      if (reserva.estado === 'cancelada') throw new HttpError(409, 'La reserva esta cancelada');
+      if (reserva.estado === 'cobrado') throw new HttpError(409, 'La reserva ya fue atendida');
+
+      const [cobroExistente, pagoAprobado] = await Promise.all([
+        checkinModel.findCobroByReservaId(reserva.id, client),
+        checkinModel.findPagoAprobado(reserva.id, client),
+      ]);
+
+      if (!cobroExistente && pagoAprobado) {
+        await asegurarCobroOnline(reserva, pagoAprobado, client);
+      } else if (!cobroExistente) {
+        if (monto <= 0) {
+          throw new HttpError(400, 'monto debe ser mayor a 0 para un pago en efectivo');
+        }
+        await checkinModel.registrarCobro(reserva.id, monto, 'fisico', usuario.id, null, false, client);
+      }
+
       const actualizada = await checkinModel.findReservaByIdForUpdate(reserva.id, client);
       return cargarResumen(actualizada, client);
     });

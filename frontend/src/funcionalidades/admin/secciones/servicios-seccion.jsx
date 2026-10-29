@@ -7,12 +7,13 @@ import {
   Card,
   ConfirmDialog,
   Input,
+  PageHeader,
   Select,
   Spinner,
   Tabs,
   Textarea,
 } from '../../../componentes/ui/index.jsx';
-import { SheetAdmin } from './navegacion.jsx';
+import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
 import { comprimirImagen } from '../../../lib/imagen.js';
 
@@ -57,7 +58,7 @@ function ImagenServicio({ src, nombre, tamano = 'sm' }) {
   );
 }
 
-export default function ServiciosSeccion({ open, onClose, onToast }) {
+export default function ServiciosSeccion() {
   const [servicios, setServicios] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [empleados, setEmpleados] = useState([]);
@@ -109,15 +110,15 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
       setConfiguracion(cfg || { max_servicios_reserva: 5 });
       setMaxServicios(String(cfg?.max_servicios_reserva || 5));
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setCargando(false);
     }
-  }, [onToast]);
+  }, []);
 
   useEffect(() => {
-    if (open) cargar();
-  }, [open, cargar]);
+    cargar();
+  }, [cargar]);
 
   const categoriasPorId = useMemo(
     () => new Map(categorias.map((categoria) => [categoria.id, categoria])),
@@ -218,7 +219,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
     } catch (error) {
       if (edicionRef.current === servicio.id) {
         setErrorImagenes(true);
-        onToast?.(error.message, 'error');
+        avisarAdmin(error.message, 'error');
       }
     } finally {
       if (edicionRef.current === servicio.id) setCargandoImagenes(false);
@@ -226,12 +227,12 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
   };
 
   const guardar = async () => {
-    if (cargandoImagenes) return onToast?.('Espera a que carguen las imágenes del servicio', 'warning');
-    if (errorImagenes) return onToast?.('No se pudieron cargar las imágenes; cierra y vuelve a editar', 'warning');
-    if (!form.nombre.trim()) return onToast?.('El nombre es obligatorio', 'warning');
-    if (!form.categoria_id) return onToast?.('Elige una categoría', 'warning');
-    if (!form.precio || Number(form.precio) < 0) return onToast?.('El precio es obligatorio', 'warning');
-    if (!form.duracion || Number(form.duracion) < 5) return onToast?.('La duración mínima es 5 minutos', 'warning');
+    if (cargandoImagenes) return avisarAdmin('Espera a que carguen las imágenes del servicio', 'warning');
+    if (errorImagenes) return avisarAdmin('No se pudieron cargar las imágenes; cierra y vuelve a editar', 'warning');
+    if (!form.nombre.trim()) return avisarAdmin('El nombre es obligatorio', 'warning');
+    if (!form.categoria_id) return avisarAdmin('Elige una categoría', 'warning');
+    if (!form.precio || Number(form.precio) < 0) return avisarAdmin('El precio es obligatorio', 'warning');
+    if (!form.duracion || Number(form.duracion) < 5) return avisarAdmin('La duración mínima es 5 minutos', 'warning');
     setGuardando(true);
     try {
       const body = {
@@ -245,11 +246,11 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
       };
       if (editId) await api.reservas.updateServicio(editId, body);
       else await api.reservas.createServicio(body);
-      onToast?.(editId ? 'Servicio actualizado' : 'Servicio creado');
+      avisarAdmin(editId ? 'Servicio actualizado' : 'Servicio creado');
       resetForm();
       await cargar();
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setGuardando(false);
     }
@@ -260,12 +261,12 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
     if (archivos.length === 0) return;
     const disponibles = MAX_IMAGENES - form.imagenes.length;
     if (disponibles <= 0) {
-      onToast?.(`Puedes subir hasta ${MAX_IMAGENES} imágenes por servicio`, 'warning');
+      avisarAdmin(`Puedes subir hasta ${MAX_IMAGENES} imágenes por servicio`, 'warning');
       evento.target.value = '';
       return;
     }
     if (archivos.length > disponibles) {
-      onToast?.(`Solo caben ${disponibles} imagen(es) más`, 'warning');
+      avisarAdmin(`Solo caben ${disponibles} imagen(es) más`, 'warning');
     }
     setSubiendoImagen(true);
     try {
@@ -275,7 +276,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
       }
       setForm((prev) => ({ ...prev, imagenes: [...prev.imagenes, ...nuevas].slice(0, MAX_IMAGENES) }));
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       if (inputImagenRef.current) inputImagenRef.current.value = '';
       setSubiendoImagen(false);
@@ -309,7 +310,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
   };
 
   const guardarCategoria = async () => {
-    if (!categoriaForm.nombre.trim()) return onToast?.('El nombre de la categoría es obligatorio', 'warning');
+    if (!categoriaForm.nombre.trim()) return avisarAdmin('El nombre de la categoría es obligatorio', 'warning');
     setGuardandoCategoria(true);
     try {
       const body = {
@@ -319,12 +320,12 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
       };
       if (editCategoriaId) await api.reservas.updateCategoria(editCategoriaId, body);
       else await api.reservas.createCategoria(body);
-      onToast?.(editCategoriaId ? 'Categoría actualizada' : 'Categoría creada');
+      avisarAdmin(editCategoriaId ? 'Categoría actualizada' : 'Categoría creada');
       setCategoriaForm(CATEGORIA_INICIAL);
       setEditCategoriaId(null);
       await cargar();
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setGuardandoCategoria(false);
     }
@@ -356,7 +357,7 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
         }))
       );
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setCargandoTiempos(false);
     }
@@ -371,10 +372,10 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
         duracion_minutos: Number(tiempo.duracion_minutos) || 30,
       }));
       await api.reservas.empleadoTiempos.update({ empleado_id: Number(empleadoId), items });
-      onToast?.('Tiempos de servicio actualizados');
+      avisarAdmin('Tiempos de servicio actualizados');
       await cargarTiempos(empleadoId);
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setGuardandoTiempos(false);
     }
@@ -386,9 +387,9 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
       const data = await api.reservas.updateConfiguracion({ max_servicios_reserva: Number(maxServicios) });
       setConfiguracion(data);
       setMaxServicios(String(data.max_servicios_reserva));
-      onToast?.('Límite de servicios actualizado');
+      avisarAdmin('Límite de servicios actualizado');
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setGuardandoConfig(false);
     }
@@ -400,15 +401,15 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
     try {
       if (eliminar.tipo === 'servicio') {
         const resultado = await api.reservas.deleteServicio(eliminar.item.id);
-        onToast?.(resultado?.desactivado ? 'El servicio tenía reservas: quedó desactivado' : 'Servicio eliminado');
+        avisarAdmin(resultado?.desactivado ? 'El servicio tenía reservas: quedó desactivado' : 'Servicio eliminado');
       } else {
         await api.reservas.deleteCategoria(eliminar.item.id);
-        onToast?.('Categoría eliminada');
+        avisarAdmin('Categoría eliminada');
       }
       setEliminar(null);
       await cargar();
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setEliminando(false);
     }
@@ -422,7 +423,11 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
   ];
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Gestión de servicios">
+    <div className="space-y-5">
+      <PageHeader
+        title="Servicios"
+        subtitle="Catálogo, categorías, duraciones y configuración de reservas."
+      />
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs items={tabs} value={tab} onChange={setTab} label="Secciones de servicios" />
@@ -982,6 +987,6 @@ export default function ServiciosSeccion({ open, onClose, onToast }) {
         danger
         cargando={eliminando}
       />
-    </SheetAdmin>
+    </div>
   );
 }

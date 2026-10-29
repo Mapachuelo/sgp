@@ -5,6 +5,7 @@ const env = require('./config/env');
 const errorMiddleware = require('./shared/middlewares/error.middleware');
 const notFoundMiddleware = require('./shared/middlewares/notFound.middleware');
 const apiRoutes = require('./routes/api.routes');
+const fs = require('fs');
 const docsRoutes = require('./docs/docs.routes');
 const logger = require('./shared/logger');
 
@@ -20,6 +21,17 @@ app.use(
   })
 );
 app.use(express.json({ limit: '8mb' }));
+
+const presentacionMediaDir = env.presentacionMediaDir;
+fs.mkdirSync(presentacionMediaDir, { recursive: true });
+app.use(
+  '/api/presentacion/archivos',
+  express.static(presentacionMediaDir, {
+    maxAge: '1y',
+    immutable: true,
+    fallthrough: false,
+  })
+);
 
 app.use((req, _res, next) => {
   logger.info({ method: req.method, url: req.url }, 'Solicitud recibida');

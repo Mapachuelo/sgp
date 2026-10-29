@@ -2,8 +2,11 @@ const ubicacionesService = require('./ubicaciones.service');
 const asyncHandler = require('../../shared/async-handler');
 
 const ubicacionesController = {
-  listar: asyncHandler(async (_req, res) => {
-    const ubicaciones = await ubicacionesService.findAll();
+  listar: asyncHandler(async (req, res) => {
+    const ubicaciones = await ubicacionesService.findAll({
+      departamento: req.query.departamento,
+      ciudad: req.query.ciudad,
+    });
     res.json({ ok: true, data: ubicaciones });
   }),
 

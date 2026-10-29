@@ -48,6 +48,56 @@ const checkinModel = {
     return rows[0] || null;
   },
 
+  async findSegmentosEmpleado(reserva_id, empleado_id, db = pool) {
+    const { rows } = await db.query(
+      `SELECT inicia_en, termina_en, duracion_minutos
+       FROM reserva_servicio
+       WHERE reserva_id = $1 AND empleado_id = $2
+       ORDER BY orden`,
+      [reserva_id, empleado_id]
+    );
+    return rows;
+  },
+
+  async findDisponibilidadEmpleado(empleado_id, ubicacion_id, inicia_en, db = pool) {
+    const { rows } = await db.query(
+      `SELECT hora_inicio, hora_fin
+       FROM empleado_disponibilidad
+       WHERE empleado_id = $1
+         AND ubicacion_id = $2
+         AND dia_semana = EXTRACT(ISODOW FROM ($3::timestamptz AT TIME ZONE 'America/Bogota'))::int`,
+      [empleado_id, ubicacion_id, inicia_en]
+    );
+    return rows[0] || null;
+  },
+
+  async findJornada(ubicacion_id, inicia_en, db = pool) {
+    const { rows } = await db.query(
+      `SELECT hora_inicio, hora_fin
+       FROM jornada
+       WHERE ubicacion_id = $1
+         AND fecha = ($2::timestamptz AT TIME ZONE 'America/Bogota')::date`,
+      [ubicacion_id, inicia_en]
+    );
+    return rows[0] || null;
+  },
+
+  async findReservasEmpleadoEnRango(empleado_id, desde, hasta, excluir_reserva_id, db = pool) {
+    const { rows } = await db.query(
+      `SELECT rs.reserva_id, rs.inicia_en, rs.termina_en, rs.nombre
+       FROM reserva_servicio rs
+       JOIN reserva r ON r.id = rs.reserva_id
+       WHERE rs.empleado_id = $1
+         AND rs.reserva_id <> $4
+         AND r.estado IN ('pendiente', 'confirmada', 'en_curso')
+         AND rs.inicia_en < $3::timestamptz
+         AND rs.termina_en > $2::timestamptz
+       ORDER BY rs.inicia_en`,
+      [empleado_id, desde, hasta, excluir_reserva_id]
+    );
+    return rows;
+  },
+
   async findPagoAprobado(reserva_id, db = pool) {
     const { rows } = await db.query(
       "SELECT id, monto, metodo, transaction_id, actualizado_en FROM pago WHERE reserva_id = $1 AND estado = 'aprobado' ORDER BY creado_en DESC LIMIT 1",

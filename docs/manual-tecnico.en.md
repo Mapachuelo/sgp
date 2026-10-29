@@ -29,7 +29,7 @@ backend/src/integrations/  email (Brevo), realtime (ws-hub)
 backend/src/shared/        logger, errors, middlewares, utils (AES, phone)
 backend/src/docs/          OpenAPI 3 + Swagger UI
 backend/tests/unit/        node:test unit tests
-frontend/src/              app, components, context, hooks, i18n, lib
+frontend/src/              app, components, context, hooks, lib
 frontend/src/funcionalidades/  auth, cliente, empleado, admin/secciones
 db/init.sql                schema, idempotent migrations and seeds
 tests/                     api.sh, datos.sh, esquema.sh, e2e.py

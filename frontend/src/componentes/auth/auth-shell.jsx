@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import BotonTema from '../tema/boton-tema.jsx';
 
 function Marca() {
   return (
-    <span className="inline-flex items-center gap-2.5">
+    <Link to="/" className="inline-flex items-center gap-2.5" aria-label="SGP, volver al inicio">
       <span className="flex h-6 items-end gap-[2px]" aria-hidden="true">
         <span className="h-2 w-[2px] rounded-full bg-texto-principal" />
         <span className="h-4 w-[2px] rounded-full bg-texto-principal" />
         <span className="h-1.5 w-[2px] rounded-full bg-acento" />
       </span>
       <span className="font-display text-[19px] font-bold tracking-[-0.04em] text-texto-principal">SGP</span>
-    </span>
+    </Link>
   );
 }
 
@@ -60,6 +61,14 @@ export default function AuthShell({ title, subtitle, children, footer }) {
               <Marca />
               <BotonTema />
             </div>
+
+            <Link
+              to="/"
+              className="mb-5 inline-flex h-8 items-center gap-1.5 rounded-md border border-borde bg-superficie px-2.5 text-[11px] font-medium text-texto-secundario transition-colors hover:bg-panel hover:text-texto-principal"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              Volver al inicio
+            </Link>
 
             <div className="mb-7">
               <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.03em] text-texto-principal">{title}</h1>

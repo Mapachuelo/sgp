@@ -9,6 +9,7 @@ const disponibilidadRoutes = require('../features/disponibilidad/disponibilidad.
 const logsRoutes = require('../features/logs/logs.routes');
 const preferenciasRoutes = require('../features/preferencias/preferencias.routes');
 const pagosRoutes = require('../features/pagos/pagos.routes');
+const presentacionRoutes = require('../features/presentacion/presentacion.routes');
 const { estadoBrevo } = require('../integrations/email/mailer');
 const { estadoWompi } = require('../integrations/pagos/wompi');
 
@@ -33,5 +34,6 @@ router.use('/empleados', disponibilidadRoutes);
 router.use('/logs', logsRoutes);
 router.use('/preferencias', preferenciasRoutes);
 router.use('/pagos', pagosRoutes);
+router.use('/presentacion', presentacionRoutes);
 
 module.exports = router;

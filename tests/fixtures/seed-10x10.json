@@ -1,5 +1,5 @@
 {
-  "generado_en": "2026-10-27T19:53:00.672Z",
+  "generado_en": "2026-10-28T21:33:27.848Z",
   "credenciales": {
     "admin": {
       "email": "admin@sgp.local",
@@ -226,23 +226,29 @@
     {
       "id": 1,
       "nombre": "Pruebas Sede Norte",
-      "direccion": "Calle 170 # 20-30, Bogota",
+      "direccion": "Calle 170 # 20-30, Bogotá",
       "latitud": 4.7551,
-      "longitud": -74.0453
+      "longitud": -74.0453,
+      "departamento": "Bogotá D.C.",
+      "ciudad": "Bogotá"
     },
     {
       "id": 2,
       "nombre": "Pruebas Sede Centro",
-      "direccion": "Carrera 7 # 12-50, Bogota",
+      "direccion": "Carrera 7 # 12-50, Bogotá",
       "latitud": 4.5989,
-      "longitud": -74.0757
+      "longitud": -74.0757,
+      "departamento": "Bogotá D.C.",
+      "ciudad": "Bogotá"
     },
     {
       "id": 3,
       "nombre": "Pruebas Sede Sur",
-      "direccion": "Avenida 1 de Mayo # 60-10, Bogota",
+      "direccion": "Avenida 1 de Mayo # 60-10, Bogotá",
       "latitud": 4.6282,
-      "longitud": -74.1481
+      "longitud": -74.1481,
+      "departamento": "Bogotá D.C.",
+      "ciudad": "Bogotá"
     }
   ],
   "servicios": [
@@ -310,8 +316,8 @@
       "servicio": "Pruebas Corte Caballero",
       "estado": "confirmada",
       "pago": "aprobado",
-      "qr_token": "f8c50e48-791d-43d9-b4a5-31e4a5ce7526",
-      "inicia_en": "2026-10-27T14:00:00.000Z"
+      "qr_token": "bc3e0bf6-14d8-41fb-99ef-257e9424b830",
+      "inicia_en": "2026-10-28T14:00:00.000Z"
     },
     {
       "id": 2,
@@ -320,8 +326,8 @@
       "servicio": "Pruebas Corte Dama",
       "estado": "en_curso",
       "pago": "aprobado",
-      "qr_token": "3af678d1-6f2a-4ce3-a52c-c7487ea1b279",
-      "inicia_en": "2026-10-27T15:00:00.000Z"
+      "qr_token": "4f90f564-b2a8-4504-80fa-5fd9a86bf40b",
+      "inicia_en": "2026-10-28T15:00:00.000Z"
     },
     {
       "id": 3,
@@ -330,8 +336,8 @@
       "servicio": "Pruebas Barba",
       "estado": "cobrado",
       "pago": "aprobado",
-      "qr_token": "f669d9ad-19e7-4951-9c23-40b0f9bc48a8",
-      "inicia_en": "2026-10-27T16:00:00.000Z"
+      "qr_token": "cfc50c77-4115-439e-a75f-58fb680a92a5",
+      "inicia_en": "2026-10-28T16:00:00.000Z"
     },
     {
       "id": 4,
@@ -340,8 +346,8 @@
       "servicio": "Pruebas Tinte",
       "estado": "confirmada",
       "pago": "efectivo",
-      "qr_token": "4b5b274f-7392-4f60-866a-4ebc4971ecfe",
-      "inicia_en": "2026-10-27T17:00:00.000Z"
+      "qr_token": "4b2264a4-04e2-4e90-a5f3-69d0e6721b16",
+      "inicia_en": "2026-10-28T17:00:00.000Z"
     },
     {
       "id": 5,
@@ -350,8 +356,8 @@
       "servicio": "Pruebas Combo",
       "estado": "pendiente",
       "pago": null,
-      "qr_token": "33e987a0-8a12-409f-8e67-7c1a28df78d3",
-      "inicia_en": "2026-10-27T18:00:00.000Z"
+      "qr_token": "d910cde5-5ea4-4f9b-9e4f-c6fddfe749ce",
+      "inicia_en": "2026-10-28T18:00:00.000Z"
     },
     {
       "id": 6,
@@ -360,8 +366,8 @@
       "servicio": "Pruebas Corte Caballero",
       "estado": "pendiente",
       "pago": null,
-      "qr_token": "34d43c4a-c275-4d53-afa1-939bf1c0a4f5",
-      "inicia_en": "2026-10-27T19:00:00.000Z"
+      "qr_token": "bcb44463-15a4-4a7c-b249-75d536d9987d",
+      "inicia_en": "2026-10-28T19:00:00.000Z"
     },
     {
       "id": 7,
@@ -370,8 +376,8 @@
       "servicio": "Pruebas Corte Dama",
       "estado": "confirmada",
       "pago": "aprobado",
-      "qr_token": "6d348e16-6600-4826-bf56-4ae64e07947f",
-      "inicia_en": "2026-10-27T20:00:00.000Z"
+      "qr_token": "f1d27717-ac29-4442-985a-ed499ee7ac57",
+      "inicia_en": "2026-10-28T20:00:00.000Z"
     },
     {
       "id": 8,
@@ -380,8 +386,8 @@
       "servicio": "Pruebas Barba",
       "estado": "pendiente",
       "pago": "declinado",
-      "qr_token": "aef33e6e-18df-458b-8c9a-a6bd340a968f",
-      "inicia_en": "2026-10-27T21:00:00.000Z"
+      "qr_token": "4ef075ba-951e-48e9-b060-804363f6b9d2",
+      "inicia_en": "2026-10-28T21:00:00.000Z"
     },
     {
       "id": 9,
@@ -390,8 +396,8 @@
       "servicio": "Pruebas Tinte",
       "estado": "cancelada",
       "pago": null,
-      "qr_token": "c46ad3e2-06ed-4744-a1e0-cb4b42789a20",
-      "inicia_en": "2026-10-27T22:00:00.000Z"
+      "qr_token": "d3e59b4a-63a2-40e9-86fc-920e2cc4e218",
+      "inicia_en": "2026-10-28T22:00:00.000Z"
     },
     {
       "id": 10,
@@ -400,8 +406,8 @@
       "servicio": "Pruebas Combo",
       "estado": "confirmada",
       "pago": null,
-      "qr_token": "6c6cbf7e-fa2a-408d-8bb2-f09306f25192",
-      "inicia_en": "2026-10-27T23:00:00.000Z"
+      "qr_token": "c02dfd5e-ef51-40eb-a844-1c4b6e7b9d39",
+      "inicia_en": "2026-10-28T23:00:00.000Z"
     },
     {
       "id": 11,
@@ -410,8 +416,8 @@
       "servicio": "Pruebas Barba + Pruebas Combo",
       "estado": "confirmada",
       "pago": null,
-      "qr_token": "cda95884-6480-42c5-8dbe-aa3172ebf496",
-      "inicia_en": "2026-11-06T14:00:00.000Z"
+      "qr_token": "781d42be-67c3-442f-acb0-679cef1299b2",
+      "inicia_en": "2026-11-07T14:00:00.000Z"
     },
     {
       "id": 12,
@@ -420,8 +426,8 @@
       "servicio": "Pruebas Tinte",
       "estado": "pendiente",
       "pago": null,
-      "qr_token": "bdbee2b8-b662-43e7-af05-57fbd0353bc6",
-      "inicia_en": "2026-11-06T14:45:00.000Z"
+      "qr_token": "71b2a401-c984-4c81-a059-ad18963f8979",
+      "inicia_en": "2026-11-07T14:45:00.000Z"
     },
     {
       "id": 13,
@@ -430,8 +436,8 @@
       "servicio": "Pruebas Combo",
       "estado": "confirmada",
       "pago": null,
-      "qr_token": "d7228c4e-2bd9-47e5-8d3e-9cb26feac4a9",
-      "inicia_en": "2026-11-06T15:30:00.000Z"
+      "qr_token": "a016cafe-513e-4856-9621-f7bc10d68b43",
+      "inicia_en": "2026-11-07T15:30:00.000Z"
     },
     {
       "id": 14,
@@ -440,8 +446,8 @@
       "servicio": "Pruebas Corte Caballero + Pruebas Barba",
       "estado": "pendiente",
       "pago": null,
-      "qr_token": "d526c8cb-2a88-4cec-b861-9944e34a2aff",
-      "inicia_en": "2026-11-06T16:15:00.000Z"
+      "qr_token": "a20d7305-baf8-4452-883b-78f62f565fcb",
+      "inicia_en": "2026-11-07T16:15:00.000Z"
     },
     {
       "id": 15,
@@ -450,8 +456,8 @@
       "servicio": "Pruebas Corte Dama",
       "estado": "confirmada",
       "pago": null,
-      "qr_token": "33489727-6039-4576-86f8-47f610c35e46",
-      "inicia_en": "2026-11-06T17:00:00.000Z"
+      "qr_token": "476c4fba-b052-464e-bc68-4be78f8c3572",
+      "inicia_en": "2026-11-07T17:00:00.000Z"
     },
     {
       "id": 16,
@@ -460,8 +466,8 @@
       "servicio": "Pruebas Barba",
       "estado": "pendiente",
       "pago": null,
-      "qr_token": "e9c92025-185f-4527-8dfd-c67aa283c6d9",
-      "inicia_en": "2026-11-06T17:45:00.000Z"
+      "qr_token": "b4b5dc80-484f-4225-9b52-654244a13a13",
+      "inicia_en": "2026-11-07T17:45:00.000Z"
     },
     {
       "id": 17,
@@ -470,8 +476,8 @@
       "servicio": "Pruebas Tinte + Pruebas Corte Caballero",
       "estado": "confirmada",
       "pago": null,
-      "qr_token": "8e419eda-ef82-4bb2-a2f9-219b71dc1ea6",
-      "inicia_en": "2026-11-06T18:30:00.000Z"
+      "qr_token": "ae2c75b3-b59a-44a6-bdc5-f97ce521c908",
+      "inicia_en": "2026-11-07T18:30:00.000Z"
     },
     {
       "id": 18,
@@ -480,8 +486,8 @@
       "servicio": "Pruebas Combo",
       "estado": "pendiente",
       "pago": null,
-      "qr_token": "4b0b74c1-295a-460c-97f0-5ee7728a17ce",
-      "inicia_en": "2026-11-06T19:15:00.000Z"
+      "qr_token": "57609e34-f34c-4c67-95b0-8fc1f5b3f8cc",
+      "inicia_en": "2026-11-07T19:15:00.000Z"
     },
     {
       "id": 19,
@@ -490,8 +496,8 @@
       "servicio": "Pruebas Corte Caballero",
       "estado": "confirmada",
       "pago": null,
-      "qr_token": "ede85333-2553-4391-9886-c361e77a2b61",
-      "inicia_en": "2026-11-06T20:00:00.000Z"
+      "qr_token": "e5172577-386e-49e1-9633-7f889beaf9e9",
+      "inicia_en": "2026-11-07T20:00:00.000Z"
     },
     {
       "id": 20,
@@ -500,8 +506,8 @@
       "servicio": "Pruebas Corte Dama + Pruebas Tinte",
       "estado": "pendiente",
       "pago": null,
-      "qr_token": "8e84ac79-b50c-40c9-928d-f0560e649abe",
-      "inicia_en": "2026-11-06T20:45:00.000Z"
+      "qr_token": "de64bc36-5a3c-435b-b5f0-469e6acb2b0d",
+      "inicia_en": "2026-11-07T20:45:00.000Z"
     },
     {
       "id": 21,
@@ -510,8 +516,8 @@
       "servicio": "Pruebas Corte Dama",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "f045cf36-80ab-4b75-afa7-4ccac4cf9bf2",
-      "inicia_en": "2026-10-26T14:00:00.000Z"
+      "qr_token": "2b2a8056-964c-4d71-80e4-f54102ff0c1c",
+      "inicia_en": "2026-10-27T14:00:00.000Z"
     },
     {
       "id": 22,
@@ -520,8 +526,8 @@
       "servicio": "Pruebas Barba",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "68699e9d-b666-400e-841d-9bbceba57b00",
-      "inicia_en": "2026-10-26T15:00:00.000Z"
+      "qr_token": "c3925b7b-9332-4c08-a390-4533e06bb9cb",
+      "inicia_en": "2026-10-27T15:00:00.000Z"
     },
     {
       "id": 23,
@@ -530,8 +536,8 @@
       "servicio": "Pruebas Tinte",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "aa5334ab-c056-4141-9133-2f8681ea0c9c",
-      "inicia_en": "2026-10-26T16:00:00.000Z"
+      "qr_token": "3f613092-2de1-43ea-b233-6ebe6bd1a8b0",
+      "inicia_en": "2026-10-27T16:00:00.000Z"
     },
     {
       "id": 24,
@@ -540,8 +546,8 @@
       "servicio": "Pruebas Combo",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "a3f8dca2-2b6b-4a2e-939d-ed19f2899d79",
-      "inicia_en": "2026-10-26T17:00:00.000Z"
+      "qr_token": "f41572a6-a1c1-48f3-adae-51c1e3db7198",
+      "inicia_en": "2026-10-27T17:00:00.000Z"
     },
     {
       "id": 25,
@@ -550,8 +556,8 @@
       "servicio": "Pruebas Corte Caballero",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "4bb8b792-7789-41f7-91e7-d54df0d9e386",
-      "inicia_en": "2026-10-26T18:00:00.000Z"
+      "qr_token": "d021394d-4bad-4a34-8685-45e2df02b190",
+      "inicia_en": "2026-10-27T18:00:00.000Z"
     },
     {
       "id": 26,
@@ -560,8 +566,8 @@
       "servicio": "Pruebas Corte Dama",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "f769881d-0660-4a54-b9c4-f9cf3bd253cd",
-      "inicia_en": "2026-10-26T19:00:00.000Z"
+      "qr_token": "f7007e20-a095-40e7-aca0-cb9eb6f504ff",
+      "inicia_en": "2026-10-27T19:00:00.000Z"
     },
     {
       "id": 27,
@@ -570,8 +576,8 @@
       "servicio": "Pruebas Barba",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "dafaef19-2680-4748-abe2-072be45b10e4",
-      "inicia_en": "2026-10-26T20:00:00.000Z"
+      "qr_token": "fce1b922-7a02-4e5c-85f2-d00531552246",
+      "inicia_en": "2026-10-27T20:00:00.000Z"
     },
     {
       "id": 28,
@@ -580,8 +586,8 @@
       "servicio": "Pruebas Tinte",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "4349bb2b-ac65-471c-ac82-6a332ef2ad5b",
-      "inicia_en": "2026-10-26T21:00:00.000Z"
+      "qr_token": "65bc7487-bf32-4a7d-95bd-285f0d030502",
+      "inicia_en": "2026-10-27T21:00:00.000Z"
     },
     {
       "id": 29,
@@ -590,8 +596,8 @@
       "servicio": "Pruebas Combo",
       "estado": "cobrado",
       "pago": "efectivo",
-      "qr_token": "d6d09e04-13a1-45af-86d0-4aa561b7d5c4",
-      "inicia_en": "2026-10-26T22:00:00.000Z"
+      "qr_token": "b33606d2-6e94-49dc-883f-7fe1ff1aa87f",
+      "inicia_en": "2026-10-27T22:00:00.000Z"
     },
     {
       "id": 30,
@@ -600,8 +606,8 @@
       "servicio": "Pruebas Corte Caballero",
       "estado": "cancelada",
       "pago": null,
-      "qr_token": "c13399c5-deb3-4b98-a71e-948acf5cd7e8",
-      "inicia_en": "2026-10-26T23:00:00.000Z"
+      "qr_token": "a2c665b8-c2d5-4e68-9cb0-faaed8c1f2ce",
+      "inicia_en": "2026-10-27T23:00:00.000Z"
     }
   ]
 }

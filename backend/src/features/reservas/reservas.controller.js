@@ -137,6 +137,11 @@ const reservasController = {
     res.json({ ok: true, data: empleados });
   }),
 
+  empleadosPorSede: asyncHandler(async (req, res) => {
+    const empleados = await reservasService.getEmpleadosPorSede(req.query);
+    res.json({ ok: true, data: empleados });
+  }),
+
   listarReservas: asyncHandler(async (req, res) => {
     if (req.usuario.rol === 'empleado') {
       req.query.empleado_id = req.usuario.id;

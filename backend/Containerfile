@@ -17,6 +17,7 @@ RUN pnpm install --frozen-lockfile
 # Copiar código fuente del backend y scripts de DB
 COPY backend/ ./backend/
 COPY db/ ./db/
+RUN mkdir -p /app/presentacion-media
 
 EXPOSE 3000
 CMD ["pnpm", "start"]

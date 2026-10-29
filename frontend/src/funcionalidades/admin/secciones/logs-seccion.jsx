@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Download, FileWarning, ScrollText, Search } from 'lucide-react';
-import { Button, Card, Spinner } from '../../../componentes/ui/index.jsx';
-import { SheetAdmin } from './navegacion.jsx';
+import { PageHeader, Button, Card, Spinner } from '../../../componentes/ui/index.jsx';
+import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
 import { descargarTexto } from '../../../lib/descargas.js';
 import { hoy } from '../utils.js';
 
 const NIVELES = { 10: 'TRACE', 20: 'DEBUG', 30: 'INFO', 40: 'WARN', 50: 'ERROR', 60: 'FATAL' };
 
-export default function LogsSeccion({ open, onClose, onToast }) {
+export default function LogsSeccion() {
   const [tab, setTab] = useState('actividad');
   const [datos, setDatos] = useState([]);
   const [cargando, setCargando] = useState(false);
@@ -28,15 +28,15 @@ export default function LogsSeccion({ open, onClose, onToast }) {
       const data = tab === 'actividad' ? await api.logs.actividad(params) : await api.logs.errores(params);
       setDatos(Array.isArray(data) ? data : []);
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setCargando(false);
     }
-  }, [tab, filtro, fecha, severidad, onToast]);
+  }, [tab, filtro, fecha, severidad]);
 
   useEffect(() => {
-    if (open) cargar();
-  }, [open, cargar]);
+    cargar();
+  }, [cargar]);
 
   const exportar = async () => {
     try {
@@ -48,14 +48,18 @@ export default function LogsSeccion({ open, onClose, onToast }) {
       if (hasta) params.hasta = hasta;
       const texto = await api.logs.exportarTexto(params);
       descargarTexto(`logs_${tab}_${hoy()}.txt`, texto);
-      onToast?.('Archivo exportado');
+      avisarAdmin('Archivo exportado');
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     }
   };
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Logs del sistema">
+    <div className="space-y-5">
+      <PageHeader
+        title="Actividad"
+        subtitle="Registro de actividad y errores del sistema."
+      />
       <div className="space-y-4">
         <Card className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <div className="relative lg:col-span-2">
@@ -163,6 +167,6 @@ export default function LogsSeccion({ open, onClose, onToast }) {
           </Button>
         </Card>
       </div>
-    </SheetAdmin>
+    </div>
   );
 }

@@ -101,8 +101,17 @@ validar "jornada UNIQUE (ubicacion, fecha)" \
 validar "empleado_tiempo_servicio UNIQUE (empleado, servicio)" \
   "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='empleado_tiempo_servicio' AND indexdef LIKE '%UNIQUE%empleado_id%servicio_id%')"
 
-validar "preferencia_usuario.idioma existe" \
-  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='preferencia_usuario' AND column_name='idioma')"
+validar "ubicacion.departamento existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion' AND column_name='departamento')"
+
+validar "ubicacion.ciudad existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion' AND column_name='ciudad')"
+
+validar "preferencia_usuario.ciudad_preferida existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='preferencia_usuario' AND column_name='ciudad_preferida')"
+
+validar "empleado_perfil.foto_url existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleado_perfil' AND column_name='foto_url' AND data_type='text')"
 
 validar "servicio_catalogo.categoria_id existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicio_catalogo' AND column_name='categoria_id')"

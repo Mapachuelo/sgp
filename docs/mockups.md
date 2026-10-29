@@ -76,10 +76,10 @@ Al hacer clic en una tarjeta del paso **Servicios** se abre un modal con la gale
 
 ![Perfil cliente](img/cliente-perfil.png)
 
-### 2.8 Interfaz en inglés y móvil
-Conmutador ES/EN en la barra de navegación; menú hamburguesa y layout apilado en móvil.
+### 2.8 Interfaz móvil
+Menú hamburguesa y layout apilado en móvil; la interfaz se mantiene siempre en español.
 
-![Kanban en inglés](img/cliente-kanban-en.png)
+![Kanban móvil](img/cliente-kanban-movil.png)
 
 ![Kanban móvil](img/cliente-kanban-movil.png)
 
@@ -103,7 +103,7 @@ Grilla semanal por sede, servicios asignados con duración y leyenda; una sede p
 ## 4. Rol administrador
 
 ### 4.1 Dashboard (`/admin`)
-KPIs reales, timeline de todas las sedes y tarjeta de Gestión con los 9 accesos. Todas las ventanas flotantes (Validar QR, Cobro, Empleados, Servicios, Sedes, Horarios, Reportes, Moderación de clientes y Logs) incluyen un riel lateral con las 9 secciones como guía de uso: permite saltar entre secciones sin cerrar la ventana. En móvil el riel se convierte en chips con scroll horizontal y el sheet ocupa el ancho completo.
+KPIs reales, timeline de todas las sedes y tarjeta de Gestión con los accesos. Empleados, Servicios, Presentación, Sedes, Horarios/Agenda, Reportes, Moderación de clientes y Logs se abren como páginas independientes dentro del shell; Validar QR y Cobro se mantienen como ventanas flotantes. En móvil la navegación se resuelve con el menú lateral.
 
 ![Dashboard admin](img/admin-dashboard.png)
 

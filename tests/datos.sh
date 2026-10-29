@@ -39,6 +39,12 @@ validar "Reservas cobradas sin registro de cobro" \
 validar "Citas fuera de la disponibilidad del empleado" \
   "SELECT COUNT(*) FROM reserva r JOIN app_user u ON u.id = r.empleado_id WHERE u.email LIKE '%@demo.sgp' AND r.estado IN ('pendiente','confirmada') AND NOT EXISTS (SELECT 1 FROM empleado_disponibilidad ed WHERE ed.empleado_id = r.empleado_id AND ed.ubicacion_id = r.ubicacion_id AND ed.dia_semana = EXTRACT(ISODOW FROM (r.inicia_en AT TIME ZONE 'America/Bogota'))::int AND (r.inicia_en AT TIME ZONE 'America/Bogota')::time >= ed.hora_inicio AND (r.termina_en AT TIME ZONE 'America/Bogota')::time <= ed.hora_fin)"
 
+validar "Sedes sin departamento" \
+  "SELECT COUNT(*) FROM ubicacion WHERE departamento IS NULL OR BTRIM(departamento) = '' OR departamento = 'Sin departamento'"
+
+validar "Sedes sin ciudad" \
+  "SELECT COUNT(*) FROM ubicacion WHERE ciudad IS NULL OR BTRIM(ciudad) = '' OR ciudad = 'Sin ciudad'"
+
 validar "Servicios sin categoria" \
   "SELECT COUNT(*) FROM servicio_catalogo WHERE categoria_id IS NULL"
 

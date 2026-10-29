@@ -240,7 +240,7 @@ check('Check-in de reserva pagada por Wompi', status == 200 and resultado.get('m
 check('Cobro online registra el monto real del pago', resultado.get('monto') == 60000 and resultado.get('pagado_online') is True, resultado)
 
 status, data = req('POST', '/ubicaciones', {
-    'nombre': f'Sede E2E {int(time.time())}', 'direccion': 'Calle 1 #2-3, Bogota',
+    'nombre': f'Sede E2E {int(time.time())}', 'direccion': 'Calle 1 #2-3, Bogotá', 'departamento': 'Bogotá D.C.', 'ciudad': 'Bogotá',
     'latitud': 4.65, 'longitud': -74.05,
 }, token_admin)
 sede2 = (data.get('data') or {}).get('id')

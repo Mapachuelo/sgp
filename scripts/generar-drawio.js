@@ -190,10 +190,12 @@ function paginaClases() {
     '+ usuario_id: int (PK/FK)',
     '+ identificacion: varchar',
     '+ ubicacion_base_id: int (FK)',
+    '+ foto_url: text (opcional)',
   ]);
-  const ubicacion = entidad(c, 60, 520, 260, 130, 'Ubicacion', [
+  const ubicacion = entidad(c, 60, 520, 260, 150, 'Ubicacion', [
     '+ id: serial (PK)',
     '+ nombre, direccion: text',
+    '+ departamento, ciudad: varchar',
     '+ latitud, longitud: double',
   ]);
   const reserva = entidad(c, 440, 100, 300, 230, 'Reserva', [
@@ -242,7 +244,7 @@ function paginaClases() {
     '+ rango_hora_desde/hasta: time',
     '+ granularidad_calendario: int',
     '+ tema: varchar',
-    '+ idioma: es|en',
+    '+ departamento_preferido, ciudad_preferida: varchar',
   ]);
 
   flecha(c, usuario, perfil, '1 a 0..1');
@@ -361,10 +363,10 @@ function paginaDespliegue() {
 function paginaEr() {
   const c = [];
   tituloPagina(c, 'Modelo entidad-relacion');
-  const ubicacion = entidad(c, 40, 80, 220, 120, 'ubicacion', ['PK id', 'nombre', 'direccion', 'latitud, longitud']);
+  const ubicacion = entidad(c, 40, 80, 220, 140, 'ubicacion', ['PK id', 'nombre', 'direccion', 'departamento, ciudad', 'latitud, longitud']);
   const usuario = entidad(c, 40, 260, 220, 170, 'app_user', ['PK id', 'UQ email', 'rol, nombre, apellido', 'telefono (AES)', 'verificado / esta_bloqueado']);
-  const perfil = entidad(c, 40, 490, 220, 110, 'empleado_perfil', ['PK/FK usuario_id', 'identificacion', 'FK ubicacion_base_id']);
-  const preferencia = entidad(c, 40, 660, 220, 120, 'preferencia_usuario', ['PK/FK usuario_id', 'rango_hora', 'granularidad, tema, idioma']);
+  const perfil = entidad(c, 40, 490, 220, 120, 'empleado_perfil', ['PK/FK usuario_id', 'identificacion', 'FK ubicacion_base_id', 'foto_url (opcional)']);
+  const preferencia = entidad(c, 40, 660, 220, 120, 'preferencia_usuario', ['PK/FK usuario_id', 'rango_hora', 'granularidad, tema', 'departamento, ciudad']);
   const categoria = entidad(c, 380, 80, 220, 100, 'servicio_categoria', ['PK id', 'nombre (titulo del menu)', 'descripcion, orden']);
   const servicio = entidad(c, 380, 210, 220, 150, 'servicio_catalogo', ['PK id', 'FK categoria_id', 'nombre, descripcion', 'precio_base', 'duracion_base_minutos', 'imagen_url (portada), activo']);
   const servicioImagen = entidad(c, 40, 930, 220, 100, 'servicio_imagen', ['PK id', 'FK servicio_id', 'imagen_url', 'orden 1..6']);

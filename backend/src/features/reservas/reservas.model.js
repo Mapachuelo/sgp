@@ -3,6 +3,7 @@ const pool = require('../../config/db');
 const SELECT_RESERVA_BASE = `
   SELECT r.*,
          u.nombre AS ubicacion_nombre, u.direccion AS ubicacion_direccion,
+         u.departamento AS ubicacion_departamento, u.ciudad AS ubicacion_ciudad,
          u.latitud AS ubicacion_latitud, u.longitud AS ubicacion_longitud,
          COALESCE(rs.servicio_nombre, s.nombre) AS servicio_nombre,
          COALESCE(rs.precio_total, s.precio_base) AS precio_total,
@@ -10,7 +11,7 @@ const SELECT_RESERVA_BASE = `
          COALESCE(rs.duracion_total, s.duracion_base_minutos) AS duracion_total,
          rs.servicios,
          equipo.equipo_nombre,
-         emp.nombre AS empleado_nombre, emp.apellido AS empleado_apellido,
+         emp.nombre AS empleado_nombre, emp.apellido AS empleado_apellido, ep.foto_url AS empleado_foto_url,
          cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
          p.estado AS pago_estado, p.metodo AS pago_metodo, p.monto AS pago_monto,
          c.metodo AS cobro_metodo, c.monto AS cobro_monto, c.pago_id AS cobro_pago_id
@@ -18,6 +19,7 @@ const SELECT_RESERVA_BASE = `
   JOIN ubicacion u ON r.ubicacion_id = u.id
   LEFT JOIN servicio_catalogo s ON r.servicio_id = s.id
   JOIN app_user emp ON r.empleado_id = emp.id
+  LEFT JOIN empleado_perfil ep ON ep.usuario_id = emp.id
   JOIN app_user cli ON r.cliente_id = cli.id
   LEFT JOIN LATERAL (
     SELECT STRING_AGG(rsx.nombre, ' + ' ORDER BY rsx.orden) AS servicio_nombre,
@@ -57,16 +59,53 @@ const SELECT_RESERVA_BASE = `
 `;
 
 const reservasModel = {
-  async findAllServicios({ incluirInactivos = false, categoria_id = null } = {}) {
+  async findAllServicios({
+    incluirInactivos = false,
+    categoria_id = null,
+    ubicacion_id = null,
+    empleado_id = null,
+  } = {}) {
     const { rows } = await pool.query(
       `SELECT s.*, c.nombre AS categoria_nombre, c.orden AS categoria_orden,
-              (SELECT COUNT(*)::int FROM servicio_imagen si WHERE si.servicio_id = s.id) AS total_imagenes
+              (SELECT COUNT(*)::int FROM servicio_imagen si WHERE si.servicio_id = s.id) AS total_imagenes,
+              (SELECT COUNT(DISTINCT etp.empleado_id)::int
+                 FROM empleado_tiempo_servicio etp
+                 JOIN app_user eu ON eu.id = etp.empleado_id
+                WHERE etp.servicio_id = s.id
+                  AND eu.rol = 'empleado' AND NOT eu.esta_bloqueado
+                  AND ($3::int IS NULL OR EXISTS (
+                    SELECT 1 FROM empleado_disponibilidad ed
+                    WHERE ed.empleado_id = etp.empleado_id AND ed.ubicacion_id = $3
+                  ))) AS total_estilistas,
+              (SELECT STRING_AGG(nombres, ', ' ORDER BY nombres)
+                 FROM (
+                   SELECT DISTINCT eu.nombre || ' ' || COALESCE(eu.apellido, '') AS nombres
+                   FROM empleado_tiempo_servicio etp
+                   JOIN app_user eu ON eu.id = etp.empleado_id
+                   WHERE etp.servicio_id = s.id
+                     AND eu.rol = 'empleado' AND NOT eu.esta_bloqueado
+                     AND ($3::int IS NULL OR EXISTS (
+                       SELECT 1 FROM empleado_disponibilidad ed
+                       WHERE ed.empleado_id = etp.empleado_id AND ed.ubicacion_id = $3
+                     ))
+                 ) nombres_servicio) AS estilistas
        FROM servicio_catalogo s
        LEFT JOIN servicio_categoria c ON c.id = s.categoria_id
        WHERE ($1::boolean IS TRUE OR s.activo = TRUE)
          AND ($2::int IS NULL OR s.categoria_id = $2)
+         AND ($3::int IS NULL OR EXISTS (
+           SELECT 1 FROM empleado_tiempo_servicio etp
+           JOIN empleado_disponibilidad ed
+             ON ed.empleado_id = etp.empleado_id AND ed.ubicacion_id = $3
+           JOIN app_user eu ON eu.id = etp.empleado_id
+           WHERE etp.servicio_id = s.id AND eu.rol = 'empleado' AND NOT eu.esta_bloqueado
+         ))
+         AND ($4::int IS NULL OR EXISTS (
+           SELECT 1 FROM empleado_tiempo_servicio etp
+           WHERE etp.servicio_id = s.id AND etp.empleado_id = $4
+         ))
        ORDER BY COALESCE(c.orden, 999), COALESCE(c.nombre, 'Otros'), s.nombre`,
-      [Boolean(incluirInactivos), categoria_id || null]
+      [Boolean(incluirInactivos), categoria_id || null, ubicacion_id || null, empleado_id || null]
     );
     return rows;
   },
@@ -336,12 +375,20 @@ const reservasModel = {
     return rows[0] || null;
   },
 
-  async findAgenda(desde, hasta, empleado_id) {
+  async findAgenda(desde, hasta, filtros = {}) {
     const values = [desde, hasta];
-    let filtroEmpleado = '';
-    if (empleado_id) {
-      values.push(empleado_id);
-      filtroEmpleado = ` AND rs.empleado_id = $${values.length}`;
+    let condiciones = '';
+    if (filtros.empleado_id) {
+      values.push(filtros.empleado_id);
+      condiciones += ` AND rs.empleado_id = $${values.length}`;
+    }
+    if (filtros.ciudad) {
+      values.push(filtros.ciudad);
+      condiciones += ` AND u.ciudad = $${values.length}`;
+    }
+    if (filtros.departamento) {
+      values.push(filtros.departamento);
+      condiciones += ` AND u.departamento = $${values.length}`;
     }
     const { rows } = await pool.query(
       `SELECT rs.id, rs.id AS segmento_id, rs.reserva_id, rs.empleado_id, rs.servicio_id,
@@ -350,9 +397,10 @@ const reservasModel = {
               r.cantidad_personas, r.estado, r.qr_token, r.qr_data_url,
               r.llego_en, r.inicio_servicio, r.fin_servicio, r.creado_en,
               r.ubicacion_id,
-              u.nombre AS ubicacion_nombre,
+              u.nombre AS ubicacion_nombre, u.departamento AS ubicacion_departamento,
+              u.ciudad AS ubicacion_ciudad,
               cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
-              emp.nombre AS empleado_nombre, emp.apellido AS empleado_apellido,
+              emp.nombre AS empleado_nombre, emp.apellido AS empleado_apellido, ep.foto_url AS empleado_foto_url,
               p.estado AS pago_estado, p.metodo AS pago_metodo, p.monto AS pago_monto,
               c.metodo AS cobro_metodo, c.monto AS cobro_monto, c.pago_id AS cobro_pago_id
        FROM reserva_servicio rs
@@ -360,13 +408,14 @@ const reservasModel = {
        JOIN ubicacion u ON r.ubicacion_id = u.id
        JOIN app_user cli ON r.cliente_id = cli.id
        JOIN app_user emp ON rs.empleado_id = emp.id
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = emp.id
        LEFT JOIN cobro c ON c.reserva_id = r.id
        LEFT JOIN LATERAL (
          SELECT estado, metodo, monto FROM pago
          WHERE reserva_id = r.id
          ORDER BY creado_en DESC LIMIT 1
        ) p ON true
-       WHERE (rs.inicia_en AT TIME ZONE 'America/Bogota')::date BETWEEN $1::date AND $2::date${filtroEmpleado}
+       WHERE (rs.inicia_en AT TIME ZONE 'America/Bogota')::date BETWEEN $1::date AND $2::date${condiciones}
        ORDER BY rs.inicia_en`,
       values
     );
@@ -398,6 +447,14 @@ const reservasModel = {
       values.push(filtros.ubicacion_id);
       query += ` AND r.ubicacion_id = $${idx++}`;
     }
+    if (filtros.ciudad) {
+      values.push(filtros.ciudad);
+      query += ` AND u.ciudad = $${idx++}`;
+    }
+    if (filtros.departamento) {
+      values.push(filtros.departamento);
+      query += ` AND u.departamento = $${idx++}`;
+    }
     if (filtros.estado) {
       values.push(filtros.estado);
       query += ` AND r.estado = $${idx++}`;
@@ -420,9 +477,10 @@ const reservasModel = {
     const diaMapeado = diaSemana === 0 ? 7 : diaSemana;
 
     const { rows } = await pool.query(
-      `SELECT DISTINCT u.id, u.nombre, u.apellido,
+      `SELECT DISTINCT u.id, u.nombre, u.apellido, ep.foto_url,
               etp.duracion_minutos, sc.precio_base, sc.nombre AS servicio_nombre
        FROM app_user u
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
        JOIN empleado_disponibilidad ed ON u.id = ed.empleado_id
        LEFT JOIN empleado_tiempo_servicio etp
          ON etp.empleado_id = u.id AND etp.servicio_id = $3::int
@@ -438,11 +496,30 @@ const reservasModel = {
     return rows;
   },
 
+  async findEmpleadosPorSede(ubicacion_id) {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.nombre, u.apellido, ep.foto_url,
+              COUNT(DISTINCT etp.servicio_id)::int AS total_servicios,
+              MIN(etp.duracion_minutos)::int AS duracion_minima
+       FROM app_user u
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
+       JOIN empleado_disponibilidad ed ON ed.empleado_id = u.id AND ed.ubicacion_id = $1
+       JOIN empleado_tiempo_servicio etp ON etp.empleado_id = u.id
+       JOIN servicio_catalogo sc ON sc.id = etp.servicio_id AND sc.activo = TRUE
+       WHERE u.rol = 'empleado' AND NOT u.esta_bloqueado
+       GROUP BY u.id, u.nombre, u.apellido, ep.foto_url
+       ORDER BY u.nombre, u.apellido`,
+      [ubicacion_id]
+    );
+    return rows;
+  },
+
   async findEmpleadosPorServicio(ubicacion_id, servicio_id) {
     const { rows } = await pool.query(
-      `SELECT DISTINCT u.id, u.nombre, u.apellido,
+      `SELECT DISTINCT u.id, u.nombre, u.apellido, ep.foto_url,
               etp.duracion_minutos, sc.precio_base, sc.nombre AS servicio_nombre
        FROM app_user u
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
        JOIN empleado_tiempo_servicio etp ON etp.empleado_id = u.id AND etp.servicio_id = $2
        JOIN servicio_catalogo sc ON sc.id = etp.servicio_id
        JOIN empleado_disponibilidad ed ON ed.empleado_id = u.id AND ed.ubicacion_id = $1
@@ -457,7 +534,7 @@ const reservasModel = {
 
   async findSedesPorServicio(servicio_id) {
     const { rows } = await pool.query(
-      `SELECT u.id, u.nombre, u.direccion, u.latitud, u.longitud,
+      `SELECT u.id, u.nombre, u.direccion, u.departamento, u.ciudad, u.latitud, u.longitud,
               COUNT(DISTINCT emp.id)::int AS total_estilistas,
               MIN(etp.duracion_minutos)::int AS duracion_minima
        FROM ubicacion u
@@ -567,7 +644,7 @@ const reservasModel = {
 
   async findEmpleadoTiemposServicio(empleado_id) {
     const { rows } = await pool.query(
-      `SELECT etp.*, sc.nombre as servicio_nombre, sc.precio_base,
+      `SELECT etp.*, sc.nombre as servicio_nombre, sc.precio_base, sc.imagen_url,
               sc.categoria_id, c.nombre AS categoria_nombre
        FROM empleado_tiempo_servicio etp
        JOIN servicio_catalogo sc ON etp.servicio_id = sc.id
@@ -580,7 +657,7 @@ const reservasModel = {
 
   async findAllEmpleadoTiemposServicio() {
     const { rows } = await pool.query(
-      `SELECT etp.*, sc.nombre as servicio_nombre, sc.precio_base,
+      `SELECT etp.*, sc.nombre as servicio_nombre, sc.precio_base, sc.imagen_url,
               sc.categoria_id, c.nombre AS categoria_nombre,
               u.nombre as empleado_nombre, u.apellido as empleado_apellido
        FROM empleado_tiempo_servicio etp

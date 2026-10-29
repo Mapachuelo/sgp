@@ -161,7 +161,7 @@ check('Desbloquear cliente', status == 200, status)
 status, data = req('GET', '/ubicaciones')
 check('Listar sedes', status == 200 and len(data.get('data', [])) >= 3, len(data.get('data', [])))
 status, data = req('POST', '/ubicaciones', {
-    'nombre': 'Sede Regresion', 'direccion': 'Calle 1 # 2-3', 'latitud': 4.65, 'longitud': -74.05,
+    'nombre': 'Sede Regresion', 'direccion': 'Calle 1 # 2-3', 'departamento': 'Bogotá D.C.', 'ciudad': 'Bogotá', 'latitud': 4.65, 'longitud': -74.05,
 }, admin)
 sede_id = (data.get('data') or {}).get('id')
 check('Crear sede', status == 201 and bool(sede_id), f'{status} {data}')
@@ -279,13 +279,50 @@ status, _ = req('GET', f'/reservas/empleados-disponibles?fecha={fecha_futura.iso
 check('Empleados disponibles responde 200', status == 200, status)
 
 print('== Check-in y cola ==')
+
+
+def preparar_checkin(reserva, email_empleado):
+    sql(f"""
+      UPDATE reserva
+      SET inicia_en = date_trunc('minute', NOW() - INTERVAL '5 minutes'),
+          termina_en = date_trunc('minute', NOW() + INTERVAL '25 minutes')
+      WHERE id = {reserva['id']}
+    """)
+    sql(f"""
+      UPDATE reserva_servicio rs
+      SET inicia_en = date_trunc('minute', NOW() - INTERVAL '5 minutes'),
+          termina_en = date_trunc('minute', NOW() + INTERVAL '25 minutes')
+      WHERE rs.reserva_id = {reserva['id']}
+    """)
+    sql(f"""
+      INSERT INTO empleado_disponibilidad (empleado_id, ubicacion_id, dia_semana, hora_inicio, hora_fin)
+      SELECT u.id, r.ubicacion_id, EXTRACT(ISODOW FROM NOW() AT TIME ZONE 'America/Bogota')::int, '00:00', '23:59'
+      FROM app_user u
+      JOIN reserva r ON r.empleado_id = u.id
+      WHERE u.email = '{email_empleado}' AND r.id = {reserva['id']}
+      ON CONFLICT (empleado_id, ubicacion_id, dia_semana)
+      DO UPDATE SET hora_inicio = '00:00', hora_fin = '23:59'
+    """)
+    sql(f"""
+      INSERT INTO jornada (ubicacion_id, fecha, hora_inicio, hora_fin)
+      SELECT r.ubicacion_id, (NOW() AT TIME ZONE 'America/Bogota')::date, '00:00', '23:59'
+      FROM reserva r WHERE r.id = {reserva['id']}
+      ON CONFLICT (ubicacion_id, fecha)
+      DO UPDATE SET hora_inicio = '00:00', hora_fin = '23:59'
+    """)
+
+
 reserva_pagada = reservas[0]
 reserva_pendiente = reservas[4]
+preparar_checkin(reserva_pagada, reserva_pagada['empleado'])
+preparar_checkin(reserva_pendiente, reserva_pendiente['empleado'])
 token_emp_pagada = tokens_empleados[reserva_pagada['empleado']]
 token_emp_pendiente = tokens_empleados[reserva_pendiente['empleado']]
 
 status, data = req('POST', '/checkin/consultar', {'qr_token': reserva_pagada['qr_token']}, token_emp_pagada)
 check('Consultar reserva pagada', status == 200 and (data.get('data') or {}).get('pagado') is True, data)
+status, data = req('POST', '/checkin/llegada', {'qr_token': reserva_pagada['qr_token']}, token_emp_pagada)
+check('Registrar llegada de reserva pagada', status == 200, f'{status} {data}')
 status, data = req('POST', '/checkin/iniciar', {'reserva_id': reserva_pagada['id']}, token_emp_pagada)
 check('Iniciar servicio pagado', status == 200 and (data.get('data') or {}).get('estado') == 'en_curso', f'{status} {data}')
 status, data = req('POST', '/checkin/finalizar', {'reserva_id': reserva_pagada['id']}, token_emp_pagada)
@@ -378,10 +415,10 @@ status, data = req('GET', '/logs/errores', token=admin)
 check('Logs de errores', status == 200 and isinstance(data.get('data'), list), status)
 status, data = req('GET', '/logs/exportar?tipo=actividad', token=admin)
 check('Exportar logs', status == 200, status)
-status, data = req('PUT', '/preferencias', {'tema': 'oscuro', 'idioma': 'en', 'rango_hora_desde': '07:00', 'rango_hora_hasta': '21:00', 'granularidad_calendario': 15}, token_final)
+status, data = req('PUT', '/preferencias', {'tema': 'oscuro', 'departamento_preferido': 'Bogotá D.C.', 'ciudad_preferida': 'Bogotá', 'rango_hora_desde': '07:00', 'rango_hora_hasta': '21:00', 'granularidad_calendario': 15}, token_final)
 check('Actualizar preferencias', status == 200, status)
 status, data = req('GET', '/preferencias', token=token_final)
-check('Consultar preferencias', status == 200 and (data.get('data') or {}).get('idioma') == 'en', data)
+check('Consultar preferencias', status == 200 and (data.get('data') or {}).get('ciudad_preferida') == 'Bogotá', data)
 status, data = req('GET', '/healthcheck')
 check('Healthcheck', status == 200 and (data.get('data') or {}).get('ok', data.get('ok')) is True, data)
 status, data = req('GET', '/docs/openapi.json')

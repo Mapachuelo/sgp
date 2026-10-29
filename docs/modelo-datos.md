@@ -36,8 +36,12 @@ app_user 1───N cobro (registrado_por)
 | id | serial | PK |
 | nombre | varchar(200) | NOT NULL |
 | direccion | text | NOT NULL |
+| departamento | varchar(120) | NOT NULL, DEFAULT `Sin departamento` |
+| ciudad | varchar(120) | NOT NULL, DEFAULT `Sin ciudad` |
 | latitud | double precision | NOT NULL |
 | longitud | double precision | NOT NULL |
+
+Índice: `idx_ubicacion_departamento_ciudad (departamento, ciudad)`.
 
 ### 2.2 `app_user`
 | Columna | Tipo | Restricciones |
@@ -64,6 +68,7 @@ app_user 1───N cobro (registrado_por)
 | identificacion | varchar(30) | — |
 | password_asignada_hash | text | Hash de la contraseña asignada por el admin |
 | ubicacion_base_id | integer | FK `ubicacion(id)` ON DELETE SET NULL |
+| foto_url | text | Data URL opcional de la foto del empleado |
 
 ### 2.4 `servicio_categoria`
 | Columna | Tipo | Restricciones |
@@ -194,9 +199,14 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 | rango_hora_desde / rango_hora_hasta | time | DEFAULT `06:00` / `22:00` |
 | granularidad_calendario | integer | DEFAULT 30 |
 | tema | varchar(10) | DEFAULT `claro` |
-| idioma | varchar(5) | DEFAULT `es` (ES/EN) |
+| departamento_preferido | varchar(120) | Opcional |
+| ciudad_preferida | varchar(120) | Opcional |
 
-### 2.14 `reserva_servicio`
+### 2.14 Base de presentación
+
+La portada pública usa una base separada `sgp_presentacion`, con `presentacion_config`, `presentacion_media` y `presentacion_fuente`. No tiene claves foráneas hacia la base de negocio. Los archivos viven en el volumen `sgp-presentacion-media`.
+
+### 2.15 `reserva_servicio`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -211,7 +221,7 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 
 UNIQUE `(reserva_id, orden)`. Es la fuente real de servicios, estilistas y precios de una reserva; `reserva.servicio_id` y `reserva.empleado_id` se conservan como primer servicio/estilista para compatibilidad.
 
-### 2.15 `configuracion`
+### 2.16 `configuracion`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | clave | varchar(80) | PK |
@@ -230,12 +240,15 @@ Clave inicial: `max_servicios_reserva = 5`; el admin la edita entre 1 y 10.
 - Estados válidos de reserva restringidos por CHECK.
 - Cantidad de personas entre 1 y 5.
 - Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro y sus pagos.
-- Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `idioma`, `telefono` a TEXT, `categoria_id`, `imagen_url` y `activo`; el teléfono en claro se cifra al arrancar (`database-init.js`).
+- Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `departamento`, `ciudad`, `ciudad_preferida`, `telefono` a TEXT, `categoria_id`, `imagen_url` y `activo`; el teléfono en claro se cifra al arrancar (`database-init.js`). La migración elimina `preferencia_usuario.idioma`.
 - Las reservas históricas se backfillean a `reserva_servicio` al arrancar, usando el precio del cobro si existe y la duración real de la cita.
 - El servicio con reservas no se elimina: se marca `activo = FALSE` para conservar el histórico; una categoría con servicios no se puede eliminar.
 - Un servicio puede tener de 0 a 6 imágenes en `servicio_imagen`; si se elimina el servicio, sus imágenes se eliminan en cascada. La portada de `servicio_catalogo` se mantiene sincronizada con la primera imagen.
 - El listado del catálogo devuelve solo la portada y `total_imagenes`; la galería se consulta bajo demanda con `GET /api/reservas/servicios/:id/imagenes`.
 - El cliente puede pagar en línea desde el dashboard cualquier reserva activa sin pago aprobado; el servidor recalcula el monto desde los segmentos congelados.
+- Cada sede tiene departamento y ciudad obligatorios; el catálogo público puede filtrarse por sede o empleado y el cliente puede reservar por estilista o por servicio.
+- La foto del empleado es opcional y se guarda comprimida como data URL en `empleado_perfil.foto_url`; si no existe, la interfaz usa iniciales.
+- El cobro se confirma con QR (cámara o token), lista de citas del día o un solo toque; `POST /checkin/confirmar-pago` registra el cobro sin finalizar el servicio.
 
 ## 4. Seeds
 

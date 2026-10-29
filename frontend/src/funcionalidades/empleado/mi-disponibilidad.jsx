@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { ImageOff } from 'lucide-react';
 import api from '../../api/cliente';
-import { BuscadorSelect, Button, Card, Modal, PageHeader, Select, Spinner, Toast } from '../../componentes/ui/index.jsx';
+import { BuscadorSelect, Button, Card, Modal, PageHeader, SegmentedControl, Select, Spinner, Toast } from '../../componentes/ui/index.jsx';
+
+const dinero = (valor) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
+    .format(Number(valor) || 0)
+    .replace(/\u00a0/g, '');
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -49,6 +55,8 @@ export default function EmpleadoDisponibilidad() {
   const [guardando, setGuardando] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
   const [granularidad, setGranularidad] = useState(60);
+  const [vista, setVista] = useState(() => localStorage.getItem('sgp_disponibilidad_vista') || 'lista');
+  const [guardandoDuracion, setGuardandoDuracion] = useState(null);
 
   const [servicios, setServicios] = useState([]);
   const [misServicios, setMisServicios] = useState([]);
@@ -134,6 +142,10 @@ export default function EmpleadoDisponibilidad() {
         (Array.isArray(misTiempos) ? misTiempos : []).map((t) => ({
           servicio_id: t.servicio_id,
           duracion_minutos: t.duracion_minutos || t.tiempo_minutos || 30,
+          nombre: t.servicio_nombre,
+          precio_base: t.precio_base,
+          imagen_url: t.imagen_url,
+          categoria_nombre: t.categoria_nombre,
         }))
       );
     } catch (err) {
@@ -329,6 +341,31 @@ export default function EmpleadoDisponibilidad() {
     }
   };
 
+  const guardarDuracion = async (servicioId, valor) => {
+    const duracion = Number(valor);
+    if (!Number.isInteger(duracion) || duracion < 5 || duracion > 480) {
+      mostrarToast('La duración debe estar entre 5 y 480 minutos', 'warning');
+      return;
+    }
+    const anterior = misServicios;
+    const actualizados = misServicios.map((s) =>
+      s.servicio_id === servicioId ? { ...s, duracion_minutos: duracion } : s
+    );
+    setMisServicios(actualizados);
+    setGuardandoDuracion(servicioId);
+    try {
+      await api.reservas.empleadoServiciosUpdate(
+        actualizados.map((s) => ({ servicio_id: s.servicio_id, duracion_minutos: s.duracion_minutos }))
+      );
+      mostrarToast('Duración actualizada');
+    } catch (err) {
+      setMisServicios(anterior);
+      mostrarToast(err.message, 'error');
+    } finally {
+      setGuardandoDuracion(null);
+    }
+  };
+
   const eliminarServicio = async (servicioId) => {
     try {
       const items = misServicios.filter((s) => s.servicio_id !== servicioId);
@@ -376,6 +413,18 @@ export default function EmpleadoDisponibilidad() {
 
   const estadoSlot = (dia, hora) => slots[dia]?.[hora]?.tipo || 'no_disponible';
 
+  const datosServicio = (item) => {
+    const base = servicios.find((servicio) => String(servicio.id) === String(item.servicio_id)) || {};
+    return {
+      nombre: item.nombre || base.nombre || 'Servicio',
+      precio_base: item.precio_base ?? base.precio_base,
+      imagen_url: item.imagen_url ?? base.imagen_url,
+      categoria_nombre: item.categoria_nombre || base.categoria_nombre,
+    };
+  };
+
+  const servicioElegido = servicios.find((servicio) => String(servicio.id) === String(servicioSeleccionado));
+
   if (cargando) {
     return (
       <div className="space-y-5">
@@ -415,108 +464,121 @@ export default function EmpleadoDisponibilidad() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-borde p-4">
             <div>
               <h2 className="text-sm font-semibold text-texto-principal">Semana</h2>
-              <p className="mt-0.5 text-xs text-texto-secundario">Cada día tiene una sede y un horario.</p>
+              <p className="mt-0.5 text-xs text-texto-secundario">
+                {vista === 'lista'
+                  ? 'Cada día tiene una sede y un horario.'
+                  : 'Vista general de la semana; edita cada día desde aquí.'}
+              </p>
             </div>
-            <span className="text-[11px] text-tenue">{ubicaciones.length} sedes disponibles</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[11px] text-tenue">{ubicaciones.length} sedes disponibles</span>
+              <SegmentedControl
+                label="Vista de la semana"
+                value={vista}
+                onChange={(valor) => {
+                  setVista(valor);
+                  localStorage.setItem('sgp_disponibilidad_vista', valor);
+                }}
+                items={[
+                  { value: 'lista', label: 'Lista' },
+                  { value: 'semana', label: 'Semana' },
+                ]}
+              />
+            </div>
           </div>
 
-          <ul className="divide-y divide-regla">
-            {DIAS.map((dia, idx) => (
-              <li key={dia} className="flex flex-col gap-3 px-4 py-3 sm:grid sm:grid-cols-[52px_200px_minmax(0,1fr)_auto] sm:items-center">
-                <p className="text-xs font-medium text-texto-principal">{dia}</p>
-                <Select
-                  options={[
-                    { value: '', label: 'Sin sede' },
-                    ...ubicaciones.map((u) => ({ value: u.id, label: u.nombre })),
-                  ]}
-                  value={sedesPorDia[idx] || ''}
-                  onChange={(e) => handleSedeChange(idx, e.target.value)}
-                  className="text-xs"
-                />
-                <p className="text-xs leading-5 text-texto-secundario">{resumenDia(idx)}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDiaEditor(idx)}
-                  disabled={!sedesPorDia[idx]}
-                  className="w-full sm:w-auto"
-                >
-                  Editar horario
-                </Button>
-              </li>
-            ))}
-          </ul>
+          {vista === 'lista' ? (
+            <ul className="divide-y divide-regla">
+              {DIAS.map((dia, idx) => (
+                <li key={dia} className="flex flex-col gap-3 px-4 py-3 sm:grid sm:grid-cols-[52px_200px_minmax(0,1fr)_auto] sm:items-center">
+                  <p className="text-xs font-medium text-texto-principal">{dia}</p>
+                  <Select
+                    options={[
+                      { value: '', label: 'Sin sede' },
+                      ...ubicaciones.map((u) => ({ value: u.id, label: u.nombre })),
+                    ]}
+                    value={sedesPorDia[idx] || ''}
+                    onChange={(e) => handleSedeChange(idx, e.target.value)}
+                    className="text-xs"
+                  />
+                  <p className="text-xs leading-5 text-texto-secundario">{resumenDia(idx)}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDiaEditor(idx)}
+                    disabled={!sedesPorDia[idx]}
+                    className="w-full sm:w-auto"
+                  >
+                    Editar horario
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="overflow-x-auto scroll-thin">
+              <table className="w-full min-w-[920px] border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-borde bg-panel/50">
+                    <th scope="col" className="sticky left-0 z-10 w-28 bg-panel/95 px-3 py-2 text-[11px] font-medium text-texto-secundario">
+                      Semana
+                    </th>
+                    {DIAS.map((dia, idx) => (
+                      <th key={dia} scope="col" className="min-w-[120px] px-3 py-2 text-[11px] font-medium text-texto-secundario">
+                        {dia} {idx + 1}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-regla">
+                    <th scope="row" className="sticky left-0 z-10 bg-superficie px-3 py-3 font-medium text-texto-principal">Sede</th>
+                    {DIAS.map((_, idx) => {
+                      const sede = ubicaciones.find((u) => String(u.id) === String(sedesPorDia[idx]));
+                      return (
+                        <td key={`sede-${idx}`} className="px-3 py-3 text-texto-secundario">
+                          {sede?.nombre || <span className="text-tenue">Sin sede</span>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr className="border-b border-regla">
+                    <th scope="row" className="sticky left-0 z-10 bg-superficie px-3 py-3 font-medium text-texto-principal">Horario</th>
+                    {DIAS.map((_, idx) => (
+                      <td key={`horario-${idx}`} className="px-3 py-3 leading-5 text-texto-secundario">
+                        {resumenDia(idx)}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <th scope="row" className="sticky left-0 z-10 bg-superficie px-3 py-3 font-medium text-texto-principal">Acción</th>
+                    {DIAS.map((_, idx) => (
+                      <td key={`accion-${idx}`} className="px-3 py-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDiaEditor(idx)}
+                          disabled={!sedesPorDia[idx]}
+                        >
+                          Editar
+                        </Button>
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
 
         <div className="space-y-5">
           <Card>
-            <h2 className="text-sm font-semibold text-texto-principal">Servicios asignados</h2>
-            <p className="mt-0.5 text-xs leading-5 text-texto-secundario">
-              Servicios del catálogo que puedes realizar y su duración.
+            <h2 className="text-sm font-semibold text-texto-principal">Mis servicios</h2>
+            <p className="mt-1 text-xs leading-5 text-texto-secundario">
+              Tienes {misServicios.length} servicio(s) activo(s). El precio lo define la administración; tú ajustas la duración.
             </p>
-
-            <div className="mt-3 space-y-1.5">
-              {misServicios.length === 0 ? (
-                <p className="rounded-md border border-dashed border-control bg-panel/50 px-3 py-4 text-xs text-texto-secundario">
-                  Sin servicios asignados.
-                </p>
-              ) : (
-                misServicios.map((ms) => {
-                  const serv = servicios.find((s) => s.id === ms.servicio_id);
-                  return (
-                    <div key={ms.servicio_id} className="flex items-center justify-between gap-2 rounded-md border border-borde px-2.5 py-2">
-                      <span className="min-w-0 truncate text-xs text-texto-principal">{serv?.nombre || 'Servicio'}</span>
-                      <span className="flex shrink-0 items-center gap-2 text-[11px] text-tenue">
-                        {ms.duracion_minutos} min
-                        <button
-                          type="button"
-                          onClick={() => eliminarServicio(ms.servicio_id)}
-                          className="flex h-5 w-5 items-center justify-center rounded text-error transition-colors hover:bg-error/10"
-                          aria-label={`Desvincular ${serv?.nombre || 'servicio'}`}
-                          title="Desvincular servicio"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="mt-4 space-y-3 border-t border-borde pt-4">
-              <p className="text-[11px] font-medium text-texto-principal">Vincular servicio</p>
-              <BuscadorSelect
-                options={servicios
-                  .filter((s) => !misServicios.find((ms) => ms.servicio_id === s.id))
-                  .map((s) => ({
-                    value: String(s.id),
-                    label: s.nombre,
-                    description: s.categoria_nombre || 'Sin categoría',
-                  }))}
-                value={servicioSeleccionado}
-                onChange={setServicioSeleccionado}
-                placeholder="Buscar servicio..."
-                allowClear={false}
-              />
-              <Select
-                options={[
-                  { value: '10', label: '10 min' },
-                  { value: '15', label: '15 min' },
-                  { value: '20', label: '20 min' },
-                  { value: '30', label: '30 min' },
-                  { value: '45', label: '45 min' },
-                  { value: '60', label: '60 min' },
-                  { value: '90', label: '90 min' },
-                ]}
-                value={String(duracionServicio)}
-                onChange={(e) => setDuracionServicio(Number(e.target.value))}
-                className="text-xs"
-              />
-              <Button size="sm" className="w-full" onClick={agregarServicio} disabled={!servicioSeleccionado}>
-                Vincular servicio
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => { window.location.href = '/empleado/servicios'; }}>
+              Gestionar mis servicios
+            </Button>
           </Card>
 
           <Card>
@@ -547,16 +609,27 @@ export default function EmpleadoDisponibilidad() {
       >
         {diaEditor !== null && (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setAllDay(diaEditor, 'disponible')}>
-                Todo disponible
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setAllDay(diaEditor, 'descanso')}>
-                Todo descanso
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setAllDay(diaEditor, 'no_disponible')}>
-                Todo no disponible
-              </Button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => setAllDay(diaEditor, 'disponible')}>
+                  Todo disponible
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setAllDay(diaEditor, 'descanso')}>
+                  Todo descanso
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setAllDay(diaEditor, 'no_disponible')}>
+                  Todo no disponible
+                </Button>
+              </div>
+              <div className="w-32">
+                <Select
+                  label="Intervalo"
+                  options={GRANULARIDADES}
+                  value={String(granularidad)}
+                  onChange={(e) => cambiarGranularidad(Number(e.target.value))}
+                  className="text-xs"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">

@@ -20,6 +20,8 @@ function etiquetaDia(fecha) {
 
 export default function JornadaSede({ onToast }) {
   const [sedeId, setSedeId] = useState('');
+  const [departamentoFiltro, setDepartamentoFiltro] = useState('');
+  const [ciudadFiltro, setCiudadFiltro] = useState('');
   const [sedes, setSedes] = useState([]);
   const [jornadas, setJornadas] = useState([]);
   const [cargando, setCargando] = useState(false);
@@ -37,6 +39,32 @@ export default function JornadaSede({ onToast }) {
       .finally(() => setCargandoSedes(false));
   }, []);
 
+  const departamentos = useMemo(
+    () => [...new Set(sedes.map((s) => s.departamento).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [sedes]
+  );
+
+  const ciudades = useMemo(
+    () =>
+      [...new Set(
+        sedes
+          .filter((s) => !departamentoFiltro || s.departamento === departamentoFiltro)
+          .map((s) => s.ciudad)
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b)),
+    [sedes, departamentoFiltro]
+  );
+
+  const sedesFiltradas = useMemo(
+    () =>
+      sedes.filter((sede) => {
+        if (departamentoFiltro && sede.departamento !== departamentoFiltro) return false;
+        if (ciudadFiltro && sede.ciudad !== ciudadFiltro) return false;
+        return true;
+      }),
+    [sedes, departamentoFiltro, ciudadFiltro]
+  );
+
   const cargar = async (id) => {
     if (!id) {
       setJornadas([]);
@@ -52,6 +80,11 @@ export default function JornadaSede({ onToast }) {
       setCargando(false);
     }
   };
+
+  useEffect(() => {
+    setSedeId('');
+    setJornadas([]);
+  }, [departamentoFiltro, ciudadFiltro]);
 
   const cambiarSede = (valor) => {
     setSedeId(valor);
@@ -198,12 +231,33 @@ export default function JornadaSede({ onToast }) {
   return (
     <div className="space-y-4">
       <Card className="p-4 flex flex-col lg:flex-row lg:items-end gap-3">
-        <div className="flex-1 min-w-0">
+        <div className="grid flex-1 min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+          <Select
+            label="Departamento"
+            options={[
+              { value: '', label: 'Todos los departamentos' },
+              ...departamentos.map((item) => ({ value: item, label: item })),
+            ]}
+            value={departamentoFiltro}
+            onChange={(e) => {
+              setDepartamentoFiltro(e.target.value);
+              setCiudadFiltro('');
+            }}
+          />
+          <Select
+            label="Ciudad"
+            options={[
+              { value: '', label: 'Todas las ciudades' },
+              ...ciudades.map((item) => ({ value: item, label: item })),
+            ]}
+            value={ciudadFiltro}
+            onChange={(e) => setCiudadFiltro(e.target.value)}
+          />
           <Select
             label="Sede"
             options={[
               { value: '', label: cargandoSedes ? 'Cargando...' : 'Seleccionar sede...' },
-              ...sedes.map((u) => ({ value: String(u.id), label: u.nombre })),
+              ...sedesFiltradas.map((u) => ({ value: String(u.id), label: u.nombre })),
             ]}
             value={sedeId}
             onChange={(e) => cambiarSede(e.target.value)}

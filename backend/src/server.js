@@ -3,6 +3,7 @@ const app = require('./app');
 const env = require('./config/env');
 const logger = require('./shared/logger');
 const initDatabase = require('./config/database-init');
+const initPresentacionDatabase = require('./config/database-init-presentacion');
 const setupWebSocket = require('./integrations/realtime/ws-hub');
 const { purgarNoVerificados } = require('./features/auth/purga.service');
 const { verificarCredencialesBrevo } = require('./integrations/email/mailer');
@@ -13,7 +14,10 @@ const server = http.createServer(app);
 setupWebSocket(server);
 
 initDatabase()
-  .then(() => {
+  .then(async () => {
+    await initPresentacionDatabase().catch((err) =>
+      logger.error({ err }, 'No se pudo inicializar la presentacion; la app seguira funcionando')
+    );
     purgarNoVerificados().catch((err) =>
       logger.error({ err }, 'Error al purgar registros sin verificar')
     );

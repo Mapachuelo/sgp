@@ -224,7 +224,14 @@ const reservasService = {
   async getServicios(filtros = {}) {
     const incluirInactivos = filtros.incluir_inactivos === '1' || filtros.incluir_inactivos === true;
     const categoriaId = filtros.categoria_id ? Number(filtros.categoria_id) : null;
-    return reservasModel.findAllServicios({ incluirInactivos, categoria_id: categoriaId });
+    const ubicacionId = filtros.ubicacion_id ? Number(filtros.ubicacion_id) : null;
+    const empleadoId = filtros.empleado_id ? Number(filtros.empleado_id) : null;
+    return reservasModel.findAllServicios({
+      incluirInactivos,
+      categoria_id: categoriaId,
+      ubicacion_id: ubicacionId,
+      empleado_id: empleadoId,
+    });
   },
 
   async createServicio(data) {
@@ -343,6 +350,15 @@ const reservasService = {
       throw new HttpError(400, 'ubicacion_id y servicio_id son requeridos');
     }
     return reservasModel.findEmpleadosPorServicio(Number(ubicacion_id), Number(servicio_id));
+  },
+
+  async getEmpleadosPorSede({ ubicacion_id }) {
+    if (!ubicacion_id) {
+      throw new HttpError(400, 'ubicacion_id es requerido');
+    }
+    const ubicacion = await reservasModel.findUbicacionById(Number(ubicacion_id));
+    if (!ubicacion) throw new HttpError(404, 'Ubicacion no encontrada');
+    return reservasModel.findEmpleadosPorSede(Number(ubicacion_id));
   },
 
   async getDisponibilidadCombo({ ubicacion_id, fecha, servicios, granularidad }) {
@@ -476,7 +492,31 @@ const reservasService = {
   },
 
   async updateEmpleadoTiemposServicio(empleado_id, items) {
-    await reservasModel.upsertEmpleadoTiempoServicio(empleado_id, items);
+    if (!Array.isArray(items)) {
+      throw new HttpError(400, 'items debe ser un arreglo de servicios');
+    }
+    const normalizados = [];
+    const vistos = new Set();
+    for (const item of items) {
+      const servicioId = Number(item?.servicio_id);
+      const duracion = Number(item?.duracion_minutos);
+      if (!Number.isInteger(servicioId) || servicioId <= 0) {
+        throw new HttpError(400, 'servicio_id debe ser un entero valido');
+      }
+      if (vistos.has(servicioId)) {
+        throw new HttpError(400, 'No se puede repetir un servicio');
+      }
+      if (!Number.isInteger(duracion) || duracion < 5 || duracion > 480) {
+        throw new HttpError(400, 'duracion_minutos debe estar entre 5 y 480');
+      }
+      const servicio = await reservasModel.findServicioById(servicioId);
+      if (!servicio || !servicio.activo) {
+        throw new HttpError(404, `El servicio ${servicioId} no existe o esta inactivo`);
+      }
+      vistos.add(servicioId);
+      normalizados.push({ servicio_id: servicioId, duracion_minutos: duracion });
+    }
+    await reservasModel.upsertEmpleadoTiempoServicio(empleado_id, normalizados);
     return { actualizado: true };
   },
 
@@ -595,13 +635,7 @@ const reservasService = {
 
       await reservasModel.createReservaServicios(nueva.id, segmentos, client);
 
-      const qrPayload = JSON.stringify({
-        id: nueva.id,
-        qr_token: nueva.qr_token,
-        cliente_id,
-        inicia_en: inicioIso,
-      });
-      const qr_data_url = await QRCode.toDataURL(qrPayload);
+      const qr_data_url = await QRCode.toDataURL(nueva.qr_token);
       await reservasModel.updateReservaQr(nueva.id, qr_data_url, client);
 
       return { ...nueva, qr_data_url };
@@ -628,7 +662,7 @@ const reservasService = {
     return reservasModel.findAllReservas(filtros);
   },
 
-  async getAgenda({ desde, hasta, empleado_id }) {
+  async getAgenda({ desde, hasta, empleado_id, ciudad, departamento }) {
     const fechaValida = (valor) =>
       typeof valor === 'string' &&
       /^\d{4}-\d{2}-\d{2}$/.test(valor) &&
@@ -640,7 +674,11 @@ const reservasService = {
     if (desde > hasta) {
       throw new HttpError(400, 'desde no puede ser mayor que hasta');
     }
-    return reservasModel.findAgenda(desde, hasta, empleado_id ? parseInt(empleado_id, 10) : null);
+    return reservasModel.findAgenda(desde, hasta, {
+      empleado_id: empleado_id ? parseInt(empleado_id, 10) : null,
+      ciudad,
+      departamento,
+    });
   },
 };
 

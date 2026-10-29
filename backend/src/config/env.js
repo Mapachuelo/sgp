@@ -4,6 +4,8 @@ require('dotenv').config({ path: path.join(__dirname, '..', '..', '..', '.env') 
 const env = {
   port: parseInt(process.env.PORT || process.env.APP_PORT || '3000', 10),
   databaseUrl: process.env.DATABASE_URL || 'postgresql://sgp_user:sgp_password@localhost:5432/sgp',
+  presentacionDatabaseUrl: process.env.PRESENTACION_DATABASE_URL || 'postgresql://sgp_user:sgp_password@localhost:5432/sgp_presentacion',
+  presentacionMediaDir: process.env.PRESENTACION_MEDIA_DIR || '/app/presentacion-media',
   jwtSecret: process.env.JWT_SECRET || 'sgp_super_secret_2026',
   aesSecret: process.env.AES_SECRET || process.env.JWT_SECRET || 'sgp_super_secret_2026',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30m',

@@ -29,6 +29,16 @@ const checkinController = {
     res.json({ ok: true, data: result });
   }),
 
+  confirmarPago: asyncHandler(async (req, res) => {
+    const result = await checkinService.confirmarPago(req.body, req.usuario);
+    emitir(result, 'pagado');
+    logger.info(
+      { reserva_id: result.reserva_id, metodo: result.metodo, monto: result.monto },
+      'Pago confirmado'
+    );
+    res.json({ ok: true, data: result });
+  }),
+
   iniciar: asyncHandler(async (req, res) => {
     const result = await checkinService.iniciar(req.body, req.usuario);
     emitir(result, 'en_curso');

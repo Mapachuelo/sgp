@@ -6,8 +6,6 @@ Guía de uso del Sistema de Gestión de Peluquería para clientes, empleados y a
 
 1. Abrir `http://localhost:8080`.
 2. En **Iniciar sesión** ingresar correo y contraseña. El sistema reconoce el rol y redirige automáticamente.
-3. Para cambiar el idioma usar el botón **EN/ES** de la barra superior; la preferencia queda guardada por usuario.
-
 ![Inicio de sesión](img/login.png)
 
 ### 1.1 Crear cuenta (solo clientes)
@@ -32,11 +30,12 @@ Guía de uso del Sistema de Gestión de Peluquería para clientes, empleados y a
 
 ### 2.1 Agendar una cita
 
-1. **Paso 1 — Sede:** buscar por nombre/ciudad y elegir en la lista o el mapa.
-2. **Paso 2 — Estilista:** se listan los disponibles en esa sede en los próximos 6 días.
-3. **Paso 3 — Calendario:** elegir día y hora. Colores: verde disponible, rojo ocupado, gris pasado, azul no disponible, ámbar con menos de 60 minutos de anticipación.
-4. **Paso 4 — Confirmar:** se abre una ventana flotante con servicio, **duración estimada (hora de entrada → hora de salida)**, personas (1–5) y total.
-5. **Paso 5 — Pago y QR:** se genera el código QR de ingreso y el botón **Descargar QR**. Elige **Efectivo en Local** (pagas al llegar) o **Pago en línea**, que abre el checkout seguro de **Wompi** con tarjeta crédito/débito, PSE, Nequi o Botón Bancolombia; al aprobarse, la reserva queda **Confirmada** con la insignia "Pagado". Si el pago se rechaza puedes reintentar o pagar en el local.
+1. **Paso 1 — Sede:** filtrar por departamento y ciudad, escribir el nombre de la sede o usar **Usar mi ubicación** para elegir la más cercana. También puedes seleccionar el punto en el mapa.
+2. **Paso 2 — Cómo reservar:** elegir **Elegir estilista** (ves solo los servicios de esa persona) o **Buscar servicio** (ves solo los servicios de la sede y quién los realiza).
+3. **Paso 3 — Servicios:** agregar uno o varios servicios. Cada uno puede tener un estilista distinto si elegiste buscar por servicio.
+4. **Paso 4 — Horario:** elegir día y hora. El calendario solo muestra horas donde cabe la secuencia completa.
+5. **Paso 5 — Confirmar:** revisar servicios, estilistas, duración, personas (1–5) y total.
+6. **Paso 6 — Pago y QR:** se genera el código QR de ingreso y el botón **Descargar QR**. Elige efectivo en el local o pago en línea con **Wompi**; al aprobarse, la reserva queda **Confirmada** con la insignia "Pagado".
 
 Si el horario se ocupa mientras decides, verás un error y el calendario se actualizará para elegir otro horario. Límite: 5 reservas activas.
 
@@ -96,7 +95,7 @@ Al cambiar la sede de un día con reservas futuras se pide confirmación: las re
 
 - **KPIs:** recaudación del día, reservas del día, tasa de ocupación promedio y clientes recurrentes.
 - **Timeline:** todas las citas del día, filtrable por fecha y sede; botón Validar por cita.
-- **Gestión:** 9 accesos en ventanas flotantes: Validar QR, Cobro, Empleados, Servicios, Sedes, Horarios, Reportes, Moderación clientes y Logs.
+- **Gestión:** accesos de gestión. Empleados, Servicios, Presentación, Sedes, Horarios/Agenda, Reportes, Moderación de clientes y Logs abren páginas independientes dentro del panel; Validar QR y Cobro se mantienen como ventanas flotantes.
 
 ![Dashboard admin](img/admin-dashboard.png)
 
@@ -137,7 +136,7 @@ La pestaña **Jornada por sede** permite editar el horario de atención por fech
 
 ## 5. Uso en móvil e inglés
 
-La interfaz es responsiva (menú hamburguesa, tablas con scroll y planificador con desplazamiento horizontal). El botón EN/ES traduce toda la interfaz.
+La interfaz es responsiva (menú hamburguesa, tablas con scroll y planificador con desplazamiento horizontal) y se muestra siempre en español.
 
 ![Móvil](img/cliente-kanban-movil.png)
 

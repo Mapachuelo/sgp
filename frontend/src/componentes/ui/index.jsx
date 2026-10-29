@@ -270,6 +270,7 @@ export function Sheet({ open, onClose, children, title, side = 'right', size = '
     normal: 'sm:max-w-[480px]',
     wide: 'sm:max-w-[900px]',
     full: 'sm:max-w-[1120px]',
+    ancho: 'sm:max-w-[calc(100vw-24px)]',
   };
   const posicion =
     side === 'right'
@@ -337,6 +338,7 @@ export function Modal({ open, onClose, children, title, size = 'normal' }) {
     sm: 'max-w-sm',
     normal: 'max-w-lg',
     wide: 'max-w-2xl',
+    xl: 'max-w-4xl',
   };
 
   return createPortal(
@@ -556,19 +558,19 @@ export function DataTable({ columns = [], rows = [], getKey, empty, className = 
   );
 }
 
-export function Avatar({ nombre = '', apellido = '', size = 'md', className = '' }) {
+export function Avatar({ nombre = '', apellido = '', fotoUrl = '', size = 'md', className = '' }) {
   const iniciales = `${nombre?.[0] || ''}${apellido?.[0] || ''}`.toUpperCase() || '?';
   const sizes = { sm: 'h-7 w-7 text-[10px]', md: 'h-9 w-9 text-xs', lg: 'h-12 w-12 text-sm' };
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full bg-activo font-semibold text-texto-secundario',
+        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-activo font-semibold text-texto-secundario',
         sizes[size] || sizes.md,
         className
       )}
       aria-hidden="true"
     >
-      {iniciales}
+      {fotoUrl ? <img src={fotoUrl} alt="" className="h-full w-full object-cover" /> : iniciales}
     </span>
   );
 }

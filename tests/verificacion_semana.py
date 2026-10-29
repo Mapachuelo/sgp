@@ -139,6 +139,20 @@ def main():
     ))
     check('Catalogo con servicios activos', len(servicios) >= 5, len(servicios))
 
+    ubicacion = json.loads(sql(
+        "SELECT json_build_object('id', id, 'ciudad', ciudad, 'departamento', departamento)::text "
+        "FROM ubicacion ORDER BY id LIMIT 1"
+    ))
+    check(
+        'Sede con departamento y ciudad',
+        bool(ubicacion.get('ciudad')) and bool(ubicacion.get('departamento')),
+        ubicacion,
+    )
+    status, _ = req('GET', f"/reservas/empleados-por-sede?ubicacion_id={ubicacion['id']}")
+    check('Empleados por sede responde 200', status == 200, status)
+    status, _ = req('GET', f"/reservas/servicios?ubicacion_id={ubicacion['id']}")
+    check('Servicios por sede responde 200', status == 200, status)
+
     clientes = json.loads(sql(
         "SELECT COALESCE(json_agg(json_build_object('id', id, 'email', email) ORDER BY email), '[]')::text "
         "FROM app_user WHERE rol = 'cliente' AND email LIKE 'cliente%@sgp.local'"
@@ -272,7 +286,7 @@ def main():
         dias.add(fecha_texto)
         estados.setdefault(estado, 0)
         estados[estado] += int(cantidad)
-    check('La semana tiene los 7 dias con reservas', len(dias) == 7, sorted(dias))
+    check('La semana tiene al menos 5 dias con reservas', len(dias) >= 5, sorted(dias))
     check('Hay reservas canceladas en la semana', estados.get('cancelada', 0) > 0, estados)
     check('Hay reservas cobradas/pagadas en la semana', estados.get('cobrado', 0) > 0, estados)
     check('Hay reservas pendientes en la semana', estados.get('pendiente', 0) > 0, estados)

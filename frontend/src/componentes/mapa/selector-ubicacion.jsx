@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -43,17 +43,52 @@ function AjustarMapa({ lat, lng }) {
   return null;
 }
 
-export default function SelectorUbicacion({ latitud, longitud, onChange }) {
+export default function SelectorUbicacion({ latitud, longitud, onChange, onCiudadDetectada }) {
   const lat = Number(latitud);
   const lng = Number(longitud);
   const tieneUbicacion =
     latitud !== '' && longitud !== '' && Number.isFinite(lat) && Number.isFinite(lng);
   const centro = tieneUbicacion ? [lat, lng] : CENTRO_BOGOTA;
   const [mensaje, setMensaje] = useState('');
+  const temporizadorRef = useRef(null);
+  const solicitudRef = useRef(null);
+
+  const detectarCiudad = (nuevaLat, nuevaLng) => {
+    if (!onCiudadDetectada) return;
+    if (temporizadorRef.current) clearTimeout(temporizadorRef.current);
+    temporizadorRef.current = setTimeout(async () => {
+      solicitudRef.current?.abort();
+      const controlador = new AbortController();
+      solicitudRef.current = controlador;
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${nuevaLat}&lon=${nuevaLng}&accept-language=es`;
+        const respuesta = await fetch(url, { signal: controlador.signal, headers: { Accept: 'application/json' } });
+        if (!respuesta.ok) return;
+        const datos = await respuesta.json();
+        const direccion = datos?.address || {};
+        const ciudad = direccion.city || direccion.town || direccion.village || direccion.municipality || direccion.county;
+        const departamento = direccion.state || direccion.region;
+        if (ciudad || departamento) {
+          onCiudadDetectada({
+            ciudad: ciudad || '',
+            departamento: departamento || '',
+          });
+        }
+      } catch {
+        /* La deteccion es opcional; el formulario conserva el valor manual. */
+      }
+    }, 650);
+  };
+
+  useEffect(() => () => {
+    if (temporizadorRef.current) clearTimeout(temporizadorRef.current);
+    solicitudRef.current?.abort();
+  }, []);
 
   const cambiar = (nuevaLat, nuevaLng) => {
     setMensaje('');
     onChange?.(redondear(nuevaLat), redondear(nuevaLng));
+    detectarCiudad(redondear(nuevaLat), redondear(nuevaLng));
   };
 
   const usarMiUbicacion = () => {

@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CalendarRange,
   Clock3,
+  Images,
   LayoutDashboard,
   MapPin,
   Menu,
@@ -16,7 +17,6 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { useAuth } from '../hooks/use-auth';
-import { useI18n } from '../i18n/index.jsx';
 import { Sheet } from './ui/index.jsx';
 import BotonTema from './tema/boton-tema.jsx';
 import TemaSelect from './tema/tema-select.jsx';
@@ -49,6 +49,7 @@ const NAV_ADMIN = [
     items: [
       { path: '/admin/equipo', label: 'Equipo', icon: Users },
       { path: '/admin/servicios', label: 'Servicios', icon: Scissors },
+      { path: '/admin/presentacion', label: 'Presentación', icon: Images },
       { path: '/admin/sedes', label: 'Sedes', icon: MapPin },
       { path: '/admin/horarios', label: 'Horarios', icon: CalendarRange },
     ],
@@ -77,6 +78,7 @@ const NAV_EMPLEADO = [
   {
     grupo: 'Personal',
     items: [
+      { path: '/empleado/servicios', label: 'Servicios', icon: Scissors },
       { path: '/empleado/disponibilidad', label: 'Disponibilidad', icon: Clock3 },
       { path: '/empleado/perfil', label: 'Perfil', icon: UserRound },
     ],
@@ -89,26 +91,12 @@ const NAV_CLIENTE = [
   { path: '/cliente/perfil', label: 'Perfil', icon: UserRound },
 ];
 
-function Iniciales({ nombre = '', apellido = '' }) {
+function Iniciales({ nombre = '', apellido = '', fotoUrl = '' }) {
   const letras = `${nombre?.[0] || ''}${apellido?.[0] || ''}`.toUpperCase() || '?';
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-activo text-[11px] font-semibold text-texto-secundario" aria-hidden="true">
-      {letras}
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-activo text-[11px] font-semibold text-texto-secundario" aria-hidden="true">
+      {fotoUrl ? <img src={fotoUrl} alt="" className="h-full w-full object-cover" /> : letras}
     </span>
-  );
-}
-
-function BotonIdioma({ className = '' }) {
-  const { idioma, setIdioma } = useI18n();
-  return (
-    <button
-      type="button"
-      onClick={() => setIdioma(idioma === 'es' ? 'en' : 'es')}
-      aria-label={idioma === 'es' ? 'Switch to English' : 'Cambiar a español'}
-      className={`flex h-8 min-w-8 items-center justify-center rounded-md border border-borde px-2 text-[11px] font-semibold text-texto-secundario transition-colors hover:bg-panel hover:text-texto-principal ${className}`}
-    >
-      {idioma === 'es' ? 'EN' : 'ES'}
-    </button>
   );
 }
 
@@ -157,7 +145,7 @@ function Sidebar({ nav, usuario, logout, onNavigate }) {
       </nav>
       <div className="mt-4 border-t border-borde pt-3">
         <div className="flex items-center gap-2.5 px-2 py-1">
-          <Iniciales nombre={usuario?.nombre} apellido={usuario?.apellido} />
+          <Iniciales nombre={usuario?.nombre} apellido={usuario?.apellido} fotoUrl={usuario?.foto_url} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-texto-principal">
               {usuario?.nombre} {usuario?.apellido}
@@ -166,7 +154,6 @@ function Sidebar({ nav, usuario, logout, onNavigate }) {
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 px-2">
-          <BotonIdioma />
           <TemaSelect />
           <button
             type="button"
@@ -207,9 +194,8 @@ function ClientHeader({ usuario, logout }) {
         </nav>
         <div className="flex items-center gap-2">
           <BotonTema />
-          <BotonIdioma />
           <div className="hidden items-center gap-2 sm:flex">
-            <Iniciales nombre={usuario?.nombre} apellido={usuario?.apellido} />
+            <Iniciales nombre={usuario?.nombre} apellido={usuario?.apellido} fotoUrl={usuario?.foto_url} />
             <span className="hidden text-xs text-texto-secundario lg:block">{usuario?.nombre}</span>
           </div>
           <button
@@ -278,7 +264,6 @@ function StaffHeader({ navPlano, onMenu }) {
         <span className="hidden text-[11px] text-tenue sm:block">
           {new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
         </span>
-        <BotonIdioma />
       </div>
     </header>
   );
@@ -300,15 +285,14 @@ function StaffMobileMenu({ open, onClose, nav, usuario, logout }) {
         ))}
         <div className="border-t border-borde pt-4">
           <div className="flex items-center gap-2.5">
-            <Iniciales nombre={usuario?.nombre} apellido={usuario?.apellido} />
+            <Iniciales nombre={usuario?.nombre} apellido={usuario?.apellido} fotoUrl={usuario?.foto_url} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-texto-principal">
                 {usuario?.nombre} {usuario?.apellido}
               </p>
               <p className="text-[11px] capitalize text-tenue">{usuario?.rol}</p>
             </div>
-            <BotonIdioma />
-            <TemaSelect />
+              <TemaSelect />
           </div>
           <button
             type="button"

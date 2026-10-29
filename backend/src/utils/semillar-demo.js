@@ -13,12 +13,12 @@ const PASSWORD_DEMO = 'demo1234';
 const DOMINIO_DEMO = '@demo.sgp';
 
 const SEDES = [
-  { nombre: 'Demo Sede Norte', direccion: 'Calle 170 # 20-30, Bogota', latitud: 4.7551, longitud: -74.0453 },
-  { nombre: 'Demo Sede Chapinero', direccion: 'Carrera 13 # 55-20, Bogota', latitud: 4.6486, longitud: -74.0621 },
-  { nombre: 'Demo Sede Usaquen', direccion: 'Calle 119 # 6-40, Bogota', latitud: 4.7009, longitud: -74.0312 },
-  { nombre: 'Demo Sede Centro', direccion: 'Carrera 7 # 12-50, Bogota', latitud: 4.5989, longitud: -74.0757 },
-  { nombre: 'Demo Sede Kennedy', direccion: 'Avenida 1 de Mayo # 60-10, Bogota', latitud: 4.6282, longitud: -74.1481 },
-  { nombre: 'Demo Sede Suba', direccion: 'Carrera 91 # 145-20, Bogota', latitud: 4.7422, longitud: -74.0841 },
+  { nombre: 'Demo Sede Norte', direccion: 'Calle 170 # 20-30, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.7551, longitud: -74.0453 },
+  { nombre: 'Demo Sede Chapinero', direccion: 'Carrera 13 # 55-20, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.6486, longitud: -74.0621 },
+  { nombre: 'Demo Sede Usaquen', direccion: 'Calle 119 # 6-40, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.7009, longitud: -74.0312 },
+  { nombre: 'Demo Sede Centro', direccion: 'Carrera 7 # 12-50, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.5989, longitud: -74.0757 },
+  { nombre: 'Demo Sede Kennedy', direccion: 'Avenida 1 de Mayo # 60-10, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.6282, longitud: -74.1481 },
+  { nombre: 'Demo Sede Suba', direccion: 'Carrera 91 # 145-20, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.7422, longitud: -74.0841 },
 ];
 
 const CATEGORIAS = [
@@ -512,9 +512,9 @@ async function main() {
     const idsSedes = [];
     for (const sede of sedes) {
       const { rows } = await client.query(
-        `INSERT INTO ubicacion (nombre, direccion, latitud, longitud)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [sede.nombre, sede.direccion, sede.latitud, sede.longitud]
+        `INSERT INTO ubicacion (nombre, direccion, departamento, ciudad, latitud, longitud)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [sede.nombre, sede.direccion, sede.departamento, sede.ciudad, sede.latitud, sede.longitud]
       );
       idsSedes.push(rows[0].id);
     }

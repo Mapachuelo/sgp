@@ -18,7 +18,7 @@ const clientesModel = {
   async findUserById(id) {
     const { rows } = await pool.query(
       `SELECT u.id, u.email, u.rol, u.nombre, u.apellido, u.telefono, u.esta_bloqueado,
-              u.motivo_bloqueo, u.creado_en, u.actualizado_en, ep.identificacion
+              u.motivo_bloqueo, u.creado_en, u.actualizado_en, ep.identificacion, ep.foto_url
        FROM app_user u
        LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
        WHERE u.id = $1`,
@@ -69,14 +69,15 @@ const clientesModel = {
       );
     }
 
-    if (data.identificacion !== undefined) {
+    if (data.identificacion !== undefined || data.foto_url !== undefined) {
       await pool.query(
-        `INSERT INTO empleado_perfil (usuario_id, identificacion)
-         SELECT $1, $2
+        `INSERT INTO empleado_perfil (usuario_id, identificacion, foto_url)
+         SELECT $1, $2, $3
          WHERE EXISTS (SELECT 1 FROM app_user WHERE id = $1 AND rol = 'empleado')
          ON CONFLICT (usuario_id) DO UPDATE
-         SET identificacion = EXCLUDED.identificacion`,
-        [id, data.identificacion]
+         SET identificacion = COALESCE(EXCLUDED.identificacion, empleado_perfil.identificacion),
+             foto_url = CASE WHEN $4::boolean THEN EXCLUDED.foto_url ELSE empleado_perfil.foto_url END`,
+        [id, data.identificacion ?? null, data.foto_url ?? null, data.foto_url !== undefined]
       );
     }
 

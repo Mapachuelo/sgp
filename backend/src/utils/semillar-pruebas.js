@@ -10,9 +10,9 @@ const { cifrarTelefono } = require('../shared/utils/telefono');
 const pool = new Pool({ connectionString: env.databaseUrl });
 
 const SEDES = [
-  { nombre: 'Pruebas Sede Norte', direccion: 'Calle 170 # 20-30, Bogota', latitud: 4.7551, longitud: -74.0453 },
-  { nombre: 'Pruebas Sede Centro', direccion: 'Carrera 7 # 12-50, Bogota', latitud: 4.5989, longitud: -74.0757 },
-  { nombre: 'Pruebas Sede Sur', direccion: 'Avenida 1 de Mayo # 60-10, Bogota', latitud: 4.6282, longitud: -74.1481 },
+  { nombre: 'Pruebas Sede Norte', direccion: 'Calle 170 # 20-30, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.7551, longitud: -74.0453 },
+  { nombre: 'Pruebas Sede Centro', direccion: 'Carrera 7 # 12-50, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.5989, longitud: -74.0757 },
+  { nombre: 'Pruebas Sede Sur', direccion: 'Avenida 1 de Mayo # 60-10, Bogotá', departamento: 'Bogotá D.C.', ciudad: 'Bogotá', latitud: 4.6282, longitud: -74.1481 },
 ];
 
 const CATEGORIAS = [
@@ -211,8 +211,9 @@ async function main() {
     const sedes = [];
     for (const sede of SEDES) {
       const { rows } = await client.query(
-        'INSERT INTO ubicacion (nombre, direccion, latitud, longitud) VALUES ($1, $2, $3, $4) RETURNING *',
-        [sede.nombre, sede.direccion, sede.latitud, sede.longitud]
+        `INSERT INTO ubicacion (nombre, direccion, departamento, ciudad, latitud, longitud)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [sede.nombre, sede.direccion, sede.departamento, sede.ciudad, sede.latitud, sede.longitud]
       );
       sedes.push(rows[0]);
     }
@@ -231,8 +232,10 @@ async function main() {
     const idsTodos = [...admin.values(), ...idsClientes.values(), ...idsEmpleados.values()];
     for (const usuarioId of idsTodos) {
       await client.query(
-        'INSERT INTO preferencia_usuario (usuario_id, rango_hora_desde, rango_hora_hasta, granularidad_calendario, tema, idioma) VALUES ($1, $2, $3, $4, $5, $6)',
-        [usuarioId, '08:00', '19:00', 30, usuarioId % 2 === 0 ? 'oscuro' : 'claro', usuarioId % 3 === 0 ? 'en' : 'es']
+        `INSERT INTO preferencia_usuario
+           (usuario_id, rango_hora_desde, rango_hora_hasta, granularidad_calendario, tema, departamento_preferido, ciudad_preferida)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [usuarioId, '08:00', '19:00', 30, usuarioId % 2 === 0 ? 'oscuro' : 'claro', 'Bogotá D.C.', 'Bogotá']
       );
     }
 

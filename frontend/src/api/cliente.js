@@ -23,6 +23,16 @@ async function request(path, options = {}) {
   return data.data;
 }
 
+async function requestForm(path, formData) {
+  const token = getToken();
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API}${path}`, { method: 'POST', headers, body: formData });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Error del servidor');
+  return data.data;
+}
+
 const api = {
   auth: {
     login: (body) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
@@ -47,7 +57,12 @@ const api = {
     delete: (id) => request(`/clientes/${id}`, { method: 'DELETE' }),
   },
   ubicaciones: {
-    list: () => request('/ubicaciones'),
+    list: (params = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      return request(`/ubicaciones${query ? `?${query}` : ''}`);
+    },
     create: (body) => request('/ubicaciones', { method: 'POST', body: JSON.stringify(body) }),
     update: (id, body) => request(`/ubicaciones/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id) => request(`/ubicaciones/${id}`, { method: 'DELETE' }),
@@ -64,6 +79,7 @@ const api = {
     deleteServicio: (id) => request(`/reservas/servicios/${id}`, { method: 'DELETE' }),
     imagenesServicio: (id) => request(`/reservas/servicios/${id}/imagenes`),
     sedesPorServicio: (servicio_id) => request(`/reservas/sedes-por-servicio?servicio_id=${servicio_id}`),
+    empleadosPorSede: (ubicacion_id) => request(`/reservas/empleados-por-sede?ubicacion_id=${ubicacion_id}`),
     categorias: () => request('/reservas/categorias'),
     createCategoria: (body) => request('/reservas/categorias', { method: 'POST', body: JSON.stringify(body) }),
     updateCategoria: (id, body) => request(`/reservas/categorias/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
@@ -98,6 +114,7 @@ const api = {
     consultar: (qr_token) => request('/checkin/consultar', { method: 'POST', body: JSON.stringify({ qr_token }) }),
     llegada: (qr_token) => request('/checkin/llegada', { method: 'POST', body: JSON.stringify({ qr_token }) }),
     cobroEfectivo: (reserva_id, monto) => request('/checkin/cobro-efectivo', { method: 'POST', body: JSON.stringify({ reserva_id, monto }) }),
+    confirmarPago: (body) => request('/checkin/confirmar-pago', { method: 'POST', body: JSON.stringify(body) }),
     iniciar: (reserva_id) => request('/checkin/iniciar', { method: 'POST', body: JSON.stringify({ reserva_id }) }),
     finalizar: (reserva_id) => request('/checkin/finalizar', { method: 'POST', body: JSON.stringify({ reserva_id }) }),
     validar: (body) => request('/checkin/validar', { method: 'POST', body: JSON.stringify(body) }),
@@ -108,8 +125,14 @@ const api = {
     verificar: (id, transaction_id) => request(`/pagos/${id}/verificar`, { method: 'POST', body: JSON.stringify({ transaction_id }) }),
   },
   reportes: {
-    ventasDiarias: (fecha) => request(`/reportes/ventas-diarias?fecha=${fecha}`),
-    ocupacion: (fecha) => request(`/reportes/ocupacion?fecha=${fecha}`),
+    ventasDiarias: (fecha, params = {}) => {
+      const query = new URLSearchParams({ fecha, ...params }).toString();
+      return request(`/reportes/ventas-diarias?${query}`);
+    },
+    ocupacion: (fecha, params = {}) => {
+      const query = new URLSearchParams({ fecha, ...params }).toString();
+      return request(`/reportes/ocupacion?${query}`);
+    },
     clientesRecurrentes: () => request('/reportes/clientes-recurrentes'),
   },
   disponibilidad: {
@@ -130,6 +153,17 @@ const api = {
       if (!res.ok) throw new Error('No se pudo exportar el archivo de logs');
       return res.text();
     },
+  },
+  presentacion: {
+    publica: () => request('/presentacion'),
+    admin: () => request('/presentacion/admin'),
+    actualizarConfig: (body) => request('/presentacion/config', { method: 'PUT', body: JSON.stringify(body) }),
+    crearMedia: (formData) => requestForm('/presentacion/media', formData),
+    agregarFuentes: (id, formData) => requestForm(`/presentacion/media/${id}/fuentes`, formData),
+    actualizarMedia: (id, body) => request(`/presentacion/media/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    reordenar: (items) => request('/presentacion/media/orden', { method: 'PUT', body: JSON.stringify({ items }) }),
+    eliminarMedia: (id) => request(`/presentacion/media/${id}`, { method: 'DELETE' }),
+    eliminarFuente: (id, fuenteId) => request(`/presentacion/media/${id}/fuentes/${fuenteId}`, { method: 'DELETE' }),
   },
   preferencias: {
     get: () => request('/preferencias'),

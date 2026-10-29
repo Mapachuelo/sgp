@@ -71,15 +71,17 @@ El tema oscuro es neutro, no azul marino:
 
 ## Rutas
 
+- `/`: presentación pública con carrusel de imágenes y videos administrable.
 - `/cliente`: próxima cita, listas de próximas, historial y canceladas.
-- `/cliente/reservar`: flujo de sede, servicios (panel fijo con scroll interno), detalle con carrusel de imágenes, equipo por servicio, horario combinado, confirmación y pago.
+- `/cliente/reservar`: flujo de sede, modo estilista o servicio, servicios (panel fijo con scroll interno), detalle con carrusel de imágenes, equipo por servicio cuando aplica, horario combinado, confirmación y pago. En modo estilista se omite el paso Equipo.
 - `/cliente/perfil`: datos y eliminación de cuenta.
 - `/empleado`: cola con “Ahora”, “En espera” y “Programadas”.
 - `/empleado/agenda`: agenda del día con espacios libres y acciones.
-- `/empleado/disponibilidad`: semana con una sede por día y editor de horario.
-- `/empleado/perfil`: datos del empleado.
+- `/empleado/disponibilidad`: semana con una sede por día, vista Lista/Semana, editor de horario con intervalo y servicios editables.
+- `/empleado/servicios`: catálogo para que el empleado elija sus servicios y ajuste la duración; el precio es solo de lectura.
+- `/empleado/perfil`: datos del empleado, incluida una foto opcional.
 - `/admin`: día, KPI, timeline, atención y agenda.
-- `/admin/agenda`, `/admin/equipo`, `/admin/servicios`, `/admin/sedes`, `/admin/horarios`, `/admin/clientes`, `/admin/reportes`, `/admin/actividad`: secciones del panel; las acciones de creación y edición se abren en sheet.
+- `/admin/agenda`, `/admin/equipo`, `/admin/servicios`, `/admin/presentacion`, `/admin/sedes`, `/admin/horarios`, `/admin/clientes`, `/admin/reportes`, `/admin/actividad`: páginas independientes dentro del shell; solo las acciones puntuales (cobro, QR, confirmaciones y carga de medios) abren modal o sheet.
 - `/login`, `/register`, `/verificar`: autenticación y OTP.
 
 ## Componentes
@@ -105,7 +107,11 @@ Los formularios usan etiquetas arriba, altura de 40px y foco visible de 2px. Los
 - Las imágenes de servicio usan un placeholder neutro con `ImageOff`; no se inventan degradados ni ilustraciones.
 - Las tarjetas de servicio son compactas en móvil (miniatura + datos) y muestran una portada de altura fija en escritorio.
 - En el paso **Equipo**, si un servicio no tiene estilista en la sede, se muestra un aviso y el botón **Ver sedes**. El modal lista las sedes que sí ofrecen el servicio, las dibuja en el mapa y permite cambiar de sede o quedarse y quitar el servicio.
+- La portada pública usa una dirección editorial de “hoja de turnos”, con carrusel mixto de imágenes y videos, carrusel de servicios con detalle ampliado y accesos a reserva.
 - El dashboard del cliente muestra el estado de pago (`Pagado`, `Pago pendiente`, `Pago en proceso`, `Pago no completado`) y permite pagar en línea las citas activas impagas.
+- Cada sede tiene departamento y ciudad; el cliente filtra por ambos y puede usar su ubicación para elegir la sede más cercana.
+- La reserva permite dos entradas: elegir estilista primero (solo sus servicios) o buscar servicio (solo los disponibles en la sede y quién los hace).
+- El cobro se hace desde un único panel con cámara QR, lista de citas del día y confirmación de pago; no se exige escribir el token manualmente.
 
 ## Movimiento
 
@@ -122,7 +128,7 @@ Los formularios usan etiquetas arriba, altura de 40px y foco visible de 2px. Los
 - `viewport-fit=cover`, safe areas, `100dvh`, inputs de 16px en táctil, hover solo con puntero fino.
 - Foco visible, labels asociados, `aria-live` para cambios de cola, tablas con `scope`.
 - `break-ui`: los fixtures de peor caso se prueban en 320, 390, 768 y 1440, con 200% de zoom.
-- i18n ES/EN con diccionario por nodo; los datos dinámicos usan `Intl` cuando la pantalla lo permite.
+- Interfaz siempre en español; los datos dinámicos usan `Intl` para fechas, horas y moneda.
 - Tema claro y oscuro, además de `prefers-color-scheme`; contraste AA en textos, estados y mapas.
 
 ## Skills de diseño

@@ -3,12 +3,12 @@ const asyncHandler = require('../../shared/async-handler');
 
 const reportesController = {
   ventasDiarias: asyncHandler(async (req, res) => {
-    const result = await reportesService.ventasDiarias(req.query.fecha);
+    const result = await reportesService.ventasDiarias(req.query.fecha, req.query);
     res.json({ ok: true, data: result });
   }),
 
   ocupacion: asyncHandler(async (req, res) => {
-    const result = await reportesService.ocupacion(req.query.fecha);
+    const result = await reportesService.ocupacion(req.query.fecha, req.query);
     res.json({ ok: true, data: result });
   }),
 
