@@ -9,6 +9,7 @@ import RegistroPage from './funcionalidades/auth/registro-page';
 import VerificarPage from './funcionalidades/auth/verificar-page';
 import ClienteDashboard from './funcionalidades/cliente/cliente-dashboard';
 import NuevaReserva from './funcionalidades/cliente/nueva-reserva';
+import MensajesCliente from './funcionalidades/cliente/mensajes';
 import MiPerfil from './funcionalidades/cliente/mi-perfil';
 import EmpleadoDashboard from './funcionalidades/empleado/empleado-dashboard';
 import EmpleadoDisponibilidad from './funcionalidades/empleado/mi-disponibilidad';
@@ -53,6 +54,7 @@ export default function App() {
           <Route element={<RutaProtegida roles={['cliente']}><Layout /></RutaProtegida>}>
             <Route path="/cliente" element={<ClienteDashboard />} />
             <Route path="/cliente/reservar" element={<NuevaReserva />} />
+            <Route path="/cliente/mensajes" element={<MensajesCliente />} />
             <Route path="/cliente/perfil" element={<MiPerfil />} />
           </Route>
 

@@ -50,6 +50,7 @@ function crearHorarioVacio() {
 }
 
 const FORM_INICIAL = {
+  rol: 'empleado',
   nombre: '',
   apellido: '',
   email: '',
@@ -79,6 +80,7 @@ export default function EmpleadosSeccion() {
   const [error, setError] = useState('');
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const inputFotoRef = useRef(null);
+  const esAdmin = form.rol === 'admin';
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -196,7 +198,7 @@ export default function EmpleadosSeccion() {
       return;
     }
     if (!editId && !form.password) {
-      setError('La contrasena es obligatoria para crear el empleado');
+      setError(`La contrasena es obligatoria para crear el ${esAdmin ? 'administrador' : 'empleado'}`);
       return;
     }
     setError('');
@@ -231,14 +233,29 @@ export default function EmpleadosSeccion() {
       if (editId) {
         await api.auth.empleados.update(editId, form.password ? { ...resto, password: form.password } : resto);
       } else {
-        const creado = await api.auth.empleados.create(resto);
+        const creado = await api.auth.empleados.create(
+          esAdmin
+            ? {
+              rol: 'admin',
+              nombre: form.nombre,
+              apellido: form.apellido,
+              email: form.email,
+              password: form.password,
+              telefono: form.telefono,
+            }
+            : resto
+        );
         empleadoId = creado?.id;
       }
-      if (empleadoId) {
+      if (empleadoId && !esAdmin) {
         await api.disponibilidad.updateByAdmin(empleadoId, disponibilidadItems);
         await api.reservas.empleadoTiempos.update({ empleado_id: empleadoId, items: serviciosItems });
       }
-      avisarAdmin(editId ? 'Empleado actualizado' : 'Empleado creado');
+      avisarAdmin(
+        editId
+          ? `${esAdmin ? 'Administrador' : 'Empleado'} actualizado`
+          : `${esAdmin ? 'Administrador' : 'Empleado'} creado`
+      );
       resetForm();
       await cargar();
     } catch (errorGuardar) {
@@ -249,10 +266,11 @@ export default function EmpleadosSeccion() {
   };
 
   const eliminar = async (empleado) => {
-    if (!window.confirm(`¿Eliminar a ${empleado.nombre} ${empleado.apellido}?`)) return;
+    const rol = empleado.rol === 'admin' ? 'administrador' : 'empleado';
+    if (!window.confirm(`¿Eliminar a ${empleado.nombre} ${empleado.apellido} (${rol})?`)) return;
     try {
       await api.auth.empleados.delete(empleado.id);
-      avisarAdmin('Empleado eliminado');
+      avisarAdmin(`${rol[0].toUpperCase()}${rol.slice(1)} eliminado`);
       await cargar();
     } catch (errorEliminar) {
       avisarAdmin(errorEliminar.message, 'error');
@@ -264,6 +282,7 @@ export default function EmpleadosSeccion() {
     setMostrarForm(true);
     setError('');
     setForm({
+      rol: empleado.rol || 'empleado',
       nombre: empleado.nombre || '',
       apellido: empleado.apellido || '',
       email: empleado.email || '',
@@ -276,6 +295,10 @@ export default function EmpleadosSeccion() {
       horarios: {},
       servicios_asignados: {},
     });
+    if (empleado.rol === 'admin') {
+      setSedeActiva(null);
+      return;
+    }
     try {
       const [disponibilidad, tiempos] = await Promise.all([
         api.disponibilidad.getByAdmin(empleado.id),
@@ -308,14 +331,14 @@ export default function EmpleadosSeccion() {
   };
 
   const filtrados = empleados.filter((emp) =>
-    `${emp.nombre} ${emp.apellido} ${emp.email}`.toLowerCase().includes(busqueda.trim().toLowerCase())
+    `${emp.nombre} ${emp.apellido} ${emp.email} ${emp.rol}`.toLowerCase().includes(busqueda.trim().toLowerCase())
   );
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Equipo"
-        subtitle="Gestiona empleados, sedes, horarios y servicios que realizan."
+        subtitle="Gestiona empleados y administradores, sus sedes, horarios y servicios."
       />
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -325,13 +348,13 @@ export default function EmpleadosSeccion() {
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre o correo..."
-              aria-label="Buscar empleado"
+              placeholder="Buscar por nombre, correo o rol..."
+              aria-label="Buscar usuario"
               className="pl-9 pr-3 py-2.5 border border-borde rounded-lg text-sm bg-superficie focus:outline-none focus:ring-2 focus:ring-primario/30 w-full sm:w-80"
             />
           </div>
           <Button variant="primario" onClick={() => { resetForm(); setMostrarForm(true); }}>
-            <Plus className="w-4 h-4 mr-2" aria-hidden="true" /> Nuevo empleado
+            <Plus className="w-4 h-4 mr-2" aria-hidden="true" /> Nuevo usuario
           </Button>
         </div>
 
@@ -339,8 +362,22 @@ export default function EmpleadosSeccion() {
           <Card>
             <h3 className="font-display text-lg font-bold text-texto-principal mb-4 flex items-center gap-2">
               <Users className="w-5 h-5 text-primario" aria-hidden="true" />
-              {editId ? 'Editar empleado' : 'Nuevo empleado'}
+              {editId ? `Editar ${esAdmin ? 'administrador' : 'empleado'}` : 'Nuevo usuario'}
             </h3>
+            <div className="mb-4 max-w-xs">
+              <Select
+                label="Tipo de cuenta"
+                value={form.rol}
+                onChange={(e) => setForm((previo) => ({ ...previo, rol: e.target.value }))}
+                options={[
+                  { value: 'empleado', label: 'Empleado' },
+                  { value: 'admin', label: 'Administrador' },
+                ]}
+                disabled={Boolean(editId)}
+                hint={editId ? 'El rol no se puede cambiar después de crear la cuenta.' : undefined}
+              />
+            </div>
+            {!esAdmin && (
             <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-borde bg-panel/40 p-3">
               <Avatar nombre={form.nombre} apellido={form.apellido} fotoUrl={form.foto_url} size="lg" />
               <div className="min-w-0 flex-1">
@@ -368,25 +405,32 @@ export default function EmpleadosSeccion() {
                 aria-label="Foto del empleado"
               />
             </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <Input label="Nombre" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
               <Input label="Apellido" value={form.apellido} onChange={(e) => setForm((p) => ({ ...p, apellido: e.target.value }))} />
               <Input label="Email" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
               <Input label={editId ? 'Nuevo password (opcional)' : 'Password'} type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={editId ? 'Dejar vacio para no cambiar' : ''} />
               <CampoTelefono label="Teléfono" value={form.telefono} onChange={(telefono) => setForm((p) => ({ ...p, telefono }))} />
-              <Input label="Identificación" value={form.identificacion} onChange={(e) => setForm((p) => ({ ...p, identificacion: e.target.value }))} />
-              <Input
-                label="Comisión del empleado (%)"
-                type="number"
-                min="0"
-                max="100"
-                step="0.5"
-                value={form.comision_porcentaje}
-                onChange={(e) => setForm((p) => ({ ...p, comision_porcentaje: e.target.value }))}
-                hint="El salón recibe el porcentaje restante."
-              />
+              {!esAdmin && (
+                <>
+                  <Input label="Identificación" value={form.identificacion} onChange={(e) => setForm((p) => ({ ...p, identificacion: e.target.value }))} />
+                  <Input
+                    label="Comisión del empleado (%)"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={form.comision_porcentaje}
+                    onChange={(e) => setForm((p) => ({ ...p, comision_porcentaje: e.target.value }))}
+                    hint="El salón recibe el porcentaje restante."
+                  />
+                </>
+              )}
             </div>
 
+            {!esAdmin && (
+            <>
             <div className="mt-5 space-y-2">
               <span className="block text-[11px] font-medium text-texto-secundario">Sedes de trabajo (una por dia)</span>
               <div className="flex flex-wrap gap-2">
@@ -522,11 +566,13 @@ export default function EmpleadosSeccion() {
                 )}
               </div>
             </div>
+            </>
+            )}
 
             {error && <p className="text-error text-sm mt-3 font-medium">{error}</p>}
             <div className="sticky bottom-0 z-20 mt-5 flex gap-2 border-t border-borde bg-superficie pt-3">
               <Button variant="primario" onClick={guardar} disabled={guardando}>
-                {guardando ? <Spinner /> : editId ? 'Actualizar empleado' : 'Crear empleado'}
+                {guardando ? <Spinner /> : editId ? `Actualizar ${esAdmin ? 'administrador' : 'empleado'}` : `Crear ${esAdmin ? 'administrador' : 'empleado'}`}
               </Button>
               <Button variant="secundario" onClick={resetForm}>Cancelar</Button>
             </div>
@@ -537,10 +583,11 @@ export default function EmpleadosSeccion() {
           <div className="flex justify-center py-10"><Spinner /></div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-borde">
-            <table className="w-full text-sm min-w-[760px]">
+            <table className="w-full text-sm min-w-[860px]">
               <thead className="bg-fondo/60 sticky top-0">
                 <tr className="text-left text-texto-secundario text-xs uppercase">
                   <th className="py-3 px-3">Nombre</th>
+                  <th className="py-3 px-3">Rol</th>
                   <th className="py-3 px-3">Email</th>
                   <th className="py-3 px-3">Teléfono</th>
                   <th className="py-3 px-3">Identificación</th>
@@ -555,6 +602,11 @@ export default function EmpleadosSeccion() {
                         <Avatar nombre={emp.nombre} apellido={emp.apellido} fotoUrl={emp.foto_url} size="sm" />
                         {emp.nombre} {emp.apellido}
                       </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-xs">
+                      <Badge variant={emp.rol === 'admin' ? 'accent' : 'default'}>
+                        {emp.rol === 'admin' ? 'Administrador' : 'Empleado'}
+                      </Badge>
                     </td>
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{emp.email}</td>
                     <td className="py-2.5 px-3 text-xs">{emp.telefono}</td>
@@ -572,7 +624,7 @@ export default function EmpleadosSeccion() {
                   </tr>
                 ))}
                 {filtrados.length === 0 && (
-                  <tr><td colSpan="5" className="py-10 text-center text-texto-secundario">No hay empleados registrados</td></tr>
+                  <tr><td colSpan="6" className="py-10 text-center text-texto-secundario">No hay usuarios registrados</td></tr>
                 )}
               </tbody>
             </table>

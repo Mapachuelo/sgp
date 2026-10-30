@@ -69,6 +69,15 @@ test('empleado: cancela el dia completo, bloquea la fecha y deja reembolso pendi
   const { rows: pagoActual } = await pool.query('SELECT reembolso_estado FROM pago WHERE id = $1', [pagoRows[0].id]);
   assert.equal(pagoActual[0].reembolso_estado, 'pendiente');
 
+  const { rows: notificaciones } = await pool.query(
+    'SELECT titulo, mensaje, leida_en FROM notificacion WHERE usuario_id = $1 AND reserva_id = $2',
+    [clienteId, reserva.id]
+  );
+  assert.equal(notificaciones.length, 1);
+  assert.match(notificaciones[0].titulo, /cancelada/i);
+  assert.match(notificaciones[0].mensaje, /Imprevisto de prueba/);
+  assert.equal(notificaciones[0].leida_en, null);
+
   const disponibilidad = await reservasService.getDisponibilidad({
     fecha,
     empleado_id: empleadoId,

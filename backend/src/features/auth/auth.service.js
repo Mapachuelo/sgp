@@ -216,13 +216,20 @@ const authService = {
     if (!validarEmail(data.email)) {
       throw new HttpError(400, 'El correo no tiene un formato valido');
     }
+    if (data.rol !== undefined && !['empleado', 'admin'].includes(data.rol)) {
+      throw new HttpError(400, 'El rol debe ser empleado o admin');
+    }
+    const rol = data.rol === 'admin' ? 'admin' : 'empleado';
     if (data.telefono) {
       data.telefono = normalizarTelefonoRequerido(data.telefono);
     }
 
-    const comision = data.comision_porcentaje === undefined ? 50 : Number(data.comision_porcentaje);
-    if (!Number.isFinite(comision) || comision < 0 || comision > 100) {
-      throw new HttpError(400, 'El porcentaje del empleado debe estar entre 0 y 100');
+    let comision = 50;
+    if (rol === 'empleado') {
+      comision = data.comision_porcentaje === undefined ? 50 : Number(data.comision_porcentaje);
+      if (!Number.isFinite(comision) || comision < 0 || comision > 100) {
+        throw new HttpError(400, 'El porcentaje del empleado debe estar entre 0 y 100');
+      }
     }
 
     const existente = await authModel.findByEmail(data.email);
@@ -230,11 +237,11 @@ const authService = {
       throw new HttpError(409, 'El correo ya esta registrado');
     }
 
-    const password_hash = await bcrypt.hash(data.password || 'empleado123', 12);
+    const password_hash = await bcrypt.hash(data.password || (rol === 'admin' ? 'admin123' : 'empleado123'), 12);
     const usuario = await authModel.create({
       email: data.email,
       password_hash,
-      rol: 'empleado',
+      rol,
       nombre: data.nombre,
       apellido: data.apellido,
       telefono: data.telefono || null,
@@ -243,21 +250,26 @@ const authService = {
 
     await authModel.ensurePreferencias(usuario.id);
 
-    await authModel.createEmpleadoPerfil(usuario.id, {
-      identificacion: data.identificacion || null,
-      password_asignada_hash: password_hash,
-      ubicacion_base_id: data.ubicacion_base_id || null,
-      comision_porcentaje: comision,
-      foto_url: validarFotoEmpleado(data.foto_url) ?? null,
-    });
+    if (rol === 'empleado') {
+      await authModel.createEmpleadoPerfil(usuario.id, {
+        identificacion: data.identificacion || null,
+        password_asignada_hash: password_hash,
+        ubicacion_base_id: data.ubicacion_base_id || null,
+        comision_porcentaje: comision,
+        foto_url: validarFotoEmpleado(data.foto_url) ?? null,
+      });
+    }
 
-    return authModel.findEmpleadoById(usuario.id);
+    return authModel.findUsuarioGestionado(usuario.id);
   },
 
   async updateEmpleado(id, data) {
-    const existente = await authModel.findEmpleadoById(id);
+    const existente = await authModel.findUsuarioGestionado(id);
     if (!existente) {
-      throw new HttpError(404, 'Empleado no encontrado');
+      throw new HttpError(404, 'Usuario no encontrado');
+    }
+    if (data.rol !== undefined && data.rol !== existente.rol) {
+      throw new HttpError(400, 'El rol de una cuenta no se puede cambiar');
     }
     if (data.email !== undefined && !validarEmail(data.email)) {
       throw new HttpError(400, 'El correo no tiene un formato valido');
@@ -268,6 +280,18 @@ const authService = {
     if (data.password) {
       data.password_hash = await bcrypt.hash(data.password, 12);
     }
+
+    if (existente.rol === 'admin') {
+      const payload = {
+        email: data.email,
+        nombre: data.nombre,
+        apellido: data.apellido,
+        telefono: data.telefono,
+        password_hash: data.password_hash,
+      };
+      return authModel.updateUsuarioBase(id, payload);
+    }
+
     if (data.foto_url !== undefined) {
       data.foto_url = validarFotoEmpleado(data.foto_url);
     }
@@ -281,10 +305,26 @@ const authService = {
     return authModel.updateEmpleado(id, data);
   },
 
-  async deleteEmpleado(id) {
-    const empleado = await authModel.findEmpleadoById(id);
-    if (!empleado) {
-      throw new HttpError(404, 'Empleado no encontrado');
+  async deleteEmpleado(id, solicitanteId = null) {
+    const usuario = await authModel.findUsuarioGestionado(id);
+    if (!usuario) {
+      throw new HttpError(404, 'Usuario no encontrado');
+    }
+
+    if (usuario.rol === 'admin') {
+      if (solicitanteId && Number(solicitanteId) === Number(id)) {
+        throw new HttpError(409, 'No puedes eliminar tu propia cuenta de administrador');
+      }
+      const totalAdmins = await authModel.countAdmins();
+      if (totalAdmins <= 1) {
+        throw new HttpError(409, 'No se puede eliminar el ultimo administrador');
+      }
+      const tieneCobros = await authModel.hasCobros(id);
+      if (tieneCobros) {
+        throw new HttpError(409, 'No se puede eliminar el administrador porque tiene cobros asociados');
+      }
+      await authModel.deleteUsuarioGestionado(id);
+      return { eliminado: true };
     }
 
     const tieneCobros = await authModel.hasCobros(id);

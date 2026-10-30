@@ -44,7 +44,12 @@ const api = {
     reenviarCodigo: (body) => request('/auth/reenviar-codigo', { method: 'POST', body: JSON.stringify(body) }),
     me: () => request('/auth/me'),
     empleados: {
-      list: () => request('/auth/empleados'),
+      list: (params = {}) => {
+        const query = new URLSearchParams(
+          Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+        ).toString();
+        return request(`/auth/empleados${query ? `?${query}` : ''}`);
+      },
       create: (body) => request('/auth/empleados', { method: 'POST', body: JSON.stringify(body) }),
       update: (id, body) => request(`/auth/empleados/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
       delete: (id) => request(`/auth/empleados/${id}`, { method: 'DELETE' }),
@@ -69,6 +74,7 @@ const api = {
     create: (body) => request('/ubicaciones', { method: 'POST', body: JSON.stringify(body) }),
     update: (id, body) => request(`/ubicaciones/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (id) => request(`/ubicaciones/${id}`, { method: 'DELETE' }),
+    imagenes: (id) => request(`/ubicaciones/${id}/imagenes`),
   },
   reservas: {
     servicios: (params = {}) => {
@@ -97,6 +103,7 @@ const api = {
       update: (body) => request('/reservas/jornada', { method: 'PUT', body: JSON.stringify(body) }),
       getPlantilla: (ubicacion_id = '') => request(`/reservas/jornada/plantilla${ubicacion_id ? `?ubicacion_id=${ubicacion_id}` : ''}`),
       updatePlantilla: (body) => request('/reservas/jornada/plantilla', { method: 'PUT', body: JSON.stringify(body) }),
+      updatePlantillaTodas: (body) => request('/reservas/jornada/plantilla/todas', { method: 'PUT', body: JSON.stringify(body) }),
       abrirFestivo: (body) => request('/reservas/jornada/festivo', { method: 'POST', body: JSON.stringify(body) }),
     },
     festivos: (desde, hasta) => request(`/reservas/festivos?desde=${desde}&hasta=${hasta}`),
@@ -209,6 +216,17 @@ const api = {
   preferencias: {
     get: () => request('/preferencias'),
     update: (body) => request('/preferencias', { method: 'PUT', body: JSON.stringify(body) }),
+  },
+  notificaciones: {
+    listar: (params = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      return request(`/notificaciones/me${query ? `?${query}` : ''}`);
+    },
+    contador: () => request('/notificaciones/me/contador'),
+    marcarLeida: (id) => request(`/notificaciones/me/${id}/leida`, { method: 'PUT' }),
+    marcarTodas: () => request('/notificaciones/me/leidas', { method: 'PUT' }),
   },
 };
 

@@ -714,3 +714,21 @@
 - El admin puede subir, cambiar o quitar la foto del empleado desde Equipo; el empleado conserva la edición desde Perfil. `auth.service` valida la foto y `createEmpleadoPerfil` la guarda. Si no hay foto se muestran iniciales. El formulario de Equipo preserva descansos al guardar.
 - Verificado con Playwright: dos descansos visibles en el calendario, imagen de sede ampliada, foto de empleado en selección de estilista, formulario admin con carga de archivo y guardado sin perder descansos.
 - Suites finales: esquema 92/92, API 61/61, datos 15/15, unitarias 60/60, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 85.92 % líneas / 67.33 % ramas / 89.02 % funciones.
+
+## Personas, galería de sedes, administradores y buzón — 29 Octubre 2026
+
+- `cantidad_personas` ahora multiplica la duración de cada servicio en disponibilidad y creación de reserva. El calendario del cliente recorta los slots al horario de la sede y al turno del estilista; si la cita no cabe, el backend responde con la hora límite y el motivo. El selector de personas vive en el paso de horario y, al cambiarlo, se invalida el slot y se recalcula.
+- El panel de descanso del empleado se reorganizó en grid para soportar varios rangos sin desalinear inputs ni chips a 390 px.
+- Admin → Horarios → Jornada por sede agrega **Horario general de sedes**: horas de apertura/cierre, días y aplicación a todas las sedes con confirmación. `PUT /api/reservas/jornada/plantilla/todas` reutiliza el flujo de cancelación, reembolso y notificación.
+- Admin → Equipo permite crear empleados o administradores; el rol se elige al crear y no se cambia. Los administradores no tienen `empleado_perfil`, no aparecen en selectores de estilistas y se protege la eliminación del propio usuario y del último admin.
+- `ubicacion_imagen` guarda hasta 6 imágenes por sede. `ubicacion.imagen_url` sigue siendo la portada. El admin las sube, ordena, elige portada y elimina; clientes/empleados abren un modal con carrusel y botón **Ver fotos** sobre la imagen.
+- `notificacion` es el buzón persistente por usuario. Cada cancelación por imprevisto, descanso, cierre de sede/plantilla o cambio de sede genera un mensaje con motivo y estado del reembolso. El cliente lo ve en `/cliente/mensajes`, con contador de no leídos en el dashboard y acciones de lectura.
+- El carrusel de servicios de `/` avanza una tarjeta cada 6 s, se pausa 5 s al interactuar, conserva flechas y respeta `prefers-reduced-motion`.
+- Verificado con Playwright: reserva de 2 personas con fin y duración duplicados, límite de horario, panel de descansos a 390, galería de sede con modal, formulario de administrador y buzón con mensaje real de cancelación. Suites finales: esquema 98/98, API 67/67, datos 18/18, unitarias 62/62, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 86.35 % líneas / 67.70 % ramas / 88.86 % funciones.
+
+## Presentación en dominio y Podman — 30 Octubre 2026
+
+- El error de `/admin/presentacion` en el dominio venía de una configuración incompleta del pod: `example.sgp-app-pod.yaml` no declaraba `PRESENTACION_DATABASE_URL` ni `PRESENTACION_MEDIA_DIR`. El backend caía a `localhost:5432/sgp_presentacion`, creaba la base con `DATABASE_URL` pero no podía conectarse a ella dentro del contenedor.
+- La plantilla ahora incluye la URL `sgp-db:5432/sgp_presentacion`, el PVC `sgp-presentacion-media` y el montaje `/app/presentacion-media`.
+- `env.js` deriva la URL de presentación desde `DATABASE_URL` cuando falta y reemplaza hosts locales por el host de la base principal cuando corresponde. `database-init-presentacion.js` reintenta hasta 5 veces, ignora `42P04`, registra host/base/código/mensaje y el arranque informa el detalle del fallo.
+- Verificado con `tests/presentacion.sh` 6/6, `tests/esquema.sh` 98/98, `tests/api.sh` 67/67 y unitarias 62/62. `/api/presentacion/admin` responde 200 con `Host: sgp.mapstest.tech`; las tablas de presentación existen. Dataset limpio.

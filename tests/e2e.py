@@ -146,7 +146,7 @@ reserva = data.get('data') or {}
 check('Crear reserva RF2 (con QR)', status == 201 and bool(reserva.get('qr_token')), f'{status} {data}')
 inicio_dt = datetime.fromisoformat(reserva.get('inicia_en', '').replace('Z', '+00:00'))
 fin_dt = datetime.fromisoformat(reserva.get('termina_en', '').replace('Z', '+00:00'))
-check('Duracion estimada = 30 min del servicio', (fin_dt - inicio_dt) == timedelta(minutes=30), (fin_dt - inicio_dt))
+check('Duracion estimada = 60 min para 2 personas', (fin_dt - inicio_dt) == timedelta(minutes=60), (fin_dt - inicio_dt))
 qr = reserva.get('qr_token')
 
 status, data = req('POST', '/reservas', {

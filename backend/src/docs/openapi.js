@@ -169,6 +169,7 @@ const openapi = {
                   apellido: { type: 'string' },
                   telefono: { type: 'string' },
                   password: { type: 'string' },
+                  rol: { type: 'string', enum: ['empleado', 'admin'] },
                   identificacion: { type: 'string' },
                   ubicacion_base_id: { type: 'integer' },
                   foto_url: { type: 'string', description: 'Data URL JPG/PNG/WebP opcional' },
@@ -183,6 +184,18 @@ const openapi = {
     '/auth/empleados/{id}': {
       put: { tags: ['Auth'], summary: 'Actualiza empleado (admin, incluida foto_url opcional)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleado actualizado' } } },
       delete: { tags: ['Auth'], summary: 'Elimina empleado sin cobros (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleado eliminado' }, 409: { description: 'Tiene cobros asociados' } } },
+    },
+    '/notificaciones/me': {
+      get: { tags: ['Notificaciones'], summary: 'Buzon del usuario autenticado (cliente, empleado o admin)', parameters: [{ name: 'solo_no_leidas', in: 'query', schema: { type: 'string', enum: ['1'] } }], responses: { 200: { description: 'Mensajes y contador de no leidos' } } },
+    },
+    '/notificaciones/me/contador': {
+      get: { tags: ['Notificaciones'], summary: 'Cantidad de mensajes no leidos', responses: { 200: { description: 'Contador' } } },
+    },
+    '/notificaciones/me/leidas': {
+      put: { tags: ['Notificaciones'], summary: 'Marca todos los mensajes como leidos', responses: { 200: { description: 'Mensajes actualizados' } } },
+    },
+    '/notificaciones/me/{id}/leida': {
+      put: { tags: ['Notificaciones'], summary: 'Marca un mensaje como leido', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Mensaje leido' }, 404: { description: 'Mensaje no encontrado' } } },
     },
     '/clientes/me': {
       get: { tags: ['Clientes'], summary: 'Perfil propio (cliente/empleado)', responses: { 200: { description: 'Perfil' } } },
@@ -221,6 +234,7 @@ const openapi = {
                   latitud: { type: 'number' },
                   longitud: { type: 'number' },
                   imagen_url: { type: 'string', description: 'Data URL JPG/PNG/WebP opcional del local' },
+                  imagenes: { type: 'array', maxItems: 6, items: { type: 'string', description: 'Data URL JPG/PNG/WebP' } },
                 },
               },
             },
@@ -230,8 +244,11 @@ const openapi = {
       },
     },
     '/ubicaciones/{id}': {
-      put: { tags: ['Ubicaciones'], summary: 'Actualiza sede (admin, incluida imagen_url opcional)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede actualizada' } } },
+      put: { tags: ['Ubicaciones'], summary: 'Actualiza sede (admin); si recibe imagenes reemplaza la galeria y sincroniza la portada', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede actualizada' } } },
       delete: { tags: ['Ubicaciones'], summary: 'Elimina sede (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede eliminada' } } },
+    },
+    '/ubicaciones/{id}/imagenes': {
+      get: { tags: ['Ubicaciones'], summary: 'Galeria ordenada de imagenes de una sede (publico)', security: [], parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Imagenes con id, url y orden' }, 404: { description: 'Sede no encontrada' } } },
     },
     '/reservas/servicios': {
       get: { tags: ['Reservas'], summary: 'Catalogo de servicios activos (publico); admin puede incluir inactivos y filtrar por categoria, sede o empleado; incluye portada, total_imagenes y estilistas', security: [], parameters: [{ name: 'incluir_inactivos', in: 'query', schema: { type: 'string', enum: ['1'] } }, { name: 'categoria_id', in: 'query', schema: { type: 'integer' } }, { name: 'ubicacion_id', in: 'query', schema: { type: 'integer' } }, { name: 'empleado_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Servicios con categoria, precio, duracion, portada, total_imagenes y estado' } } },
@@ -275,6 +292,13 @@ const openapi = {
       get: { tags: ['Reservas'], summary: 'Jornadas de una sede (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Jornadas' } } },
       put: { tags: ['Reservas'], summary: 'Configura jornadas (admin)', responses: { 200: { description: 'Jornadas actualizadas' } } },
     },
+    '/reservas/jornada/plantilla': {
+      get: { tags: ['Reservas'], summary: 'Plantilla semanal de una sede o de todas (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', schema: { type: 'integer' } }], responses: { 200: { description: 'Plantilla semanal' } } },
+      put: { tags: ['Reservas'], summary: 'Guarda la plantilla semanal de una sede (admin)', responses: { 200: { description: 'Plantilla actualizada' } } },
+    },
+    '/reservas/jornada/plantilla/todas': {
+      put: { tags: ['Reservas'], summary: 'Aplica la misma plantilla semanal a todas las sedes (admin)', responses: { 200: { description: 'Plantilla aplicada y reservas futuras canceladas' } } },
+    },
     '/reservas/empleado-tiempos-servicio': {
       get: { tags: ['Reservas'], summary: 'Duraciones de servicios por empleado', responses: { 200: { description: 'Tiempos' } } },
       put: { tags: ['Reservas'], summary: 'Asigna servicios y duraciones a empleado (admin/empleado)', responses: { 200: { description: 'Tiempos actualizados' } } },
@@ -289,7 +313,7 @@ const openapi = {
       get: { tags: ['Reservas'], summary: 'Empleados con servicios en una sede (publico)', security: [], parameters: [{ name: 'ubicacion_id', in: 'query', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleados, total de servicios y duracion minima' } } },
     },
     '/reservas/disponibilidad-combo': {
-      post: { tags: ['Reservas'], summary: 'Calcula horarios disponibles para varios servicios y estilistas en secuencia (publico)', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ubicacion_id', 'fecha', 'servicios'], properties: { ubicacion_id: { type: 'integer' }, fecha: { type: 'string', format: 'date' }, granularidad: { type: 'integer', enum: [15, 30, 60] }, servicios: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'object', required: ['servicio_id', 'empleado_id'], properties: { servicio_id: { type: 'integer' }, empleado_id: { type: 'integer' } } } } } } } } }, responses: { 200: { description: 'Slots con plan por servicio y estilista' }, 400: { description: 'Servicios repetidos, limite o datos invalidos' } } },
+      post: { tags: ['Reservas'], summary: 'Calcula horarios disponibles para varios servicios y estilistas en secuencia (publico)', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['ubicacion_id', 'fecha', 'servicios'], properties: { ubicacion_id: { type: 'integer' }, fecha: { type: 'string', format: 'date' }, granularidad: { type: 'integer', enum: [15, 30, 60] }, cantidad_personas: { type: 'integer', minimum: 1, maximum: 5 }, servicios: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'object', required: ['servicio_id', 'empleado_id'], properties: { servicio_id: { type: 'integer' }, empleado_id: { type: 'integer' } } } } } } } } }, responses: { 200: { description: 'Slots con plan por servicio, estilista, duracion por personas y motivo si no hay cupo' }, 400: { description: 'Servicios repetidos, limite o datos invalidos' } } },
     },
     '/reservas/agenda': {
       get: {

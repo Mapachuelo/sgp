@@ -115,11 +115,33 @@ RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/empleados" \
   -H "Authorization: Bearer $TOKEN_ADMIN")
 verificar "GET /auth/empleados con admin devuelve 200" "200" "$RESP"
 
+ADMIN_TMP_EMAIL="admin.api.$(date +%s)@sgp.local"
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/empleados" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d "{\"rol\":\"admin\",\"nombre\":\"Admin\",\"apellido\":\"Api\",\"email\":\"$ADMIN_TMP_EMAIL\",\"password\":\"admin123\"}")
+verificar "POST /auth/empleados crea administrador" "201" "$RESP"
+ADMIN_TMP_ID=$(sql "SELECT id FROM app_user WHERE email = '$ADMIN_TMP_EMAIL'")
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/auth/empleados/$ADMIN_TMP_ID" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "DELETE administrador temporal devuelve 200" "200" "$RESP"
+
 RESP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/reservas" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN_ADMIN" \
   -d '{"empleado_id":2,"servicio_id":1,"ubicacion_id":1,"inicia_en":"2026-12-01T15:00:00.000Z"}')
 verificar "POST /reservas con rol admin devuelve 403" "403" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/notificaciones/me")
+verificar "GET /notificaciones/me sin token devuelve 401" "401" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/notificaciones/me" \
+  -H "Authorization: Bearer $TOKEN_EMPLEADO")
+verificar "GET /notificaciones/me con sesion devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X PUT "$BASE_URL/notificaciones/me/leidas" \
+  -H "Authorization: Bearer $TOKEN_EMPLEADO")
+verificar "PUT /notificaciones/me/leidas devuelve 200" "200" "$RESP"
 
 echo ""
 echo "== Validaciones RF3 (checkin) =="
@@ -230,6 +252,10 @@ echo "== Catalogos publicos =="
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/ubicaciones")
 verificar "GET /ubicaciones publico devuelve 200" "200" "$RESP"
+
+UBICACION_GALERIA=$(sql "SELECT id FROM ubicacion LIMIT 1")
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/ubicaciones/$UBICACION_GALERIA/imagenes")
+verificar "GET /ubicaciones/:id/imagenes publico devuelve 200" "200" "$RESP"
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/servicios")
 verificar "GET /reservas/servicios publico devuelve 200" "200" "$RESP"

@@ -16,7 +16,17 @@ setupWebSocket(server);
 initDatabase()
   .then(async () => {
     await initPresentacionDatabase().catch((err) =>
-      logger.error({ err }, 'No se pudo inicializar la presentacion; la app seguira funcionando')
+      logger.error(
+        {
+          err,
+          codigo: err.code,
+          mensaje: err.message,
+          host: err.host,
+          base: err.base,
+          intentos: err.intentos,
+        },
+        `No se pudo inicializar la presentacion (${err.code || 'sin codigo'}): ${err.message}. La app seguira funcionando`
+      )
     );
     purgarNoVerificados().catch((err) =>
       logger.error({ err }, 'Error al purgar registros sin verificar')

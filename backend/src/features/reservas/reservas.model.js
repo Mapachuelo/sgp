@@ -970,6 +970,11 @@ const reservasModel = {
     return rows[0] || null;
   },
 
+  async findUbicacionIds() {
+    const { rows } = await pool.query('SELECT id FROM ubicacion ORDER BY id');
+    return rows.map((fila) => fila.id);
+  },
+
   async findDuracionServicioEmpleado(empleado_id, servicio_id) {
     const { rows } = await pool.query(
       `SELECT etp.duracion_minutos, sc.nombre AS servicio_nombre, sc.precio_base,
@@ -1066,6 +1071,31 @@ const reservasModel = {
       [ubicacion_id, fecha]
     );
     return rows.map((fila) => fila.id);
+  },
+
+  async findReservasParaCancelacion(ids) {
+    if (!ids.length) return [];
+    const { rows } = await pool.query(
+      `SELECT r.id, r.id AS reserva_id, r.cliente_id, r.inicia_en, r.termina_en,
+              cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido, cli.email AS cliente_email,
+              p.id AS pago_id, p.estado AS pago_estado, p.metodo AS pago_metodo,
+              p.monto AS pago_monto, p.transaction_id AS pago_transaction_id,
+              c.metodo AS cobro_metodo, c.monto AS cobro_monto, c.reembolsado_en
+       FROM reserva r
+       JOIN app_user cli ON cli.id = r.cliente_id
+       LEFT JOIN LATERAL (
+         SELECT pp.* FROM pago pp
+         WHERE pp.reserva_id = r.id
+         ORDER BY CASE WHEN pp.estado = 'aprobado' THEN 0 ELSE 1 END, pp.creado_en DESC
+         LIMIT 1
+       ) p ON TRUE
+       LEFT JOIN cobro c ON c.reserva_id = r.id
+       WHERE r.id = ANY($1::int[])
+         AND r.estado IN ('pendiente', 'confirmada')
+       ORDER BY r.inicia_en`,
+      [ids]
+    );
+    return rows;
   },
 
   async cancelReservasFuturas(ids, motivo) {

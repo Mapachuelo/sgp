@@ -56,6 +56,10 @@ Edit first name, last name, phone, email and password. The phone field lets you 
 
 ![Profile](img/cliente-perfil.png)
 
+### 2.4 Messages
+
+The **Messages** inbox collects notices from the salon. When an appointment is cancelled because of an incident, a break or a venue closure, you will see the date, reason and refund status. Home shows the number of unread messages and you can mark one or all of them as read.
+
 ## 3. Employee
 
 ### 3.1 Today's appointments
@@ -122,14 +126,14 @@ Your photo is optional and is edited from **Profile**; the administrator can als
 
 ![Cell editor](img/admin-planificador-editor.png)
 
-The **Venue shifts** tab edits opening hours per date.
+The **Venue shifts** tab edits opening hours per date. The **General venue hours** card applies the same opening time, closing time and days to every venue with a single confirmation.
 
 ![Shifts](img/admin-jornada.png)
 
 ### 4.3 Employees, services and venues
 
-- **Employees:** create/edit with assigned venues, per-venue/day schedules, services and durations; delete only when no payments are associated. You can upload, change or remove the employee photo; if there is none, the customer sees initials.
-- **Venues:** when creating or editing, click the map (or drag the marker) to set latitude and longitude; you can also use **Use my location**. You can add an optional photo of the venue; only the admin edits it and customers/employees can enlarge it.
+- **Employees and administrators:** when creating an account you choose the Employee or Administrator role. Administrators have no venues, schedules or commission. You can edit their data and delete accounts, with protection for your own account and the last administrator. For employees you can upload, change or remove the photo; if there is none, the customer sees initials.
+- **Venues:** when creating or editing, click the map (or drag the marker) to set latitude and longitude; you can also use **Use my location**. You can add up to 6 photos of the venue, reorder them and choose the cover; only the admin edits them and customers/employees open the gallery in a modal.
 - **Services:** CRUD plus per-employee durations.
 
 ![Employees](img/admin-empleados.png)

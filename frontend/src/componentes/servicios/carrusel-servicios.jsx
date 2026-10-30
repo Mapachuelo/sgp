@@ -9,9 +9,11 @@ const dinero = (valor) =>
 
 export default function CarruselServicios({ servicios = [], onVerDetalle }) {
   const viewportRef = useRef(null);
+  const pausaTimerRef = useRef(null);
   const [inicio, setInicio] = useState(0);
   const [visibles, setVisibles] = useState(1);
   const [alFinal, setAlFinal] = useState(false);
+  const [pausado, setPausado] = useState(false);
   const total = servicios.length;
 
   const medir = useCallback(() => {
@@ -31,7 +33,44 @@ export default function CarruselServicios({ servicios = [], onVerDetalle }) {
     return () => window.removeEventListener('resize', medir);
   }, [medir]);
 
+  const pausar = useCallback(() => {
+    setPausado(true);
+    window.clearTimeout(pausaTimerRef.current);
+    pausaTimerRef.current = window.setTimeout(() => setPausado(false), 5000);
+  }, []);
+
+  const avanzar = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || document.hidden) return;
+    if (viewport.scrollWidth <= viewport.clientWidth + 4) return;
+    const tarjeta = viewport.querySelector('[data-servicio]');
+    const paso = (tarjeta?.offsetWidth || 1) + 12;
+    const maxScroll = viewport.scrollWidth - viewport.clientWidth;
+    const reducido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const destino = viewport.scrollLeft >= maxScroll - 4
+      ? 0
+      : Math.min(viewport.scrollLeft + paso, maxScroll);
+    viewport.scrollTo({ left: destino, behavior: reducido ? 'auto' : 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    if (total <= 1 || pausado) return undefined;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const intervalo = window.setInterval(avanzar, 6000);
+    return () => window.clearInterval(intervalo);
+  }, [total, pausado, avanzar]);
+
+  useEffect(() => {
+    const alCambiarVisibilidad = () => setPausado(document.hidden);
+    document.addEventListener('visibilitychange', alCambiarVisibilidad);
+    return () => {
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+      window.clearTimeout(pausaTimerRef.current);
+    };
+  }, []);
+
   const mover = (delta) => {
+    pausar();
     const viewport = viewportRef.current;
     if (!viewport) return;
     const tarjeta = viewport.querySelector('[data-servicio]');
@@ -89,6 +128,8 @@ export default function CarruselServicios({ servicios = [], onVerDetalle }) {
         aria-label="Servicios del salón"
         tabIndex={0}
         onScroll={medir}
+        onPointerDown={pausar}
+        onWheel={pausar}
         onKeyDown={(evento) => {
           if (evento.key === 'ArrowLeft') {
             evento.preventDefault();
@@ -107,7 +148,10 @@ export default function CarruselServicios({ servicios = [], onVerDetalle }) {
               key={servicio.id}
               type="button"
               data-servicio
-              onClick={() => onVerDetalle?.(servicio)}
+              onClick={() => {
+                pausar();
+                onVerDetalle?.(servicio);
+              }}
               aria-label={`Ver detalle de ${servicio.nombre}`}
               className="group flex w-[82%] shrink-0 snap-start flex-col overflow-hidden rounded-lg border border-borde bg-superficie text-left transition-colors hover:border-control sm:w-[calc(50%-6px)] lg:w-[calc(33.333%-8px)]"
             >

@@ -56,6 +56,13 @@ export default function JornadaSede({ onToast = avisarAdmin }) {
   const [bulk, setBulk] = useState({ horaInicio: '09:00', horaFin: '18:00' });
   const [festivoModal, setFestivoModal] = useState(null);
   const [festivoForm, setFestivoForm] = useState(null);
+  const [horarioGeneral, setHorarioGeneral] = useState({
+    horaInicio: '09:00',
+    horaFin: '18:00',
+    dias: [1, 2, 3, 4, 5],
+  });
+  const [confirmarGeneral, setConfirmarGeneral] = useState(false);
+  const [guardandoGeneral, setGuardandoGeneral] = useState(false);
 
   useEffect(() => {
     api.ubicaciones
@@ -372,6 +379,49 @@ export default function JornadaSede({ onToast = avisarAdmin }) {
     }
   };
 
+  const alternarDiaGeneral = (dia) => {
+    setHorarioGeneral((previo) => ({
+      ...previo,
+      dias: previo.dias.includes(dia)
+        ? previo.dias.filter((item) => item !== dia)
+        : [...previo.dias, dia].sort((a, b) => a - b),
+    }));
+  };
+
+  const aplicarHorarioGeneral = async () => {
+    if (!horarioGeneral.dias.length) {
+      onToast('Selecciona al menos un día de apertura', 'warning');
+      return;
+    }
+    if (!horarioGeneral.horaInicio || !horarioGeneral.horaFin || horarioGeneral.horaInicio >= horarioGeneral.horaFin) {
+      onToast('Completa un rango de horas válido', 'warning');
+      return;
+    }
+    setGuardandoGeneral(true);
+    try {
+      const items = DIAS_SEMANA.map((dia) => ({
+        dia_semana: dia.numero,
+        abierto: horarioGeneral.dias.includes(dia.numero),
+        hora_inicio: horarioGeneral.horaInicio,
+        hora_fin: horarioGeneral.horaFin,
+      }));
+      const respuesta = await api.reservas.jornada.updatePlantillaTodas({ items });
+      const canceladas = respuesta?.reservas_canceladas?.length || 0;
+      onToast(
+        canceladas > 0
+          ? `Horario aplicado a ${respuesta?.sedes || sedes.length} sede(s). ${canceladas} reserva(s) futura(s) cancelada(s).`
+          : `Horario aplicado a ${respuesta?.sedes || sedes.length} sede(s)`,
+        canceladas > 0 ? 'warning' : 'success'
+      );
+      setConfirmarGeneral(false);
+      if (sedeId) await cargar(sedeId);
+    } catch (error) {
+      onToast(error.message, 'error');
+    } finally {
+      setGuardandoGeneral(false);
+    }
+  };
+
   const chip = (jornada, dia) => {
     if (jornada?.cerrado) {
       return (
@@ -403,6 +453,62 @@ export default function JornadaSede({ onToast = avisarAdmin }) {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-texto-principal">
+              <CalendarRange className="h-4 w-4 text-acento" aria-hidden="true" /> Horario general de sedes
+            </h2>
+            <p className="mt-0.5 max-w-xl text-xs leading-5 text-texto-secundario">
+              Aplica la misma apertura y cierre a todas las sedes sin configurarlas una por una.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => setConfirmarGeneral(true)} disabled={!sedes.length || guardandoGeneral}>
+            {guardandoGeneral ? <Spinner /> : 'Aplicar a todas las sedes'}
+          </Button>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[140px_140px_minmax(0,1fr)] lg:items-end">
+          <Input
+            label="Abre"
+            type="time"
+            value={horarioGeneral.horaInicio}
+            onChange={(e) => setHorarioGeneral((previo) => ({ ...previo, horaInicio: e.target.value }))}
+          />
+          <Input
+            label="Cierra"
+            type="time"
+            value={horarioGeneral.horaFin}
+            onChange={(e) => setHorarioGeneral((previo) => ({ ...previo, horaFin: e.target.value }))}
+          />
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-texto-principal">Días de apertura</span>
+            <div className="flex flex-wrap gap-1.5">
+              {DIAS_SEMANA.map((dia) => {
+                const activo = horarioGeneral.dias.includes(dia.numero);
+                return (
+                  <button
+                    key={dia.numero}
+                    type="button"
+                    onClick={() => alternarDiaGeneral(dia.numero)}
+                    aria-pressed={activo}
+                    className={`h-8 rounded-md border px-2.5 text-[11px] font-medium transition-colors ${
+                      activo
+                        ? 'border-acento/40 bg-acento/10 text-acento'
+                        : 'border-borde bg-superficie text-texto-secundario hover:border-control'
+                    }`}
+                  >
+                    {dia.corto}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-tenue">
+          Los días no seleccionados quedarán cerrados. Si hay reservas futuras en esos días, se cancelarán y se avisará a los clientes.
+        </p>
+      </Card>
+
       <Card className="flex flex-col gap-3 p-4 lg:flex-row lg:items-end">
         <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
           <Select
@@ -673,6 +779,29 @@ export default function JornadaSede({ onToast = avisarAdmin }) {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={confirmarGeneral}
+        onClose={() => setConfirmarGeneral(false)}
+        title="Aplicar horario a todas las sedes"
+        size="wide"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-texto-secundario">
+            Se aplicará el horario <span className="font-medium text-texto-principal">{horarioGeneral.horaInicio}–{horarioGeneral.horaFin}</span> a
+            las <span className="font-medium text-texto-principal">{sedes.length} sede(s)</span> en los días seleccionados.
+          </p>
+          <p className="rounded-md border border-advertencia/30 bg-advertencia/10 p-3 text-[11px] leading-5 text-advertencia">
+            Las sedes que queden cerradas cancelarán sus reservas futuras de esos días. Los clientes recibirán la notificación y el reembolso se gestionará con el mismo flujo de cancelación.
+          </p>
+          <div className="flex justify-end gap-2 border-t border-borde pt-3">
+            <Button variant="secundario" onClick={() => setConfirmarGeneral(false)}>Cancelar</Button>
+            <Button onClick={aplicarHorarioGeneral} disabled={guardandoGeneral}>
+              {guardandoGeneral ? <Spinner /> : 'Sí, aplicar a todas'}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       <Modal

@@ -20,6 +20,11 @@ const ubicacionesController = {
     res.json({ ok: true, data: ubicacion });
   }),
 
+  imagenes: asyncHandler(async (req, res) => {
+    const imagenes = await ubicacionesService.getImagenes(req.params.id);
+    res.json({ ok: true, data: imagenes });
+  }),
+
   eliminar: asyncHandler(async (req, res) => {
     await ubicacionesService.delete(parseInt(req.params.id, 10));
     res.json({ ok: true, data: { eliminado: true } });

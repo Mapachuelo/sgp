@@ -15,12 +15,19 @@ Despliegue del SGP con Podman (`kube play`), dos pods sobre una red privada y vo
 | `backend/Containerfile` | Imagen backend (Node 22 Alpine + pnpm). |
 | `frontend/Containerfile` | Imagen frontend (build Vite + Nginx Alpine). |
 | `sgp-db-pod.yaml` | Pod PostgreSQL 17 + PVC `sgp-pgdata`. |
-| `sgp-app-pod.yaml` | Backend, frontend, base `sgp_presentacion` y PVC `sgp-presentacion-media`. |
-| `sgp-app-pod.yaml` | Pod backend + Nginx (hostPort 8080). |
+| `sgp-app-pod.yaml` | Pod backend + Nginx (hostPort 8080), base `sgp_presentacion` y PVC `sgp-presentacion-media`. |
 | `example.sgp-db-pod.yaml` / `example.sgp-app-pod.yaml` | Plantillas seguras (placeholders). |
 | `.env.example` | Variables para desarrollo local. |
 
-Variables del pod de la app: `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN=30m`, `AES_SECRET` (opcional; si falta usa `JWT_SECRET`), `PORT=3000`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`.
+Variables del pod de la app: `DATABASE_URL`, `PRESENTACION_DATABASE_URL`, `PRESENTACION_MEDIA_DIR`, `JWT_SECRET`, `JWT_EXPIRES_IN=30m`, `AES_SECRET` (opcional; si falta usa `JWT_SECRET`), `PORT=3000`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`.
+
+Dentro del contenedor, `PRESENTACION_DATABASE_URL` debe apuntar al host `sgp-db`, nunca a `localhost`:
+
+```text
+postgresql://sgp_user:sgp_password@sgp-db:5432/sgp_presentacion
+```
+
+El backend deriva esta URL desde `DATABASE_URL` si falta y corrige `localhost`/`127.0.0.1` cuando la base principal usa otro host. Aun así, se recomienda declararla explícitamente. El PVC `sgp-presentacion-media` conserva las imágenes y videos de la portada entre reinicios.
 
 ```bash
 cp example.sgp-db-pod.yaml sgp-db-pod.yaml
@@ -48,6 +55,12 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 ```
 
 Acceso: `http://localhost:8080` · Healthcheck: `http://localhost:8080/api/healthcheck` · Swagger: `http://localhost:8080/api/docs`.
+
+### Dominio y proxy inverso
+
+El proxy del dominio debe reenviar `/api/` y `/ws` al puerto publicado por el pod (por defecto `8080`) y conservar los encabezados `Host`, `Upgrade` y `Connection`. El Nginx interno ya atiende cualquier `Host`, por lo que `sgp.mapstest.tech` no requiere cambiar `server_name`.
+
+Para pagos en línea, ajusta `WOMPI_REDIRECT_URL` al dominio real, por ejemplo `https://sgp.mapstest.tech/cliente/reservar`. Si el proxy externo limita el tamaño de subida, permite al menos el tamaño usado por `/api/presentacion/media`.
 
 ## 5. Actualizar tras cambios de código
 

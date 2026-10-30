@@ -7,6 +7,7 @@ import {
   Clock3,
   Images,
   LayoutDashboard,
+  Mail,
   MapPin,
   Menu,
   Scissors,
@@ -88,6 +89,7 @@ const NAV_EMPLEADO = [
 const NAV_CLIENTE = [
   { path: '/cliente', label: 'Mis citas', icon: CalendarDays, end: true },
   { path: '/cliente/reservar', label: 'Reservar', icon: Sparkles },
+  { path: '/cliente/mensajes', label: 'Mensajes', icon: Mail },
   { path: '/cliente/perfil', label: 'Perfil', icon: UserRound },
 ];
 
