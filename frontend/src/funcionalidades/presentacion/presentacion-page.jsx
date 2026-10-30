@@ -7,6 +7,7 @@ import BotonTema from '../../componentes/tema/boton-tema.jsx';
 import MediaCarrusel from '../../componentes/presentacion/media-carrusel.jsx';
 import CarruselServicios from '../../componentes/servicios/carrusel-servicios.jsx';
 import DetalleServicioModal from '../../componentes/servicios/detalle-servicio-modal.jsx';
+import ImagenSede from '../../componentes/ubicaciones/imagen-sede.jsx';
 
 const CONFIG_DEFECTO = {
   hero_etiqueta: 'SGP · Sistema de Gestión de Peluquería',
@@ -248,13 +249,18 @@ export default function PresentacionPage() {
             {sedes.length === 0 ? (
               <p className="col-span-full rounded-lg border border-dashed border-control bg-superficie p-8 text-center text-sm text-texto-secundario">Pronto publicaremos nuestras sedes.</p>
             ) : sedes.map((sede) => (
-              <div key={sede.id} className="rounded-lg border border-borde bg-superficie p-4">
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-acento" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-texto-principal">{sede.nombre}</p>
-                    <p className="mt-0.5 text-xs leading-5 text-texto-secundario">{sede.direccion}</p>
-                    <p className="mt-1 text-[10px] text-tenue">{[sede.ciudad, sede.departamento].filter(Boolean).join(' · ')}</p>
+              <div key={sede.id} className="overflow-hidden rounded-lg border border-borde bg-superficie">
+                {sede.imagen_url && (
+                  <ImagenSede sede={sede} className="aspect-[4/3] w-full" />
+                )}
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-acento" aria-hidden="true" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-texto-principal">{sede.nombre}</p>
+                      <p className="mt-0.5 text-xs leading-5 text-texto-secundario">{sede.direccion}</p>
+                      <p className="mt-1 text-[10px] text-tenue">{[sede.ciudad, sede.departamento].filter(Boolean).join(' · ')}</p>
+                    </div>
                   </div>
                 </div>
               </div>

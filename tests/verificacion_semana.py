@@ -269,7 +269,7 @@ def main():
                     )
                     req('POST', '/pagos/webhook', evento)
 
-    check('Se crearon reservas para los dias futuros', len(nuevas) >= 12, len(nuevas))
+    check('Se crearon reservas para los dias futuros', len(nuevas) >= len(futuras) * 3, len(nuevas))
 
     filas_estado = sql(
         f"""

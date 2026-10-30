@@ -75,6 +75,46 @@ async function consultarTransaccion(transactionId) {
   }
 }
 
+async function anularTransaccion(transactionId) {
+  if (!env.wompiPrivateKey) {
+    const err = new Error('Wompi no configurado: define WOMPI_PRIVATE_KEY para reembolsos');
+    err.statusCode = 500;
+    throw err;
+  }
+  const controlador = new AbortController();
+  const temporizador = setTimeout(() => controlador.abort(), 10000);
+  try {
+    const respuesta = await fetch(
+      `${env.wompiBaseUrl}/transactions/${encodeURIComponent(transactionId)}/void`,
+      {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          Authorization: `Bearer ${env.wompiPrivateKey}`,
+        },
+        signal: controlador.signal,
+      }
+    );
+    const cuerpo = await respuesta.json().catch(() => null);
+    if (!respuesta.ok) {
+      const motivo = cuerpo?.error?.reason || cuerpo?.error?.type || `HTTP ${respuesta.status}`;
+      const err = new Error(`Wompi void ${respuesta.status}: ${motivo}`);
+      err.statusCode = respuesta.status === 404 ? 404 : 502;
+      throw err;
+    }
+    return cuerpo?.data || cuerpo || null;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeoutError = new Error('Wompi API: timeout anulando la transaccion');
+      timeoutError.statusCode = 502;
+      throw timeoutError;
+    }
+    throw err;
+  } finally {
+    clearTimeout(temporizador);
+  }
+}
+
 async function verificarCredencialesWompi() {
   if (!env.wompiPublicKey) {
     estadoCache = { estado: 'no-configurado', detalle: null, verificadoEn: Date.now() };
@@ -115,6 +155,7 @@ module.exports = {
   checksumEventoConSecreto,
   validarChecksumEvento,
   consultarTransaccion,
+  anularTransaccion,
   verificarCredencialesWompi,
   estadoWompi,
   TTL_ESTADO_MS,

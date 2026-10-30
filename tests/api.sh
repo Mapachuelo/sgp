@@ -106,6 +106,7 @@ RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" -X POST "$BASE_URL/auth/l
   -H "Content-Type: application/json" \
   -d '{"email":"empleado01@sgp.local","password":"empleado123"}')
 verificar "Login empleado devuelve 200" "200" "$RESP"
+TOKEN_EMPLEADO=$(token_de)
 
 RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/empleados")
 verificar "GET /auth/empleados sin token devuelve 401" "401" "$RESP"
@@ -198,6 +199,17 @@ echo "== Reportes y logs (admin) =="
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reportes/ocupacion" \
   -H "Authorization: Bearer $TOKEN_ADMIN")
 verificar "GET /reportes/ocupacion con admin devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reportes/mi-resumen?desde=$DESDE&hasta=$HASTA" \
+  -H "Authorization: Bearer $TOKEN_EMPLEADO")
+verificar "GET /reportes/mi-resumen con empleado devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/reportes/mi-resumen?desde=$DESDE&hasta=$HASTA" \
+  -H "Authorization: Bearer $TOKEN_ADMIN")
+verificar "GET /reportes/mi-resumen con admin devuelve 403" "403" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/reportes/mi-resumen?desde=$DESDE&hasta=$HASTA")
+verificar "GET /reportes/mi-resumen sin token devuelve 401" "401" "$RESP"
 
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/logs/actividad" \
   -H "Authorization: Bearer $TOKEN_ADMIN")

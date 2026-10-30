@@ -82,11 +82,23 @@ The side panel shows today's venue map and the day summary.
 
 ### 3.3 My availability
 
-Weekly planner: pick the venue per day (only one per day) and mark working blocks. "My Assigned Services" lists enabled services with their durations.
+Weekly kanban: each day has a fixed venue, schedule and one or more breaks. The week repeats until you edit it. Filter by venue, status and location, and navigate weeks with Today/←/→. The effective status combines the base schedule, temporary changes, holidays, closures and blocks.
+
+The rest panel saves automatically when you tap a day: choose **All day** or one or more **hour ranges** (with **Add another**) and the change is applied without another button. If the rest overlaps future appointments, the system lists the affected appointments and asks for confirmation before cancelling and notifying customers. In the customer calendar, every rest period appears as **Rest** and cannot be selected.
+
+The **Temporary changes** tab lets you work at another venue for a date range; select days one by one. When it ends, you return to the base venue unless you choose another. The **Holidays** tab shows holidays opened by the admin; if you want to work, select "Quiero trabajar" and adjust that day's shift.
+
+In a day's editor you can report an **emergency**: the full appointments for that day are cancelled, clients are notified and the date is blocked. Card payments are refunded automatically when possible; other online methods remain pending for management. Local payments are not refunded.
 
 When changing the venue of a day with future bookings, a confirmation is shown: that day's bookings at the previous venue are cancelled with the reason **"El empleado cambió de sede"** and the customer is notified.
 
 ![Availability](img/empleado-disponibilidad.png)
+
+### 3.4 My performance
+
+In the queue and agenda views, the **My performance** card shows the selected month with two figures: **Services performed** (all charged, non-refunded services) and **Earned** (your share according to the commission percentage). Use ←/→ to move between months. It uses the same calculation as the administrator payroll.
+
+Your photo is optional and is edited from **Profile**; the administrator can also upload or remove it from **Team**. If you have no photo, the customer sees your initials.
 
 ## 4. Administrator
 
@@ -102,7 +114,7 @@ When changing the venue of a day with future bookings, a confirmation is shown: 
 
 1. Open **Horarios** ("Planner per employee" tab).
 2. The matrix shows employees (rows) × MON–SUN (columns) with venue and shift per day, plus real appointments.
-3. Click a cell to edit: venue of the day, start/end time or rest day.
+3. Click a cell to edit: venue of the day, start/end time or rest day. Use **Select days** to apply schedules, close days or restore several days at once.
 4. Changing the venue of a day with future bookings triggers a warning; on save they are cancelled with the reason and a toast shows the count.
 5. Use search, venue filter, "Only with schedule" and week navigation (Today/←/→). Clicking a pending appointment opens the validation modal.
 
@@ -116,16 +128,16 @@ The **Venue shifts** tab edits opening hours per date.
 
 ### 4.3 Employees, services and venues
 
-- **Employees:** create/edit with assigned venues, per-venue/day schedules, services and durations; delete only when no payments are associated.
-- **Venues:** when creating or editing, click the map (or drag the marker) to set latitude and longitude; you can also use **Use my location**.
+- **Employees:** create/edit with assigned venues, per-venue/day schedules, services and durations; delete only when no payments are associated. You can upload, change or remove the employee photo; if there is none, the customer sees initials.
+- **Venues:** when creating or editing, click the map (or drag the marker) to set latitude and longitude; you can also use **Use my location**. You can add an optional photo of the venue; only the admin edits it and customers/employees can enlarge it.
 - **Services:** CRUD plus per-employee durations.
-- **Venues:** CRUD with address and coordinates (feed the maps).
 
 ![Employees](img/admin-empleados.png)
 
 ### 4.4 Reports, customers and logs
 
 - **Reports:** daily sales with breakdown, occupancy percentage per venue and recurring customers.
+- **Payroll:** choose employee (or all), venue (or all) and period (month, fortnight or custom range). It only includes completed and paid services, applies the employee percentage configured in Employees and lets you download a PDF.
 - **Customer moderation:** block with a reason, unblock and delete (only with 3+ no-shows).
 - **Logs:** `logs.txt` (activity) and `errores.txt` (failures) with search, date, severity and `.txt` export.
 

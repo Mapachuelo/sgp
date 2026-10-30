@@ -171,6 +171,7 @@ const openapi = {
                   password: { type: 'string' },
                   identificacion: { type: 'string' },
                   ubicacion_base_id: { type: 'integer' },
+                  foto_url: { type: 'string', description: 'Data URL JPG/PNG/WebP opcional' },
                 },
               },
             },
@@ -180,12 +181,12 @@ const openapi = {
       },
     },
     '/auth/empleados/{id}': {
-      put: { tags: ['Auth'], summary: 'Actualiza empleado (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleado actualizado' } } },
+      put: { tags: ['Auth'], summary: 'Actualiza empleado (admin, incluida foto_url opcional)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleado actualizado' } } },
       delete: { tags: ['Auth'], summary: 'Elimina empleado sin cobros (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Empleado eliminado' }, 409: { description: 'Tiene cobros asociados' } } },
     },
     '/clientes/me': {
       get: { tags: ['Clientes'], summary: 'Perfil propio (cliente/empleado)', responses: { 200: { description: 'Perfil' } } },
-      put: { tags: ['Clientes'], summary: 'Actualiza perfil propio (incluye identificacion del empleado)', responses: { 200: { description: 'Perfil actualizado' } } },
+      put: { tags: ['Clientes'], summary: 'Actualiza perfil propio (identificacion y foto_url del empleado)', responses: { 200: { description: 'Perfil actualizado' } } },
       delete: { tags: ['Clientes'], summary: 'Elimina la propia cuenta (cliente)', responses: { 200: { description: 'Cuenta eliminada' } } },
     },
     '/clientes': {
@@ -219,6 +220,7 @@ const openapi = {
                   ciudad: { type: 'string' },
                   latitud: { type: 'number' },
                   longitud: { type: 'number' },
+                  imagen_url: { type: 'string', description: 'Data URL JPG/PNG/WebP opcional del local' },
                 },
               },
             },
@@ -228,7 +230,7 @@ const openapi = {
       },
     },
     '/ubicaciones/{id}': {
-      put: { tags: ['Ubicaciones'], summary: 'Actualiza sede (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede actualizada' } } },
+      put: { tags: ['Ubicaciones'], summary: 'Actualiza sede (admin, incluida imagen_url opcional)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede actualizada' } } },
       delete: { tags: ['Ubicaciones'], summary: 'Elimina sede (admin)', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Sede eliminada' } } },
     },
     '/reservas/servicios': {

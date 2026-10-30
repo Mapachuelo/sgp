@@ -108,6 +108,27 @@ const pagosModel = {
     return rows[0] || null;
   },
 
+  async actualizarReembolso(pago_id, estado, db = pool) {
+    const { rows } = await db.query(
+      `UPDATE pago
+       SET reembolso_estado = $2::varchar,
+           estado = CASE WHEN $2::text = 'procesado' THEN 'anulado' ELSE estado END,
+           reembolsado_en = CASE WHEN $2::text = 'procesado' THEN NOW() ELSE reembolsado_en END,
+           actualizado_en = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [pago_id, estado]
+    );
+    return rows[0] || null;
+  },
+
+  async marcarCobroReembolsado(reserva_id, db = pool) {
+    await db.query(
+      'UPDATE cobro SET reembolsado_en = NOW() WHERE reserva_id = $1',
+      [reserva_id]
+    );
+  },
+
   async registrarCobroOnline({ reserva_id, monto, pago_id, pagado_antes }, db = pool) {
     const { rows } = await db.query(
       `INSERT INTO cobro (reserva_id, monto, metodo, pago_id, pagado_antes)

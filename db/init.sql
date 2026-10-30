@@ -5,11 +5,13 @@ CREATE TABLE IF NOT EXISTS ubicacion (
   departamento VARCHAR(120) NOT NULL DEFAULT 'Sin departamento',
   ciudad VARCHAR(120) NOT NULL DEFAULT 'Sin ciudad',
   latitud DOUBLE PRECISION NOT NULL,
-  longitud DOUBLE PRECISION NOT NULL
+  longitud DOUBLE PRECISION NOT NULL,
+  imagen_url TEXT
 );
 
 ALTER TABLE ubicacion ADD COLUMN IF NOT EXISTS departamento VARCHAR(120);
 ALTER TABLE ubicacion ADD COLUMN IF NOT EXISTS ciudad VARCHAR(120);
+ALTER TABLE ubicacion ADD COLUMN IF NOT EXISTS imagen_url TEXT;
 
 UPDATE ubicacion
 SET ciudad = CASE
@@ -72,6 +74,7 @@ CREATE TABLE IF NOT EXISTS empleado_perfil (
 );
 
 ALTER TABLE empleado_perfil ADD COLUMN IF NOT EXISTS foto_url TEXT;
+ALTER TABLE empleado_perfil ADD COLUMN IF NOT EXISTS comision_porcentaje NUMERIC(5,2) NOT NULL DEFAULT 50;
 
 CREATE TABLE IF NOT EXISTS servicio_categoria (
   id SERIAL PRIMARY KEY,
@@ -125,6 +128,20 @@ CREATE TABLE IF NOT EXISTS jornada (
   UNIQUE(ubicacion_id, fecha)
 );
 
+ALTER TABLE jornada ADD COLUMN IF NOT EXISTS cerrado BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE jornada ADD COLUMN IF NOT EXISTS motivo VARCHAR(200);
+
+CREATE TABLE IF NOT EXISTS jornada_plantilla (
+  id SERIAL PRIMARY KEY,
+  ubicacion_id INTEGER NOT NULL REFERENCES ubicacion(id) ON DELETE CASCADE,
+  dia_semana INTEGER NOT NULL CHECK (dia_semana BETWEEN 1 AND 7),
+  abierto BOOLEAN NOT NULL DEFAULT TRUE,
+  hora_inicio TIME NOT NULL DEFAULT '09:00',
+  hora_fin TIME NOT NULL DEFAULT '18:00',
+  actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(ubicacion_id, dia_semana)
+);
+
 CREATE TABLE IF NOT EXISTS empleado_disponibilidad (
   id SERIAL PRIMARY KEY,
   empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
@@ -134,6 +151,54 @@ CREATE TABLE IF NOT EXISTS empleado_disponibilidad (
   hora_fin TIME NOT NULL,
   UNIQUE(empleado_id, ubicacion_id, dia_semana)
 );
+
+ALTER TABLE empleado_disponibilidad
+  ADD COLUMN IF NOT EXISTS descansos JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE empleado_disponibilidad
+  ADD COLUMN IF NOT EXISTS descanso BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS empleado_sede_temporal (
+  id SERIAL PRIMARY KEY,
+  empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  ubicacion_id INTEGER NOT NULL REFERENCES ubicacion(id) ON DELETE CASCADE,
+  desde DATE NOT NULL,
+  hasta DATE NOT NULL,
+  dias_semana INTEGER[] NOT NULL DEFAULT ARRAY[1,2,3,4,5,6,7],
+  creado_por INTEGER REFERENCES app_user(id) ON DELETE SET NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (hasta >= desde),
+  CHECK (dias_semana <@ ARRAY[1,2,3,4,5,6,7])
+);
+
+CREATE INDEX IF NOT EXISTS idx_sede_temporal_empleado_fechas
+  ON empleado_sede_temporal (empleado_id, desde, hasta);
+
+CREATE TABLE IF NOT EXISTS empleado_bloqueo_fecha (
+  id SERIAL PRIMARY KEY,
+  empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  fecha DATE NOT NULL,
+  motivo VARCHAR(240) NOT NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(empleado_id, fecha)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bloqueo_fecha
+  ON empleado_bloqueo_fecha (fecha, empleado_id);
+
+CREATE TABLE IF NOT EXISTS empleado_festivo (
+  id SERIAL PRIMARY KEY,
+  empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  ubicacion_id INTEGER NOT NULL REFERENCES ubicacion(id) ON DELETE CASCADE,
+  fecha DATE NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fin TIME NOT NULL,
+  descansos JSONB NOT NULL DEFAULT '[]'::jsonb,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(empleado_id, fecha)
+);
+
+CREATE INDEX IF NOT EXISTS idx_festivo_fecha_sede
+  ON empleado_festivo (fecha, ubicacion_id);
 
 CREATE TABLE IF NOT EXISTS reserva (
   id SERIAL PRIMARY KEY,
@@ -204,6 +269,9 @@ CREATE TABLE IF NOT EXISTS pago (
 
 ALTER TABLE cobro ADD COLUMN IF NOT EXISTS pago_id INTEGER REFERENCES pago(id) ON DELETE SET NULL;
 ALTER TABLE cobro ADD COLUMN IF NOT EXISTS pagado_antes BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE cobro ADD COLUMN IF NOT EXISTS reembolsado_en TIMESTAMPTZ;
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS reembolso_estado VARCHAR(20);
+ALTER TABLE pago ADD COLUMN IF NOT EXISTS reembolsado_en TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS preferencia_usuario (
   id SERIAL PRIMARY KEY,

@@ -119,6 +119,15 @@ empleado_id = int(sql("SELECT id FROM app_user WHERE email = 'empleado01@sgp.loc
 hoy_bogota = datetime.now(BOGOTA)
 dias_hasta_lunes = (7 - hoy_bogota.weekday()) % 7 or 7
 lunes = (hoy_bogota + timedelta(days=dias_hasta_lunes)).date()
+
+
+def es_festivo(fecha):
+    status, data = req('GET', f'/reservas/festivos?desde={fecha.isoformat()}&hasta={fecha.isoformat()}')
+    return status == 200 and bool(data.get('data'))
+
+
+while es_festivo(lunes):
+    lunes += timedelta(days=7)
 _, disponibilidad = req('GET', f'/empleados/{empleado_id}/disponibilidad', token=token_admin)
 bloque_lunes = next(
     (b for b in (disponibilidad.get('data') or []) if b.get('dia_semana') == lunes.isoweekday()),

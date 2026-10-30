@@ -17,7 +17,10 @@ async function request(path, options = {}) {
       localStorage.removeItem('sgp_token');
       localStorage.removeItem('sgp_usuario');
     }
-    throw new Error(data.error || 'Error del servidor');
+    const error = new Error(data.error || 'Error del servidor');
+    error.status = res.status;
+    error.detalles = data.detalles || null;
+    throw error;
   }
 
   return data.data;
@@ -92,7 +95,11 @@ const api = {
     jornada: {
       get: (ubicacion_id) => request(`/reservas/jornada?ubicacion_id=${ubicacion_id}`),
       update: (body) => request('/reservas/jornada', { method: 'PUT', body: JSON.stringify(body) }),
+      getPlantilla: (ubicacion_id = '') => request(`/reservas/jornada/plantilla${ubicacion_id ? `?ubicacion_id=${ubicacion_id}` : ''}`),
+      updatePlantilla: (body) => request('/reservas/jornada/plantilla', { method: 'PUT', body: JSON.stringify(body) }),
+      abrirFestivo: (body) => request('/reservas/jornada/festivo', { method: 'POST', body: JSON.stringify(body) }),
     },
+    festivos: (desde, hasta) => request(`/reservas/festivos?desde=${desde}&hasta=${hasta}`),
     empleadoTiempos: {
       get: (empleado_id) => request(`/reservas/empleado-tiempos-servicio?empleado_id=${empleado_id}`),
       update: (body) => request('/reservas/empleado-tiempos-servicio', { method: 'PUT', body: JSON.stringify(body) }),
@@ -107,6 +114,8 @@ const api = {
     create: (body) => request('/reservas', { method: 'POST', body: JSON.stringify(body) }),
     misReservas: () => request('/reservas/me'),
     cancelar: (id) => request(`/reservas/me/${id}`, { method: 'DELETE' }),
+    empleadoDia: (fecha) => request(`/reservas/empleado/dia?fecha=${fecha}`),
+    cancelarDiaEmpleado: (body) => request('/reservas/empleado/cancelar-dia', { method: 'POST', body: JSON.stringify(body) }),
     list: (params) => request(`/reservas?${new URLSearchParams(params)}`),
     agenda: (params) => request(`/reservas/agenda?${new URLSearchParams(params)}`),
   },
@@ -134,13 +143,45 @@ const api = {
       return request(`/reportes/ocupacion?${query}`);
     },
     clientesRecurrentes: () => request('/reportes/clientes-recurrentes'),
+    resumenEmpleado: (params) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      return request(`/reportes/mi-resumen${query ? `?${query}` : ''}`);
+    },
+    nomina: (params) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      return request(`/reportes/nomina${query ? `?${query}` : ''}`);
+    },
+    nominaPdf: async (params) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      const token = getToken();
+      const res = await fetch(`${API}/reportes/nomina/pdf${query ? `?${query}` : ''}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('No se pudo generar la nómina en PDF');
+      return res.blob();
+    },
   },
   disponibilidad: {
     get: () => request('/empleados/disponibilidad'),
     update: (body) => request('/empleados/disponibilidad', { method: 'PUT', body: JSON.stringify(body) }),
+    descansos: (body) => request('/empleados/disponibilidad/descansos', { method: 'PUT', body: JSON.stringify(body) }),
     getByAdmin: (empleadoId) => request(`/empleados/${empleadoId}/disponibilidad`),
     updateByAdmin: (empleadoId, body) => request(`/empleados/${empleadoId}/disponibilidad`, { method: 'PUT', body: JSON.stringify(body) }),
     todas: () => request('/empleados/disponibilidad/todas'),
+    temporales: (empleadoId = '') => request(`/empleados/disponibilidad/temporales${empleadoId ? `?empleado_id=${empleadoId}` : ''}`),
+    crearTemporal: (body) => request('/empleados/disponibilidad/temporales', { method: 'POST', body: JSON.stringify(body) }),
+    finalizarTemporal: (id, body = {}) => request(`/empleados/disponibilidad/temporales/${id}/finalizar`, { method: 'PATCH', body: JSON.stringify(body) }),
+    festivos: (params) => request(`/empleados/disponibilidad/festivos?${new URLSearchParams(params)}`),
+    festivosAdmin: (fecha) => request(`/empleados/disponibilidad/festivos/admin?fecha=${fecha}`),
+    bloqueos: (params) => request(`/empleados/disponibilidad/bloqueos?${new URLSearchParams(params)}`),
+    crearFestivo: (body) => request('/empleados/disponibilidad/festivos', { method: 'POST', body: JSON.stringify(body) }),
+    eliminarFestivo: (fecha) => request(`/empleados/disponibilidad/festivos/${fecha}`, { method: 'DELETE' }),
   },
   logs: {
     actividad: (params) => request(`/logs/actividad?${new URLSearchParams(params)}`),

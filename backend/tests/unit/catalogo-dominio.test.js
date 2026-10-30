@@ -44,6 +44,13 @@ test('ubicaciones: CRUD completo', async () => {
   const actualizada = await ubicacionesService.update(sede.id, { nombre: `Sede Unit editada ${sufijo()}` });
   assert.match(actualizada.nombre, /editada/);
 
+  const imagen = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3Q6wAAAABJRU5ErkJggg==';
+  const conImagen = await ubicacionesService.update(sede.id, { imagen_url: imagen });
+  assert.equal(conImagen.imagen_url, imagen);
+  await assert.rejects(() => ubicacionesService.update(sede.id, { imagen_url: 'no-es-imagen' }), /imagen/);
+  const sinImagen = await ubicacionesService.update(sede.id, { imagen_url: null });
+  assert.equal(sinImagen.imagen_url, null);
+
   const todas = await ubicacionesService.findAll();
   assert.ok(todas.some((u) => u.id === sede.id));
 

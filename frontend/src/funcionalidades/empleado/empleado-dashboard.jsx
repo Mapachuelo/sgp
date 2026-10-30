@@ -28,6 +28,7 @@ import {
   StatusPill,
 } from '../../componentes/ui/index.jsx';
 import CobroCitaSheet from '../../componentes/pagos/cobro-cita-sheet.jsx';
+import ImagenSede from '../../componentes/ubicaciones/imagen-sede.jsx';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -45,6 +46,31 @@ const formatearFechaLocal = (date) => {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+};
+
+const fechaHoyBogota = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Bogota',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(new Date());
+
+const rangoDelMes = (mes) => {
+  const [anio, numeroMes] = mes.split('-').map(Number);
+  const ultimoDia = new Date(Date.UTC(anio, numeroMes, 0)).getUTCDate();
+  return {
+    desde: `${mes}-01`,
+    hasta: `${mes}-${String(ultimoDia).padStart(2, '0')}`,
+  };
+};
+
+const etiquetaDelMes = (mes) => {
+  const [anio, numeroMes] = mes.split('-').map(Number);
+  const texto = new Intl.DateTimeFormat('es-CO', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(anio, numeroMes - 1, 1));
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 };
 
 const formatearHoraLocal = (isoString) => {
@@ -285,6 +311,9 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const [finalizarCita, setFinalizarCita] = useState(null);
   const [finalizando, setFinalizando] = useState(false);
   const [fecha, setFecha] = useState(formatearFechaLocal(new Date()));
+  const [mesResumen, setMesResumen] = useState(() => fechaHoyBogota().slice(0, 7));
+  const [resumen, setResumen] = useState(null);
+  const [cargandoResumen, setCargandoResumen] = useState(true);
   const [, setReloj] = useState(Date.now());
 
   const fechaRef = useRef(fecha);
@@ -348,16 +377,33 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
     }
   }, []);
 
+  const cargarResumen = useCallback(async () => {
+    setCargandoResumen(true);
+    try {
+      const data = await api.reportes.resumenEmpleado(rangoDelMes(mesResumen));
+      setResumen(data);
+    } catch {
+      setResumen(null);
+    } finally {
+      setCargandoResumen(false);
+    }
+  }, [mesResumen]);
+
   useEffect(() => {
     cargarCitas(fecha);
     cargarSedeHoy(fecha);
   }, [fecha, cargarCitas, cargarSedeHoy]);
 
   useEffect(() => {
+    cargarResumen();
+  }, [cargarResumen]);
+
+  useEffect(() => {
     if (!ultimoEvento) return;
     if (ultimoEvento.tipo === 'reserva.actualizada') {
       cargarCitas(fechaRef.current);
       cargarSedeHoy(fechaRef.current);
+      cargarResumen();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ultimoEvento]);
@@ -381,6 +427,13 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const refrescar = () => {
     cargarCitas(fecha);
     cargarSedeHoy(fecha);
+    cargarResumen();
+  };
+
+  const cambiarMes = (offset) => {
+    const [anio, numeroMes] = mesResumen.split('-').map(Number);
+    const fechaMes = new Date(anio, numeroMes - 1 + offset, 1);
+    setMesResumen(`${fechaMes.getFullYear()}-${String(fechaMes.getMonth() + 1).padStart(2, '0')}`);
   };
 
   const handleRegistrarLlegada = async (cita) => {
@@ -629,6 +682,46 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
         </div>
       </div>
 
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-texto-principal">Mi desempeño</h2>
+            <p className="mt-0.5 text-xs leading-5 text-texto-secundario">
+              Solo servicios cobrados y no reembolsados. Tu comisión actual es {resumen ? `${resumen.porcentaje}%` : '—'}.
+            </p>
+          </div>
+          <div className="flex items-center gap-1 rounded-md border border-borde bg-superficie p-0.5">
+            <Button variant="ghost" size="sm" onClick={() => cambiarMes(-1)} aria-label="Mes anterior">
+              ←
+            </Button>
+            <span className="min-w-[112px] px-2 text-center text-xs font-medium text-texto-principal" aria-live="polite">
+              {etiquetaDelMes(mesResumen)}
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => cambiarMes(1)} aria-label="Mes siguiente">
+              →
+            </Button>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-borde bg-panel/30 px-4 py-3">
+            <p className="text-[11px] text-texto-secundario">Cortes realizados</p>
+            <p className="num mt-1 text-2xl font-medium text-texto-principal">
+              {cargandoResumen || !resumen ? '—' : resumen.servicios}
+            </p>
+            <p className="mt-1 text-[10px] text-tenue">Incluye todos los servicios cobrados</p>
+          </div>
+          <div className="rounded-lg border border-borde bg-panel/30 px-4 py-3">
+            <p className="text-[11px] text-texto-secundario">Ganado</p>
+            <p className="num mt-1 text-2xl font-medium text-texto-principal">
+              {cargandoResumen || !resumen ? '—' : dinero(resumen.ganado)}
+            </p>
+            <p className="mt-1 text-[10px] text-tenue">
+              {resumen ? `${resumen.porcentaje}% de comisión · Bruto ${dinero(resumen.bruto)}` : 'Sin servicios cobrados en el mes'}
+            </p>
+          </div>
+        </div>
+      </Card>
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-5">
           {!esVistaAgenda && (
@@ -786,6 +879,9 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
             </Card>
           ) : sedeHoy ? (
             <Card padding={false} className="overflow-hidden">
+              {sedeHoy.imagen_url && (
+                <ImagenSede sede={sedeHoy} className="h-32 w-full" />
+              )}
               <div className="relative z-0 h-36 bg-panel">
                 {Number.isFinite(Number(sedeHoy.latitud)) && Number.isFinite(Number(sedeHoy.longitud)) ? (
                   <MapContainer

@@ -268,19 +268,26 @@ test('reservas: getDisponibilidad exige parametros', async () => {
 
 test('auth: empleados CRUD y verificacion/reenevio exitosos', async () => {
   const email = `emp.${sufijo()}@unit.local`;
+  const foto = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3Q6wAAAABJRU5ErkJggg==';
   const empleado = await authService.createEmpleado({
-    email, nombre: 'Emp', apellido: 'Unit', telefono: '+573001112244', identificacion: '123',
+    email, nombre: 'Emp', apellido: 'Unit', telefono: '+573001112244', identificacion: '123', foto_url: foto,
   });
   ids.usuarios.push(empleado.id);
   assert.equal(empleado.rol, 'empleado');
+  assert.equal(empleado.foto_url, foto);
 
   await assert.rejects(() => authService.createEmpleado({ email, nombre: 'Dup' }), /ya esta registrado/);
+  await assert.rejects(() => authService.updateEmpleado(empleado.id, { foto_url: 'no-es-imagen' }), /foto/);
   await assert.rejects(() => authService.updateEmpleado(empleado.id, { telefono: '300' }), /telefono/);
   await assert.rejects(() => authService.updateEmpleado(999999, { nombre: 'x' }), /no encontrado/);
 
   const actualizado = await authService.updateEmpleado(empleado.id, { identificacion: '999', nombre: 'Emp2', password: 'nueva123' });
   assert.equal(actualizado.identificacion, '999');
   assert.equal(actualizado.nombre, 'Emp2');
+  assert.equal(actualizado.foto_url, foto);
+
+  const sinFoto = await authService.updateEmpleado(empleado.id, { foto_url: null });
+  assert.equal(sinFoto.foto_url, null);
 
   const nuevosEmpleados = await authService.getMe(empleado.id);
   assert.equal(nuevosEmpleados.email, email);

@@ -17,16 +17,16 @@ const ubicacionesModel = {
     return rows[0] || null;
   },
 
-  async create({ nombre, direccion, departamento, ciudad, latitud, longitud }) {
+  async create({ nombre, direccion, departamento, ciudad, latitud, longitud, imagen_url }) {
     const { rows } = await pool.query(
-      `INSERT INTO ubicacion (nombre, direccion, departamento, ciudad, latitud, longitud)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [nombre, direccion, departamento, ciudad, latitud, longitud]
+      `INSERT INTO ubicacion (nombre, direccion, departamento, ciudad, latitud, longitud, imagen_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [nombre, direccion, departamento, ciudad, latitud, longitud, imagen_url ?? null]
     );
     return rows[0];
   },
 
-  async update(id, { nombre, direccion, departamento, ciudad, latitud, longitud }) {
+  async update(id, { nombre, direccion, departamento, ciudad, latitud, longitud, imagen_url }) {
     const { rows } = await pool.query(
       `UPDATE ubicacion SET
          nombre = COALESCE($2, nombre),
@@ -34,9 +34,10 @@ const ubicacionesModel = {
          departamento = COALESCE($4, departamento),
          ciudad = COALESCE($5, ciudad),
          latitud = COALESCE($6, latitud),
-         longitud = COALESCE($7, longitud)
+         longitud = COALESCE($7, longitud),
+         imagen_url = CASE WHEN $9::boolean THEN $8 ELSE imagen_url END
        WHERE id = $1 RETURNING *`,
-      [id, nombre, direccion, departamento, ciudad, latitud, longitud]
+      [id, nombre, direccion, departamento, ciudad, latitud, longitud, imagen_url ?? null, imagen_url !== undefined]
     );
     return rows[0] || null;
   },

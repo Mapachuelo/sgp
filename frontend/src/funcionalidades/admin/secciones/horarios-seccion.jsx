@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { CalendarCog, CalendarRange } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CalendarClock, CalendarCog, CalendarRange } from 'lucide-react';
 import { PageHeader } from '../../../componentes/ui/index.jsx';
+import api from '../../../api/cliente.js';
+import CambiosTemporales from '../../../componentes/disponibilidad/cambios-temporales.jsx';
 import CobroCitaSheet from '../../../componentes/pagos/cobro-cita-sheet.jsx';
 import PlanificadorHorarios from './planificador-horarios.jsx';
 import JornadaSede from './jornada-sede.jsx';
@@ -9,12 +11,25 @@ import { avisarAdmin } from './avisos.js';
 const TABS = [
   { clave: 'planificador', etiqueta: 'Planificador por empleado', icono: CalendarCog },
   { clave: 'jornada', etiqueta: 'Jornada por sede', icono: CalendarRange },
+  { clave: 'temporales', etiqueta: 'Cambios temporales', icono: CalendarClock },
 ];
 
 export default function HorariosSeccion() {
   const [tab, setTab] = useState('planificador');
   const [cobro, setCobro] = useState(null);
   const [recarga, setRecarga] = useState(0);
+  const [empleados, setEmpleados] = useState([]);
+  const [sedes, setSedes] = useState([]);
+
+  useEffect(() => {
+    Promise.all([
+      api.auth.empleados.list().catch(() => []),
+      api.ubicaciones.list().catch(() => []),
+    ]).then(([listaEmpleados, listaSedes]) => {
+      setEmpleados(Array.isArray(listaEmpleados) ? listaEmpleados : []);
+      setSedes(Array.isArray(listaSedes) ? listaSedes : []);
+    });
+  }, []);
 
   const cerrarCobro = () => {
     setCobro(null);
@@ -50,8 +65,15 @@ export default function HorariosSeccion() {
           onValidarCita={(cita) => setCobro(cita)}
           recargarKey={recarga}
         />
-      ) : (
+      ) : tab === 'jornada' ? (
         <JornadaSede onToast={avisarAdmin} />
+      ) : (
+        <CambiosTemporales
+          empleados={empleados}
+          sedes={sedes}
+          onToast={avisarAdmin}
+          onChanged={() => setRecarga((valor) => valor + 1)}
+        />
       )}
 
       <CobroCitaSheet

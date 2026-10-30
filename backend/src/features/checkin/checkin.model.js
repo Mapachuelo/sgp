@@ -61,7 +61,7 @@ const checkinModel = {
 
   async findDisponibilidadEmpleado(empleado_id, ubicacion_id, inicia_en, db = pool) {
     const { rows } = await db.query(
-      `SELECT hora_inicio, hora_fin
+      `SELECT hora_inicio, hora_fin, descansos, descanso
        FROM empleado_disponibilidad
        WHERE empleado_id = $1
          AND ubicacion_id = $2

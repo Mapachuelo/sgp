@@ -85,4 +85,58 @@ async function enviarCorreoVerificacion({ email, nombre, codigo, expiracionMinut
   return { messageId: datos.messageId };
 }
 
-module.exports = { enviarCorreoVerificacion, verificarCredencialesBrevo, estadoBrevo, TTL_ESTADO_MS };
+function plantillaCancelacion({ nombre, fecha, motivo, reembolso }) {
+  const detalleReembolso = reembolso === 'procesado'
+    ? 'El pago en línea fue reembolsado.'
+    : reembolso === 'pendiente'
+      ? 'El reembolso del pago en línea queda pendiente de gestión.'
+      : 'No aplica reembolso.';
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+      <h2 style="color: #1f2937; margin: 0 0 16px;">Tu cita fue cancelada</h2>
+      <p style="color: #4b5563; line-height: 1.6;">Hola ${nombre},</p>
+      <p style="color: #4b5563; line-height: 1.6;">La cita del <strong>${fecha}</strong> fue cancelada por un imprevisto del empleado.</p>
+      <p style="color: #4b5563; line-height: 1.6;">Motivo: ${motivo}</p>
+      <p style="color: #4b5563; line-height: 1.6;">${detalleReembolso}</p>
+      <p style="color: #9ca3af; font-size: 13px; line-height: 1.6;">Puedes reservar un nuevo horario desde tu cuenta.</p>
+    </div>
+  `;
+}
+
+async function enviarCorreoCancelacion({ email, nombre, fecha, motivo, reembolso = 'no_aplica' }) {
+  if (!env.brevoApiKey) {
+    const err = new Error('Brevo no configurado: define BREVO_API_KEY en .env');
+    err.statusCode = 500;
+    throw err;
+  }
+  const respuesta = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'api-key': env.brevoApiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: env.brevoSenderName, email: env.brevoSenderEmail },
+      to: [{ email, name: nombre }],
+      subject: 'Tu cita en SGP fue cancelada',
+      htmlContent: plantillaCancelacion({ nombre, fecha, motivo, reembolso }),
+    }),
+  });
+  if (!respuesta.ok) {
+    const detalle = await respuesta.text();
+    const err = new Error(`Brevo API ${respuesta.status}: ${detalle}`);
+    err.statusCode = 502;
+    throw err;
+  }
+  const datos = await respuesta.json();
+  return { messageId: datos.messageId };
+}
+
+module.exports = {
+  enviarCorreoVerificacion,
+  enviarCorreoCancelacion,
+  verificarCredencialesBrevo,
+  estadoBrevo,
+  TTL_ESTADO_MS,
+};

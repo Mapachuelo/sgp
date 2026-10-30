@@ -3,12 +3,14 @@ import { BarChart3 } from 'lucide-react';
 import { PageHeader, Badge, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
 import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
+import NominaReporte from './nomina-reporte.jsx';
 import { hoy } from '../utils.js';
 
 const TABS = [
   { clave: 'ventas', etiqueta: 'Ventas diarias' },
   { clave: 'ocupacion', etiqueta: 'Ocupacion' },
   { clave: 'recurrentes', etiqueta: 'Clientes recurrentes' },
+  { clave: 'nomina', etiqueta: 'Nómina' },
 ];
 
 export default function ReportesSeccion() {
@@ -18,6 +20,11 @@ export default function ReportesSeccion() {
   const [cargando, setCargando] = useState(false);
 
   const cargar = useCallback(async () => {
+    if (tab === 'nomina') {
+      setDatos(null);
+      setCargando(false);
+      return;
+    }
     setCargando(true);
     try {
       let respuesta = null;
@@ -40,7 +47,7 @@ export default function ReportesSeccion() {
     <div className="space-y-5">
       <PageHeader
         title="Reportes"
-        subtitle="Ventas, ocupación y clientes recurrentes."
+        subtitle="Ventas, ocupación, clientes recurrentes y nómina."
       />
       <div className="space-y-4">
         <div className="flex flex-wrap gap-1 bg-fondo border border-borde rounded-xl p-1 w-fit">
@@ -59,7 +66,7 @@ export default function ReportesSeccion() {
           ))}
         </div>
 
-        {tab !== 'recurrentes' && (
+        {tab !== 'recurrentes' && tab !== 'nomina' && (
           <div className="max-w-xs">
             <Input label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
@@ -141,6 +148,8 @@ export default function ReportesSeccion() {
               <p className="text-sm text-texto-secundario py-10 text-center">Sin datos de ocupacion para esta fecha</p>
             )}
           </Card>
+        ) : tab === 'nomina' ? (
+          <NominaReporte />
         ) : tab === 'recurrentes' && datos ? (
           <Card>
             <h3 className="font-display text-lg font-bold text-texto-principal mb-4">Clientes recurrentes</h3>

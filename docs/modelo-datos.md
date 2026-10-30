@@ -40,8 +40,11 @@ app_user 1───N cobro (registrado_por)
 | ciudad | varchar(120) | NOT NULL, DEFAULT `Sin ciudad` |
 | latitud | double precision | NOT NULL |
 | longitud | double precision | NOT NULL |
+| imagen_url | text | Foto opcional del local; Data URL comprimida JPG/PNG/WebP |
 
 Índice: `idx_ubicacion_departamento_ciudad (departamento, ciudad)`.
+
+`imagen_url` se edita solo desde Admin → Sedes y se muestra en la selección de sede del cliente, la sede del empleado y la portada pública.
 
 ### 2.2 `app_user`
 | Columna | Tipo | Restricciones |
@@ -69,6 +72,7 @@ app_user 1───N cobro (registrado_por)
 | password_asignada_hash | text | Hash de la contraseña asignada por el admin |
 | ubicacion_base_id | integer | FK `ubicacion(id)` ON DELETE SET NULL |
 | foto_url | text | Data URL opcional de la foto del empleado |
+| comision_porcentaje | numeric(5,2) | Porcentaje que recibe el empleado; DEFAULT 50 |
 
 ### 2.4 `servicio_categoria`
 | Columna | Tipo | Restricciones |
@@ -123,8 +127,10 @@ UNIQUE `(empleado_id, servicio_id)`.
 | ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
 | fecha | date | NOT NULL |
 | hora_inicio / hora_fin | time | NOT NULL |
+| cerrado | boolean | NOT NULL, DEFAULT FALSE |
+| motivo | varchar(200) | Motivo del cierre o festivo |
 
-UNIQUE `(ubicacion_id, fecha)`.
+UNIQUE `(ubicacion_id, fecha)`. Las filas de `jornada` son excepciones por fecha; si no existe una excepción, se aplica la plantilla semanal.
 
 ### 2.9 `empleado_disponibilidad`
 | Columna | Tipo | Restricciones |
@@ -134,8 +140,59 @@ UNIQUE `(ubicacion_id, fecha)`.
 | ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
 | dia_semana | integer | NOT NULL, CHECK 1..7 (ISO: lunes=1) |
 | hora_inicio / hora_fin | time | NOT NULL |
+| descansos | jsonb | Arreglo de descansos `{inicio, fin}`; DEFAULT `[]` |
+| descanso | boolean | Día de descanso sin atención; DEFAULT FALSE |
 
 UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día** se garantiza en el servicio (`disponibilidad.service.js`) y en el planificador del administrador; el generador de datos también la respeta.
+
+### 2.9.1 `jornada_plantilla`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
+| dia_semana | integer | NOT NULL, CHECK 1..7 |
+| abierto | boolean | NOT NULL, DEFAULT TRUE |
+| hora_inicio / hora_fin | time | NOT NULL |
+| actualizado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(ubicacion_id, dia_semana)`. Define la semana fija de cada sede. Las excepciones de `jornada` mandan sobre esta plantilla.
+
+### 2.9.2 `empleado_bloqueo_fecha`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` CASCADE |
+| fecha | date | NOT NULL |
+| motivo | varchar(240) | NOT NULL |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(empleado_id, fecha)`. Bloquea una fecha concreta por un imprevisto; el empleado no aparece disponible y no se aceptan nuevas reservas ese día.
+
+### 2.9.3 `empleado_sede_temporal`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` CASCADE |
+| ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
+| desde / hasta | date | NOT NULL, `hasta >= desde` |
+| dias_semana | integer[] | Días afectados; por defecto 1..7 |
+| creado_por | integer | FK `app_user(id)` ON DELETE SET NULL |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+Mientras está vigente, la sede temporal reemplaza la sede base en los días seleccionados. Al terminar, la disponibilidad semanal vuelve a su sede base salvo que el empleado elija una nueva.
+
+### 2.9.4 `empleado_festivo`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` CASCADE |
+| ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
+| fecha | date | NOT NULL |
+| hora_inicio / hora_fin | time | NOT NULL |
+| descansos | jsonb | Arreglo de descansos; DEFAULT `[]` |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(empleado_id, fecha)`. Registra el opt-in del empleado para trabajar un festivo abierto por el administrador. Si no existe, el empleado no está disponible ese festivo.
 
 ### 2.10 `reserva`
 | Columna | Tipo | Restricciones |
@@ -169,6 +226,7 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 | registrado_por | integer | FK `app_user(id)` (NULL si lo generó el webhook de Wompi) |
 | pago_id | integer | FK `pago(id)` ON DELETE SET NULL; UNIQUE |
 | pagado_antes | boolean | DEFAULT false; pagado antes de la hora de la cita |
+| reembolsado_en | timestamptz | Fecha en que el cobro fue reembolsado |
 
 Índices: `idx_cobro_cobrado_en`, `idx_cobro_pago_id`. El UNIQUE de `reserva_id` garantiza un solo cobro por reserva.
 
@@ -186,6 +244,8 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 | moneda | varchar(3) | NOT NULL, DEFAULT `COP` |
 | metodo | varchar(30) | `CARD`, `NEQUI`, `PSE`, `BANCOLOMBIA_TRANSFER`, ... (lo reporta Wompi) |
 | estado | varchar(20) | NOT NULL, CHECK `pendiente|aprobado|declinado|error|anulado` |
+| reembolso_estado | varchar(20) | `pendiente`, `procesado`, `fallido` o `no_aplica` |
+| reembolsado_en | timestamptz | Fecha del reembolso |
 | payload | jsonb | Objeto completo de la transacción de Wompi |
 | creado_en / actualizado_en | timestamptz | DEFAULT now() |
 
@@ -240,7 +300,7 @@ Clave inicial: `max_servicios_reserva = 5`; el admin la edita entre 1 y 10.
 - Estados válidos de reserva restringidos por CHECK.
 - Cantidad de personas entre 1 y 5.
 - Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro y sus pagos.
-- Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `departamento`, `ciudad`, `ciudad_preferida`, `telefono` a TEXT, `categoria_id`, `imagen_url` y `activo`; el teléfono en claro se cifra al arrancar (`database-init.js`). La migración elimina `preferencia_usuario.idioma`.
+- Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `departamento`, `ciudad`, `ciudad_preferida`, `telefono` a TEXT, `categoria_id`, `servicio_catalogo.imagen_url`, `ubicacion.imagen_url` y `activo`; el teléfono en claro se cifra al arrancar (`database-init.js`). La migración elimina `preferencia_usuario.idioma`.
 - Las reservas históricas se backfillean a `reserva_servicio` al arrancar, usando el precio del cobro si existe y la duración real de la cita.
 - El servicio con reservas no se elimina: se marca `activo = FALSE` para conservar el histórico; una categoría con servicios no se puede eliminar.
 - Un servicio puede tener de 0 a 6 imágenes en `servicio_imagen`; si se elimina el servicio, sus imágenes se eliminan en cascada. La portada de `servicio_catalogo` se mantiene sincronizada con la primera imagen.
@@ -248,7 +308,12 @@ Clave inicial: `max_servicios_reserva = 5`; el admin la edita entre 1 y 10.
 - El cliente puede pagar en línea desde el dashboard cualquier reserva activa sin pago aprobado; el servidor recalcula el monto desde los segmentos congelados.
 - Cada sede tiene departamento y ciudad obligatorios; el catálogo público puede filtrarse por sede o empleado y el cliente puede reservar por estilista o por servicio.
 - La foto del empleado es opcional y se guarda comprimida como data URL en `empleado_perfil.foto_url`; si no existe, la interfaz usa iniciales.
+- La nómina usa `empleado_perfil.comision_porcentaje`; el salón recibe el porcentaje complementario.
 - El cobro se confirma con QR (cámara o token), lista de citas del día o un solo toque; `POST /checkin/confirmar-pago` registra el cobro sin finalizar el servicio.
+- La disponibilidad semanal admite varios descansos por día; las reservas y el check-in validan los tramos efectivos.
+- El empleado puede bloquear una fecha por imprevisto; se cancelan las citas completas afectadas, se notifica al cliente y se intenta reembolsar el pago online (tarjeta) o se deja pendiente (otros medios).
+- Los festivos de Colombia se cierran por defecto. El admin puede abrir una o varias sedes y cada empleado decide si trabaja mediante `empleado_festivo`.
+- Los cambios temporales de sede conservan la disponibilidad semanal y vuelven a la sede base al terminar; el empleado o el admin pueden finalizarlos antes.
 
 ## 4. Seeds
 

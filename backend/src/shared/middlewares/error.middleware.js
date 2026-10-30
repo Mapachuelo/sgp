@@ -28,10 +28,12 @@ function errorMiddleware(err, _req, res, _next) {
     err.message = 'Error interno del servidor';
   }
 
-  res.status(err.statusCode).json({
+  const respuesta = {
     ok: false,
     error: err.message,
-  });
+  };
+  if (err.detalles) respuesta.detalles = err.detalles;
+  res.status(err.statusCode).json(respuesta);
 }
 
 module.exports = errorMiddleware;

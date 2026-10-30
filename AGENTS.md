@@ -62,7 +62,8 @@ Reglas que no se negocian:
 - `TemaProvider`, `BotonTema` y `TemaSelect` viven en `frontend/src/contexto/`, `componentes/tema/` y `hooks/use-tema.js`.
 - La portada pública vive en `/`; su contenido se edita en Admin → Presentación y usa la base separada `sgp_presentacion` y el volumen `sgp-presentacion-media`.
 - La foto del empleado es opcional y se sube desde su perfil; si no existe se usan iniciales.
-- El empleado no inicia un servicio antes de 30 minutos de la cita; el backend valida llegada, turno, jornada, duración y cruces con otras reservas.
+- El empleado no inicia un servicio antes de 30 minutos de la cita; el backend valida llegada, turno, jornada, descansos, duración y cruces con otras reservas.
+- La disponibilidad semanal es una plantilla fija por día con sede, horario y descansos; los cambios temporales vuelven a la sede base y los festivos de Colombia se cierran por defecto salvo apertura del admin y opt-in del empleado.
 
 Verificación de UI:
 
@@ -89,14 +90,14 @@ pnpm install                          # Instalar dependencias
 pnpm --filter backend dev             # Backend en :3000
 pnpm --filter frontend dev            # Frontend en :5173
 pnpm run lint                         # ESLint
-bash tests/api.sh                     # Pruebas de integración (58)
+bash tests/api.sh                     # Pruebas de integración (61)
 bash tests/datos.sh                   # Integridad del dataset (15)
-bash tests/esquema.sh                 # Esquema vs modelo de datos (77)
-pnpm run test:unit                    # Unitarias en el contenedor backend (54)
+bash tests/esquema.sh                 # Esquema vs modelo de datos (92)
+pnpm run test:unit                    # Unitarias en el contenedor backend (60)
 pnpm run test:coverage                # Cobertura (>= 80%)
 python3 tests/e2e.py                  # Extremo a extremo (47)
 python3 tests/regresion_10x10.py      # Regresión funcional 10x10 (129)
-python3 tests/verificacion_semana.py  # Verificación semanal con canceladas, pagadas y pendientes (76); deja datos de la semana cargados
+python3 tests/verificacion_semana.py  # Verificación semanal con canceladas, pagadas y pendientes (70; varía según el día); deja datos de la semana cargados
 bash tests/presentacion.sh            # Esquema y API de la base separada de presentación (6)
 pnpm run seed:pruebas                 # Seed determinista 10 clientes / 10 empleados
 pnpm run seed:demo -- --reset         # Datos de demostración

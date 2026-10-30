@@ -1,7 +1,10 @@
 const QRCode = require('qrcode');
 const reservasModel = require('./reservas.model');
+const disponibilidadModel = require('../disponibilidad/disponibilidad.model');
+const { esFestivo, festivosEntre } = require('../../shared/festivos-colombia');
 const HttpError = require('../../shared/http-error');
 const { withTransaction } = require('../../config/db');
+const { cancelarReservasConReembolso } = require('./cancelacion-reservas');
 
 const MAX_SERVICIOS_DEFAULT = 5;
 const MAX_SERVICIOS_LIMITE = 10;
@@ -50,6 +53,48 @@ function horaDeMinutos(minutos) {
 
 function isoBogota(fecha, minutos) {
   return new Date(`${fecha}T${horaDeMinutos(minutos)}:00${BOGOTA_OFFSET}`).toISOString();
+}
+
+function horaBogotaDeIso(iso) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso));
+}
+
+function intervalosDeHorario(horario) {
+  if (horario?.descanso) return [];
+  const inicio = minutosDeHora(horario.hora_inicio);
+  const fin = minutosDeHora(horario.hora_fin);
+  const descansos = (Array.isArray(horario.descansos) ? horario.descansos : [])
+    .map((descanso) => ({
+      inicio: minutosDeHora(descanso.inicio || descanso.hora_inicio),
+      fin: minutosDeHora(descanso.fin || descanso.hora_fin),
+    }))
+    .filter((descanso) => descanso.inicio < descanso.fin)
+    .sort((a, b) => a.inicio - b.inicio);
+  const intervalos = [];
+  let cursor = inicio;
+  for (const descanso of descansos) {
+    if (descanso.inicio > cursor) intervalos.push([cursor, descanso.inicio]);
+    cursor = Math.max(cursor, descanso.fin);
+  }
+  if (cursor < fin) intervalos.push([cursor, fin]);
+  return intervalos;
+}
+
+function cabeEnDisponibilidad(horario, inicioIso, finIso) {
+  if (!horario) return false;
+  const inicio = minutosDeHora(horaBogotaDeIso(inicioIso));
+  const fin = minutosDeHora(horaBogotaDeIso(finIso));
+  return intervalosDeHorario(horario).some(([desde, hasta]) => inicio >= desde && fin <= hasta);
+}
+
+function diaSemanaBogota(fecha) {
+  const dia = new Date(`${fecha}T00:00:00Z`).getUTCDay();
+  return dia === 0 ? 7 : dia;
 }
 
 function normalizarImagen(imagen) {
@@ -307,7 +352,12 @@ const reservasService = {
 
     const jornada = await reservasModel.findJornada(ubicacion_id, fecha);
     const slotsOcupados = await reservasModel.findSlotsOcupados(fecha, empleado_id);
-    const disponibilidadEmpleado = await reservasModel.findEmpleadoDisponibilidadDia(empleado_id, ubicacion_id, diaMapeado);
+    const disponibilidadEmpleado = await disponibilidadModel.findDisponibilidadEfectiva(
+      empleado_id,
+      ubicacion_id,
+      fecha,
+      diaMapeado
+    );
 
     return {
       fecha,
@@ -324,19 +374,122 @@ const reservasService = {
     return reservasModel.findJornadas(ubicacion_id);
   },
 
+  async getJornadaPlantilla(ubicacion_id = null) {
+    if (ubicacion_id) return reservasModel.findPlantilla(Number(ubicacion_id));
+    return reservasModel.findPlantillas();
+  },
+
+  async updateJornadaPlantilla(ubicacion_id, items) {
+    if (!Array.isArray(items)) {
+      throw new HttpError(400, 'items debe ser un arreglo de la plantilla semanal');
+    }
+    const normalizados = items.map((item) => {
+      const dia = Number(item.dia_semana);
+      if (!Number.isInteger(dia) || dia < 1 || dia > 7) {
+        throw new HttpError(400, 'dia_semana debe estar entre 1 y 7');
+      }
+      const abierto = item.abierto !== false;
+      const horaInicio = String(item.hora_inicio || '09:00').slice(0, 5);
+      const horaFin = String(item.hora_fin || '18:00').slice(0, 5);
+      if (abierto && minutosDeHora(horaInicio) >= minutosDeHora(horaFin)) {
+        throw new HttpError(400, 'La hora fin de la plantilla debe ser mayor a la hora inicio');
+      }
+      return { dia_semana: dia, abierto, hora_inicio: `${horaInicio}:00`, hora_fin: `${horaFin}:00` };
+    });
+    await withTransaction(async (client) => {
+      await reservasModel.replacePlantilla(Number(ubicacion_id), normalizados, client);
+    });
+    const cerrados = normalizados.filter((item) => !item.abierto);
+    for (const dia of cerrados) {
+      await disponibilidadModel.deleteDisponibilidadSedeDia(Number(ubicacion_id), dia.dia_semana);
+    }
+    const canceladas = [];
+    for (const dia of cerrados) {
+      const ids = await reservasModel.findReservasFuturasBySedeDia(Number(ubicacion_id), dia.dia_semana);
+      if (ids.length) {
+        canceladas.push(...await reservasModel.cancelReservasFuturas(ids, 'La sede no atiende ese día según la plantilla'));
+      }
+    }
+    return {
+      actualizado: true,
+      dias_cerrados: cerrados.map((item) => item.dia_semana),
+      reservas_canceladas: [...new Set(canceladas)],
+    };
+  },
+
+  async getFestivos(desde, hasta) {
+    return festivosEntre(validarFecha(desde), validarFecha(hasta));
+  },
+
+  async abrirFestivo({ fecha, sedes, hora_inicio, hora_fin }) {
+    const fechaValida = validarFecha(fecha);
+    if (!esFestivo(fechaValida)) {
+      throw new HttpError(400, 'La fecha seleccionada no es un festivo de Colombia');
+    }
+    if (!Array.isArray(sedes) || sedes.length === 0) {
+      throw new HttpError(400, 'Selecciona al menos una sede');
+    }
+    const horaInicio = String(hora_inicio || '09:00').slice(0, 5);
+    const horaFin = String(hora_fin || '18:00').slice(0, 5);
+    if (minutosDeHora(horaInicio) >= minutosDeHora(horaFin)) {
+      throw new HttpError(400, 'La hora fin debe ser mayor a la hora inicio');
+    }
+    const abiertas = [];
+    for (const sedeId of sedes) {
+      const ubicacion = await reservasModel.findUbicacionById(Number(sedeId));
+      if (!ubicacion) throw new HttpError(404, `Sede ${sedeId} no encontrada`);
+      abiertas.push(await reservasModel.upsertJornada(Number(sedeId), {
+        fecha: fechaValida,
+        hora_inicio: `${horaInicio}:00`,
+        hora_fin: `${horaFin}:00`,
+        cerrado: false,
+        motivo: 'Festivo abierto por administración',
+      }));
+    }
+    return { actualizado: true, sedes: abiertas.map((fila) => fila.ubicacion_id) };
+  },
+
   async updateJornada(ubicacion_id, items) {
     if (!Array.isArray(items)) {
       throw new HttpError(400, 'items debe ser un arreglo de jornadas');
     }
-    await withTransaction(async (client) => {
-      await reservasModel.replaceJornadas(ubicacion_id, items, client);
+    const normalizados = items.map((item) => {
+      const fecha = validarFecha(item.fecha);
+      const cerrado = Boolean(item.cerrado);
+      const horaInicio = cerrado ? '00:00' : String(item.hora_inicio || '').slice(0, 5);
+      const horaFin = cerrado ? '00:00' : String(item.hora_fin || '').slice(0, 5);
+      if (!cerrado && (!horaInicio || !horaFin || minutosDeHora(horaInicio) >= minutosDeHora(horaFin))) {
+        throw new HttpError(400, 'Cada jornada abierta debe tener hora inicio y fin validas');
+      }
+      return {
+        fecha,
+        hora_inicio: `${horaInicio}:00`,
+        hora_fin: `${horaFin}:00`,
+        cerrado,
+        motivo: item.motivo ? String(item.motivo).slice(0, 200) : null,
+      };
     });
-    return { actualizado: true };
+    await withTransaction(async (client) => {
+      await reservasModel.replaceJornadas(Number(ubicacion_id), normalizados, client);
+    });
+    const canceladas = [];
+    for (const dia of normalizados.filter((item) => item.cerrado)) {
+      const ids = await reservasModel.findReservasFuturasBySedeFecha(Number(ubicacion_id), dia.fecha);
+      if (ids.length) {
+        canceladas.push(...await reservasModel.cancelReservasFuturas(ids, 'La sede no atiende ese día'));
+      }
+    }
+    return { actualizado: true, reservas_canceladas: [...new Set(canceladas)] };
   },
 
   async getEmpleadosDisponibles({ fecha, ubicacion_id, servicio_id }) {
     if (!fecha || !ubicacion_id) {
       throw new HttpError(400, 'fecha y ubicacion_id son requeridos');
+    }
+    const jornada = await reservasModel.findJornada(ubicacion_id, fecha);
+    if (jornada?.cerrado) return [];
+    if (esFestivo(fecha)) {
+      return reservasModel.findEmpleadosFestivo(fecha, ubicacion_id, servicio_id ? Number(servicio_id) : null);
     }
     return reservasModel.findEmpleadosDisponibles(
       fecha,
@@ -384,13 +537,44 @@ const reservasService = {
     const diaSemana = new Date(`${fechaValida}T00:00:00Z`).getUTCDay();
     const diaMapeado = diaSemana === 0 ? 7 : diaSemana;
     const empleadosUnicos = [...new Set(asignaciones.map((a) => a.empleado_id))];
+    const jornada = await reservasModel.findJornada(ubicacionId, fechaValida);
+    if (jornada?.cerrado) {
+      return {
+        fecha: fechaValida,
+        ubicacion_id: ubicacionId,
+        duracion_total: 0,
+        precio_total: 0,
+        slots: [],
+        descansos: [],
+        motivo: jornada.motivo || 'La sede no atiende ese día',
+      };
+    }
 
     const [disponibilidad, ocupados] = await Promise.all([
-      reservasModel.findDisponibilidadEmpleados(empleadosUnicos, ubicacionId, diaMapeado),
+      reservasModel.findDisponibilidadEmpleados(empleadosUnicos, ubicacionId, fechaValida, diaMapeado),
       reservasModel.findSegmentosOcupados(fechaValida, empleadosUnicos),
     ]);
 
     const horarios = new Map(disponibilidad.map((d) => [d.empleado_id, d]));
+    const descansos = disponibilidad.flatMap((fila) => {
+      const nombre = `${fila.empleado_nombre || ''} ${fila.empleado_apellido || ''}`.trim();
+      if (fila.descanso) {
+        return [{
+          empleado_id: fila.empleado_id,
+          empleado_nombre: nombre,
+          todo_el_dia: true,
+          inicio: '00:00',
+          fin: '23:59',
+        }];
+      }
+      return (Array.isArray(fila.descansos) ? fila.descansos : []).map((descanso) => ({
+        empleado_id: fila.empleado_id,
+        empleado_nombre: nombre,
+        todo_el_dia: false,
+        inicio: String(descanso.inicio).slice(0, 5),
+        fin: String(descanso.fin).slice(0, 5),
+      }));
+    });
     const ocupadosPorEmpleado = new Map();
     ocupados.forEach((o) => {
       if (!ocupadosPorEmpleado.has(o.empleado_id)) ocupadosPorEmpleado.set(o.empleado_id, []);
@@ -419,6 +603,7 @@ const reservasService = {
           duracion_total: 0,
           precio_total: 0,
           slots: [],
+          descansos,
           motivo: 'Uno de los estilistas no trabaja en esa sede ese dia',
         };
       }
@@ -435,8 +620,13 @@ const reservasService = {
 
     const duracionTotal = segmentosBase.reduce((sum, s) => sum + s.duracion_minutos, 0);
     const precioTotal = segmentosBase.reduce((sum, s) => sum + s.precio, 0);
-    const inicioMin = Math.min(...disponibilidad.map((d) => minutosDeHora(d.hora_inicio)));
-    const finMax = Math.max(...disponibilidad.map((d) => minutosDeHora(d.hora_fin)));
+    const horariosLaborables = disponibilidad.filter((fila) => !fila.descanso);
+    const inicioMin = horariosLaborables.length
+      ? Math.min(...horariosLaborables.map((d) => minutosDeHora(d.hora_inicio)))
+      : 0;
+    const finMax = horariosLaborables.length
+      ? Math.max(...horariosLaborables.map((d) => minutosDeHora(d.hora_fin)))
+      : 0;
 
     const slots = [];
     for (let cursor = inicioMin; cursor + duracionTotal <= finMax; cursor += paso) {
@@ -447,7 +637,8 @@ const reservasService = {
         const horario = horarios.get(segmento.empleado_id);
         const inicio = actual;
         const fin = actual + segmento.duracion_minutos;
-        if (inicio < minutosDeHora(horario.hora_inicio) || fin > minutosDeHora(horario.hora_fin)) {
+        const intervalos = intervalosDeHorario(horario);
+        if (!intervalos.some(([desde, hasta]) => inicio >= desde && fin <= hasta)) {
           valido = false;
           break;
         }
@@ -481,6 +672,7 @@ const reservasService = {
       duracion_total: duracionTotal,
       precio_total: precioTotal,
       slots,
+      descansos,
     };
   },
 
@@ -554,6 +746,12 @@ const reservasService = {
     const ubicacion = await reservasModel.findUbicacionById(ubicacion_id);
     if (!ubicacion) throw new HttpError(404, 'Ubicacion no encontrada');
 
+    const fechaReserva = fechaBogotaDeIso(inicio.toISOString());
+    const jornadaReserva = await reservasModel.findJornada(ubicacion_id, fechaReserva);
+    if (jornadaReserva?.cerrado) {
+      throw new HttpError(409, jornadaReserva.motivo || 'La sede no atiende ese día');
+    }
+
     const segmentos = [];
     let cursor = inicio;
     for (let i = 0; i < asignaciones.length; i += 1) {
@@ -585,14 +783,24 @@ const reservasService = {
     }
 
     for (const segmento of segmentos) {
-      const dentro = await reservasModel.estaDentroDeDisponibilidad(
+      const fechaSegmento = fechaBogotaDeIso(segmento.inicia_en);
+      const diaSegmento = diaSemanaBogota(fechaSegmento);
+      const disponibilidadEmpleado = await disponibilidadModel.findDisponibilidadEfectiva(
         segmento.empleado_id,
         ubicacion_id,
-        segmento.inicia_en,
-        segmento.termina_en
+        fechaSegmento,
+        diaSegmento
       );
-      if (!dentro) {
+      if (!cabeEnDisponibilidad(disponibilidadEmpleado, segmento.inicia_en, segmento.termina_en)) {
         throw new HttpError(400, 'El horario esta fuera de la disponibilidad de uno de los estilistas');
+      }
+      if (jornadaReserva && jornadaReserva.hora_inicio && jornadaReserva.hora_fin) {
+        const inicioSegmento = minutosDeHora(horaBogotaDeIso(segmento.inicia_en));
+        const finSegmento = minutosDeHora(horaBogotaDeIso(segmento.termina_en));
+        if (inicioSegmento < minutosDeHora(jornadaReserva.hora_inicio)
+          || finSegmento > minutosDeHora(jornadaReserva.hora_fin)) {
+          throw new HttpError(409, 'El servicio esta fuera del horario de atencion de la sede');
+        }
       }
     }
 
@@ -646,6 +854,42 @@ const reservasService = {
 
   async getReservasByCliente(cliente_id) {
     return reservasModel.findReservasByCliente(cliente_id);
+  },
+
+  async getReservasEmpleadoDia(empleado_id, fecha) {
+    const fechaValida = validarFecha(fecha);
+    return reservasModel.findReservasActivasEmpleadoFecha(empleado_id, fechaValida);
+  },
+
+  async cancelarDiaEmpleado(empleado_id, { fecha, motivo }) {
+    const fechaValida = validarFecha(fecha);
+    const motivoLimpio = String(motivo || '').trim();
+    if (motivoLimpio.length < 4) {
+      throw new HttpError(400, 'Escribe el motivo del imprevisto');
+    }
+    if (motivoLimpio.length > 200) {
+      throw new HttpError(400, 'El motivo no puede superar 200 caracteres');
+    }
+
+    const reservas = await reservasModel.findReservasActivasEmpleadoFecha(empleado_id, fechaValida);
+    await disponibilidadModel.bloquearFecha(
+      empleado_id,
+      fechaValida,
+      `Imprevisto del empleado: ${motivoLimpio}`
+    );
+
+    const motivoCancelacion = `Imprevisto del empleado: ${motivoLimpio}`;
+    const resultados = await cancelarReservasConReembolso(reservas, motivoCancelacion, fechaValida);
+
+    return {
+      fecha: fechaValida,
+      motivo: motivoLimpio,
+      bloqueada: true,
+      reservas_encontradas: reservas.length,
+      reservas_canceladas: resultados,
+      total_canceladas: resultados.length,
+      reembolsos_pendientes: resultados.filter((item) => item.reembolso === 'pendiente').length,
+    };
   },
 
   async cancelReserva(id, cliente_id) {

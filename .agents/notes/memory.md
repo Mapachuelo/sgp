@@ -682,3 +682,35 @@
 - Validar QR y Cobro siguen como ventanas flotantes; confirmaciones, carga de medios y vista previa siguen siendo modales de acción.
 - El empleado ve el detalle de cada servicio en un modal con galería; el precio es de solo lectura y la única edición sigue siendo la duración en la tarjeta, que se refleja en el modal.
 - Verificado con Chromium en 1440, 768 y 390, tema claro y oscuro; sin scroll horizontal de página. Build y lint correctos.
+
+## Disponibilidad kanban, cambios temporales y festivos — 29 Octubre 2026
+
+- `Mi disponibilidad` se reemplazó por un kanban semanal con filtros por sede, estado, departamento y ciudad. Cada día tiene sede fija, horario, descansos múltiples y estado de descanso.
+- La tabla `empleado_disponibilidad` ahora guarda `descansos` JSONB y `descanso`; las reservas y el check-in validan los tramos efectivos.
+- Se agregó `empleado_sede_temporal`: empleado o admin pueden programar una sede temporal por rango de fechas y días seleccionados. Al finalizar, vuelve a la sede base o actualiza la base si se elige una sede de retorno.
+- Se agregó `jornada_plantilla` con la semana fija por sede. `jornada` conserva las excepciones por fecha con `cerrado` y `motivo`.
+- La página Admin → Horarios → Jornada por sede permite editar la plantilla, seleccionar múltiples días, aplicar horarios/cierres y restablecer excepciones.
+- Se agregó el cálculo de festivos de Colombia (`shared/festivos-colombia.js`). Los festivos se cierran por defecto; el admin puede abrir una o varias sedes y cada empleado decide trabajar mediante `empleado_festivo` con su horario prellenado y editable.
+- La plantilla cerrada elimina la disponibilidad de los empleados en esa sede/día; la creación de reservas y el planificador respetan cierres, descansos, cambios temporales y opt-in de festivos.
+- Se corrigió el icono del buscador de `Mis servicios`: el contenedor se estiraba a 62 px por el `Select` vecino y el icono quedaba 11 px bajo.
+- Verificado con Chromium: kanban, navegación de semanas, descanso por rango, cambio temporal, festivo con opt-in, plantilla, selección múltiple y bloqueo por imprevisto; sin scroll horizontal a 390 px en tema claro y oscuro. Suites: esquema 92/92, API 61/61, datos 15/15, unitarias 60/60, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 85.92 % líneas / 67.33 % ramas / 89.02 % funciones. La nómina reparte reservas multi-servicio de forma proporcional y el filtro por empleado no altera el total del cobro.
+- Se agregó nómina en Reportes con porcentaje de comisión por empleado, filtros de sede/período y PDF generado con PDFKit; solo cuenta reservas cobradas y no reembolsadas.
+
+
+## Descanso automático y desempeño del empleado — 29 Octubre 2026
+
+- El panel de descanso guarda automáticamente al tocar cada día, sin botón Aplicar; admite día completo o rango horario y conserva las horas base para poder quitarlo después.
+- `PUT /api/empleados/disponibilidad/descansos` actualiza solo `descanso`/`descansos`. Si detecta citas futuras, responde 409 con `CONFLICTOS_DESCANSO`; al confirmar, cancela las citas completas, notifica y reutiliza el flujo de reembolso.
+- `disponibilidad-combo` devuelve `descansos`; la tabla del cliente muestra las celdas como **Descanso** deshabilitadas, incluyendo día completo y rangos que se cruzan con la duración del servicio.
+- `GET /api/reportes/mi-resumen` es exclusivo del empleado y devuelve servicios, bruto, comisión y ganado del mes; el dashboard agrega la tarjeta **Mi desempeño** con navegación de meses.
+- Verificado con Playwright a 1440 y 390 en claro y oscuro: descanso guardado sin botón, bloqueo visible en la tabla del cliente, modal de conflicto, dashboard con cortes/ganado y sin scroll horizontal.
+- Suites finales: esquema 92/92, API 61/61, datos 15/15, unitarias 60/60, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 85.92 % líneas / 67.33 % ramas / 89.02 % funciones.
+
+
+## Descansos múltiples, imágenes de sede y foto del empleado — 29 Octubre 2026
+
+- El panel automático de descanso permite uno o más rangos por día con **Agregar otro**; cada clic guarda el conjunto completo y el cliente ve todas las franjas como **Descanso**. El backend ya soportaba el arreglo y ahora se probó con dos rangos y solapes.
+- `ubicacion.imagen_url` guarda una imagen opcional del local (data URL comprimida). Solo el admin la edita; cliente, empleado y portada pública la muestran con modal de ampliación. `disponibilidad-combo`, `sedes-por-servicio` y las reservas incluyen la imagen.
+- El admin puede subir, cambiar o quitar la foto del empleado desde Equipo; el empleado conserva la edición desde Perfil. `auth.service` valida la foto y `createEmpleadoPerfil` la guarda. Si no hay foto se muestran iniciales. El formulario de Equipo preserva descansos al guardar.
+- Verificado con Playwright: dos descansos visibles en el calendario, imagen de sede ampliada, foto de empleado en selección de estilista, formulario admin con carga de archivo y guardado sin perder descansos.
+- Suites finales: esquema 92/92, API 61/61, datos 15/15, unitarias 60/60, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 85.92 % líneas / 67.33 % ramas / 89.02 % funciones.

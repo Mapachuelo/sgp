@@ -17,6 +17,7 @@ import {
 } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
 import GaleriaServicio from '../../componentes/servicios/galeria-servicio.jsx';
+import ImagenSede from '../../componentes/ubicaciones/imagen-sede.jsx';
 import useWebSocket from '../../hooks/use-websocket.js';
 import { descargarQrReserva } from '../../lib/descargas.js';
 import { ciudadesDeDepartamento } from '../../lib/colombia.js';
@@ -90,6 +91,11 @@ function horaDeIso(iso) {
     hour12: false,
     timeZone: 'America/Bogota',
   }).format(new Date(iso));
+}
+
+function minutosDeHora(hora) {
+  const [h, m] = String(hora || '00:00').slice(0, 5).split(':').map(Number);
+  return h * 60 + m;
 }
 
 function horasDelRango(preferencias, granularidad) {
@@ -293,28 +299,33 @@ function ModalSedesServicio({
               {sedes.map((sede) => {
                 const activa = String(sede.id) === String(seleccionada);
                 return (
-                  <button
+                  <div
                     key={sede.id}
-                    type="button"
-                    onClick={() => onSeleccionar(String(sede.id))}
-                    className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                    className={`flex w-full items-center gap-2 rounded-lg border p-3 transition-colors ${
                       activa ? 'border-acento bg-acento-suave/30 ring-1 ring-acento/20' : 'border-borde bg-superficie hover:bg-panel/60'
                     }`}
                   >
-                    <MapPin className={`h-4 w-4 shrink-0 ${activa ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-texto-principal">{sede.nombre}</span>
-                      {sede.direccion && <span className="mt-0.5 block text-[11px] leading-4 text-texto-secundario">{sede.direccion}</span>}
-                      <span className="mt-0.5 block text-[10px] text-tenue">
-                        {[sede.ciudad, sede.departamento].filter(Boolean).join(' · ')}
+                    <button
+                      type="button"
+                      onClick={() => onSeleccionar(String(sede.id))}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <MapPin className={`h-4 w-4 shrink-0 ${activa ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-texto-principal">{sede.nombre}</span>
+                        {sede.direccion && <span className="mt-0.5 block text-[11px] leading-4 text-texto-secundario">{sede.direccion}</span>}
+                        <span className="mt-0.5 block text-[10px] text-tenue">
+                          {[sede.ciudad, sede.departamento].filter(Boolean).join(' · ')}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className="num block text-sm font-semibold text-texto-principal">{sede.total_estilistas}</span>
-                      <span className="block text-[10px] text-tenue">estilista(s)</span>
-                    </span>
-                    {activa && <Check className="h-4 w-4 shrink-0 text-acento" strokeWidth={2.5} aria-hidden="true" />}
-                  </button>
+                      <span className="shrink-0 text-right">
+                        <span className="num block text-sm font-semibold text-texto-principal">{sede.total_estilistas}</span>
+                        <span className="block text-[10px] text-tenue">estilista(s)</span>
+                      </span>
+                      {activa && <Check className="h-4 w-4 shrink-0 text-acento" strokeWidth={2.5} aria-hidden="true" />}
+                    </button>
+                    <ImagenSede sede={sede} className="h-14 w-20 shrink-0 rounded-md" />
+                  </div>
                 );
               })}
             </div>
@@ -992,6 +1003,27 @@ export default function NuevaReserva() {
   const slotEnDia = (fecha, hora) =>
     (disponibilidad[fecha]?.slots || []).find((slot) => slot.hora === hora) || null;
 
+  const descansoEnDia = (dia, hora) => {
+    const descansos = disponibilidad[dia.fecha]?.descansos || [];
+    if (descansos.length === 0) return null;
+    const inicio = minutosDeHora(hora);
+    const fin = inicio + Number(duracionPlan || 0);
+    const coincidentes = descansos.filter((descanso) => {
+      if (descanso.todo_el_dia) return true;
+      const desde = minutosDeHora(descanso.inicio);
+      const hasta = minutosDeHora(descanso.fin);
+      return inicio < hasta && fin > desde;
+    });
+    if (coincidentes.length === 0) return null;
+    return {
+      ...coincidentes[0],
+      detalle: coincidentes
+        .map((descanso) => (descanso.todo_el_dia ? 'todo el día' : `${descanso.inicio}–${descanso.fin}`))
+        .join(', '),
+      empleados: [...new Set(coincidentes.map((descanso) => descanso.empleado_nombre).filter(Boolean))].join(', '),
+    };
+  };
+
   const estadoCelda = (dia, hora) => {
     const slot = slotEnDia(dia.fecha, hora);
     const instante = new Date(`${dia.fecha}T${hora}:00-05:00`);
@@ -999,6 +1031,16 @@ export default function NuevaReserva() {
     const diffMin = (instante - ahora) / 60000;
     if (diffMin <= 0) return { clase: 'slot-pasado', label: 'Pasado', disponible: false, slot: null };
     if (diffMin < 60) return { clase: 'slot-antelacion', label: '< 60 min', disponible: false, slot: null };
+    const descanso = descansoEnDia(dia, hora);
+    if (descanso) {
+      return {
+        clase: 'slot-descanso',
+        label: 'Descanso',
+        disponible: false,
+        slot: null,
+        title: `Descanso de ${descanso.empleados || 'el empleado'}: ${descanso.detalle}`,
+      };
+    }
     if (slot) return { clase: 'slot-libre', label: 'Libre', disponible: true, slot };
     return { clase: 'slot-no-disponible', label: 'No disp.', disponible: false, slot: null };
   };
@@ -1316,27 +1358,32 @@ export default function NuevaReserva() {
                   {ubicacionesFiltradas.map((ubicacion) => {
                     const seleccionada = ubicacionSeleccionada?.id === ubicacion.id;
                     return (
-                      <button
+                      <div
                         key={ubicacion.id}
-                        type="button"
-                        onClick={() => setUbicacionSeleccionada(ubicacion)}
-                        className={`flex w-full items-start gap-3 rounded-lg border p-3.5 text-left transition-colors ${
+                        className={`flex w-full items-start gap-2 rounded-lg border p-3.5 transition-colors ${
                           seleccionada
                             ? 'border-acento bg-acento-suave/40 ring-1 ring-acento/20'
                             : 'border-borde bg-superficie hover:bg-panel/60'
                         }`}
                       >
-                        <MapPin className={`mt-0.5 h-4 w-4 shrink-0 ${seleccionada ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium text-texto-principal">{ubicacion.nombre}</span>
-                          {ubicacion.direccion && (
-                            <span className="mt-0.5 block text-xs leading-5 text-texto-secundario">{ubicacion.direccion}</span>
-                          )}
-                          <span className="mt-0.5 block text-[10px] text-tenue">
-                            {[ubicacion.ciudad, ubicacion.departamento].filter(Boolean).join(' · ')}
+                        <button
+                          type="button"
+                          onClick={() => setUbicacionSeleccionada(ubicacion)}
+                          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                        >
+                          <MapPin className={`mt-0.5 h-4 w-4 shrink-0 ${seleccionada ? 'text-acento' : 'text-texto-secundario'}`} strokeWidth={1.7} aria-hidden="true" />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-texto-principal">{ubicacion.nombre}</span>
+                            {ubicacion.direccion && (
+                              <span className="mt-0.5 block text-xs leading-5 text-texto-secundario">{ubicacion.direccion}</span>
+                            )}
+                            <span className="mt-0.5 block text-[10px] text-tenue">
+                              {[ubicacion.ciudad, ubicacion.departamento].filter(Boolean).join(' · ')}
+                            </span>
                           </span>
-                        </span>
-                      </button>
+                        </button>
+                        <ImagenSede sede={ubicacion} className="h-14 w-20 shrink-0 rounded-md" />
+                      </div>
                     );
                   })}
                 </div>
@@ -1773,19 +1820,32 @@ export default function NuevaReserva() {
                             </Button>
                           </div>
                         ) : (
-                          <BuscadorSelect
-                            label="Estilista"
-                            value={asignaciones[servicio.id] || ''}
-                            onChange={(valor) => {
-                              setAsignaciones((prev) => ({ ...prev, [servicio.id]: valor }));
-                              setDisponibilidad({});
-                              setSlotSeleccionado(null);
-                              setDiaSeleccionado(null);
-                            }}
-                            options={opciones}
-                            placeholder="Buscar estilista..."
-                            allowClear={false}
-                          />
+                          <>
+                            {servicio.empleado && (
+                              <div className="mb-1.5 flex items-center gap-2">
+                                <Avatar
+                                  nombre={servicio.empleado.nombre}
+                                  apellido={servicio.empleado.apellido}
+                                  fotoUrl={servicio.empleado.foto_url}
+                                  size="sm"
+                                />
+                                <span className="text-xs font-medium text-texto-principal">Estilista</span>
+                              </div>
+                            )}
+                            <BuscadorSelect
+                              label={servicio.empleado ? undefined : 'Estilista'}
+                              value={asignaciones[servicio.id] || ''}
+                              onChange={(valor) => {
+                                setAsignaciones((prev) => ({ ...prev, [servicio.id]: valor }));
+                                setDisponibilidad({});
+                                setSlotSeleccionado(null);
+                                setDiaSeleccionado(null);
+                              }}
+                              options={opciones}
+                              placeholder="Buscar estilista..."
+                              allowClear={false}
+                            />
+                          </>
                         )}
                       </div>
                     </div>
@@ -1892,7 +1952,7 @@ export default function NuevaReserva() {
 
           {cargandoCalendario ? (
             <div className="flex justify-center py-12"><Spinner /></div>
-          ) : semana.every((dia) => !(disponibilidad[dia.fecha]?.slots || []).length) ? (
+          ) : semana.every((dia) => !(disponibilidad[dia.fecha]?.slots || []).length && !(disponibilidad[dia.fecha]?.descansos || []).length) ? (
             <EmptyState
               title="No hay horarios para este equipo"
               description="Prueba con otros días, cambia un estilista o cambia de sede."
@@ -1944,7 +2004,7 @@ export default function NuevaReserva() {
                                       type="button"
                                       onClick={() => handleSlotClick(dia, hora)}
                                       disabled={!estado.disponible}
-                                      title={estado.disponible ? `Elegir ${hora} con ${equipo.map((item) => item.empleado?.nombre).filter(Boolean).join(', ')}` : estado.label}
+                                      title={estado.disponible ? `Elegir ${hora} con ${equipo.map((item) => item.empleado?.nombre).filter(Boolean).join(', ')}` : (estado.title || estado.label)}
                                       className={`relative w-full rounded px-1 py-1.5 text-[10px] font-medium transition-colors ${estado.clase}`}
                                     >
                                       {estado.label}
@@ -1990,6 +2050,7 @@ export default function NuevaReserva() {
 
           <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-x-5 gap-y-2 border-t border-borde pt-4 text-[11px] text-texto-secundario">
             <span className="flex items-center gap-1.5"><span className="slot-libre h-3.5 w-3.5 rounded-sm border" /> Libre</span>
+            <span className="flex items-center gap-1.5"><span className="slot-descanso h-3.5 w-3.5 rounded-sm border" /> Descanso</span>
             <span className="flex items-center gap-1.5"><span className="slot-no-disponible h-3.5 w-3.5 rounded-sm border" /> No disponible</span>
             <span className="flex items-center gap-1.5"><span className="slot-pasado h-3.5 w-3.5 rounded-sm border" /> Pasado</span>
             <span className="flex items-center gap-1.5"><span className="slot-antelacion h-3.5 w-3.5 rounded-sm border" /> Anticipación &lt;60m</span>

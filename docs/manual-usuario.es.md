@@ -83,11 +83,23 @@ El panel lateral muestra el mapa de la sede donde trabajas hoy y el resumen del 
 
 ### 3.3 Mi disponibilidad
 
-Planificador semanal: por día elegir la sede (solo una por día) y marcar los bloques de trabajo. "Mis Servicios Asignados" lista los servicios habilitados con su duración.
+Vista kanban semanal: cada día tiene una sede fija, un horario y uno o más descansos. La semana se repite hasta que la edites. Puedes filtrar por sede, estado y ubicación, y navegar semanas con Hoy/←/→. El estado efectivo combina el horario base, los cambios temporales, los festivos, los cierres y los bloqueos.
 
-Al cambiar la sede de un día con reservas futuras se pide confirmación: las reservas de ese día en la sede anterior se cancelan con el motivo **"El empleado cambió de sede"** y el cliente es notificado en su panel.
+El panel de descanso se guarda automáticamente al tocar un día: elige **Todo el día** o uno o varios **rangos de horas** (con **Agregar otro**) y el cambio queda aplicado sin pulsar otro botón. Si el descanso se cruza con citas futuras, el sistema muestra las citas afectadas y pide confirmación antes de cancelarlas y notificar a los clientes. En el calendario del cliente, todas las franjas de descanso aparecen como **Descanso** y no se pueden seleccionar.
+
+La pestaña **Cambios temporales** permite trabajar en otra sede durante un rango de fechas; los días se eligen uno por uno. Al terminar vuelve automáticamente a la sede base, salvo que elijas otra. La pestaña **Festivos** muestra los festivos abiertos por el administrador; si quieres trabajar, marca "Quiero trabajar" y ajusta el turno de ese día.
+
+En el editor de un día puedes reportar un **imprevisto**: se cancelan las citas completas de ese día, se avisa a los clientes y se bloquea la fecha. Los pagos con tarjeta se intentan reembolsar; los pagos por otros medios quedan pendientes de gestión. Los pagos locales no generan devolución.
+
+Si cambias la sede de un día con reservas futuras se pide confirmación y se cancelan con el motivo **"El empleado cambió de sede"**.
 
 ![Disponibilidad](img/empleado-disponibilidad.png)
+
+### 3.4 Mi desempeño
+
+En la cola y en la agenda, la tarjeta **Mi desempeño** muestra el mes seleccionado con dos datos: **Cortes realizados** (todos los servicios cobrados y no reembolsados) y **Ganado** (tu parte según el porcentaje de comisión). Puedes navegar con ←/→ entre meses. El cálculo usa el mismo criterio que la nómina del administrador.
+
+Tu foto es opcional y se edita desde **Perfil**; el administrador también puede subirla o quitarla desde **Equipo**. Si no tienes foto, el cliente verá tus iniciales.
 
 ## 4. Administrador
 
@@ -103,7 +115,7 @@ Al cambiar la sede de un día con reservas futuras se pide confirmación: las re
 
 1. Abrir **Horarios** (pestaña "Planificador por empleado").
 2. La matriz muestra empleados (filas) por LUN–DOM (columnas) con la sede y turno de cada día, y las citas reales encima.
-3. Hacer clic en una celda para editar: sede del día, hora inicio/fin o descanso.
+3. Hacer clic en una celda para editar: sede del día, hora inicio/fin o descanso. El modo **Seleccionar días** permite aplicar horarios, cerrar días o restablecer varios días a la vez.
 4. Si cambias la sede de un día con reservas futuras, se advierte y al guardar se cancelan con el motivo correspondiente; verás el conteo en un aviso.
 5. Usar búsqueda, filtro por sede, "Solo con horario" y navegación de semanas (Hoy/←/→). Clic en una cita pendiente abre el modal de validación.
 
@@ -111,16 +123,17 @@ Al cambiar la sede de un día con reservas futuras se pide confirmación: las re
 
 ![Editor de horario](img/admin-planificador-editor.png)
 
-La pestaña **Jornada por sede** permite editar el horario de atención por fecha.
+La pestaña **Jornada por sede** permite definir la plantilla semanal fija, abrir festivos en una o varias sedes y editar excepciones por fecha.
+
+En **Reportes → Nómina** el administrador elige empleado (o todos), sede (o todas) y período (mes, quincena o rango). El cálculo usa solo servicios completados y pagados, aplica el porcentaje configurado en Equipo y permite descargar un PDF.
 
 ![Jornada](img/admin-jornada.png)
 
 ### 4.3 Empleados, servicios y sedes
 
-- **Empleados:** crear/editar con sedes asignadas, horarios por sede/día, servicios y duraciones; eliminar solo sin cobros asociados.
-- **Sedes:** al crear o editar, haz clic en el mapa (o arrastra el marcador) para fijar latitud y longitud; también puedes usar **Usar mi ubicación**.
+- **Empleados:** crear/editar con sedes asignadas, horarios por sede/día, servicios y duraciones; eliminar solo sin cobros asociados. Puedes subir, cambiar o quitar la foto del empleado; si no tiene, el cliente verá sus iniciales.
+- **Sedes:** al crear o editar, haz clic en el mapa (o arrastra el marcador) para fijar latitud y longitud; también puedes usar **Usar mi ubicación**. Puedes agregar una imagen opcional del local; solo el admin la edita y clientes/empleados pueden ampliarla.
 - **Servicios:** CRUD y tiempos por empleado.
-- **Sedes:** CRUD con dirección y coordenadas (alimentan los mapas).
 
 ![Empleados](img/admin-empleados.png)
 

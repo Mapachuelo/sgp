@@ -26,11 +26,18 @@ router.delete('/servicios/:id', authenticate, authorize('admin'), reservasContro
 
 router.get('/disponibilidad', authenticate, authorize('cliente', 'empleado', 'admin'), reservasController.disponibilidad);
 
+router.get('/jornada/plantilla', reservasController.getJornadaPlantilla);
+router.put('/jornada/plantilla', authenticate, authorize('admin'), reservasController.updateJornadaPlantilla);
+router.get('/festivos', reservasController.getFestivos);
 router.get('/jornada', reservasController.getJornada);
 router.put('/jornada', authenticate, authorize('admin'), reservasController.updateJornada);
+router.post('/jornada/festivo', authenticate, authorize('admin'), reservasController.abrirFestivo);
 
 router.get('/empleado-tiempos-servicio', authenticate, authorize('admin', 'empleado', 'cliente'), reservasController.getEmpleadoTiemposServicio);
 router.put('/empleado-tiempos-servicio', authenticate, authorize('admin', 'empleado'), reservasController.updateEmpleadoTiemposServicio);
+
+router.get('/empleado/dia', authenticate, authorize('empleado'), reservasController.reservasEmpleadoDia);
+router.post('/empleado/cancelar-dia', authenticate, authorize('empleado'), reservasController.cancelarDiaEmpleado);
 
 router.post('/', authenticate, authorize('cliente'), reservasController.crearReserva);
 router.get('/me', authenticate, authorize('cliente'), reservasController.misReservas);

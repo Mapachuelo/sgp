@@ -76,7 +76,7 @@ frontend/src/
   hooks/             use-auth, use-websocket
   funcionalidades/   auth, cliente, empleado, admin/secciones
   lib/               descargas (QR, texto)
-db/init.sql          11 tablas + seeds + migraciones idempotentes
+db/init.sql          19 tablas + seeds + migraciones idempotentes
 ```
 
 ## 5. Seguridad

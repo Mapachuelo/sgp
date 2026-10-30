@@ -55,6 +55,8 @@ function formatear(pago) {
     metodo: pago.metodo,
     monto: Number(pago.monto),
     moneda: pago.moneda,
+    reembolso_estado: pago.reembolso_estado || null,
+    reembolsado_en: pago.reembolsado_en || null,
     actualizado_en: pago.actualizado_en,
   };
 }

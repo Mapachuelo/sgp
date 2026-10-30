@@ -1,10 +1,12 @@
 const pool = require('../../config/db');
+const { esFestivo } = require('../../shared/festivos-colombia');
 
 const SELECT_RESERVA_BASE = `
   SELECT r.*,
          u.nombre AS ubicacion_nombre, u.direccion AS ubicacion_direccion,
          u.departamento AS ubicacion_departamento, u.ciudad AS ubicacion_ciudad,
          u.latitud AS ubicacion_latitud, u.longitud AS ubicacion_longitud,
+         u.imagen_url AS ubicacion_imagen_url,
          COALESCE(rs.servicio_nombre, s.nombre) AS servicio_nombre,
          COALESCE(rs.precio_total, s.precio_base) AS precio_total,
          COALESCE(rs.precio_total, s.precio_base) AS precio_base,
@@ -367,6 +369,76 @@ const reservasModel = {
     return rows[0] || null;
   },
 
+  async findReservasActivasEmpleadoFecha(empleado_id, fecha) {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT r.id, r.cliente_id, r.estado, r.inicia_en, r.termina_en,
+              cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido, cli.email AS cliente_email,
+              p.id AS pago_id, p.estado AS pago_estado, p.metodo AS pago_metodo,
+              p.monto AS pago_monto, p.transaction_id AS pago_transaction_id,
+              c.metodo AS cobro_metodo, c.monto AS cobro_monto, c.reembolsado_en
+       FROM reserva r
+       JOIN reserva_servicio rs ON rs.reserva_id = r.id
+       JOIN app_user cli ON cli.id = r.cliente_id
+       LEFT JOIN LATERAL (
+         SELECT pp.* FROM pago pp
+         WHERE pp.reserva_id = r.id
+         ORDER BY CASE WHEN pp.estado = 'aprobado' THEN 0 ELSE 1 END, pp.creado_en DESC
+         LIMIT 1
+       ) p ON TRUE
+       LEFT JOIN cobro c ON c.reserva_id = r.id
+       WHERE rs.empleado_id = $1
+         AND (rs.inicia_en AT TIME ZONE 'America/Bogota')::date = $2::date
+         AND r.estado IN ('pendiente', 'confirmada')
+       ORDER BY r.inicia_en`,
+      [empleado_id, fecha]
+    );
+    return rows;
+  },
+
+  async findSegmentosFuturosEmpleadoDias(empleado_id, dias_semana) {
+    if (!dias_semana.length) return [];
+    const { rows } = await pool.query(
+      `SELECT rs.reserva_id, rs.inicia_en, rs.termina_en, rs.nombre AS servicio,
+              EXTRACT(ISODOW FROM (rs.inicia_en AT TIME ZONE 'America/Bogota'))::int AS dia_semana,
+              to_char((rs.inicia_en AT TIME ZONE 'America/Bogota')::date, 'YYYY-MM-DD') AS fecha,
+              to_char(rs.inicia_en AT TIME ZONE 'America/Bogota', 'HH24:MI') AS hora_inicio,
+              to_char(rs.termina_en AT TIME ZONE 'America/Bogota', 'HH24:MI') AS hora_fin,
+              r.cliente_id, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
+              cli.email AS cliente_email,
+              p.id AS pago_id, p.estado AS pago_estado, p.metodo AS pago_metodo,
+              p.transaction_id AS pago_transaction_id,
+              c.metodo AS cobro_metodo, c.reembolsado_en
+       FROM reserva_servicio rs
+       JOIN reserva r ON r.id = rs.reserva_id
+       JOIN app_user cli ON cli.id = r.cliente_id
+       LEFT JOIN LATERAL (
+         SELECT pp.* FROM pago pp
+         WHERE pp.reserva_id = r.id
+         ORDER BY CASE WHEN pp.estado = 'aprobado' THEN 0 ELSE 1 END, pp.creado_en DESC
+         LIMIT 1
+       ) p ON TRUE
+       LEFT JOIN cobro c ON c.reserva_id = r.id
+       WHERE rs.empleado_id = $1
+         AND r.estado IN ('pendiente', 'confirmada')
+         AND rs.inicia_en > NOW()
+         AND EXTRACT(ISODOW FROM (rs.inicia_en AT TIME ZONE 'America/Bogota'))::int = ANY($2::int[])
+       ORDER BY rs.inicia_en, rs.reserva_id`,
+      [empleado_id, dias_semana]
+    );
+    return rows;
+  },
+
+  async cancelarReservaEmpleado(id, motivo) {
+    const { rows } = await pool.query(
+      `UPDATE reserva
+       SET estado = 'cancelada', motivo_cancelacion = $2
+       WHERE id = $1 AND estado IN ('pendiente', 'confirmada')
+       RETURNING *`,
+      [id, motivo]
+    );
+    return rows[0] || null;
+  },
+
   async cancelReserva(id, cliente_id, motivo) {
     const { rows } = await pool.query(
       "UPDATE reserva SET estado = 'cancelada', motivo_cancelacion = $3 WHERE id = $1 AND cliente_id = $2 RETURNING *",
@@ -398,7 +470,7 @@ const reservasModel = {
               r.llego_en, r.inicio_servicio, r.fin_servicio, r.creado_en,
               r.ubicacion_id,
               u.nombre AS ubicacion_nombre, u.departamento AS ubicacion_departamento,
-              u.ciudad AS ubicacion_ciudad,
+              u.ciudad AS ubicacion_ciudad, u.imagen_url AS ubicacion_imagen_url,
               cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
               emp.nombre AS empleado_nombre, emp.apellido AS empleado_apellido, ep.foto_url AS empleado_foto_url,
               p.estado AS pago_estado, p.metodo AS pago_metodo, p.monto AS pago_monto,
@@ -482,16 +554,30 @@ const reservasModel = {
        FROM app_user u
        LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
        JOIN empleado_disponibilidad ed ON u.id = ed.empleado_id
+       LEFT JOIN LATERAL (
+         SELECT t.ubicacion_id
+         FROM empleado_sede_temporal t
+         WHERE t.empleado_id = u.id
+           AND $4::date BETWEEN t.desde AND t.hasta
+           AND EXTRACT(ISODOW FROM $4::date)::int = ANY(t.dias_semana)
+         ORDER BY t.creado_en DESC, t.id DESC
+         LIMIT 1
+       ) t ON TRUE
        LEFT JOIN empleado_tiempo_servicio etp
          ON etp.empleado_id = u.id AND etp.servicio_id = $3::int
        LEFT JOIN servicio_catalogo sc ON sc.id = etp.servicio_id
        WHERE u.rol = 'empleado'
          AND NOT u.esta_bloqueado
-         AND ed.ubicacion_id = $1
+         AND COALESCE(t.ubicacion_id, ed.ubicacion_id) = $1
          AND ed.dia_semana = $2
+         AND ed.descanso = FALSE
          AND ($3::int IS NULL OR etp.id IS NOT NULL)
+         AND NOT EXISTS (
+           SELECT 1 FROM empleado_bloqueo_fecha b
+           WHERE b.empleado_id = u.id AND b.fecha = $4::date
+         )
        ORDER BY u.nombre, u.apellido`,
-      [ubicacion_id, diaMapeado, servicio_id || null]
+      [ubicacion_id, diaMapeado, servicio_id || null, fecha]
     );
     return rows;
   },
@@ -534,7 +620,7 @@ const reservasModel = {
 
   async findSedesPorServicio(servicio_id) {
     const { rows } = await pool.query(
-      `SELECT u.id, u.nombre, u.direccion, u.departamento, u.ciudad, u.latitud, u.longitud,
+      `SELECT u.id, u.nombre, u.direccion, u.departamento, u.ciudad, u.latitud, u.longitud, u.imagen_url,
               COUNT(DISTINCT emp.id)::int AS total_estilistas,
               MIN(etp.duracion_minutos)::int AS duracion_minima
        FROM ubicacion u
@@ -552,14 +638,83 @@ const reservasModel = {
     return rows;
   },
 
-  async findDisponibilidadEmpleados(empleado_ids, ubicacion_id, dia_semana) {
+  async findDisponibilidadEmpleados(empleado_ids, ubicacion_id, fecha, dia_semana) {
     if (!empleado_ids.length) return [];
+    if (esFestivo(fecha)) {
+      const { rows } = await pool.query(
+        `SELECT f.*, f.ubicacion_id AS ubicacion_efectiva_id,
+                emp.nombre AS empleado_nombre, emp.apellido AS empleado_apellido
+         FROM empleado_festivo f
+         JOIN app_user emp ON emp.id = f.empleado_id
+         WHERE f.empleado_id = ANY($1::int[])
+           AND f.ubicacion_id = $2
+           AND f.fecha = $3::date
+           AND NOT EXISTS (
+             SELECT 1 FROM empleado_bloqueo_fecha b
+             WHERE b.empleado_id = f.empleado_id AND b.fecha = f.fecha
+           )`,
+        [empleado_ids, ubicacion_id, fecha]
+      );
+      return rows.map((fila) => ({
+        ...fila,
+        hora_inicio: String(fila.hora_inicio).slice(0, 5),
+        hora_fin: String(fila.hora_fin).slice(0, 5),
+        descansos: Array.isArray(fila.descansos) ? fila.descansos : [],
+        es_festivo: true,
+      }));
+    }
+
     const { rows } = await pool.query(
-      `SELECT * FROM empleado_disponibilidad
-       WHERE empleado_id = ANY($1::int[])
-         AND ubicacion_id = $2
-         AND dia_semana = $3`,
-      [empleado_ids, ubicacion_id, dia_semana]
+      `SELECT ed.*, COALESCE(t.ubicacion_id, ed.ubicacion_id) AS ubicacion_efectiva_id,
+              (t.id IS NOT NULL) AS es_temporal,
+              emp.nombre AS empleado_nombre, emp.apellido AS empleado_apellido
+       FROM empleado_disponibilidad ed
+       JOIN app_user emp ON emp.id = ed.empleado_id
+       LEFT JOIN LATERAL (
+         SELECT t.id, t.ubicacion_id
+         FROM empleado_sede_temporal t
+         WHERE t.empleado_id = ed.empleado_id
+           AND $3::date BETWEEN t.desde AND t.hasta
+           AND EXTRACT(ISODOW FROM $3::date)::int = ANY(t.dias_semana)
+         ORDER BY t.creado_en DESC, t.id DESC
+         LIMIT 1
+       ) t ON TRUE
+       WHERE ed.empleado_id = ANY($1::int[])
+         AND ed.dia_semana = $4
+         AND COALESCE(t.ubicacion_id, ed.ubicacion_id) = $2
+         AND NOT EXISTS (
+           SELECT 1 FROM empleado_bloqueo_fecha b
+           WHERE b.empleado_id = ed.empleado_id AND b.fecha = $3::date
+         )`,
+      [empleado_ids, ubicacion_id, fecha, dia_semana]
+    );
+    return rows.map((fila) => ({
+      ...fila,
+      hora_inicio: String(fila.hora_inicio).slice(0, 5),
+      hora_fin: String(fila.hora_fin).slice(0, 5),
+      descansos: Array.isArray(fila.descansos) ? fila.descansos : [],
+    }));
+  },
+
+  async findEmpleadosFestivo(fecha, ubicacion_id, servicio_id = null) {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT u.id, u.nombre, u.apellido, ep.foto_url,
+              etp.duracion_minutos, sc.precio_base, sc.nombre AS servicio_nombre
+       FROM empleado_festivo f
+       JOIN app_user u ON u.id = f.empleado_id
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
+       JOIN empleado_tiempo_servicio etp ON etp.empleado_id = u.id
+       JOIN servicio_catalogo sc ON sc.id = etp.servicio_id AND sc.activo = TRUE
+       WHERE f.fecha = $1::date
+         AND f.ubicacion_id = $2
+         AND u.rol = 'empleado' AND NOT u.esta_bloqueado
+         AND ($3::int IS NULL OR etp.servicio_id = $3::int)
+         AND NOT EXISTS (
+           SELECT 1 FROM empleado_bloqueo_fecha b
+           WHERE b.empleado_id = u.id AND b.fecha = f.fecha
+         )
+       ORDER BY u.nombre, u.apellido`,
+      [fecha, ubicacion_id, servicio_id || null]
     );
     return rows;
   },
@@ -617,10 +772,38 @@ const reservasModel = {
 
   async findJornada(ubicacion_id, fecha) {
     const { rows } = await pool.query(
-      'SELECT * FROM jornada WHERE ubicacion_id = $1 AND fecha = $2',
+      `SELECT *, FALSE AS es_plantilla
+       FROM jornada
+       WHERE ubicacion_id = $1 AND fecha = $2::date`,
       [ubicacion_id, fecha]
     );
-    return rows[0] || null;
+    if (rows[0]) return rows[0];
+
+    const festivo = esFestivo(fecha);
+    if (festivo) {
+      return {
+        ubicacion_id: Number(ubicacion_id),
+        fecha: String(fecha).slice(0, 10),
+        cerrado: true,
+        motivo: `Festivo: ${festivo.nombre}`,
+        es_plantilla: false,
+      };
+    }
+
+    const { rows: plantilla } = await pool.query(
+      `SELECT *, TRUE AS es_plantilla
+       FROM jornada_plantilla
+       WHERE ubicacion_id = $1
+         AND dia_semana = EXTRACT(ISODOW FROM $2::date)::int`,
+      [ubicacion_id, fecha]
+    );
+    if (!plantilla[0]) return null;
+    return {
+      ...plantilla[0],
+      fecha: String(fecha).slice(0, 10),
+      cerrado: !plantilla[0].abierto,
+      motivo: plantilla[0].abierto ? null : 'Sede cerrada por la plantilla semanal',
+    };
   },
 
   async findJornadas(ubicacion_id) {
@@ -631,13 +814,91 @@ const reservasModel = {
     return rows;
   },
 
+  async findJornadasEnRango(desde, hasta) {
+    const { rows } = await pool.query(
+      `SELECT j.*, u.nombre AS ubicacion_nombre
+       FROM jornada j
+       JOIN ubicacion u ON u.id = j.ubicacion_id
+       WHERE j.fecha BETWEEN $1::date AND $2::date
+       ORDER BY j.fecha, u.nombre`,
+      [desde, hasta]
+    );
+    return rows;
+  },
+
+  async findPlantilla(ubicacion_id) {
+    const { rows } = await pool.query(
+      'SELECT * FROM jornada_plantilla WHERE ubicacion_id = $1 ORDER BY dia_semana',
+      [ubicacion_id]
+    );
+    return rows;
+  },
+
+  async findPlantillas() {
+    const { rows } = await pool.query(
+      `SELECT p.*, u.nombre AS ubicacion_nombre
+       FROM jornada_plantilla p
+       JOIN ubicacion u ON u.id = p.ubicacion_id
+       ORDER BY u.nombre, p.dia_semana`
+    );
+    return rows;
+  },
+
+  async replacePlantilla(ubicacion_id, items, client = pool) {
+    await client.query('DELETE FROM jornada_plantilla WHERE ubicacion_id = $1', [ubicacion_id]);
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO jornada_plantilla
+           (ubicacion_id, dia_semana, abierto, hora_inicio, hora_fin)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (ubicacion_id, dia_semana) DO UPDATE
+         SET abierto = EXCLUDED.abierto,
+             hora_inicio = EXCLUDED.hora_inicio,
+             hora_fin = EXCLUDED.hora_fin,
+             actualizado_en = NOW()`,
+        [ubicacion_id, item.dia_semana, item.abierto, item.hora_inicio, item.hora_fin]
+      );
+    }
+  },
+
+  async upsertJornada(ubicacion_id, item) {
+    const { rows } = await pool.query(
+      `INSERT INTO jornada
+         (ubicacion_id, fecha, hora_inicio, hora_fin, cerrado, motivo)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (ubicacion_id, fecha) DO UPDATE
+       SET hora_inicio = EXCLUDED.hora_inicio,
+           hora_fin = EXCLUDED.hora_fin,
+           cerrado = EXCLUDED.cerrado,
+           motivo = EXCLUDED.motivo
+       RETURNING *`,
+      [
+        ubicacion_id,
+        item.fecha,
+        item.hora_inicio,
+        item.hora_fin,
+        Boolean(item.cerrado),
+        item.motivo || null,
+      ]
+    );
+    return rows[0];
+  },
+
   async replaceJornadas(ubicacion_id, items, client = pool) {
     await client.query('DELETE FROM jornada WHERE ubicacion_id = $1', [ubicacion_id]);
     for (const item of items) {
       await client.query(
-        `INSERT INTO jornada (ubicacion_id, fecha, hora_inicio, hora_fin)
-         VALUES ($1, $2, $3, $4)`,
-        [ubicacion_id, item.fecha, item.hora_inicio, item.hora_fin]
+        `INSERT INTO jornada
+           (ubicacion_id, fecha, hora_inicio, hora_fin, cerrado, motivo)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          ubicacion_id,
+          item.fecha,
+          item.hora_inicio,
+          item.hora_fin,
+          Boolean(item.cerrado),
+          item.motivo || null,
+        ]
       );
     }
   },
@@ -773,6 +1034,38 @@ const reservasModel = {
       [empleado_id, ubicacion_id, dia_semana]
     );
     return rows;
+  },
+
+  async findReservasFuturasBySedeDia(ubicacion_id, dia_semana) {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT r.id
+       FROM reserva r
+       WHERE r.ubicacion_id = $1
+         AND r.inicia_en > NOW()
+         AND r.estado IN ('pendiente', 'confirmada')
+         AND EXTRACT(ISODOW FROM (r.inicia_en AT TIME ZONE 'America/Bogota'))::int = $2
+         AND NOT EXISTS (
+           SELECT 1 FROM jornada j
+           WHERE j.ubicacion_id = r.ubicacion_id
+             AND j.fecha = (r.inicia_en AT TIME ZONE 'America/Bogota')::date
+             AND j.cerrado = FALSE
+         )`,
+      [ubicacion_id, dia_semana]
+    );
+    return rows.map((fila) => fila.id);
+  },
+
+  async findReservasFuturasBySedeFecha(ubicacion_id, fecha) {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT r.id
+       FROM reserva r
+       WHERE r.ubicacion_id = $1
+         AND r.inicia_en > NOW()
+         AND r.estado IN ('pendiente', 'confirmada')
+         AND (r.inicia_en AT TIME ZONE 'America/Bogota')::date = $2::date`,
+      [ubicacion_id, fecha]
+    );
+    return rows.map((fila) => fila.id);
   },
 
   async cancelReservasFuturas(ids, motivo) {

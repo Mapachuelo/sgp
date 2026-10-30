@@ -80,6 +80,30 @@ const reservasController = {
     res.json({ ok: true, data: result });
   }),
 
+  getJornadaPlantilla: asyncHandler(async (req, res) => {
+    const result = await reservasService.getJornadaPlantilla(req.query.ubicacion_id || null);
+    res.json({ ok: true, data: result });
+  }),
+
+  updateJornadaPlantilla: asyncHandler(async (req, res) => {
+    const { ubicacion_id, items } = req.body;
+    if (!ubicacion_id || !items) {
+      throw new HttpError(400, 'ubicacion_id e items son requeridos');
+    }
+    const result = await reservasService.updateJornadaPlantilla(ubicacion_id, items);
+    res.json({ ok: true, data: result });
+  }),
+
+  getFestivos: asyncHandler(async (req, res) => {
+    const result = await reservasService.getFestivos(req.query.desde, req.query.hasta);
+    res.json({ ok: true, data: result });
+  }),
+
+  abrirFestivo: asyncHandler(async (req, res) => {
+    const result = await reservasService.abrirFestivo(req.body || {});
+    res.json({ ok: true, data: result });
+  }),
+
   updateJornada: asyncHandler(async (req, res) => {
     const { ubicacion_id, items } = req.body;
     if (!ubicacion_id || !items) {
@@ -110,6 +134,21 @@ const reservasController = {
     logger.info({ reserva_id: reserva.id, cliente_id: req.usuario.id }, 'Reserva creada');
     emitReservaActualizada(reserva.id, 'pendiente');
     res.status(201).json({ ok: true, data: reserva });
+  }),
+
+  reservasEmpleadoDia: asyncHandler(async (req, res) => {
+    const data = await reservasService.getReservasEmpleadoDia(req.usuario.id, req.query.fecha);
+    res.json({ ok: true, data });
+  }),
+
+  cancelarDiaEmpleado: asyncHandler(async (req, res) => {
+    const result = await reservasService.cancelarDiaEmpleado(req.usuario.id, req.body || {});
+    result.reservas_canceladas.forEach((item) => emitReservaActualizada(item.reserva_id, 'cancelada'));
+    logger.info(
+      { empleado_id: req.usuario.id, fecha: result.fecha, total: result.total_canceladas },
+      'Dia del empleado cancelado por imprevisto'
+    );
+    res.json({ ok: true, data: result });
   }),
 
   misReservas: asyncHandler(async (req, res) => {

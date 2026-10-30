@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const env = require('../../src/config/env');
+const { esFestivo } = require('../../src/shared/festivos-colombia');
 
 const pool = new Pool({ connectionString: env.databaseUrl });
 
@@ -68,6 +69,9 @@ function proximoLunes() {
   const faltan = (1 - dia + 7) % 7 || 7;
   const objetivo = new Date(hoy);
   objetivo.setDate(hoy.getDate() + faltan);
+  while (esFestivo(objetivo.toISOString().slice(0, 10))) {
+    objetivo.setDate(objetivo.getDate() + 7);
+  }
   return objetivo;
 }
 

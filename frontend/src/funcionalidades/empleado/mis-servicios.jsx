@@ -131,7 +131,7 @@ export default function MisServicios() {
 
       <Card>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
-          <div className="relative">
+          <div className="relative self-end">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tenue" aria-hidden="true" />
             <Input
               placeholder="Buscar servicio..."

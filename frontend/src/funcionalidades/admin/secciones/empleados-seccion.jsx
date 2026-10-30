@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ImageOff, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ImageOff, Pencil, Plus, Search, Trash2, Upload, Users } from 'lucide-react';
 import { PageHeader, Avatar, Badge, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
 import CampoTelefono from '../../../componentes/telefono/campo-telefono.jsx';
 import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
+import { comprimirImagen } from '../../../lib/imagen.js';
 
 const dinero = (valor) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
@@ -23,7 +24,13 @@ const DIAS = [
 function crearHorarioDefault() {
   const horario = {};
   for (let d = 1; d <= 7; d++) {
-    horario[d] = { disponible: d <= 5, hora_inicio: '08:00', hora_fin: '17:00' };
+    horario[d] = {
+      disponible: d <= 5,
+      hora_inicio: '08:00',
+      hora_fin: '17:00',
+      descanso: false,
+      descansos: [],
+    };
   }
   return horario;
 }
@@ -31,7 +38,13 @@ function crearHorarioDefault() {
 function crearHorarioVacio() {
   const horario = {};
   for (let d = 1; d <= 7; d++) {
-    horario[d] = { disponible: false, hora_inicio: '08:00', hora_fin: '17:00' };
+    horario[d] = {
+      disponible: false,
+      hora_inicio: '08:00',
+      hora_fin: '17:00',
+      descanso: false,
+      descansos: [],
+    };
   }
   return horario;
 }
@@ -43,6 +56,8 @@ const FORM_INICIAL = {
   password: '',
   telefono: '',
   identificacion: '',
+  comision_porcentaje: 50,
+  foto_url: '',
   sedes_asignadas: [],
   horarios: {},
   servicios_asignados: {},
@@ -62,6 +77,8 @@ export default function EmpleadosSeccion() {
   const [busquedaServicios, setBusquedaServicios] = useState('');
   const [categoriaServicio, setCategoriaServicio] = useState('');
   const [error, setError] = useState('');
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const inputFotoRef = useRef(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -158,6 +175,21 @@ export default function EmpleadosSeccion() {
     });
   };
 
+  const subirFoto = async (event) => {
+    const archivo = event.target.files?.[0];
+    event.target.value = '';
+    if (!archivo) return;
+    setSubiendoFoto(true);
+    try {
+      const foto = await comprimirImagen(archivo, { maxLado: 512, maxBytes: 180 * 1024 });
+      setForm((previo) => ({ ...previo, foto_url: foto }));
+    } catch (errorFoto) {
+      avisarAdmin(errorFoto.message, 'error');
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
+
   const guardar = async () => {
     if (!form.nombre || !form.apellido || !form.email) {
       setError('Nombre, apellido y email son obligatorios');
@@ -180,6 +212,8 @@ export default function EmpleadosSeccion() {
               dia_semana: Number(diaSemana),
               hora_inicio: config.hora_inicio || '08:00',
               hora_fin: config.hora_fin || '17:00',
+              descanso: Boolean(config.descanso),
+              descansos: Array.isArray(config.descansos) ? config.descansos : [],
             });
           }
         });
@@ -236,6 +270,8 @@ export default function EmpleadosSeccion() {
       password: '',
       telefono: empleado.telefono || '',
       identificacion: empleado.identificacion || '',
+      comision_porcentaje: empleado.comision_porcentaje ?? 50,
+      foto_url: empleado.foto_url || '',
       sedes_asignadas: [],
       horarios: {},
       servicios_asignados: {},
@@ -256,6 +292,8 @@ export default function EmpleadosSeccion() {
           disponible: true,
           hora_inicio: (item.hora_inicio || '').slice(0, 5) || '08:00',
           hora_fin: (item.hora_fin || '').slice(0, 5) || '17:00',
+          descanso: Boolean(item.descanso),
+          descansos: Array.isArray(item.descansos) ? item.descansos : [],
         };
       });
       const serviciosMap = {};
@@ -303,6 +341,33 @@ export default function EmpleadosSeccion() {
               <Users className="w-5 h-5 text-primario" aria-hidden="true" />
               {editId ? 'Editar empleado' : 'Nuevo empleado'}
             </h3>
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-borde bg-panel/40 p-3">
+              <Avatar nombre={form.nombre} apellido={form.apellido} fotoUrl={form.foto_url} size="lg" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-texto-principal">Foto del empleado</p>
+                <p className="mt-0.5 text-[11px] leading-5 text-texto-secundario">
+                  Opcional. Si no tiene foto, el cliente verá sus iniciales. También puede cambiarla desde su perfil.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => inputFotoRef.current?.click()} disabled={subiendoFoto}>
+                    {subiendoFoto ? <Spinner /> : <><Upload className="h-3.5 w-3.5" aria-hidden="true" /> {form.foto_url ? 'Cambiar foto' : 'Subir foto'}</>}
+                  </Button>
+                  {form.foto_url && (
+                    <Button type="button" variant="dangerSuave" size="sm" onClick={() => setForm((previo) => ({ ...previo, foto_url: '' }))}>
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Quitar foto
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <input
+                ref={inputFotoRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={subirFoto}
+                aria-label="Foto del empleado"
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <Input label="Nombre" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
               <Input label="Apellido" value={form.apellido} onChange={(e) => setForm((p) => ({ ...p, apellido: e.target.value }))} />
@@ -310,6 +375,16 @@ export default function EmpleadosSeccion() {
               <Input label={editId ? 'Nuevo password (opcional)' : 'Password'} type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={editId ? 'Dejar vacio para no cambiar' : ''} />
               <CampoTelefono label="Teléfono" value={form.telefono} onChange={(telefono) => setForm((p) => ({ ...p, telefono }))} />
               <Input label="Identificación" value={form.identificacion} onChange={(e) => setForm((p) => ({ ...p, identificacion: e.target.value }))} />
+              <Input
+                label="Comisión del empleado (%)"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={form.comision_porcentaje}
+                onChange={(e) => setForm((p) => ({ ...p, comision_porcentaje: e.target.value }))}
+                hint="El salón recibe el porcentaje restante."
+              />
             </div>
 
             <div className="mt-5 space-y-2">

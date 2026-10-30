@@ -1,4 +1,6 @@
 const checkinModel = require('./checkin.model');
+const disponibilidadModel = require('../disponibilidad/disponibilidad.model');
+const reservasModel = require('../reservas/reservas.model');
 const HttpError = require('../../shared/http-error');
 const { withTransaction } = require('../../config/db');
 
@@ -47,6 +49,15 @@ function validarReservaId(valor) {
   return id;
 }
 
+function fechaBogota(fecha) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(fecha));
+}
+
 function minutosBogota(fecha) {
   const texto = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'America/Bogota',
@@ -61,6 +72,24 @@ function minutosBogota(fecha) {
 function minutosDeHora(hora) {
   const [h, m] = String(hora).split(':').map(Number);
   return h * 60 + m;
+}
+
+function intervalosTurno(turno) {
+  if (!turno || turno.descanso) return [];
+  const inicio = minutosDeHora(turno.hora_inicio);
+  const fin = minutosDeHora(turno.hora_fin);
+  const descansos = (Array.isArray(turno.descansos) ? turno.descansos : [])
+    .map((item) => ({ inicio: minutosDeHora(item.inicio), fin: minutosDeHora(item.fin) }))
+    .filter((item) => item.inicio < item.fin)
+    .sort((a, b) => a.inicio - b.inicio);
+  const intervalos = [];
+  let cursor = inicio;
+  for (const descanso of descansos) {
+    if (descanso.inicio > cursor) intervalos.push([cursor, descanso.inicio]);
+    cursor = Math.max(cursor, descanso.fin);
+  }
+  if (cursor < fin) intervalos.push([cursor, fin]);
+  return intervalos;
 }
 
 function parsearMonto(valor) {
@@ -237,27 +266,32 @@ const checkinService = {
         }
 
         const finReal = new Date(ahora.getTime() + duracionMinutos * 60000);
-        const turno = await checkinModel.findDisponibilidadEmpleado(
+        const fechaTurno = fechaBogota(ahora);
+        const diaTurno = new Date(`${fechaTurno}T00:00:00Z`).getUTCDay() || 7;
+        const turno = await disponibilidadModel.findDisponibilidadEfectiva(
           empleadoId,
           reserva.ubicacion_id,
-          ahora,
-          client
+          fechaTurno,
+          diaTurno
         );
         if (!turno) {
           throw new HttpError(409, 'El empleado no tiene turno configurado para este dia');
         }
-        if (minutosBogota(ahora) < minutosDeHora(turno.hora_inicio)) {
-          throw new HttpError(409, `Tu turno comienza a las ${String(turno.hora_inicio).slice(0, 5)}`);
-        }
-        if (minutosBogota(finReal) > minutosDeHora(turno.hora_fin)) {
+        const intervalos = intervalosTurno(turno);
+        const inicioTurno = minutosBogota(ahora);
+        const finTurno = minutosBogota(finReal);
+        if (!intervalos.some(([desde, hasta]) => inicioTurno >= desde && finTurno <= hasta)) {
           throw new HttpError(
             409,
-            `El servicio terminaria despues de tu turno (${String(turno.hora_fin).slice(0, 5)})`
+            'El servicio se cruza con un descanso o queda fuera de tu turno'
           );
         }
 
-        const jornada = await checkinModel.findJornada(reserva.ubicacion_id, ahora, client);
-        if (jornada) {
+        const jornada = await reservasModel.findJornada(reserva.ubicacion_id, fechaTurno);
+        if (jornada?.cerrado) {
+          throw new HttpError(409, jornada.motivo || 'La sede no atiende este dia');
+        }
+        if (jornada?.hora_inicio && jornada?.hora_fin) {
           if (minutosBogota(ahora) < minutosDeHora(jornada.hora_inicio)) {
             throw new HttpError(409, `La sede abre a las ${String(jornada.hora_inicio).slice(0, 5)}`);
           }

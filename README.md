@@ -161,7 +161,7 @@ podman volume rm sgp-pgdata
 
 | Tabla | Proposito |
 |-------|-----------|
-| `ubicacion` | Sedes fisicas con departamento, ciudad y lat/lng |
+| `ubicacion` | Sedes fisicas con departamento, ciudad, lat/lng e imagen opcional del local |
 | `app_user` | Usuarios con roles: cliente, empleado, admin |
 | `empleado_perfil` | Datos extra de empleados |
 | `servicio_categoria` | Titulos del menu: Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros |
@@ -170,11 +170,15 @@ podman volume rm sgp-pgdata
 | `empleado_tiempo_servicio` | Duracion personalizada empleado/servicio |
 | `reserva_servicio` | Segmentos de una reserva: servicio, estilista, horario y precio congelado |
 | `configuracion` | Parametros del negocio, como el maximo de servicios por reserva |
-| `jornada` | Horario global por sede y fecha |
-| `empleado_disponibilidad` | Disponibilidad semanal por empleado/sede |
+| `jornada` | Excepciones de horario por sede y fecha (incluye cierres y festivos) |
+| `jornada_plantilla` | Plantilla semanal fija por sede |
+| `empleado_disponibilidad` | Disponibilidad semanal por empleado/sede con descansos y días de descanso |
+| `empleado_sede_temporal` | Cambios temporales de sede con retorno automático |
+| `empleado_festivo` | Opt-in del empleado para trabajar un festivo abierto |
+| `empleado_bloqueo_fecha` | Bloqueo de una fecha por imprevisto del empleado |
 | `reserva` | Citas con QR token y estados |
 | `cobro` | Pagos fisicos/online, vinculados a `pago` cuando aplica |
-| `pago` | Intentos de pago digital Wompi, referencias, transacciones y estado |
+| `pago` | Intentos de pago digital Wompi, referencias, transacciones, estado y reembolso |
 | `preferencia_usuario` | Rango horario, granularidad, tema y ubicacion preferida |
 | `empleado_perfil` | Identificacion, sede base y foto opcional del empleado |
 
@@ -225,13 +229,21 @@ Credenciales:
 
 La suite `python3 tests/regresion_10x10.py` recorre autenticacion de los 20 usuarios, CRUD, reservas, cola, pagos, webhooks, reportes, logs, preferencias e integridad de datos.
 
+## Panel del empleado
+
+- **Cola y agenda:** citas del día, llegada por QR, cobro, inicio y finalización del servicio, mapa de la sede y resumen diario.
+- **Mi desempeño:** tarjeta con **Cortes realizados** y **Ganado** del mes seleccionado, navegable con ←/→. Incluye todos los servicios cobrados y no reembolsados y aplica el porcentaje de comisión del empleado.
+- **Mi disponibilidad:** kanban semanal; se pueden configurar uno o más descansos por día (día completo o varios rangos) y se guardan automáticamente al tocar el día. Si una modificación se cruza con citas futuras, se muestra el listado y se confirma la cancelación antes de notificar al cliente. El calendario del cliente muestra esas franjas como **Descanso** y no permite reservarlas.
+
 ## Panel de administracion
 
 El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidades/admin/`:
 
 - **Dashboard:** acciones rapidas (Validar QR, Registrar cobro, actualizar), tarjeta de **Gestion** con los accesos, 4 KPIs (recaudacion, reservas del dia, ocupacion promedio por sede, clientes activos) y timeline de reservas con filtros por fecha y sede.
 - **Secciones (páginas independientes):** empleados, servicios, presentación, sedes, horarios/agenda, reportes, moderación de clientes y logs se abren en su propia ruta dentro del shell de administración.
+- **Sedes:** CRUD con dirección, ubicación y una imagen opcional del local; solo el admin la edita y clientes/empleados pueden ampliarla. **Equipo** permite al admin subir o quitar la foto del empleado; si no existe, se muestran sus iniciales.
 - **Acciones rápidas:** Validar QR y Cobro siguen como ventanas flotantes; las confirmaciones y la carga de medios usan modales de acción.
+- **Nómina:** pestaña en Reportes con filtro por empleado, sede y período (mes, quincena o rango), cálculo sobre servicios completados y pagados, y PDF descargable.
 - **Planificador de horarios** (página completa, pestaña por defecto): matriz **empleados x LUN-DOM** con una sede por dia (colores por sede), **citas superpuestas** por estado (clic en una cita pendiente/confirmada abre el modal de validacion), filtros por empleado/sede, navegacion por semanas y editor lateral por celda.
 - Al cambiar la sede de un dia se advierte y, al guardar, se cancelan las reservas futuras de ese dia con el motivo `"El empleado cambió de sede"` (RF9) mostrando el conteo en un toast. La pestaña **Jornada por sede** conserva la edicion de `jornada` (horario de la sede).
 - Interfaz con iconos (lucide-react), textos en español y accesibilidad mantenida (dialogos, foco, Escape, labels).
@@ -305,9 +317,15 @@ La presentacion usa una base separada `sgp_presentacion` y el volumen `sgp-prese
 | GET | `/api/reservas/disponibilidad` | Autenticado |
 | GET | `/api/reservas/jornada` | Publico |
 | PUT | `/api/reservas/jornada` | Admin |
+| GET | `/api/reservas/jornada/plantilla` | Publico |
+| PUT | `/api/reservas/jornada/plantilla` | Admin |
+| POST | `/api/reservas/jornada/festivo` | Admin |
+| GET | `/api/reservas/festivos?desde&hasta` | Publico |
 | GET | `/api/reservas/empleado-tiempos-servicio` | Admin |
 | PUT | `/api/reservas/empleado-tiempos-servicio` | Admin |
 | POST | `/api/reservas` | Cliente |
+| GET | `/api/reservas/empleado/dia?fecha` | Empleado |
+| POST | `/api/reservas/empleado/cancelar-dia` | Empleado |
 | GET | `/api/reservas/me` | Cliente |
 | DELETE | `/api/reservas/me/:id` | Cliente |
 | GET | `/api/reservas/agenda?desde&hasta&departamento&ciudad` | Admin (rango de citas para el planificador) |
@@ -356,13 +374,25 @@ Flujo: el cliente elige "Pago en linea" en el paso 5 y el frontend abre el **Wid
 | GET | `/api/reportes/ventas-diarias` | Admin |
 | GET | `/api/reportes/ocupacion` | Admin |
 | GET | `/api/reportes/clientes-recurrentes` | Admin |
+| GET | `/api/reportes/mi-resumen?desde&hasta` | Empleado |
+| GET | `/api/reportes/nomina?empleado_id&ubicacion_id&desde&hasta` | Admin |
+| GET | `/api/reportes/nomina/pdf?empleado_id&ubicacion_id&desde&hasta` | Admin |
 
 ### Disponibilidad (RF9)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
 | GET | `/api/empleados/disponibilidad` | Empleado |
 | PUT | `/api/empleados/disponibilidad` | Empleado |
+| PUT | `/api/empleados/disponibilidad/descansos` | Empleado |
 | GET | `/api/empleados/disponibilidad/todas` | Admin |
+| GET | `/api/empleados/disponibilidad/temporales` | Empleado/Admin |
+| POST | `/api/empleados/disponibilidad/temporales` | Empleado/Admin |
+| PATCH | `/api/empleados/disponibilidad/temporales/:id/finalizar` | Empleado/Admin |
+| GET | `/api/empleados/disponibilidad/festivos` | Empleado/Admin |
+| POST | `/api/empleados/disponibilidad/festivos` | Empleado/Admin |
+| DELETE | `/api/empleados/disponibilidad/festivos/:fecha` | Empleado/Admin |
+| GET | `/api/empleados/disponibilidad/bloqueos?desde&hasta` | Admin |
+| GET | `/api/empleados/disponibilidad/festivos/admin?fecha` | Admin |
 | GET | `/api/empleados/:empleadoId/disponibilidad` | Admin |
 | PUT | `/api/empleados/:empleadoId/disponibilidad` | Admin |
 
@@ -429,7 +459,7 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Fotos opcionales de empleados y pestaña Mis servicios con duración editable (precio solo admin).
 - Tema claro/oscuro con opcion Sistema, persistencia local (`sgp_tema`) y soporte de `prefers-color-scheme`
 
-Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, categorias y servicios CRUD con imagen, configuracion de maximo de servicios, disponibilidad simple y combinada, empleados por servicio, reservas multi-servicio con varios estilistas, checkin y cola (llegada, efectivo, inicio, finalizacion), pagos Wompi (intencion RBAC, QR, webhook con firma invalida, estado), reportes, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye departamento y ciudad), rate limiting.
+Cubre: healthcheck, docs Swagger, auth (register/verificar/login/me), ubicaciones CRUD, categorias y servicios CRUD con imagen, configuracion de maximo de servicios, disponibilidad simple y combinada, empleados por servicio, reservas multi-servicio con varios estilistas, checkin y cola (llegada, efectivo, inicio, finalizacion), pagos Wompi (intencion RBAC, QR, webhook con firma invalida, estado), reportes (incluido mi-resumen del empleado), disponibilidad automática de descansos, clientes (perfil/bloquear/desbloquear), empleados CRUD, logs (filtros fecha/severidad y export .txt), preferencias (incluye departamento y ciudad), rate limiting.
 Complementan: `tests/datos.sh` (integridad), `tests/esquema.sh` (esquema), `pnpm run test:unit`/`test:coverage` (unitarias y cobertura), `tests/e2e.py` (flujo completo) y `tests/regresion_10x10.py` (10 clientes x 10 empleados).
 
 ## Desarrollo local

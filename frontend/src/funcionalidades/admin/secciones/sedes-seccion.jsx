@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ImageOff, MapPin, Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { PageHeader, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
 import SelectorUbicacion from '../../../componentes/mapa/selector-ubicacion.jsx';
+import ImagenSede from '../../../componentes/ubicaciones/imagen-sede.jsx';
+import { comprimirImagen } from '../../../lib/imagen.js';
 import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
 import { DEPARTAMENTOS, ciudadesDeDepartamento } from '../../../lib/colombia.js';
@@ -13,6 +15,7 @@ const FORM_INICIAL = {
   ciudad: '',
   latitud: '',
   longitud: '',
+  imagen_url: '',
 };
 
 export default function SedesSeccion() {
@@ -25,6 +28,8 @@ export default function SedesSeccion() {
   const [filtroDepartamento, setFiltroDepartamento] = useState('');
   const [filtroCiudad, setFiltroCiudad] = useState('');
   const [ciudadManual, setCiudadManual] = useState(false);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const inputImagenRef = useRef(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -71,6 +76,21 @@ export default function SedesSeccion() {
     setCiudadManual(false);
   };
 
+  const subirImagen = async (event) => {
+    const archivo = event.target.files?.[0];
+    event.target.value = '';
+    if (!archivo) return;
+    setSubiendoImagen(true);
+    try {
+      const imagen = await comprimirImagen(archivo, { maxLado: 1200, maxBytes: 300 * 1024 });
+      setForm((previo) => ({ ...previo, imagen_url: imagen }));
+    } catch (error) {
+      avisarAdmin(error.message, 'error');
+    } finally {
+      setSubiendoImagen(false);
+    }
+  };
+
   const guardar = async () => {
     if (!form.nombre || !form.direccion) {
       return avisarAdmin('Nombre y dirección son obligatorios', 'warning');
@@ -90,7 +110,7 @@ export default function SedesSeccion() {
     }
     setGuardando(true);
     try {
-      const body = { ...form, latitud, longitud };
+      const body = { ...form, latitud, longitud, imagen_url: form.imagen_url || null };
       if (editId) await api.ubicaciones.update(editId, body);
       else await api.ubicaciones.create(body);
       avisarAdmin(editId ? 'Sede actualizada' : 'Sede creada');
@@ -125,6 +145,7 @@ export default function SedesSeccion() {
       ciudad: sede.ciudad || '',
       latitud: sede.latitud ?? '',
       longitud: sede.longitud ?? '',
+      imagen_url: sede.imagen_url || '',
     });
   };
 
@@ -208,6 +229,47 @@ export default function SedesSeccion() {
               <Input label="Longitud" type="number" step="any" value={form.longitud} onChange={(e) => setForm((p) => ({ ...p, longitud: e.target.value }))} />
             </div>
             <div className="mt-4">
+              <span className="block text-xs font-medium text-texto-principal">Imagen del local</span>
+              <div className="mt-1.5 flex flex-wrap items-start gap-3 rounded-md border border-borde bg-panel/40 p-3">
+                {form.imagen_url ? (
+                  <>
+                    <ImagenSede
+                      sede={{ ...form, nombre: form.nombre || 'Sede' }}
+                      className="h-28 w-44 rounded-md"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => inputImagenRef.current?.click()} disabled={subiendoImagen}>
+                        {subiendoImagen ? <Spinner /> : <><Upload className="h-3.5 w-3.5" aria-hidden="true" /> Cambiar</>}
+                      </Button>
+                      <Button type="button" variant="dangerSuave" size="sm" onClick={() => setForm((previo) => ({ ...previo, imagen_url: '' }))}>
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Quitar
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => inputImagenRef.current?.click()}
+                    disabled={subiendoImagen}
+                    className="flex h-28 w-44 flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-control bg-superficie px-3 text-center text-[11px] font-medium text-texto-secundario transition-colors hover:border-acento hover:text-acento disabled:opacity-50"
+                  >
+                    {subiendoImagen ? <Spinner /> : <><ImageOff className="h-4 w-4" aria-hidden="true" /> Subir imagen</>}
+                  </button>
+                )}
+                <input
+                  ref={inputImagenRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={subirImagen}
+                  aria-label="Imagen del local"
+                />
+                <p className="max-w-xs text-[11px] leading-5 text-tenue">
+                  JPG, PNG o WebP. Se comprime automáticamente y solo el administrador puede cambiarla.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4">
               <SelectorUbicacion
                 latitud={form.latitud}
                 longitud={form.longitud}
@@ -242,11 +304,12 @@ export default function SedesSeccion() {
           <div className="flex justify-center py-10"><Spinner /></div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-borde">
-            <table className="w-full text-sm min-w-[760px]">
+            <table className="w-full text-sm min-w-[860px]">
               <thead className="bg-fondo/60">
                 <tr className="text-left text-texto-secundario text-xs uppercase">
                   <th className="py-3 px-3">Departamento</th>
                   <th className="py-3 px-3">Ciudad</th>
+                  <th className="py-3 px-3">Foto</th>
                   <th className="py-3 px-3">Nombre</th>
                   <th className="py-3 px-3">Dirección</th>
                   <th className="py-3 px-3 text-right">Acciones</th>
@@ -257,6 +320,9 @@ export default function SedesSeccion() {
                   <tr key={sede.id} className="border-t border-borde/50 hover:bg-fondo/30 transition-colors">
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{sede.departamento || 'Sin departamento'}</td>
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{sede.ciudad || 'Sin ciudad'}</td>
+                    <td className="py-2.5 px-3">
+                      <ImagenSede sede={sede} className="h-10 w-14 rounded-md" placeholder />
+                    </td>
                     <td className="py-2.5 px-3 font-semibold text-texto-principal">{sede.nombre}</td>
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{sede.direccion}</td>
                     <td className="py-2.5 px-3">
@@ -272,7 +338,7 @@ export default function SedesSeccion() {
                   </tr>
                 ))}
                 {sedesFiltradas.length === 0 && (
-                  <tr><td colSpan="5" className="py-10 text-center text-texto-secundario">No hay sedes para los filtros seleccionados</td></tr>
+                  <tr><td colSpan="6" className="py-10 text-center text-texto-secundario">No hay sedes para los filtros seleccionados</td></tr>
                 )}
               </tbody>
             </table>

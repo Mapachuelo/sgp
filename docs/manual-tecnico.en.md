@@ -79,8 +79,8 @@ Interactive documentation: `http://localhost:8080/api/docs` (OpenAPI 3).
 | Bookings | `/api/reservas` (create/list), `/me`, `/agenda`, services, shifts, availability, times |
 | Check-in / queue | `POST /api/checkin/consultar`, `/llegada`, `/cobro-efectivo`, `/iniciar`, `/finalizar`; `/validar` (legacy shortcut) |
 | Payments | `POST /api/pagos/intencion`, `GET /api/pagos/:id`, `POST /api/pagos/:id/verificar`, `POST /api/pagos/webhook` |
-| Reports | `/api/reportes/ventas-diarias`, `/ocupacion`, `/clientes-recurrentes` |
-| Availability | `/api/empleados/disponibilidad`, `/disponibilidad/todas`, `/:id/disponibilidad` |
+| Reports | `/api/reportes/ventas-diarias`, `/ocupacion`, `/clientes-recurrentes`, `/mi-resumen`, `/nomina`, `/nomina/pdf` |
+| Availability | `/api/empleados/disponibilidad`, `/disponibilidad/descansos`, `/disponibilidad/todas`, `/:id/disponibilidad` |
 | Logs | `/api/logs/actividad`, `/errores`, `/exportar` |
 | Preferences | `/api/preferencias` |
 | Realtime | `ws://.../ws` (`conexion`, `disponibilidad.actualizada`, `reserva.actualizada`) |

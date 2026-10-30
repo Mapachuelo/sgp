@@ -26,6 +26,7 @@ import {
   Tabs,
 } from '../../componentes/ui/index.jsx';
 import PagoReservaModal from '../../componentes/pagos/pago-reserva-modal.jsx';
+import ImagenSede from '../../componentes/ubicaciones/imagen-sede.jsx';
 import api from '../../api/cliente.js';
 import { useAuth } from '../../hooks/use-auth.js';
 import useWebSocket from '../../hooks/use-websocket.js';
@@ -181,8 +182,9 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
             <StatusPill estado={reserva.estado}>{ETIQUETA_ESTADO[reserva.estado] || reserva.estado}</StatusPill>
           </div>
           <p className="mt-3 text-base font-medium text-texto-principal">{reserva.servicio_nombre || 'Servicio'}</p>
-          <p className="mt-1 text-sm text-texto-secundario">
-            {reserva.equipo_nombre || `${reserva.empleado_nombre || ''} ${reserva.empleado_apellido || ''}`.trim()} · {personas(reserva.cantidad_personas)}
+          <p className="mt-1 flex items-center gap-2 text-sm text-texto-secundario">
+            <Avatar nombre={reserva.empleado_nombre} apellido={reserva.empleado_apellido} fotoUrl={reserva.empleado_foto_url} size="sm" />
+            <span>{reserva.equipo_nombre || `${reserva.empleado_nombre || ''} ${reserva.empleado_apellido || ''}`.trim()} · {personas(reserva.cantidad_personas)}</span>
           </p>
         </div>
 
@@ -194,6 +196,18 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
             <p className="mt-0.5 text-[11px] text-tenue">
               {[reserva.ubicacion_ciudad, reserva.ubicacion_departamento].filter(Boolean).join(' · ')}
             </p>
+          )}
+          {reserva.ubicacion_imagen_url && (
+            <ImagenSede
+              sede={{
+                nombre: reserva.ubicacion_nombre,
+                direccion: reserva.ubicacion_direccion,
+                ciudad: reserva.ubicacion_ciudad,
+                departamento: reserva.ubicacion_departamento,
+                imagen_url: reserva.ubicacion_imagen_url,
+              }}
+              className="mt-3 h-36 w-full rounded-md"
+            />
           )}
           {tieneMapa ? (
             <div className="relative z-0 mt-3 h-40 overflow-hidden rounded-md border border-borde">

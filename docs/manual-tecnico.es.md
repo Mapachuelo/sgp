@@ -81,8 +81,8 @@ Documentación interactiva: `http://localhost:8080/api/docs` (OpenAPI 3).
 | Reservas | `/api/reservas` (crear/listar), `/me`, `/agenda`, servicios, jornada, disponibilidad, tiempos |
 | Check-in / cola | `POST /api/checkin/consultar`, `/llegada`, `/cobro-efectivo`, `/iniciar`, `/finalizar`; `/validar` (atajo legacy) |
 | Pagos | `POST /api/pagos/intencion`, `GET /api/pagos/:id`, `POST /api/pagos/:id/verificar`, `POST /api/pagos/webhook` |
-| Reportes | `/api/reportes/ventas-diarias`, `/ocupacion`, `/clientes-recurrentes` |
-| Disponibilidad | `/api/empleados/disponibilidad`, `/disponibilidad/todas`, `/:id/disponibilidad` |
+| Reportes | `/api/reportes/ventas-diarias`, `/ocupacion`, `/clientes-recurrentes`, `/mi-resumen`, `/nomina`, `/nomina/pdf` |
+| Disponibilidad | `/api/empleados/disponibilidad`, `/disponibilidad/descansos`, `/disponibilidad/todas`, `/:id/disponibilidad` |
 | Logs | `/api/logs/actividad`, `/errores`, `/exportar` |
 | Preferencias | `/api/preferencias` |
 | Realtime | `ws://.../ws` (eventos `conexion`, `disponibilidad.actualizada`, `reserva.actualizada`) |

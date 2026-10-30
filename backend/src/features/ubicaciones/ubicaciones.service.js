@@ -15,6 +15,18 @@ function validarCoordenadas(latitud, longitud) {
   }
 }
 
+function normalizarImagen(valor) {
+  if (valor === undefined) return undefined;
+  if (valor === null || valor === '') return null;
+  if (typeof valor !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(valor)) {
+    throw new HttpError(400, 'La imagen de la sede debe ser PNG, JPG o WebP');
+  }
+  if (valor.length > 900000) {
+    throw new HttpError(400, 'La imagen de la sede es demasiado grande');
+  }
+  return valor;
+}
+
 function validarTexto(valor, campo, maximo = 120) {
   if (typeof valor !== 'string' || !valor.trim()) {
     throw new HttpError(400, `${campo} es requerido`);
@@ -43,6 +55,7 @@ const ubicacionesService = {
       ciudad: validarTexto(data.ciudad, 'ciudad'),
       latitud: Number(data.latitud),
       longitud: Number(data.longitud),
+      imagen_url: normalizarImagen(data.imagen_url) ?? null,
     });
   },
 
@@ -59,6 +72,7 @@ const ubicacionesService = {
     const payload = { ...data };
     if (data.departamento !== undefined) payload.departamento = validarTexto(data.departamento, 'departamento');
     if (data.ciudad !== undefined) payload.ciudad = validarTexto(data.ciudad, 'ciudad');
+    if (data.imagen_url !== undefined) payload.imagen_url = normalizarImagen(data.imagen_url);
     return ubicacionesModel.update(id, payload);
   },
 

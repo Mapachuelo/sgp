@@ -31,7 +31,7 @@ esperar_tabla() {
 
 echo "== Validacion del esquema (docs/modelo-datos.md) =="
 
-for tabla in ubicacion app_user empleado_perfil servicio_categoria servicio_catalogo servicio_imagen empleado_tiempo_servicio jornada empleado_disponibilidad reserva reserva_servicio cobro pago preferencia_usuario configuracion; do
+for tabla in ubicacion app_user empleado_perfil servicio_categoria servicio_catalogo servicio_imagen empleado_tiempo_servicio jornada jornada_plantilla empleado_disponibilidad empleado_sede_temporal empleado_festivo empleado_bloqueo_fecha reserva reserva_servicio cobro pago preferencia_usuario configuracion; do
   validar "Tabla $tabla existe" "SELECT to_regclass('public.$tabla') IS NOT NULL"
 done
 
@@ -98,6 +98,36 @@ validar "empleado_disponibilidad.dia_semana entre 1 y 7" \
 validar "jornada UNIQUE (ubicacion, fecha)" \
   "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='jornada' AND indexdef LIKE '%UNIQUE%ubicacion_id%fecha%')"
 
+validar "jornada.cerrado existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='jornada' AND column_name='cerrado' AND data_type='boolean')"
+
+validar "jornada_plantilla UNIQUE (ubicacion, dia)" \
+  "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='jornada_plantilla' AND indexdef LIKE '%UNIQUE%ubicacion_id%dia_semana%')"
+
+validar "empleado_disponibilidad.descansos existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleado_disponibilidad' AND column_name='descansos' AND data_type='jsonb')"
+
+validar "empleado_disponibilidad.descanso existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleado_disponibilidad' AND column_name='descanso' AND data_type='boolean')"
+
+validar "empleado_sede_temporal.dias_semana existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleado_sede_temporal' AND column_name='dias_semana' AND data_type='ARRAY')"
+
+validar "empleado_festivo UNIQUE (empleado, fecha)" \
+  "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='empleado_festivo' AND indexdef LIKE '%UNIQUE%empleado_id%fecha%')"
+
+validar "empleado_bloqueo_fecha UNIQUE (empleado, fecha)" \
+  "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='empleado_bloqueo_fecha' AND indexdef LIKE '%UNIQUE%empleado_id%fecha%')"
+
+validar "empleado_perfil.comision_porcentaje existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleado_perfil' AND column_name='comision_porcentaje' AND data_type='numeric')"
+
+validar "pago.reembolso_estado existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='pago' AND column_name='reembolso_estado')"
+
+validar "cobro.reembolsado_en existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cobro' AND column_name='reembolsado_en' AND data_type='timestamp with time zone')"
+
 validar "empleado_tiempo_servicio UNIQUE (empleado, servicio)" \
   "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='empleado_tiempo_servicio' AND indexdef LIKE '%UNIQUE%empleado_id%servicio_id%')"
 
@@ -106,6 +136,9 @@ validar "ubicacion.departamento existe" \
 
 validar "ubicacion.ciudad existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion' AND column_name='ciudad')"
+
+validar "ubicacion.imagen_url existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion' AND column_name='imagen_url' AND data_type='text')"
 
 validar "preferencia_usuario.ciudad_preferida existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='preferencia_usuario' AND column_name='ciudad_preferida')"
