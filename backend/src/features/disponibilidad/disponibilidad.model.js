@@ -1,6 +1,17 @@
 const pool = require('../../config/db');
 const { esFestivo } = require('../../shared/festivos-colombia');
 
+function combinarDescansos(...listas) {
+  return listas
+    .flat()
+    .filter((descanso) => descanso && descanso.inicio && descanso.fin)
+    .map((descanso) => ({
+      inicio: String(descanso.inicio).slice(0, 5),
+      fin: String(descanso.fin).slice(0, 5),
+    }))
+    .sort((a, b) => a.inicio.localeCompare(b.inicio));
+}
+
 const disponibilidadModel = {
   async findDisponibilidadByEmpleado(empleado_id) {
     const { rows } = await pool.query(
@@ -250,6 +261,70 @@ const disponibilidadModel = {
     return rows[0] || null;
   },
 
+  async findDescansoTemporal(empleado_id, fecha) {
+    const { rows } = await pool.query(
+      `SELECT * FROM empleado_descanso_temporal
+       WHERE empleado_id = $1 AND fecha = $2::date`,
+      [empleado_id, fecha]
+    );
+    return rows[0] || null;
+  },
+
+  async findDescansosTemporales(empleado_id, desde, hasta) {
+    const { rows } = await pool.query(
+      `SELECT * FROM empleado_descanso_temporal
+       WHERE empleado_id = $1
+         AND fecha BETWEEN $2::date AND $3::date
+       ORDER BY fecha`,
+      [empleado_id, desde, hasta]
+    );
+    return rows;
+  },
+
+  async upsertDescansoTemporal(empleado_id, { fecha, descanso, descansos, motivo, creado_por }) {
+    const { rows } = await pool.query(
+      `INSERT INTO empleado_descanso_temporal
+         (empleado_id, fecha, descanso, descansos, motivo, creado_por)
+       VALUES ($1, $2::date, $3, $4::jsonb, $5, $6)
+       ON CONFLICT (empleado_id, fecha) DO UPDATE
+       SET descanso = EXCLUDED.descanso,
+           descansos = EXCLUDED.descansos,
+           motivo = EXCLUDED.motivo,
+           creado_por = EXCLUDED.creado_por,
+           creado_en = NOW()
+       RETURNING *`,
+      [
+        empleado_id,
+        fecha,
+        Boolean(descanso),
+        JSON.stringify(Array.isArray(descansos) ? descansos : []),
+        motivo || null,
+        creado_por || null,
+      ]
+    );
+    return rows[0];
+  },
+
+  async deleteDescansoTemporal(empleado_id, fecha) {
+    const { rows } = await pool.query(
+      `DELETE FROM empleado_descanso_temporal
+       WHERE empleado_id = $1 AND fecha = $2::date
+       RETURNING *`,
+      [empleado_id, fecha]
+    );
+    return rows[0] || null;
+  },
+
+  async deleteDescansosTemporalesRango(empleado_id, desde, hasta) {
+    const { rowCount } = await pool.query(
+      `DELETE FROM empleado_descanso_temporal
+       WHERE empleado_id = $1
+         AND fecha BETWEEN $2::date AND $3::date`,
+      [empleado_id, desde, hasta]
+    );
+    return rowCount;
+  },
+
   async findBloqueo(empleado_id, fecha) {
     const { rows } = await pool.query(
       'SELECT * FROM empleado_bloqueo_fecha WHERE empleado_id = $1 AND fecha = $2',
@@ -290,16 +365,20 @@ const disponibilidadModel = {
   async findDisponibilidadEfectiva(empleado_id, ubicacion_id, fecha, dia_semana) {
     const bloqueo = await disponibilidadModel.findBloqueo(empleado_id, fecha);
     if (bloqueo) return null;
+    const descansoTemporal = await disponibilidadModel.findDescansoTemporal(empleado_id, fecha);
     if (esFestivo(fecha)) {
       const festivo = await disponibilidadModel.findFestivo(empleado_id, fecha);
       if (!festivo || Number(festivo.ubicacion_id) !== Number(ubicacion_id)) return null;
+      const descanso = Boolean(descansoTemporal?.descanso);
       return {
         ...festivo,
         hora_inicio: String(festivo.hora_inicio).slice(0, 5),
         hora_fin: String(festivo.hora_fin).slice(0, 5),
-        descansos: Array.isArray(festivo.descansos) ? festivo.descansos : [],
+        descansos: descanso ? [] : combinarDescansos(festivo.descansos, descansoTemporal?.descansos),
+        descanso,
         ubicacion_efectiva_id: festivo.ubicacion_id,
         es_festivo: true,
+        es_descanso_temporal: Boolean(descansoTemporal),
       };
     }
 
@@ -308,18 +387,27 @@ const disponibilidadModel = {
     const temporal = await disponibilidadModel.findTemporalActivo(empleado_id, fecha);
     const sedeEfectiva = temporal?.ubicacion_id || semanal.ubicacion_id;
     if (Number(sedeEfectiva) !== Number(ubicacion_id)) return null;
+    const descanso = Boolean(semanal.descanso || descansoTemporal?.descanso);
     return {
       ...semanal,
       hora_inicio: String(semanal.hora_inicio).slice(0, 5),
       hora_fin: String(semanal.hora_fin).slice(0, 5),
-      descansos: Array.isArray(semanal.descansos) ? semanal.descansos : [],
+      descansos: descanso ? [] : combinarDescansos(semanal.descansos, descansoTemporal?.descansos),
+      descanso,
       ubicacion_efectiva_id: sedeEfectiva,
       es_temporal: Boolean(temporal),
+      es_descanso_temporal: Boolean(descansoTemporal),
     };
   },
 
   async findDisponibilidadEfectivaEmpleados(empleado_ids, ubicacion_id, fecha, dia_semana) {
     if (!empleado_ids.length) return [];
+    const { rows: temporales } = await pool.query(
+      `SELECT * FROM empleado_descanso_temporal
+       WHERE empleado_id = ANY($1::int[]) AND fecha = $2::date`,
+      [empleado_ids, fecha]
+    );
+    const mapaTemporales = new Map(temporales.map((fila) => [Number(fila.empleado_id), fila]));
     if (esFestivo(fecha)) {
       const { rows } = await pool.query(
         `SELECT f.*, u.nombre AS ubicacion_nombre
@@ -334,14 +422,20 @@ const disponibilidadModel = {
            )`,
         [empleado_ids, fecha, ubicacion_id]
       );
-      return rows.map((fila) => ({
-        ...fila,
-        hora_inicio: String(fila.hora_inicio).slice(0, 5),
-        hora_fin: String(fila.hora_fin).slice(0, 5),
-        descansos: Array.isArray(fila.descansos) ? fila.descansos : [],
-        ubicacion_efectiva_id: fila.ubicacion_id,
-        es_festivo: true,
-      }));
+      return rows.map((fila) => {
+        const descansoTemporal = mapaTemporales.get(Number(fila.empleado_id));
+        const descanso = Boolean(descansoTemporal?.descanso);
+        return {
+          ...fila,
+          hora_inicio: String(fila.hora_inicio).slice(0, 5),
+          hora_fin: String(fila.hora_fin).slice(0, 5),
+          descansos: descanso ? [] : combinarDescansos(fila.descansos, descansoTemporal?.descansos),
+          descanso,
+          ubicacion_efectiva_id: fila.ubicacion_id,
+          es_festivo: true,
+          es_descanso_temporal: Boolean(descansoTemporal),
+        };
+      });
     }
 
     const { rows } = await pool.query(
@@ -364,12 +458,18 @@ const disponibilidadModel = {
          AND COALESCE(t.ubicacion_id, ed.ubicacion_id) = $3`,
       [empleado_ids, fecha, ubicacion_id, dia_semana]
     );
-    return rows.map((fila) => ({
-      ...fila,
-      hora_inicio: String(fila.hora_inicio).slice(0, 5),
-      hora_fin: String(fila.hora_fin).slice(0, 5),
-      descansos: Array.isArray(fila.descansos) ? fila.descansos : [],
-    }));
+    return rows.map((fila) => {
+      const descansoTemporal = mapaTemporales.get(Number(fila.empleado_id));
+      const descanso = Boolean(fila.descanso || descansoTemporal?.descanso);
+      return {
+        ...fila,
+        hora_inicio: String(fila.hora_inicio).slice(0, 5),
+        hora_fin: String(fila.hora_fin).slice(0, 5),
+        descansos: descanso ? [] : combinarDescansos(fila.descansos, descansoTemporal?.descansos),
+        descanso,
+        es_descanso_temporal: Boolean(descansoTemporal),
+      };
+    });
   },
 };
 

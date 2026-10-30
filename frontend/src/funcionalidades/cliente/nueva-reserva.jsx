@@ -398,6 +398,8 @@ export default function NuevaReserva() {
   const [slotSeleccionado, setSlotSeleccionado] = useState(null);
 
   const [cantidad, setCantidad] = useState(1);
+  const [validandoCantidad, setValidandoCantidad] = useState(false);
+  const validandoCantidadRef = useRef(false);
   const [reservaCreada, setReservaCreada] = useState(null);
   const [metodoPago, setMetodoPago] = useState('efectivo');
   const [pagoEstado, setPagoEstado] = useState('inicial');
@@ -1054,14 +1056,50 @@ export default function NuevaReserva() {
     setPaso(5);
   };
 
-  const cambiarCantidad = (delta) => {
+  const cambiarCantidad = async (delta) => {
     const nueva = Math.min(5, Math.max(1, Number(cantidad) + delta));
-    if (nueva === Number(cantidad)) return;
+    if (nueva === Number(cantidad) || validandoCantidad) return;
+
+    if (paso === 5 && slotSeleccionado && diaSeleccionado && equipoListo && ubicacionSeleccionada) {
+      if (validandoCantidadRef.current) return;
+      validandoCantidadRef.current = true;
+      setValidandoCantidad(true);
+      try {
+        const data = await api.reservas.disponibilidadCombo({
+          ubicacion_id: ubicacionSeleccionada.id,
+          fecha: diaSeleccionado.fecha,
+          granularidad,
+          cantidad_personas: nueva,
+          servicios: seleccionados.map((servicio) => ({
+            servicio_id: servicio.id,
+            empleado_id: Number(asignaciones[servicio.id]),
+          })),
+        });
+        const inicioActual = new Date(slotSeleccionado.inicia_en).getTime();
+        const nuevoSlot = (data?.slots || []).find(
+          (slot) => new Date(slot.inicia_en).getTime() === inicioActual
+        );
+        if (!nuevoSlot) {
+          const detalle = data?.motivo ? ` ${data.motivo}` : '';
+          mostrarToast(`No se puede agregar más personas por tiempo de turno.${detalle}`, 'error');
+          return;
+        }
+        setCantidad(nueva);
+        setSlotSeleccionado(nuevoSlot);
+        setDisponibilidad({});
+      } catch (error) {
+        mostrarToast(error.message || 'No se pudo validar la cantidad de personas', 'error');
+      } finally {
+        validandoCantidadRef.current = false;
+        setValidandoCantidad(false);
+      }
+      return;
+    }
+
     setCantidad(nueva);
     setSlotSeleccionado(null);
     setDiaSeleccionado(null);
     setDisponibilidad({});
-    if (paso !== 4) setPaso(4);
   };
 
   const handleCrearReserva = async () => {
@@ -1246,10 +1284,10 @@ export default function NuevaReserva() {
               : 'Tu cita quedó activa. Muestra el código QR al llegar y paga en el local.'}
           </p>
           {reservaCreada?.qr_data_url && (
-            <div className="mx-auto mt-6 inline-block max-w-full rounded-lg border border-borde bg-white p-4">
+            <div className="mx-auto mt-6 flex w-full max-w-[240px] flex-col items-center rounded-lg border border-borde bg-white p-4">
               <img src={reservaCreada.qr_data_url} alt="Código QR de la cita" className="mx-auto h-40 w-40" />
               {reservaCreada.qr_token && (
-                <span className="mono mt-2 block break-all text-[10px] text-tenue">{reservaCreada.qr_token}</span>
+                <span className="mono mt-2 block w-full break-all text-center text-[10px] text-tenue">{reservaCreada.qr_token}</span>
               )}
             </div>
           )}
@@ -1909,7 +1947,7 @@ export default function NuevaReserva() {
                   type="button"
                   aria-label="Quitar una persona"
                   onClick={() => cambiarCantidad(-1)}
-                  disabled={cantidad <= 1}
+                  disabled={cantidad <= 1 || validandoCantidad}
                   className="flex h-7 w-7 items-center justify-center rounded-md border border-control text-sm transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   −
@@ -1919,7 +1957,7 @@ export default function NuevaReserva() {
                   type="button"
                   aria-label="Agregar una persona"
                   onClick={() => cambiarCantidad(1)}
-                  disabled={cantidad >= 5}
+                  disabled={cantidad >= 5 || validandoCantidad}
                   className="flex h-7 w-7 items-center justify-center rounded-md border border-control text-sm transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   +
@@ -2161,7 +2199,7 @@ export default function NuevaReserva() {
                     type="button"
                     aria-label="Quitar una persona"
                     onClick={() => cambiarCantidad(-1)}
-                    disabled={cantidad <= 1}
+                    disabled={cantidad <= 1 || validandoCantidad}
                     className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     −
@@ -2171,14 +2209,16 @@ export default function NuevaReserva() {
                     type="button"
                     aria-label="Agregar una persona"
                     onClick={() => cambiarCantidad(1)}
-                    disabled={cantidad >= 5}
+                    disabled={cantidad >= 5 || validandoCantidad}
                     className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     +
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] leading-5 text-texto-secundario">
-                  Al cambiar las personas volverás al calendario para recalcular la duración y la disponibilidad.
+                  {validandoCantidad
+                    ? 'Validando duración y disponibilidad…'
+                    : 'El horario se actualiza automáticamente al cambiar las personas.'}
                 </p>
                 <div className="mt-4 border-t border-borde pt-3">
                   <div className="flex items-center justify-between text-xs">
@@ -2229,10 +2269,10 @@ export default function NuevaReserva() {
                 Muestra el QR al llegar. Si eliges efectivo, el pago se registra en recepción.
               </p>
               {reservaCreada.qr_data_url && (
-                <div className="mt-4 inline-block rounded-md border border-borde bg-white p-3">
-                  <img src={reservaCreada.qr_data_url} alt="Código QR de la cita" className="h-32 w-32" />
+                <div className="mx-auto mt-4 flex w-full max-w-[220px] flex-col items-center rounded-md border border-borde bg-white p-3">
+                  <img src={reservaCreada.qr_data_url} alt="Código QR de la cita" className="mx-auto h-32 w-32" />
                   {reservaCreada.qr_token && (
-                    <span className="mono mt-2 block break-all text-[9px] text-tenue">{reservaCreada.qr_token}</span>
+                    <span className="mono mt-2 block w-full break-all text-center text-[9px] text-tenue">{reservaCreada.qr_token}</span>
                   )}
                 </div>
               )}

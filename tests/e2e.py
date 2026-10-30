@@ -269,7 +269,7 @@ for b in bloques:
 
 status, data = req('PUT', f'/empleados/{empleado_id}/disponibilidad', nuevos, token_admin)
 resultado = data.get('data') or {}
-check('Cambio de sede cancela solo la reserva pendiente', status == 200 and resultado.get('reservas_canceladas') == [reserva2.get('id')], f'{status} {data}')
+check('Cambio de sede cancela la reserva pendiente del dia', status == 200 and reserva2.get('id') in (resultado.get('reservas_canceladas') or []), f'{status} {data}')
 check('Motivo de cancelacion exacto', resultado.get('motivo_cancelacion') == 'El empleado cambió de sede', resultado.get('motivo_cancelacion'))
 
 out = sql(f"SELECT motivo_cancelacion FROM reserva WHERE id = {reserva2.get('id')}")

@@ -135,7 +135,9 @@ export default function EmpleadoDisponibilidad() {
   const [temporales, setTemporales] = useState([]);
   const [bloqueos, setBloqueos] = useState([]);
   const [modoDescanso, setModoDescanso] = useState('todo');
+  const [vigenciaDescanso, setVigenciaDescanso] = useState('fijo');
   const [descansosRango, setDescansosRango] = useState([{ inicio: '12:00', fin: '14:00' }]);
+  const [descansosTemporales, setDescansosTemporales] = useState([]);
   const [guardandoDescanso, setGuardandoDescanso] = useState(false);
   const [conflictoDescanso, setConflictoDescanso] = useState(null);
   const [filtroSede, setFiltroSede] = useState('');
@@ -178,7 +180,7 @@ export default function EmpleadoDisponibilidad() {
     try {
       const hoy = fechaLocal(new Date());
       const hasta = fechaLocal(sumarDias(new Date(), 60));
-      const [dispData, ubiData, prefData, misTiempos, plantillaData, festivosData, festivosEmpleadoData, temporalesData] = await Promise.all([
+      const [dispData, ubiData, prefData, misTiempos, plantillaData, festivosData, festivosEmpleadoData, temporalesData, descansosTemporalesData] = await Promise.all([
         api.disponibilidad.get(),
         api.ubicaciones.list().catch(() => []),
         api.preferencias.get().catch(() => null),
@@ -187,6 +189,7 @@ export default function EmpleadoDisponibilidad() {
         api.reservas.festivos(hoy, hasta).catch(() => []),
         api.disponibilidad.festivos({ desde: hoy, hasta }).catch(() => []),
         api.disponibilidad.temporales().catch(() => []),
+        api.disponibilidad.descansosTemporales({ desde: hoy, hasta }).catch(() => []),
       ]);
 
       const ubicaciones = Array.isArray(ubiData) ? ubiData : [];
@@ -196,6 +199,7 @@ export default function EmpleadoDisponibilidad() {
       setFestivosEmpleado(Array.isArray(festivosEmpleadoData) ? festivosEmpleadoData : []);
       setMisServicios(Array.isArray(misTiempos) ? misTiempos : []);
       setTemporales(Array.isArray(temporalesData) ? temporalesData : []);
+      setDescansosTemporales(Array.isArray(descansosTemporalesData) ? descansosTemporalesData : []);
 
       const jornadas = await Promise.all(
         ubicaciones.map((sede) => api.reservas.jornada.get(sede.id).catch(() => []))
@@ -296,7 +300,10 @@ export default function EmpleadoDisponibilidad() {
       const sedeId = String(optIn?.ubicacion_id || temporal?.ubicacion_id || base.sedeId || '');
       const sede = sedeDe(sedeId);
       const plantilla = plantillaDe(sedeId, indice + 1);
-      const vista = optIn
+      const descansoTemporal = descansosTemporales.find(
+        (item) => String(item.fecha).slice(0, 10) === fechaTexto
+      );
+      const vistaBase = optIn
         ? {
           ...base,
           sedeId: String(optIn.ubicacion_id),
@@ -306,12 +313,23 @@ export default function EmpleadoDisponibilidad() {
           descanso: false,
         }
         : { ...base, sedeId };
+      const descanso = Boolean(vistaBase.descanso || descansoTemporal?.descanso);
+      const vista = {
+        ...vistaBase,
+        descanso,
+        descansos: descanso
+          ? []
+          : normalizarDescansos([
+            ...(vistaBase.descansos || []),
+            ...(descansoTemporal?.descansos || []),
+          ]),
+      };
       let estado = 'sin_sede';
       if (bloqueo) estado = 'bloqueado';
       else if (festivo) estado = optIn ? 'festivo' : 'festivo_cerrado';
       else if (!sedeId) estado = 'sin_sede';
       else if (plantilla && !plantilla.abierto) estado = 'cerrada';
-      else if (base.descanso) estado = 'descanso';
+      else if (descanso) estado = 'descanso';
       else if (temporal) estado = 'temporal';
       else if (tramos(vista).length > 0) estado = 'disponible';
       return {
@@ -321,6 +339,7 @@ export default function EmpleadoDisponibilidad() {
         fechaTexto,
         base,
         vista,
+        descansoTemporal,
         sedeId,
         sede,
         plantilla,
@@ -331,7 +350,7 @@ export default function EmpleadoDisponibilidad() {
         estado,
       };
     }),
-    [semanaBase, dias, bloqueos, festivos, festivosEmpleado, temporales, sedeDe, plantillaDe]
+    [semanaBase, dias, bloqueos, festivos, festivosEmpleado, temporales, descansosTemporales, sedeDe, plantillaDe]
   );
 
   const diasVisibles = useMemo(
@@ -445,9 +464,7 @@ export default function EmpleadoDisponibilidad() {
   };
 
   const quitarRangoDescanso = (indice) => {
-    setDescansosRango((prev) => (
-      prev.length <= 1 ? prev : prev.filter((_, posicion) => posicion !== indice)
-    ));
+    setDescansosRango((prev) => prev.filter((_, posicion) => posicion !== indice));
   };
 
   const configuracionDescanso = (indice) => {
@@ -502,7 +519,7 @@ export default function EmpleadoDisponibilidad() {
       }
     } catch (error) {
       if (error.detalles?.codigo === 'CONFLICTOS_DESCANSO') {
-        setConflictoDescanso({ items, conflictos: error.detalles.conflictos || [] });
+        setConflictoDescanso({ tipo: 'fijo', items, conflictos: error.detalles.conflictos || [] });
         return;
       }
       mostrarToast(error.message || 'No se pudo guardar el descanso', 'error');
@@ -511,7 +528,98 @@ export default function EmpleadoDisponibilidad() {
     }
   };
 
+  const guardarDescansoTemporal = async (indice, configuracion = null, confirmar = false) => {
+    const dia = dias[indice];
+    const diaInfo = diasSemana[indice];
+    if (!dia?.sedeId) {
+      mostrarToast('Asigna una sede a ese día antes de marcar descanso', 'warning');
+      return;
+    }
+    if (sedeCerrada(dia.sedeId, indice + 1)) {
+      mostrarToast('La sede no abre ese día', 'warning');
+      return;
+    }
+    const config = configuracion || configuracionDescanso(indice);
+    if (!config) {
+      mostrarToast(`El rango debe estar dentro del horario del ${DIAS[indice].nombre}`, 'warning');
+      return;
+    }
+    const fecha = diaInfo?.fechaTexto || proximaFechaDia(indice);
+    setGuardandoDescanso(true);
+    try {
+      const respuesta = await api.disponibilidad.guardarDescansoTemporal({
+        fecha,
+        ...config,
+        confirmar_cancelaciones: confirmar,
+      });
+      const guardado = respuesta?.descanso;
+      setDescansosTemporales((previo) => {
+        const sinFecha = previo.filter((item) => String(item.fecha).slice(0, 10) !== fecha);
+        return guardado && (guardado.descanso || (guardado.descansos || []).length > 0)
+          ? [...sinFecha, guardado]
+          : sinFecha;
+      });
+      mostrarToast(
+        respuesta?.total_canceladas > 0
+          ? `${respuesta.total_canceladas} cita(s) cancelada(s) por el descanso temporal`
+          : 'Descanso temporal guardado',
+        respuesta?.total_canceladas > 0 ? 'warning' : 'success'
+      );
+    } catch (error) {
+      if (error.detalles?.codigo === 'CONFLICTOS_DESCANSO') {
+        setConflictoDescanso({
+          tipo: 'temporal',
+          indice,
+          fecha,
+          configuracion: config,
+          conflictos: error.detalles.conflictos || [],
+        });
+        return;
+      }
+      mostrarToast(error.message || 'No se pudo guardar el descanso temporal', 'error');
+    } finally {
+      setGuardandoDescanso(false);
+    }
+  };
+
+  const eliminarDescansoTemporalDia = async (indice) => {
+    const fecha = diasSemana[indice]?.fechaTexto || proximaFechaDia(indice);
+    setGuardandoDescanso(true);
+    try {
+      await api.disponibilidad.eliminarDescansoTemporal(fecha);
+      setDescansosTemporales((previo) => previo.filter(
+        (item) => String(item.fecha).slice(0, 10) !== fecha
+      ));
+      mostrarToast('Descanso temporal eliminado');
+    } catch (error) {
+      mostrarToast(error.message || 'No se pudo eliminar el descanso temporal', 'error');
+    } finally {
+      setGuardandoDescanso(false);
+    }
+  };
+
   const alternarDescansoDia = (indice) => {
+    if (vigenciaDescanso === 'temporal') {
+      const diaInfo = diasSemana[indice];
+      const existente = descansosTemporales.find(
+        (item) => String(item.fecha).slice(0, 10) === diaInfo?.fechaTexto
+      );
+      const configuracion = configuracionDescanso(indice);
+      if (!configuracion) {
+        mostrarToast(`El rango debe estar dentro del horario del ${DIAS[indice].nombre}`, 'warning');
+        return;
+      }
+      const actuales = normalizarDescansos(existente?.descansos);
+      const mismo = Boolean(existente?.descanso) === configuracion.descanso
+        && JSON.stringify(actuales) === JSON.stringify(configuracion.descansos);
+      if (existente && mismo) {
+        eliminarDescansoTemporalDia(indice);
+        return;
+      }
+      guardarDescansoTemporal(indice, configuracion);
+      return;
+    }
+
     const dia = dias[indice];
     if (!dia?.sedeId) {
       mostrarToast('Asigna una sede a ese día antes de marcar descanso', 'warning');
@@ -533,7 +641,38 @@ export default function EmpleadoDisponibilidad() {
     guardarDescansos([{ dia_semana: indice + 1, ...nuevo }]);
   };
 
-  const limpiarDescansos = () => {
+  const quitarDescansoDia = async (indice) => {
+    if (vigenciaDescanso === 'temporal') {
+      await eliminarDescansoTemporalDia(indice);
+      return;
+    }
+    await guardarDescansos([{ dia_semana: indice + 1, descanso: false, descansos: [] }]);
+  };
+
+  const limpiarDescansos = async () => {
+    if (vigenciaDescanso === 'temporal') {
+      const desde = fechaLocal(semanaBase);
+      const hasta = fechaLocal(sumarDias(semanaBase, 6));
+      setGuardandoDescanso(true);
+      try {
+        const respuesta = await api.disponibilidad.eliminarDescansosTemporales({ desde, hasta });
+        setDescansosTemporales((previo) => previo.filter(
+          (item) => String(item.fecha).slice(0, 10) < desde || String(item.fecha).slice(0, 10) > hasta
+        ));
+        mostrarToast(
+          respuesta?.eliminados > 0
+            ? `${respuesta.eliminados} descanso(s) temporal(es) eliminado(s)`
+            : 'No había descansos temporales en esta semana',
+          'success'
+        );
+      } catch (error) {
+        mostrarToast(error.message || 'No se pudieron eliminar los descansos temporales', 'error');
+      } finally {
+        setGuardandoDescanso(false);
+      }
+      return;
+    }
+
     const items = dias
       .map((dia, indice) => (
         dia.sedeId
@@ -549,6 +688,10 @@ export default function EmpleadoDisponibilidad() {
   };
 
   const marcarTodosDescanso = () => {
+    if (vigenciaDescanso === 'temporal') {
+      mostrarToast('En modo temporal elige los días uno por uno', 'warning');
+      return;
+    }
     const items = [];
     for (let indice = 0; indice < dias.length; indice += 1) {
       const dia = dias[indice];
@@ -569,9 +712,13 @@ export default function EmpleadoDisponibilidad() {
 
   const confirmarConflictoDescanso = async () => {
     if (!conflictoDescanso) return;
-    const items = conflictoDescanso.items;
+    const conflicto = conflictoDescanso;
     setConflictoDescanso(null);
-    await guardarDescansos(items, true);
+    if (conflicto.tipo === 'temporal') {
+      await guardarDescansoTemporal(conflicto.indice, conflicto.configuracion, true);
+      return;
+    }
+    await guardarDescansos(conflicto.items, true);
   };
 
   const abrirCancelarDia = async (indice) => {
@@ -846,15 +993,19 @@ export default function EmpleadoDisponibilidad() {
                   <Coffee className="h-4 w-4 text-acento" aria-hidden="true" /> Descanso semanal
                 </h2>
                 <p className="mt-0.5 text-xs leading-5 text-texto-secundario">
-                  Elige el tipo de descanso y toca un día para aplicarlo. Se guarda automáticamente y se repite cada semana.
+                  Elige si el descanso se repite cada semana o solo aplica a una fecha. Se guarda automáticamente.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={marcarTodosDescanso} disabled={guardandoDescanso}>Todos de descanso</Button>
-                <Button variant="outline" size="sm" onClick={limpiarDescansos} disabled={guardandoDescanso}>Quitar descansos</Button>
+                {vigenciaDescanso === 'fijo' && (
+                  <Button variant="outline" size="sm" onClick={marcarTodosDescanso} disabled={guardandoDescanso}>Todos de descanso</Button>
+                )}
+                <Button variant="outline" size="sm" onClick={limpiarDescansos} disabled={guardandoDescanso}>
+                  {vigenciaDescanso === 'temporal' ? 'Quitar temporales' : 'Quitar fijos'}
+                </Button>
               </div>
             </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-start">
+            <div className="mt-4 grid gap-3 lg:grid-cols-[180px_180px_minmax(0,1fr)] lg:items-start">
               <Select
                 label="Tipo de descanso"
                 value={modoDescanso}
@@ -862,6 +1013,15 @@ export default function EmpleadoDisponibilidad() {
                 options={[
                   { value: 'todo', label: 'Todo el día' },
                   { value: 'rango', label: 'Rango de horas' },
+                ]}
+              />
+              <Select
+                label="Vigencia"
+                value={vigenciaDescanso}
+                onChange={(e) => setVigenciaDescanso(e.target.value)}
+                options={[
+                  { value: 'fijo', label: 'Fijo semanal' },
+                  { value: 'temporal', label: 'Solo esta fecha' },
                 ]}
               />
               {modoDescanso === 'rango' && (
@@ -873,7 +1033,11 @@ export default function EmpleadoDisponibilidad() {
                     </Button>
                   </div>
                   <div className="mt-2 space-y-2">
-                    {descansosRango.map((rango, indice) => (
+                    {descansosRango.length === 0 ? (
+                      <p className="rounded-md border border-dashed border-control bg-superficie p-3 text-[11px] text-texto-secundario">
+                        No hay rangos. Usa <strong>Agregar otro</strong> para crear uno.
+                      </p>
+                    ) : descansosRango.map((rango, indice) => (
                       <div key={indice} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
                         <Input
                           label={`Desde${descansosRango.length > 1 ? ` ${indice + 1}` : ''}`}
@@ -895,7 +1059,7 @@ export default function EmpleadoDisponibilidad() {
                           size="sm"
                           aria-label={`Quitar descanso ${indice + 1}`}
                           onClick={() => quitarRangoDescanso(indice)}
-                          disabled={descansosRango.length <= 1 || guardandoDescanso}
+                          disabled={guardandoDescanso}
                         >
                           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         </Button>
@@ -911,31 +1075,58 @@ export default function EmpleadoDisponibilidad() {
             <div className="mt-3 flex flex-wrap gap-2">
               {DIAS.map((dia, indice) => {
                 const diaActual = dias[indice];
-                const descansosDia = normalizarDescansos(diaActual?.descansos);
-                const marcado = Boolean(diaActual?.descanso) || descansosDia.length > 0;
-                const etiqueta = diaActual?.descanso
+                const diaSemana = diasSemana[indice];
+                const descansoTemporal = descansosTemporales.find(
+                  (item) => String(item.fecha).slice(0, 10) === diaSemana?.fechaTexto
+                );
+                const descansosDia = normalizarDescansos(
+                  vigenciaDescanso === 'temporal' ? descansoTemporal?.descansos : diaActual?.descansos
+                );
+                const marcado = vigenciaDescanso === 'temporal'
+                  ? Boolean(descansoTemporal?.descanso) || descansosDia.length > 0
+                  : Boolean(diaActual?.descanso) || descansosDia.length > 0;
+                const etiqueta = (vigenciaDescanso === 'temporal' ? descansoTemporal?.descanso : diaActual?.descanso)
                   ? 'Todo el día'
                   : descansosDia.map((item) => `${item.inicio}–${item.fin}`).join(', ');
+                const bloqueado = guardandoDescanso
+                  || (modoDescanso === 'rango' && descansosRango.length === 0);
                 return (
-                  <button
-                    key={dia.nombre}
-                    type="button"
-                    onClick={() => alternarDescansoDia(indice)}
-                    aria-pressed={marcado}
-                    aria-label={`${dia.nombre}${marcado ? `: descanso ${etiqueta}` : ': sin descanso'}`}
-                    disabled={guardandoDescanso}
-                    className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${
-                      marcado
-                        ? 'border-acento/40 bg-acento/10 text-acento'
-                        : 'border-borde bg-superficie text-texto-secundario hover:border-control'
-                    }`}
-                  >
-                    {marcado && <Coffee className="h-3 w-3" aria-hidden="true" />}
-                    {dia.corto}
-                  </button>
+                  <span key={dia.nombre} className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => alternarDescansoDia(indice)}
+                      aria-pressed={marcado}
+                      aria-label={`${dia.nombre}${vigenciaDescanso === 'temporal' ? ` ${diaSemana?.fechaTexto || ''}` : ''}${marcado ? `: descanso ${etiqueta}` : ': sin descanso'}`}
+                      disabled={bloqueado}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        marcado
+                          ? 'border-acento/40 bg-acento/10 text-acento'
+                          : 'border-borde bg-superficie text-texto-secundario hover:border-control'
+                      }`}
+                    >
+                      {marcado && <Coffee className="h-3 w-3" aria-hidden="true" />}
+                      {dia.corto}{vigenciaDescanso === 'temporal' && diaSemana ? ` ${diaSemana.fecha.getDate()}` : ''}
+                    </button>
+                    {marcado && (
+                      <button
+                        type="button"
+                        onClick={() => quitarDescansoDia(indice)}
+                        disabled={guardandoDescanso}
+                        aria-label={`Quitar descanso del ${dia.nombre}`}
+                        className="flex h-8 w-8 items-center justify-center rounded-md border border-borde bg-superficie text-texto-secundario hover:border-error/40 hover:text-error disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    )}
+                  </span>
                 );
               })}
             </div>
+            <p className="mt-2 text-[11px] text-texto-secundario">
+              {vigenciaDescanso === 'temporal'
+                ? 'Se aplicará solo a la fecha indicada en cada chip de esta semana.'
+                : 'Se repetirá todas las semanas como parte de tu plantilla fija.'}
+            </p>
           </Card>
 
           {diasVisibles.length === 0 ? (
@@ -945,7 +1136,7 @@ export default function EmpleadoDisponibilidad() {
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
               {diasVisibles.map((diaInfo) => {
-                const { nombre, corto, fechaTexto, estado, vista, sede, bloqueo, festivo, optIn, temporal, plantilla, indice } = diaInfo;
+                const { nombre, corto, fechaTexto, estado, vista, sede, bloqueo, festivo, optIn, temporal, descansoTemporal, plantilla, indice } = diaInfo;
                 return (
                   <div key={nombre} className="flex min-w-0 flex-col gap-2">
                     <div className="flex items-start justify-between gap-1.5">
@@ -996,6 +1187,13 @@ export default function EmpleadoDisponibilidad() {
                           </p>
                           {optIn && <p className="mt-1 text-[10px] font-medium text-exito">Festivo · opt-in</p>}
                           {temporal && !optIn && <p className="mt-1 text-[10px] font-medium text-acento">Cambio temporal de sede</p>}
+                          {(vista.descanso || vista.descansos?.length > 0) && (
+                            <p className="mt-1 text-[10px] font-medium text-info">
+                              {descansoTemporal
+                                ? (vista.descanso ? 'Solo esta fecha · todo el día' : 'Solo esta fecha')
+                                : (vista.descanso ? 'Fijo semanal · todo el día' : 'Fijo semanal')}
+                            </p>
+                          )}
                           {estado === 'descanso' ? (
                             <p className="mt-2 flex items-center gap-1.5 text-xs text-texto-secundario"><Coffee className="h-3.5 w-3.5" aria-hidden="true" /> Día de descanso</p>
                           ) : (

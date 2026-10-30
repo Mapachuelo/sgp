@@ -179,6 +179,20 @@ UNIQUE `(ubicacion_id, dia_semana)`. Define la semana fija de cada sede. Las exc
 
 UNIQUE `(empleado_id, fecha)`. Bloquea una fecha concreta por un imprevisto; el empleado no aparece disponible y no se aceptan nuevas reservas ese día.
 
+### 2.9.2.1 `empleado_descanso_temporal`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` CASCADE |
+| fecha | date | NOT NULL |
+| descanso | boolean | NOT NULL, DEFAULT FALSE; true = todo el día |
+| descansos | jsonb | NOT NULL, DEFAULT `[]`; rangos `{inicio, fin}` |
+| motivo | varchar(240) | Opcional |
+| creado_por | integer | FK `app_user(id)` ON DELETE SET NULL |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(empleado_id, fecha)`. Guarda descansos que solo aplican a una fecha. Se combinan con `empleado_disponibilidad.descansos` al calcular la disponibilidad efectiva; no modifican la plantilla semanal.
+
 ### 2.9.3 `empleado_sede_temporal`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
@@ -324,6 +338,7 @@ Clave inicial: `max_servicios_reserva = 5`; el admin la edita entre 1 y 10.
 - Un pago aprobado crea/vincula el `cobro` online con `pago_id` y mueve la reserva a `confirmada`; el servicio solo puede iniciar si hay pago en línea aprobado o cobro en efectivo. Al finalizar, la reserva pasa a `cobrado` y se registra `fin_servicio`.
 - La cola de atención se deriva de `llego_en` + estado: programado, en espera, en curso o atendido. Referencias de pago únicas; webhook idempotente por `transaction_id`/estado final.
 - Cada cancelación del salón crea una fila en `notificacion` con el motivo y el estado del reembolso; el cliente la consulta en `/cliente/mensajes`.
+- `empleado_descanso_temporal` se une a los descansos semanales para la fecha indicada; si se cruza con citas futuras se cancela, notifica y reembolsa, y al eliminarlo la disponibilidad se libera sin tocar la plantilla fija.
 - Estados válidos de reserva restringidos por CHECK.
 - Cantidad de personas entre 1 y 5.
 - Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro y sus pagos.

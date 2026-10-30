@@ -88,7 +88,7 @@ The side panel shows today's venue map and the day summary.
 
 Weekly kanban: each day has a fixed venue, schedule and one or more breaks. The week repeats until you edit it. Filter by venue, status and location, and navigate weeks with Today/←/→. The effective status combines the base schedule, temporary changes, holidays, closures and blocks.
 
-The rest panel saves automatically when you tap a day: choose **All day** or one or more **hour ranges** (with **Add another**) and the change is applied without another button. If the rest overlaps future appointments, the system lists the affected appointments and asks for confirmation before cancelling and notifying customers. In the customer calendar, every rest period appears as **Rest** and cannot be selected.
+The rest panel saves automatically when you tap a day: choose **All day** or one or more **hour ranges** (with **Add another**) and the change is applied without another button. You can delete any range, even the only one, or remove a day's rest with the trash button. Under **Validity** choose **Weekly fixed** to repeat it every week or **Only this date** for a specific date; temporary mode does not modify the fixed template. If the rest overlaps future appointments, the system lists the affected appointments and asks for confirmation before cancelling and notifying customers. In the customer calendar, every rest period appears as **Rest** and cannot be selected.
 
 The **Temporary changes** tab lets you work at another venue for a date range; select days one by one. When it ends, you return to the base venue unless you choose another. The **Holidays** tab shows holidays opened by the admin; if you want to work, select "Quiero trabajar" and adjust that day's shift.
 

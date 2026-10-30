@@ -79,6 +79,36 @@ async function validarHorarioSede(ubicacion_id, dia_semana, hora_inicio, hora_fi
   }
 }
 
+function detectarConflictos(segmentos, configuracionDe) {
+  const conflictosMapa = new Map();
+  segmentos.forEach((segmento) => {
+    const configuracion = typeof configuracionDe === 'function'
+      ? configuracionDe(segmento)
+      : configuracionDe;
+    if (!configuracion) return;
+    const inicio = minutosDeHora(segmento.hora_inicio);
+    const fin = minutosDeHora(segmento.hora_fin);
+    const cruza = configuracion.descanso || configuracion.descansos.some(
+      (descanso) => inicio < minutosDeHora(descanso.fin) && fin > minutosDeHora(descanso.inicio)
+    );
+    if (!cruza) return;
+
+    if (!conflictosMapa.has(segmento.reserva_id)) {
+      conflictosMapa.set(segmento.reserva_id, {
+        reserva_id: segmento.reserva_id,
+        cliente: `${segmento.cliente_nombre || ''} ${segmento.cliente_apellido || ''}`.trim(),
+        fecha: segmento.fecha,
+        hora_inicio: segmento.hora_inicio,
+        hora_fin: segmento.hora_fin,
+        servicios: [segmento.servicio],
+      });
+    } else if (!conflictosMapa.get(segmento.reserva_id).servicios.includes(segmento.servicio)) {
+      conflictosMapa.get(segmento.reserva_id).servicios.push(segmento.servicio);
+    }
+  });
+  return { conflictosMapa, conflictos: [...conflictosMapa.values()] };
+}
+
 const disponibilidadService = {
   async getDisponibilidad(empleado_id) {
     return disponibilidadModel.findDisponibilidadByEmpleado(empleado_id);
@@ -199,31 +229,10 @@ const disponibilidadService = {
       diasConDescanso
     );
 
-    const conflictosMapa = new Map();
-    segmentos.forEach((segmento) => {
-      const configuracion = configuracionPorDia.get(Number(segmento.dia_semana));
-      if (!configuracion) return;
-      const inicio = minutosDeHora(segmento.hora_inicio);
-      const fin = minutosDeHora(segmento.hora_fin);
-      const cruza = configuracion.descanso || configuracion.descansos.some(
-        (descanso) => inicio < minutosDeHora(descanso.fin) && fin > minutosDeHora(descanso.inicio)
-      );
-      if (!cruza) return;
-
-      if (!conflictosMapa.has(segmento.reserva_id)) {
-        conflictosMapa.set(segmento.reserva_id, {
-          reserva_id: segmento.reserva_id,
-          cliente: `${segmento.cliente_nombre || ''} ${segmento.cliente_apellido || ''}`.trim(),
-          fecha: segmento.fecha,
-          hora_inicio: segmento.hora_inicio,
-          hora_fin: segmento.hora_fin,
-          servicios: [segmento.servicio],
-        });
-      } else if (!conflictosMapa.get(segmento.reserva_id).servicios.includes(segmento.servicio)) {
-        conflictosMapa.get(segmento.reserva_id).servicios.push(segmento.servicio);
-      }
-    });
-    const conflictos = [...conflictosMapa.values()];
+    const { conflictosMapa, conflictos } = detectarConflictos(
+      segmentos,
+      (segmento) => configuracionPorDia.get(Number(segmento.dia_semana))
+    );
 
     if (conflictos.length > 0 && !data.confirmar_cancelaciones) {
       throw new HttpError(
@@ -249,6 +258,99 @@ const disponibilidadService = {
       reservas_canceladas: canceladas.map((item) => item.reserva_id),
       reembolsos_pendientes: canceladas.filter((item) => item.reembolso === 'pendiente').length,
     };
+  },
+
+  async getDescansosTemporales(empleado_id, data = {}) {
+    const hoy = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    const desde = normalizarFecha(data.desde || hoy);
+    const hasta = normalizarFecha(data.hasta || desde);
+    if (hasta < desde) throw new HttpError(400, 'La fecha hasta no puede ser anterior a la fecha desde');
+    return disponibilidadModel.findDescansosTemporales(empleado_id, desde, hasta);
+  },
+
+  async actualizarDescansoTemporal(empleado_id, data = {}) {
+    const fecha = normalizarFecha(data.fecha);
+    const hoy = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    if (fecha < hoy) throw new HttpError(400, 'No se puede crear un descanso temporal en una fecha pasada');
+
+    const diaSemana = new Date(`${fecha}T00:00:00Z`).getUTCDay() || 7;
+    const semanal = await disponibilidadModel.findHorarioSemanal(empleado_id, diaSemana);
+    if (!semanal) {
+      throw new HttpError(409, 'Primero configura la sede y el horario semanal de ese día');
+    }
+
+    const descanso = Boolean(data.descanso);
+    const descansos = descanso
+      ? []
+      : normalizarDescansos(
+        data.descansos,
+        String(semanal.hora_inicio).slice(0, 5),
+        String(semanal.hora_fin).slice(0, 5)
+      );
+
+    if (!descanso && descansos.length === 0) {
+      await disponibilidadModel.deleteDescansoTemporal(empleado_id, fecha);
+      return { actualizado: true, eliminado: true, fecha, descanso: false, descansos: [] };
+    }
+
+    const segmentos = await reservasModel.findSegmentosFuturosEmpleadoFecha(empleado_id, fecha);
+    const { conflictosMapa, conflictos } = detectarConflictos(segmentos, { descanso, descansos });
+    if (conflictos.length > 0 && !data.confirmar_cancelaciones) {
+      throw new HttpError(
+        409,
+        'El descanso se cruza con citas futuras',
+        { codigo: 'CONFLICTOS_DESCANSO', conflictos }
+      );
+    }
+
+    const guardado = await disponibilidadModel.upsertDescansoTemporal(empleado_id, {
+      fecha,
+      descanso,
+      descansos,
+      motivo: data.motivo ? String(data.motivo).slice(0, 240) : null,
+      creado_por: empleado_id,
+    });
+
+    const motivo = 'El empleado agregó un descanso temporal';
+    const canceladas = conflictos.length > 0 && data.confirmar_cancelaciones
+      ? await cancelarReservasConReembolso(
+        segmentos.filter((segmento) => conflictosMapa.has(segmento.reserva_id)),
+        motivo,
+        fecha
+      )
+      : [];
+
+    return {
+      actualizado: true,
+      descanso: guardado,
+      total_canceladas: canceladas.length,
+      reservas_canceladas: canceladas.map((item) => item.reserva_id),
+      reembolsos_pendientes: canceladas.filter((item) => item.reembolso === 'pendiente').length,
+    };
+  },
+
+  async eliminarDescansoTemporal(empleado_id, fecha) {
+    const fechaValida = normalizarFecha(fecha);
+    const eliminado = await disponibilidadModel.deleteDescansoTemporal(empleado_id, fechaValida);
+    return { eliminado: Boolean(eliminado), fecha: fechaValida };
+  },
+
+  async eliminarDescansosTemporalesRango(empleado_id, data = {}) {
+    const desde = normalizarFecha(data.desde);
+    const hasta = normalizarFecha(data.hasta);
+    if (hasta < desde) throw new HttpError(400, 'La fecha hasta no puede ser anterior a la fecha desde');
+    const eliminados = await disponibilidadModel.deleteDescansosTemporalesRango(empleado_id, desde, hasta);
+    return { eliminados, desde, hasta };
   },
 
   async getTemporales(usuario, empleadoId = null) {

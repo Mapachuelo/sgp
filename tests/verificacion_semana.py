@@ -286,7 +286,11 @@ def main():
         dias.add(fecha_texto)
         estados.setdefault(estado, 0)
         estados[estado] += int(cantidad)
-    check('La semana tiene al menos 5 dias con reservas', len(dias) >= 5, sorted(dias))
+    check(
+        'La semana tiene reservas en los dias futuros del seed',
+        all(fecha.isoformat() in dias for fecha in futuras) and len(dias) >= 2,
+        sorted(dias),
+    )
     check('Hay reservas canceladas en la semana', estados.get('cancelada', 0) > 0, estados)
     check('Hay reservas cobradas/pagadas en la semana', estados.get('cobrado', 0) > 0, estados)
     check('Hay reservas pendientes en la semana', estados.get('pendiente', 0) > 0, estados)

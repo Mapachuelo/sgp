@@ -122,3 +122,82 @@ test('descansos: guarda automaticamente, bloquea slots y cancela citas al confir
     /descansos/
   );
 });
+
+test('descansos temporales: afectan solo la fecha elegida y se pueden eliminar', async () => {
+  const clienteId = await crearUsuario({ rol: 'cliente', nombre: 'Temporal', apellido: 'Cliente' });
+  const empleadoId = await crearUsuario({ rol: 'empleado', nombre: 'Temporal', apellido: 'Empleado' });
+  const sede = await crearSede();
+  const servicio = await crearServicio('Descanso Temporal', 30, 35000);
+  ids.usuarios.push(clienteId, empleadoId);
+  ids.sedes.push(sede.id);
+  ids.servicios.push(servicio.id);
+
+  await asignarServicio(empleadoId, servicio.id, 30);
+  await crearDisponibilidad(empleadoId, sede.id, 1, '09:00', '18:00');
+  const lunes = proximoLunes();
+  const fecha = fechaLocal(lunes);
+  const siguienteLunes = new Date(lunes.getTime() + 7 * 86400000);
+  const fechaSiguiente = fechaLocal(siguienteLunes);
+
+  const reserva = await reservasService.createReserva(clienteId, {
+    empleado_id: empleadoId,
+    servicio_id: servicio.id,
+    ubicacion_id: sede.id,
+    inicia_en: instanteBogota(lunes, '10:00'),
+    cantidad_personas: 1,
+  });
+
+  await assert.rejects(
+    () => disponibilidadService.actualizarDescansoTemporal(empleadoId, {
+      fecha,
+      descanso: false,
+      descansos: [{ inicio: '09:30', fin: '10:30' }],
+    }),
+    (error) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.detalles?.codigo, 'CONFLICTOS_DESCANSO');
+      return true;
+    }
+  );
+
+  const guardado = await disponibilidadService.actualizarDescansoTemporal(empleadoId, {
+    fecha,
+    descanso: false,
+    descansos: [{ inicio: '09:30', fin: '10:30' }],
+    confirmar_cancelaciones: true,
+  });
+  assert.equal(guardado.total_canceladas, 1);
+
+  const temporales = await disponibilidadService.getDescansosTemporales(empleadoId, { desde: fecha, hasta: fecha });
+  assert.equal(temporales.length, 1);
+  assert.equal(temporales[0].descansos[0].inicio, '09:30');
+
+  const comboFecha = await reservasService.getDisponibilidadCombo({
+    ubicacion_id: sede.id,
+    fecha,
+    granularidad: 30,
+    servicios: [{ servicio_id: servicio.id, empleado_id: empleadoId }],
+  });
+  assert.equal(comboFecha.descansos.length, 1);
+  assert.ok(!comboFecha.slots.some((slot) => ['09:30', '10:00'].includes(slot.hora)));
+
+  const comboSiguiente = await reservasService.getDisponibilidadCombo({
+    ubicacion_id: sede.id,
+    fecha: fechaSiguiente,
+    granularidad: 30,
+    servicios: [{ servicio_id: servicio.id, empleado_id: empleadoId }],
+  });
+  assert.equal(comboSiguiente.descansos.length, 0);
+
+  await disponibilidadService.eliminarDescansoTemporal(empleadoId, fecha);
+  const comboLiberado = await reservasService.getDisponibilidadCombo({
+    ubicacion_id: sede.id,
+    fecha,
+    granularidad: 30,
+    servicios: [{ servicio_id: servicio.id, empleado_id: empleadoId }],
+  });
+  assert.equal(comboLiberado.descansos.length, 0);
+
+  const { rows: reservaRows } = await pool.query('SELECT estado FROM reserva WHERE id = $1', [reserva.id]);
+  assert.equal(reservaRows[0].estado, 'cancelada');
+});

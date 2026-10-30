@@ -1,6 +1,17 @@
 const pool = require('../../config/db');
 const { esFestivo } = require('../../shared/festivos-colombia');
 
+function combinarDescansos(...listas) {
+  return listas
+    .flat()
+    .filter((descanso) => descanso && descanso.inicio && descanso.fin)
+    .map((descanso) => ({
+      inicio: String(descanso.inicio).slice(0, 5),
+      fin: String(descanso.fin).slice(0, 5),
+    }))
+    .sort((a, b) => a.inicio.localeCompare(b.inicio));
+}
+
 const SELECT_RESERVA_BASE = `
   SELECT r.*,
          u.nombre AS ubicacion_nombre, u.direccion AS ubicacion_direccion,
@@ -395,6 +406,37 @@ const reservasModel = {
     return rows;
   },
 
+  async findSegmentosFuturosEmpleadoFecha(empleado_id, fecha) {
+    const { rows } = await pool.query(
+      `SELECT rs.reserva_id, rs.inicia_en, rs.termina_en, rs.nombre AS servicio,
+              to_char((rs.inicia_en AT TIME ZONE 'America/Bogota')::date, 'YYYY-MM-DD') AS fecha,
+              to_char(rs.inicia_en AT TIME ZONE 'America/Bogota', 'HH24:MI') AS hora_inicio,
+              to_char(rs.termina_en AT TIME ZONE 'America/Bogota', 'HH24:MI') AS hora_fin,
+              r.cliente_id, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
+              cli.email AS cliente_email,
+              p.id AS pago_id, p.estado AS pago_estado, p.metodo AS pago_metodo,
+              p.transaction_id AS pago_transaction_id,
+              c.metodo AS cobro_metodo, c.reembolsado_en
+       FROM reserva_servicio rs
+       JOIN reserva r ON r.id = rs.reserva_id
+       JOIN app_user cli ON cli.id = r.cliente_id
+       LEFT JOIN LATERAL (
+         SELECT pp.* FROM pago pp
+         WHERE pp.reserva_id = r.id
+         ORDER BY CASE WHEN pp.estado = 'aprobado' THEN 0 ELSE 1 END, pp.creado_en DESC
+         LIMIT 1
+       ) p ON TRUE
+       LEFT JOIN cobro c ON c.reserva_id = r.id
+       WHERE rs.empleado_id = $1
+         AND r.estado IN ('pendiente', 'confirmada')
+         AND rs.inicia_en > NOW()
+         AND (rs.inicia_en AT TIME ZONE 'America/Bogota')::date = $2::date
+       ORDER BY rs.inicia_en, rs.reserva_id`,
+      [empleado_id, fecha]
+    );
+    return rows;
+  },
+
   async findSegmentosFuturosEmpleadoDias(empleado_id, dias_semana) {
     if (!dias_semana.length) return [];
     const { rows } = await pool.query(
@@ -640,6 +682,12 @@ const reservasModel = {
 
   async findDisponibilidadEmpleados(empleado_ids, ubicacion_id, fecha, dia_semana) {
     if (!empleado_ids.length) return [];
+    const { rows: temporales } = await pool.query(
+      `SELECT * FROM empleado_descanso_temporal
+       WHERE empleado_id = ANY($1::int[]) AND fecha = $2::date`,
+      [empleado_ids, fecha]
+    );
+    const mapaTemporales = new Map(temporales.map((fila) => [Number(fila.empleado_id), fila]));
     if (esFestivo(fecha)) {
       const { rows } = await pool.query(
         `SELECT f.*, f.ubicacion_id AS ubicacion_efectiva_id,
@@ -655,13 +703,19 @@ const reservasModel = {
            )`,
         [empleado_ids, ubicacion_id, fecha]
       );
-      return rows.map((fila) => ({
-        ...fila,
-        hora_inicio: String(fila.hora_inicio).slice(0, 5),
-        hora_fin: String(fila.hora_fin).slice(0, 5),
-        descansos: Array.isArray(fila.descansos) ? fila.descansos : [],
-        es_festivo: true,
-      }));
+      return rows.map((fila) => {
+        const descansoTemporal = mapaTemporales.get(Number(fila.empleado_id));
+        const descanso = Boolean(descansoTemporal?.descanso);
+        return {
+          ...fila,
+          hora_inicio: String(fila.hora_inicio).slice(0, 5),
+          hora_fin: String(fila.hora_fin).slice(0, 5),
+          descansos: descanso ? [] : combinarDescansos(fila.descansos, descansoTemporal?.descansos),
+          descanso,
+          es_festivo: true,
+          es_descanso_temporal: Boolean(descansoTemporal),
+        };
+      });
     }
 
     const { rows } = await pool.query(
@@ -688,12 +742,18 @@ const reservasModel = {
          )`,
       [empleado_ids, ubicacion_id, fecha, dia_semana]
     );
-    return rows.map((fila) => ({
-      ...fila,
-      hora_inicio: String(fila.hora_inicio).slice(0, 5),
-      hora_fin: String(fila.hora_fin).slice(0, 5),
-      descansos: Array.isArray(fila.descansos) ? fila.descansos : [],
-    }));
+    return rows.map((fila) => {
+      const descansoTemporal = mapaTemporales.get(Number(fila.empleado_id));
+      const descanso = Boolean(fila.descanso || descansoTemporal?.descanso);
+      return {
+        ...fila,
+        hora_inicio: String(fila.hora_inicio).slice(0, 5),
+        hora_fin: String(fila.hora_fin).slice(0, 5),
+        descansos: descanso ? [] : combinarDescansos(fila.descansos, descansoTemporal?.descansos),
+        descanso,
+        es_descanso_temporal: Boolean(descansoTemporal),
+      };
+    });
   },
 
   async findEmpleadosFestivo(fecha, ubicacion_id, servicio_id = null) {

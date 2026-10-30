@@ -149,6 +149,15 @@ validar "ubicacion_imagen.ubicacion_id existe" \
 validar "ubicacion_imagen.imagen_url existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion_imagen' AND column_name='imagen_url' AND data_type='text')"
 
+validar "empleado_descanso_temporal existe" \
+  "SELECT to_regclass('public.empleado_descanso_temporal') IS NOT NULL"
+
+validar "empleado_descanso_temporal.fecha existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleado_descanso_temporal' AND column_name='fecha' AND data_type='date')"
+
+validar "empleado_descanso_temporal.descansos existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleado_descanso_temporal' AND column_name='descansos' AND data_type='jsonb')"
+
 validar "notificacion existe" \
   "SELECT to_regclass('public.notificacion') IS NOT NULL"
 

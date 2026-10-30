@@ -158,7 +158,7 @@ podman volume rm sgp-pgdata
 | Empleado | empleado@sgp.local | empleado123 |
 | Cliente (pruebas) | cliente@sgp.local | cliente123 |
 
-## Base de datos (21 tablas)
+## Base de datos (22 tablas)
 
 | Tabla | Proposito |
 |-------|-----------|
@@ -178,6 +178,7 @@ podman volume rm sgp-pgdata
 | `empleado_sede_temporal` | Cambios temporales de sede con retorno automático |
 | `empleado_festivo` | Opt-in del empleado para trabajar un festivo abierto |
 | `empleado_bloqueo_fecha` | Bloqueo de una fecha por imprevisto del empleado |
+| `empleado_descanso_temporal` | Descanso de una fecha concreta, separado de la plantilla semanal |
 | `reserva` | Citas con QR token y estados |
 | `cobro` | Pagos fisicos/online, vinculados a `pago` cuando aplica |
 | `pago` | Intentos de pago digital Wompi, referencias, transacciones, estado y reembolso |
@@ -236,7 +237,7 @@ La suite `python3 tests/regresion_10x10.py` recorre autenticacion de los 20 usua
 
 - **Cola y agenda:** citas del día, llegada por QR, cobro, inicio y finalización del servicio, mapa de la sede y resumen diario.
 - **Mi desempeño:** tarjeta con **Cortes realizados** y **Ganado** del mes seleccionado, navegable con ←/→. Incluye todos los servicios cobrados y no reembolsados y aplica el porcentaje de comisión del empleado.
-- **Mi disponibilidad:** kanban semanal; se pueden configurar uno o más descansos por día (día completo o varios rangos) y se guardan automáticamente al tocar el día. Si una modificación se cruza con citas futuras, se muestra el listado y se confirma la cancelación antes de notificar al cliente. El calendario del cliente muestra esas franjas como **Descanso** y no permite reservarlas.
+- **Mi disponibilidad:** kanban semanal; se pueden configurar uno o más descansos por día (día completo o varios rangos), eliminando cualquier rango o día. El descanso puede ser **Fijo semanal** o **Solo esta fecha**; el temporal no altera la plantilla fija. Si una modificación se cruza con citas futuras, se muestra el listado y se confirma la cancelación antes de notificar al cliente. El calendario del cliente muestra esas franjas como **Descanso** y no permite reservarlas.
 
 ## Panel de administracion
 
