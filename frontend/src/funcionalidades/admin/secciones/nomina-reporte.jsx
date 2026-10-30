@@ -40,7 +40,7 @@ export default function NominaReporte() {
 
   useEffect(() => {
     Promise.all([
-      api.auth.empleados.list().catch(() => []),
+      api.auth.empleados.list({ rol: 'empleado' }).catch(() => []),
       api.ubicaciones.list().catch(() => []),
     ]).then(([listaEmpleados, listaSedes]) => {
       setEmpleados(Array.isArray(listaEmpleados) ? listaEmpleados : []);

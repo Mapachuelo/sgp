@@ -177,8 +177,27 @@ test('reservas: validaciones, creacion, disponibilidad y cancelacion', async () 
       empleado_id: empleadoId, servicio_id: servicio.id, ubicacion_id: sedeA.id,
       inicia_en: instanteBogota(lunes, '07:00'), cantidad_personas: 1,
     }),
-    /fuera de la disponibilidad/
+    /antes de que el estilista|fuera de la disponibilidad/
   );
+  await assert.rejects(
+    () => reservasService.createReserva(clienteId, {
+      empleado_id: empleadoId, servicio_id: servicio.id, ubicacion_id: sedeA.id,
+      inicia_en: instanteBogota(lunes, '17:30'), cantidad_personas: 2,
+    }),
+    /atiende hasta/
+  );
+
+  const fechaLunes = `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
+  const comboDosPersonas = await reservasService.getDisponibilidadCombo({
+    ubicacion_id: sedeA.id,
+    fecha: fechaLunes,
+    cantidad_personas: 2,
+    servicios: [{ servicio_id: servicio.id, empleado_id: empleadoId }],
+  });
+  assert.equal(comboDosPersonas.cantidad_personas, 2);
+  assert.equal(comboDosPersonas.duracion_total, 60);
+  assert.ok(comboDosPersonas.slots.some((slot) => slot.hora === '17:00'));
+  assert.ok(!comboDosPersonas.slots.some((slot) => slot.hora === '17:30'));
 
   const reserva = await reservasService.createReserva(clienteId, {
     empleado_id: empleadoId, servicio_id: servicio.id, ubicacion_id: sedeA.id,
@@ -186,7 +205,7 @@ test('reservas: validaciones, creacion, disponibilidad y cancelacion', async () 
   });
   assert.ok(reserva.qr_token);
   const duracion = new Date(reserva.termina_en) - new Date(reserva.inicia_en);
-  assert.equal(duracion, 30 * 60000);
+  assert.equal(duracion, 60 * 60000);
 
   await assert.rejects(
     () => reservasService.createReserva(clienteId, {

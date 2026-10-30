@@ -4,7 +4,7 @@ const disponibilidadModel = require('../disponibilidad/disponibilidad.model');
 const { esFestivo, festivosEntre } = require('../../shared/festivos-colombia');
 const HttpError = require('../../shared/http-error');
 const { withTransaction } = require('../../config/db');
-const { cancelarReservasConReembolso } = require('./cancelacion-reservas');
+const { cancelarReservasConReembolso, cancelarReservasPorIds } = require('./cancelacion-reservas');
 
 const MAX_SERVICIOS_DEFAULT = 5;
 const MAX_SERVICIOS_LIMITE = 10;
@@ -90,6 +90,33 @@ function cabeEnDisponibilidad(horario, inicioIso, finIso) {
   const inicio = minutosDeHora(horaBogotaDeIso(inicioIso));
   const fin = minutosDeHora(horaBogotaDeIso(finIso));
   return intervalosDeHorario(horario).some(([desde, hasta]) => inicio >= desde && fin <= hasta);
+}
+
+function normalizarCantidadPersonas(valor) {
+  const cantidad = Number(valor || 1);
+  if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 5) {
+    throw new HttpError(400, 'cantidad_personas debe estar entre 1 y 5');
+  }
+  return cantidad;
+}
+
+function motivoFueraDisponibilidad(horario, inicioIso, finIso, cantidad) {
+  const inicio = minutosDeHora(horaBogotaDeIso(inicioIso));
+  const fin = minutosDeHora(horaBogotaDeIso(finIso));
+  if (!horario) return 'El estilista no tiene horario configurado para ese día.';
+  if (horario.descanso) return 'El estilista tiene descanso durante todo ese día.';
+  const intervalos = intervalosDeHorario(horario);
+  if (intervalos.some(([desde, hasta]) => inicio >= desde && fin <= hasta)) return null;
+  if (intervalos.length === 0) return 'El estilista no tiene un bloque de atención disponible ese día.';
+  const inicioTurno = intervalos[0][0];
+  const finTurno = intervalos[intervalos.length - 1][1];
+  if (inicio < inicioTurno) {
+    return `La cita de ${cantidad} persona(s) empieza a las ${horaDeMinutos(inicio)}, antes de que el estilista comience a las ${horaDeMinutos(inicioTurno)}.`;
+  }
+  if (fin > finTurno) {
+    return `La cita de ${cantidad} persona(s) termina a las ${horaDeMinutos(fin)} y el estilista atiende hasta las ${horaDeMinutos(finTurno)}.`;
+  }
+  return `La cita de ${cantidad} persona(s) se cruza con un descanso del estilista.`;
 }
 
 function diaSemanaBogota(fecha) {
@@ -191,6 +218,37 @@ async function maxServicios() {
   const config = await reservasModel.findConfiguracion();
   const valor = Number(config.max_servicios_reserva);
   return Number.isInteger(valor) && valor > 0 ? valor : MAX_SERVICIOS_DEFAULT;
+}
+
+function normalizarPlantilla(items) {
+  if (!Array.isArray(items)) {
+    throw new HttpError(400, 'items debe ser un arreglo de la plantilla semanal');
+  }
+  return items.map((item) => {
+    const dia = Number(item.dia_semana);
+    if (!Number.isInteger(dia) || dia < 1 || dia > 7) {
+      throw new HttpError(400, 'dia_semana debe estar entre 1 y 7');
+    }
+    const abierto = item.abierto !== false;
+    const horaInicio = String(item.hora_inicio || '09:00').slice(0, 5);
+    const horaFin = String(item.hora_fin || '18:00').slice(0, 5);
+    if (abierto && minutosDeHora(horaInicio) >= minutosDeHora(horaFin)) {
+      throw new HttpError(400, 'La hora fin de la plantilla debe ser mayor a la hora inicio');
+    }
+    return { dia_semana: dia, abierto, hora_inicio: `${horaInicio}:00`, hora_fin: `${horaFin}:00` };
+  });
+}
+
+async function cancelarReservasPorPlantilla(ubicacionId, cerrados) {
+  const canceladas = [];
+  for (const dia of cerrados) {
+    const ids = await reservasModel.findReservasFuturasBySedeDia(Number(ubicacionId), dia.dia_semana);
+    if (ids.length) {
+      const resultados = await cancelarReservasPorIds(ids, 'La sede no atiende ese día según la plantilla');
+      canceladas.push(...resultados.map((item) => item.reserva_id));
+    }
+  }
+  return canceladas;
 }
 
 function validarCategoriaPayload(data, { parcial = false } = {}) {
@@ -380,22 +438,7 @@ const reservasService = {
   },
 
   async updateJornadaPlantilla(ubicacion_id, items) {
-    if (!Array.isArray(items)) {
-      throw new HttpError(400, 'items debe ser un arreglo de la plantilla semanal');
-    }
-    const normalizados = items.map((item) => {
-      const dia = Number(item.dia_semana);
-      if (!Number.isInteger(dia) || dia < 1 || dia > 7) {
-        throw new HttpError(400, 'dia_semana debe estar entre 1 y 7');
-      }
-      const abierto = item.abierto !== false;
-      const horaInicio = String(item.hora_inicio || '09:00').slice(0, 5);
-      const horaFin = String(item.hora_fin || '18:00').slice(0, 5);
-      if (abierto && minutosDeHora(horaInicio) >= minutosDeHora(horaFin)) {
-        throw new HttpError(400, 'La hora fin de la plantilla debe ser mayor a la hora inicio');
-      }
-      return { dia_semana: dia, abierto, hora_inicio: `${horaInicio}:00`, hora_fin: `${horaFin}:00` };
-    });
+    const normalizados = normalizarPlantilla(items);
     await withTransaction(async (client) => {
       await reservasModel.replacePlantilla(Number(ubicacion_id), normalizados, client);
     });
@@ -403,15 +446,37 @@ const reservasService = {
     for (const dia of cerrados) {
       await disponibilidadModel.deleteDisponibilidadSedeDia(Number(ubicacion_id), dia.dia_semana);
     }
-    const canceladas = [];
-    for (const dia of cerrados) {
-      const ids = await reservasModel.findReservasFuturasBySedeDia(Number(ubicacion_id), dia.dia_semana);
-      if (ids.length) {
-        canceladas.push(...await reservasModel.cancelReservasFuturas(ids, 'La sede no atiende ese día según la plantilla'));
+    const canceladas = await cancelarReservasPorPlantilla(ubicacion_id, cerrados);
+    return {
+      actualizado: true,
+      dias_cerrados: cerrados.map((item) => item.dia_semana),
+      reservas_canceladas: [...new Set(canceladas)],
+    };
+  },
+
+  async updateJornadaPlantillaTodas(items) {
+    const normalizados = normalizarPlantilla(items);
+    const ids = await reservasModel.findUbicacionIds();
+    if (!ids.length) throw new HttpError(404, 'No hay sedes registradas');
+    await withTransaction(async (client) => {
+      for (const id of ids) {
+        await reservasModel.replacePlantilla(id, normalizados, client);
       }
+    });
+    const cerrados = normalizados.filter((item) => !item.abierto);
+    for (const id of ids) {
+      for (const dia of cerrados) {
+        await disponibilidadModel.deleteDisponibilidadSedeDia(id, dia.dia_semana);
+      }
+    }
+    const canceladas = [];
+    for (const id of ids) {
+      const canceladasSede = await cancelarReservasPorPlantilla(id, cerrados);
+      canceladas.push(...canceladasSede);
     }
     return {
       actualizado: true,
+      sedes: ids.length,
       dias_cerrados: cerrados.map((item) => item.dia_semana),
       reservas_canceladas: [...new Set(canceladas)],
     };
@@ -476,7 +541,8 @@ const reservasService = {
     for (const dia of normalizados.filter((item) => item.cerrado)) {
       const ids = await reservasModel.findReservasFuturasBySedeFecha(Number(ubicacion_id), dia.fecha);
       if (ids.length) {
-        canceladas.push(...await reservasModel.cancelReservasFuturas(ids, 'La sede no atiende ese día'));
+        const resultados = await cancelarReservasPorIds(ids, 'La sede no atiende ese día');
+        canceladas.push(...resultados.map((item) => item.reserva_id));
       }
     }
     return { actualizado: true, reservas_canceladas: [...new Set(canceladas)] };
@@ -514,10 +580,11 @@ const reservasService = {
     return reservasModel.findEmpleadosPorSede(Number(ubicacion_id));
   },
 
-  async getDisponibilidadCombo({ ubicacion_id, fecha, servicios, granularidad }) {
+  async getDisponibilidadCombo({ ubicacion_id, fecha, servicios, granularidad, cantidad_personas }) {
     const ubicacionId = entero(ubicacion_id, 'ubicacion_id');
     const fechaValida = validarFecha(fecha);
     const paso = granularidadValida(granularidad);
+    const cantidad = normalizarCantidadPersonas(cantidad_personas);
     const asignaciones = parsearAsignaciones({ servicios });
     const maximo = await maxServicios();
     if (asignaciones.length > maximo) {
@@ -542,6 +609,7 @@ const reservasService = {
       return {
         fecha: fechaValida,
         ubicacion_id: ubicacionId,
+        cantidad_personas: cantidad,
         duracion_total: 0,
         precio_total: 0,
         slots: [],
@@ -600,6 +668,7 @@ const reservasService = {
         return {
           fecha: fechaValida,
           ubicacion_id: ubicacionId,
+          cantidad_personas: cantidad,
           duracion_total: 0,
           precio_total: 0,
           slots: [],
@@ -613,7 +682,8 @@ const reservasService = {
         empleado_nombre: `${empleado.nombre} ${empleado.apellido || ''}`.trim(),
         nombre: servicio.nombre,
         precio: Number(servicio.precio_base),
-        duracion_minutos: Number(duracion.duracion_minutos),
+        duracion_minutos: Number(duracion.duracion_minutos) * cantidad,
+        duracion_unitaria: Number(duracion.duracion_minutos),
         orden: i + 1,
       });
     }
@@ -621,12 +691,20 @@ const reservasService = {
     const duracionTotal = segmentosBase.reduce((sum, s) => sum + s.duracion_minutos, 0);
     const precioTotal = segmentosBase.reduce((sum, s) => sum + s.precio, 0);
     const horariosLaborables = disponibilidad.filter((fila) => !fila.descanso);
-    const inicioMin = horariosLaborables.length
-      ? Math.min(...horariosLaborables.map((d) => minutosDeHora(d.hora_inicio)))
-      : 0;
-    const finMax = horariosLaborables.length
-      ? Math.max(...horariosLaborables.map((d) => minutosDeHora(d.hora_fin)))
-      : 0;
+    const jornadaInicio = jornada?.hora_inicio ? minutosDeHora(jornada.hora_inicio) : 0;
+    const jornadaFin = jornada?.hora_fin ? minutosDeHora(jornada.hora_fin) : 24 * 60;
+    const inicioMin = Math.max(
+      jornadaInicio,
+      horariosLaborables.length
+        ? Math.min(...horariosLaborables.map((d) => minutosDeHora(d.hora_inicio)))
+        : jornadaFin
+    );
+    const finMax = Math.min(
+      jornadaFin,
+      horariosLaborables.length
+        ? Math.max(...horariosLaborables.map((d) => minutosDeHora(d.hora_fin)))
+        : jornadaInicio
+    );
 
     const slots = [];
     for (let cursor = inicioMin; cursor + duracionTotal <= finMax; cursor += paso) {
@@ -638,7 +716,8 @@ const reservasService = {
         const inicio = actual;
         const fin = actual + segmento.duracion_minutos;
         const intervalos = intervalosDeHorario(horario);
-        if (!intervalos.some(([desde, hasta]) => inicio >= desde && fin <= hasta)) {
+        if (inicio < jornadaInicio || fin > jornadaFin
+          || !intervalos.some(([desde, hasta]) => inicio >= desde && fin <= hasta)) {
           valido = false;
           break;
         }
@@ -666,13 +745,26 @@ const reservasService = {
       }
     }
 
+    let motivo = '';
+    if (slots.length === 0) {
+      if (!horariosLaborables.length) {
+        motivo = 'Los estilistas no tienen horario de atención ese día.';
+      } else if (finMax <= inicioMin || duracionTotal > finMax - inicioMin) {
+        motivo = `La cita de ${cantidad} persona(s) dura ${duracionTotal} min y no cabe en el horario disponible (${horaDeMinutos(inicioMin)}–${horaDeMinutos(finMax)}).`;
+      } else {
+        motivo = `No hay un bloque continuo de ${duracionTotal} min para ${cantidad} persona(s) en el horario disponible.`;
+      }
+    }
+
     return {
       fecha: fechaValida,
       ubicacion_id: ubicacionId,
+      cantidad_personas: cantidad,
       duracion_total: duracionTotal,
       precio_total: precioTotal,
       slots,
       descansos,
+      motivo,
     };
   },
 
@@ -732,10 +824,7 @@ const reservasService = {
       throw new HttpError(400, 'La reserva debe hacerse con al menos 60 minutos de anticipacion');
     }
 
-    const qty = Number(cantidad_personas || 1);
-    if (!Number.isInteger(qty) || qty < 1 || qty > 5) {
-      throw new HttpError(400, 'cantidad_personas debe estar entre 1 y 5');
-    }
+    const qty = normalizarCantidadPersonas(cantidad_personas);
 
     const idsServicios = asignaciones.map((a) => a.servicio_id);
     const catalogo = await reservasModel.findServiciosPorIds(idsServicios);
@@ -762,13 +851,15 @@ const reservasService = {
       if (empleado.esta_bloqueado) throw new HttpError(409, `El estilista de ${servicio.nombre} no esta disponible`);
       const duracion = await reservasModel.findDuracionServicioEmpleado(asignacion.empleado_id, asignacion.servicio_id);
       if (!duracion) throw new HttpError(400, `El estilista no ofrece el servicio ${servicio.nombre}`);
-      const fin = new Date(cursor.getTime() + Number(duracion.duracion_minutos) * 60000);
+      const duracionBloque = Number(duracion.duracion_minutos) * qty;
+      const fin = new Date(cursor.getTime() + duracionBloque * 60000);
       segmentos.push({
         servicio_id: asignacion.servicio_id,
         empleado_id: asignacion.empleado_id,
+        empleado_nombre: `${empleado.nombre} ${empleado.apellido || ''}`.trim(),
         nombre: servicio.nombre,
         precio: Number(servicio.precio_base),
-        duracion_minutos: Number(duracion.duracion_minutos),
+        duracion_minutos: duracionBloque,
         inicia_en: cursor.toISOString(),
         termina_en: fin.toISOString(),
         orden: i + 1,
@@ -792,14 +883,29 @@ const reservasService = {
         diaSegmento
       );
       if (!cabeEnDisponibilidad(disponibilidadEmpleado, segmento.inicia_en, segmento.termina_en)) {
-        throw new HttpError(400, 'El horario esta fuera de la disponibilidad de uno de los estilistas');
+        const motivo = motivoFueraDisponibilidad(
+          disponibilidadEmpleado,
+          segmento.inicia_en,
+          segmento.termina_en,
+          qty
+        );
+        throw new HttpError(
+          409,
+          `${motivo} Elige otro horario o reduce las personas.`,
+          { codigo: 'FUERA_HORARIO_ESTILISTA', empleado_id: segmento.empleado_id, empleado_nombre: segmento.empleado_nombre }
+        );
       }
       if (jornadaReserva && jornadaReserva.hora_inicio && jornadaReserva.hora_fin) {
         const inicioSegmento = minutosDeHora(horaBogotaDeIso(segmento.inicia_en));
         const finSegmento = minutosDeHora(horaBogotaDeIso(segmento.termina_en));
-        if (inicioSegmento < minutosDeHora(jornadaReserva.hora_inicio)
-          || finSegmento > minutosDeHora(jornadaReserva.hora_fin)) {
-          throw new HttpError(409, 'El servicio esta fuera del horario de atencion de la sede');
+        const cierreSede = minutosDeHora(jornadaReserva.hora_fin);
+        const aperturaSede = minutosDeHora(jornadaReserva.hora_inicio);
+        if (inicioSegmento < aperturaSede || finSegmento > cierreSede) {
+          throw new HttpError(
+            409,
+            `La cita de ${qty} persona(s) termina a las ${horaDeMinutos(finSegmento)} y la sede atiende hasta las ${horaDeMinutos(cierreSede)}. Elige otro horario o reduce las personas.`,
+            { codigo: 'FUERA_HORARIO_SEDE', hora_inicio: horaDeMinutos(aperturaSede), hora_fin: horaDeMinutos(cierreSede) }
+          );
         }
       }
     }

@@ -57,6 +57,10 @@ Editar nombre, apellido, teléfono, correo y contraseña. El teléfono permite e
 
 ![Perfil](img/cliente-perfil.png)
 
+### 2.4 Mensajes
+
+El buzón **Mensajes** reúne los avisos del salón. Cuando se cancela una cita por un imprevisto, un descanso o un cierre de sede, verás la fecha, el motivo y el estado del reembolso. El inicio muestra cuántos mensajes están sin leer y puedes marcar cada uno o todos como leídos.
+
 ## 3. Empleado
 
 ### 3.1 Citas de hoy
@@ -123,7 +127,7 @@ Tu foto es opcional y se edita desde **Perfil**; el administrador también puede
 
 ![Editor de horario](img/admin-planificador-editor.png)
 
-La pestaña **Jornada por sede** permite definir la plantilla semanal fija, abrir festivos en una o varias sedes y editar excepciones por fecha.
+La pestaña **Jornada por sede** permite definir la plantilla semanal fija, abrir festivos en una o varias sedes y editar excepciones por fecha. La tarjeta **Horario general de sedes** aplica la misma apertura, cierre y días a todas las sedes con una sola confirmación.
 
 En **Reportes → Nómina** el administrador elige empleado (o todos), sede (o todas) y período (mes, quincena o rango). El cálculo usa solo servicios completados y pagados, aplica el porcentaje configurado en Equipo y permite descargar un PDF.
 
@@ -131,8 +135,8 @@ En **Reportes → Nómina** el administrador elige empleado (o todos), sede (o t
 
 ### 4.3 Empleados, servicios y sedes
 
-- **Empleados:** crear/editar con sedes asignadas, horarios por sede/día, servicios y duraciones; eliminar solo sin cobros asociados. Puedes subir, cambiar o quitar la foto del empleado; si no tiene, el cliente verá sus iniciales.
-- **Sedes:** al crear o editar, haz clic en el mapa (o arrastra el marcador) para fijar latitud y longitud; también puedes usar **Usar mi ubicación**. Puedes agregar una imagen opcional del local; solo el admin la edita y clientes/empleados pueden ampliarla.
+- **Empleados y administradores:** al crear una cuenta eliges el rol Empleado o Administrador. Los administradores no tienen sedes, horarios ni comisión. Puedes editar sus datos y eliminar cuentas, con protección para tu propia cuenta y el último administrador. En empleados puedes subir, cambiar o quitar la foto; si no tiene, el cliente verá sus iniciales.
+- **Sedes:** al crear o editar, haz clic en el mapa (o arrastra el marcador) para fijar latitud y longitud; también puedes usar **Usar mi ubicación**. Puedes agregar hasta 6 imágenes del local, ordenarlas y elegir la portada; solo el admin las edita y clientes/empleados abren la galería en un modal.
 - **Servicios:** CRUD y tiempos por empleado.
 
 ![Empleados](img/admin-empleados.png)

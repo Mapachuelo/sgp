@@ -66,6 +66,15 @@ validar "Portadas distintas de la primera imagen" \
 validar "Servicios con mas de 6 imagenes" \
   "SELECT COUNT(*) FROM (SELECT servicio_id FROM servicio_imagen GROUP BY servicio_id HAVING COUNT(*) > 6) t"
 
+validar "Portadas de sede sin fila en ubicacion_imagen" \
+  "SELECT COUNT(*) FROM ubicacion u WHERE u.imagen_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ubicacion_imagen ui WHERE ui.ubicacion_id = u.id)"
+
+validar "Portadas de sede distintas de la primera imagen" \
+  "SELECT COUNT(*) FROM ubicacion u WHERE u.imagen_url IS DISTINCT FROM (SELECT ui.imagen_url FROM ubicacion_imagen ui WHERE ui.ubicacion_id = u.id ORDER BY ui.orden, ui.id LIMIT 1)"
+
+validar "Sedes con mas de 6 imagenes" \
+  "SELECT COUNT(*) FROM (SELECT ubicacion_id FROM ubicacion_imagen GROUP BY ubicacion_id HAVING COUNT(*) > 6) t"
+
 echo ""
 echo "Datos actuales:"
 podman exec "$CONTENEDOR_DB" psql -U sgp_user -d sgp -c \

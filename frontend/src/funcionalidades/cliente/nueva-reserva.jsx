@@ -324,7 +324,7 @@ function ModalSedesServicio({
                       </span>
                       {activa && <Check className="h-4 w-4 shrink-0 text-acento" strokeWidth={2.5} aria-hidden="true" />}
                     </button>
-                    <ImagenSede sede={sede} className="h-14 w-20 shrink-0 rounded-md" />
+                    <ImagenSede sede={sede} className="h-14 w-20 shrink-0 rounded-md" compacto />
                   </div>
                 );
               })}
@@ -607,7 +607,7 @@ export default function NuevaReserva() {
   const duracionPlan = (slotSeleccionado?.plan || []).reduce(
     (sum, segmento) => sum + Number(segmento.duracion_minutos || 0),
     0
-  ) || duracionEquipo;
+  ) || duracionEquipo * cantidad;
   const sinEstilista = seleccionados.filter((servicio) => !(empleadosPorServicio[servicio.id] || []).length);
 
   const horas = useMemo(() => horasDelRango(preferencias, granularidad), [preferencias, granularidad]);
@@ -808,6 +808,7 @@ export default function NuevaReserva() {
                 ubicacion_id: ubicacionSeleccionada.id,
                 fecha: dia.fecha,
                 granularidad: g,
+                cantidad_personas: cantidad,
                 servicios: seleccionados.map((servicio) => ({
                   servicio_id: servicio.id,
                   empleado_id: Number(asignaciones[servicio.id]),
@@ -834,7 +835,7 @@ export default function NuevaReserva() {
         setCargandoCalendario(false);
       }
     },
-    [ubicacionSeleccionada, seleccionados, asignaciones, equipoListo, preferencias, granularidad]
+    [ubicacionSeleccionada, seleccionados, asignaciones, equipoListo, preferencias, granularidad, cantidad]
   );
 
   useEffect(() => { cargarCalendarioRef.current = cargarCalendario; }, [cargarCalendario]);
@@ -851,10 +852,10 @@ export default function NuevaReserva() {
 
   useEffect(() => {
     if (paso === 4 && equipoListo && !cargandoCalendario && Object.keys(disponibilidad).length === 0) {
-      cargarCalendarioRef.current?.(new Date());
+      cargarCalendarioRef.current?.(fechaBaseRef.current || new Date());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paso, equipoListo]);
+  }, [paso, equipoListo, cantidad]);
 
   const volverAtras = () => {
     if (paso === 2) {
@@ -1053,6 +1054,16 @@ export default function NuevaReserva() {
     setPaso(5);
   };
 
+  const cambiarCantidad = (delta) => {
+    const nueva = Math.min(5, Math.max(1, Number(cantidad) + delta));
+    if (nueva === Number(cantidad)) return;
+    setCantidad(nueva);
+    setSlotSeleccionado(null);
+    setDiaSeleccionado(null);
+    setDisponibilidad({});
+    if (paso !== 4) setPaso(4);
+  };
+
   const handleCrearReserva = async () => {
     if (!slotSeleccionado || !diaSeleccionado || !equipoListo) return;
     setCreando(true);
@@ -1076,12 +1087,15 @@ export default function NuevaReserva() {
       setPaso(6);
       mostrarToast('Reserva creada con éxito');
     } catch (error) {
-      if (/superpone|fuera de la disponibilidad|no esta disponible/i.test(error.message)) {
-        mostrarToast(`${error.message}. Elige otro horario.`, 'error');
+      const codigo = error.detalles?.codigo || '';
+      const errorHorario = codigo.startsWith('FUERA_HORARIO')
+        || /superpone|fuera de la disponibilidad|no esta disponible|atiende hasta|cierra a las/i.test(error.message);
+      if (errorHorario) {
+        mostrarToast(error.message, 'error');
         setSlotSeleccionado(null);
         setDiaSeleccionado(null);
+        setDisponibilidad({});
         setPaso(4);
-        cargarCalendario(fechaBase || new Date());
       } else {
         mostrarToast(error.message, 'error');
       }
@@ -1382,7 +1396,7 @@ export default function NuevaReserva() {
                             </span>
                           </span>
                         </button>
-                        <ImagenSede sede={ubicacion} className="h-14 w-20 shrink-0 rounded-md" />
+                        <ImagenSede sede={ubicacion} className="h-14 w-20 shrink-0 rounded-md" compacto />
                       </div>
                     );
                   })}
@@ -1886,9 +1900,32 @@ export default function NuevaReserva() {
               </button>
               <h2 className="mt-1 text-base font-semibold text-texto-principal">Elige día y hora</h2>
               <p className="mt-0.5 text-xs text-texto-secundario">
-                {seleccionados.length} servicio(s) · {duracionEquipo} min ·{' '}
+                {seleccionados.length} servicio(s) · {duracionEquipo * cantidad} min ·{' '}
                 {equipoUnico ? 'un estilista' : `${new Set(equipo.map((item) => item.empleado.id)).size} estilistas`} · mínimo 60 min de anticipación.
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label="Cantidad de personas">
+                <span className="text-[11px] text-texto-secundario">Personas</span>
+                <button
+                  type="button"
+                  aria-label="Quitar una persona"
+                  onClick={() => cambiarCantidad(-1)}
+                  disabled={cantidad <= 1}
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-control text-sm transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  −
+                </button>
+                <span className="num w-6 text-center text-sm font-medium" aria-live="polite">{cantidad}</span>
+                <button
+                  type="button"
+                  aria-label="Agregar una persona"
+                  onClick={() => cambiarCantidad(1)}
+                  disabled={cantidad >= 5}
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-control text-sm transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  +
+                </button>
+                <span className="text-[10px] text-tenue">La duración y los horarios se recalculan</span>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {fechaBase && (
@@ -1955,7 +1992,10 @@ export default function NuevaReserva() {
           ) : semana.every((dia) => !(disponibilidad[dia.fecha]?.slots || []).length && !(disponibilidad[dia.fecha]?.descansos || []).length) ? (
             <EmptyState
               title="No hay horarios para este equipo"
-              description="Prueba con otros días, cambia un estilista o cambia de sede."
+              description={
+                Object.values(disponibilidad).find((dia) => dia?.motivo)?.motivo
+                  || `No hay un bloque disponible para ${cantidad} persona(s). Prueba con otros días, cambia un estilista o cambia de sede.`
+              }
               action={
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button variant="secundario" onClick={volverAtras}>Cambiar equipo</Button>
@@ -2120,8 +2160,9 @@ export default function NuevaReserva() {
                   <button
                     type="button"
                     aria-label="Quitar una persona"
-                    onClick={() => setCantidad((valor) => Math.max(1, valor - 1))}
-                    className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
+                    onClick={() => cambiarCantidad(-1)}
+                    disabled={cantidad <= 1}
+                    className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     −
                   </button>
@@ -2129,12 +2170,16 @@ export default function NuevaReserva() {
                   <button
                     type="button"
                     aria-label="Agregar una persona"
-                    onClick={() => setCantidad((valor) => Math.min(5, valor + 1))}
-                    className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel"
+                    onClick={() => cambiarCantidad(1)}
+                    disabled={cantidad >= 5}
+                    className="flex h-9 w-9 items-center justify-center rounded-md border border-control text-base transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     +
                   </button>
                 </div>
+                <p className="mt-2 text-[11px] leading-5 text-texto-secundario">
+                  Al cambiar las personas volverás al calendario para recalcular la duración y la disponibilidad.
+                </p>
                 <div className="mt-4 border-t border-borde pt-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-texto-secundario">Servicios</span>

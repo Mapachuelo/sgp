@@ -28,6 +28,7 @@ router.get('/disponibilidad', authenticate, authorize('cliente', 'empleado', 'ad
 
 router.get('/jornada/plantilla', reservasController.getJornadaPlantilla);
 router.put('/jornada/plantilla', authenticate, authorize('admin'), reservasController.updateJornadaPlantilla);
+router.put('/jornada/plantilla/todas', authenticate, authorize('admin'), reservasController.updateJornadaPlantillaTodas);
 router.get('/festivos', reservasController.getFestivos);
 router.get('/jornada', reservasController.getJornada);
 router.put('/jornada', authenticate, authorize('admin'), reservasController.updateJornada);

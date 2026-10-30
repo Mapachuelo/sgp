@@ -45,11 +45,21 @@ test('ubicaciones: CRUD completo', async () => {
   assert.match(actualizada.nombre, /editada/);
 
   const imagen = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3Q6wAAAABJRU5ErkJggg==';
-  const conImagen = await ubicacionesService.update(sede.id, { imagen_url: imagen });
+  const imagen2 = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/vuUAAA=';
+  const conImagen = await ubicacionesService.update(sede.id, { imagenes: [imagen, imagen2] });
   assert.equal(conImagen.imagen_url, imagen);
+  assert.equal(conImagen.total_imagenes, 2);
+  const galeria = await ubicacionesService.getImagenes(sede.id);
+  assert.equal(galeria.length, 2);
+  assert.equal(galeria[0].imagen_url, imagen);
   await assert.rejects(() => ubicacionesService.update(sede.id, { imagen_url: 'no-es-imagen' }), /imagen/);
+  await assert.rejects(
+    () => ubicacionesService.update(sede.id, { imagenes: Array(7).fill(imagen) }),
+    /hasta 6/
+  );
   const sinImagen = await ubicacionesService.update(sede.id, { imagen_url: null });
   assert.equal(sinImagen.imagen_url, null);
+  assert.equal((await ubicacionesService.getImagenes(sede.id)).length, 0);
 
   const todas = await ubicacionesService.findAll();
   assert.ok(todas.some((u) => u.id === sede.id));

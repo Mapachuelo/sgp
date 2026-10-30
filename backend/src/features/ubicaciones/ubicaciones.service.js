@@ -1,5 +1,8 @@
 const ubicacionesModel = require('./ubicaciones.model');
+const { withTransaction } = require('../../config/db');
 const HttpError = require('../../shared/http-error');
+
+const MAX_IMAGENES_UBICACION = 6;
 
 function validarCoordenadas(latitud, longitud) {
   const lat = Number(latitud);
@@ -27,6 +30,27 @@ function normalizarImagen(valor) {
   return valor;
 }
 
+function normalizarGaleria(data) {
+  if (data.imagenes !== undefined) {
+    if (!Array.isArray(data.imagenes)) {
+      throw new HttpError(400, 'imagenes debe ser un arreglo');
+    }
+    if (data.imagenes.length > MAX_IMAGENES_UBICACION) {
+      throw new HttpError(400, `Puedes subir hasta ${MAX_IMAGENES_UBICACION} imagenes por sede`);
+    }
+    return data.imagenes.map((imagen, indice) => {
+      const normalizada = normalizarImagen(imagen);
+      if (!normalizada) throw new HttpError(400, `imagenes[${indice}] no es valida`);
+      return normalizada;
+    });
+  }
+  if (data.imagen_url !== undefined) {
+    const imagen = normalizarImagen(data.imagen_url);
+    return imagen ? [imagen] : [];
+  }
+  return undefined;
+}
+
 function validarTexto(valor, campo, maximo = 120) {
   if (typeof valor !== 'string' || !valor.trim()) {
     throw new HttpError(400, `${campo} es requerido`);
@@ -48,14 +72,22 @@ const ubicacionesService = {
       throw new HttpError(400, 'Todos los campos son requeridos: nombre, direccion, departamento, ciudad, latitud, longitud');
     }
     validarCoordenadas(data.latitud, data.longitud);
-    return ubicacionesModel.create({
+    const galeria = normalizarGaleria(data) ?? [];
+    const payload = {
       nombre: String(data.nombre).trim(),
       direccion: String(data.direccion).trim(),
       departamento: validarTexto(data.departamento, 'departamento'),
       ciudad: validarTexto(data.ciudad, 'ciudad'),
       latitud: Number(data.latitud),
       longitud: Number(data.longitud),
-      imagen_url: normalizarImagen(data.imagen_url) ?? null,
+      imagen_url: galeria[0] || null,
+    };
+    return withTransaction(async (client) => {
+      const sede = await ubicacionesModel.create(payload, client);
+      if (galeria.length > 0) {
+        await ubicacionesModel.replaceImagenes(sede.id, galeria, client);
+      }
+      return ubicacionesModel.findById(sede.id, client);
     });
   },
 
@@ -69,19 +101,36 @@ const ubicacionesService = {
       const longitud = data.longitud !== undefined ? data.longitud : ubicacion.longitud;
       validarCoordenadas(latitud, longitud);
     }
+    const galeria = normalizarGaleria(data);
     const payload = { ...data };
+    delete payload.imagenes;
     if (data.departamento !== undefined) payload.departamento = validarTexto(data.departamento, 'departamento');
     if (data.ciudad !== undefined) payload.ciudad = validarTexto(data.ciudad, 'ciudad');
-    if (data.imagen_url !== undefined) payload.imagen_url = normalizarImagen(data.imagen_url);
-    return ubicacionesModel.update(id, payload);
+    if (galeria !== undefined) payload.imagen_url = galeria[0] || null;
+
+    if (galeria === undefined) {
+      return ubicacionesModel.update(id, payload);
+    }
+    return withTransaction(async (client) => {
+      const actualizada = await ubicacionesModel.update(id, payload, client);
+      if (!actualizada) throw new HttpError(404, 'Ubicacion no encontrada');
+      await ubicacionesModel.replaceImagenes(id, galeria, client);
+      return ubicacionesModel.findById(id, client);
+    });
+  },
+
+  async getImagenes(id) {
+    const ubicacion = await ubicacionesModel.findById(Number(id));
+    if (!ubicacion) throw new HttpError(404, 'Ubicacion no encontrada');
+    return ubicacionesModel.findImagenes(Number(id));
   },
 
   async delete(id) {
-    const ubicacion = await ubicacionesModel.findById(id);
-    if (!ubicacion) {
+    const eliminada = await ubicacionesModel.delete(id);
+    if (!eliminada) {
       throw new HttpError(404, 'Ubicacion no encontrada');
     }
-    return ubicacionesModel.delete(id);
+    return { eliminado: true };
   },
 };
 

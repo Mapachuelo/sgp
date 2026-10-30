@@ -89,7 +89,8 @@ cp example.sgp-app-pod.yaml sgp-app-pod.yaml
 cp example.sgp-db-pod.yaml sgp-db-pod.yaml
 ```
 #### 2. Rellenar valores reales
-- En `sgp-app-pod.yaml`: `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET`, `AES_SECRET` (opcional; si se omite usa `JWT_SECRET`), `WOMPI_BASE_URL`, `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET` (llaves sandbox `pub_test_`/`test_integrity_`/`test_events_` para pruebas; `pub_prod_`/`prod_*` para dinero real) (y `hostPort` del frontend si el `8080` esta ocupado).
+- En `sgp-app-pod.yaml`: `DATABASE_URL`, `PRESENTACION_DATABASE_URL` (host `sgp-db`, base `sgp_presentacion`), `PRESENTACION_MEDIA_DIR`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `JWT_SECRET`, `AES_SECRET` (opcional; si se omite usa `JWT_SECRET`), `WOMPI_BASE_URL`, `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET` (llaves sandbox `pub_test_`/`test_integrity_`/`test_events_` para pruebas; `pub_prod_`/`prod_*` para dinero real) (y `hostPort` del frontend si el `8080` esta ocupado).
+- En dominio, ajusta `WOMPI_REDIRECT_URL` a `https://<tu-dominio>/cliente/reservar` y verifica que el proxy reenvie `/api/` y `/ws`.
 - En `sgp-db-pod.yaml`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`.
 - Si cambias usuario/contraseña de la BD, ajustar `DATABASE_URL` en `sgp-app-pod.yaml` para que coincida.
 - Sin estos valores el backend arranca pero Brevo falla (no llegan correos de verificacion) y Wompi queda `no-configurado` (los pagos en linea no se procesan).
@@ -116,7 +117,7 @@ podman kube play sgp-app-pod.yaml --network sgp-net
 
 - **Frontend:** `http://localhost:8080`
 - **Healthcheck:** `http://localhost:8080/api/healthcheck` (incluye el estado de Brevo y Wompi: `ok`, `error` o `no-configurado`)
-- **Nginx:** `index.html` y `/api/` sin cache, `/assets/` inmutable y `client_max_body_size 10m` para subir hasta 6 imagenes por servicio.
+- **Nginx:** `index.html` y `/api/` sin cache, `/assets/` inmutable y `client_max_body_size 512m` para imagenes de servicios, sedes y presentacion.
 - **API directa:** no expuesta al host; el frontend la proxya a `127.0.0.1:3000` dentro del pod `sgp-app`
 
 ### Actualizar la app tras cambios de imagen (sin tocar la base de datos)
@@ -157,11 +158,12 @@ podman volume rm sgp-pgdata
 | Empleado | empleado@sgp.local | empleado123 |
 | Cliente (pruebas) | cliente@sgp.local | cliente123 |
 
-## Base de datos (15 tablas)
+## Base de datos (21 tablas)
 
 | Tabla | Proposito |
 |-------|-----------|
-| `ubicacion` | Sedes fisicas con departamento, ciudad, lat/lng e imagen opcional del local |
+| `ubicacion` | Sedes fisicas con departamento, ciudad, lat/lng e imagen de portada opcional |
+| `ubicacion_imagen` | Galeria ordenada de hasta 6 imagenes por sede |
 | `app_user` | Usuarios con roles: cliente, empleado, admin |
 | `empleado_perfil` | Datos extra de empleados |
 | `servicio_categoria` | Titulos del menu: Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros |
@@ -179,13 +181,14 @@ podman volume rm sgp-pgdata
 | `reserva` | Citas con QR token y estados |
 | `cobro` | Pagos fisicos/online, vinculados a `pago` cuando aplica |
 | `pago` | Intentos de pago digital Wompi, referencias, transacciones, estado y reembolso |
+| `notificacion` | Buzon persistente por usuario para cancelaciones y avisos de citas |
 | `preferencia_usuario` | Rango horario, granularidad, tema y ubicacion preferida |
 | `empleado_perfil` | Identificacion, sede base y foto opcional del empleado |
 
 Seed: Sede Centro (Bogota), 7 categorias, 4 servicios (Corte clasico, Barba, Tinte, Corte+Barba), jornadas L-V 09-18 + S 09-14, tiempos de servicio del empleado semilla y disponibilidad semanal L-V/S. Las reservas existentes se backfillean a `reserva_servicio` y las portadas a `servicio_imagen` al arrancar.
 `app_user.telefono` se almacena cifrado con AES-256 (TEXT), en formato E.164 internacional; Colombia usa `+57` + 10 digitos y es la opcion por defecto en la interfaz. `preferencia_usuario` guarda departamento y ciudad preferidos.
 
-El formulario de sedes incluye departamento, ciudad y un mapa Leaflet/OpenStreetMap: al hacer clic, arrastrar el marcador o usar la ubicacion actual se llenan latitud, longitud y, cuando es posible, ciudad y departamento automaticamente.
+El formulario de sedes incluye departamento, ciudad y un mapa Leaflet/OpenStreetMap: al hacer clic, arrastrar el marcador o usar la ubicacion actual se llenan latitud, longitud y, cuando es posible, ciudad y departamento automaticamente. Tambien permite subir hasta 6 imagenes; la primera es la portada y la galeria se abre en un modal con carrusel.
 
 ## Datos de demostracion (seed masivo)
 
@@ -241,7 +244,8 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 
 - **Dashboard:** acciones rapidas (Validar QR, Registrar cobro, actualizar), tarjeta de **Gestion** con los accesos, 4 KPIs (recaudacion, reservas del dia, ocupacion promedio por sede, clientes activos) y timeline de reservas con filtros por fecha y sede.
 - **Secciones (páginas independientes):** empleados, servicios, presentación, sedes, horarios/agenda, reportes, moderación de clientes y logs se abren en su propia ruta dentro del shell de administración.
-- **Sedes:** CRUD con dirección, ubicación y una imagen opcional del local; solo el admin la edita y clientes/empleados pueden ampliarla. **Equipo** permite al admin subir o quitar la foto del empleado; si no existe, se muestran sus iniciales.
+- **Sedes:** CRUD con dirección, ubicación y hasta 6 imágenes del local; solo el admin las edita y clientes/empleados pueden abrir la galería en un modal. **Equipo** permite al admin crear empleados o administradores, y subir o quitar la foto del empleado; si no existe, se muestran sus iniciales.
+- **Mensajes del cliente:** buzón persistente en `/cliente/mensajes` con avisos de cancelación, motivo, fecha y estado del reembolso; el dashboard muestra cuántos mensajes hay sin leer.
 - **Acciones rápidas:** Validar QR y Cobro siguen como ventanas flotantes; las confirmaciones y la carga de medios usan modales de acción.
 - **Nómina:** pestaña en Reportes con filtro por empleado, sede y período (mes, quincena o rango), cálculo sobre servicios completados y pagados, y PDF descargable.
 - **Planificador de horarios** (página completa, pestaña por defecto): matriz **empleados x LUN-DOM** con una sede por dia (colores por sede), **citas superpuestas** por estado (clic en una cita pendiente/confirmada abre el modal de validacion), filtros por empleado/sede, navegacion por semanas y editor lateral por celda.
@@ -258,10 +262,10 @@ El panel (`/admin`) fue redisenado y modularizado en `frontend/src/funcionalidad
 | POST | `/api/auth/verificar` | Publico (`{ email, codigo }` → JWT) |
 | POST | `/api/auth/reenviar-codigo` | Publico (max 3 cada 15 min) |
 | GET | `/api/auth/me` | Autenticado |
-| GET | `/api/auth/empleados` | Admin |
-| POST | `/api/auth/empleados` | Admin |
+| GET | `/api/auth/empleados?rol=empleado` | Admin (empleados y administradores) |
+| POST | `/api/auth/empleados` | Admin (`rol`: `empleado` o `admin`) |
 | PUT | `/api/auth/empleados/:id` | Admin |
-| DELETE | `/api/auth/empleados/:id` | Admin |
+| DELETE | `/api/auth/empleados/:id` | Admin (no el propio ni el ultimo admin) |
 
 ### Clientes (RF1, RF11)
 | Metodo | Ruta | Rol |
@@ -291,10 +295,19 @@ La presentacion usa una base separada `sgp_presentacion` y el volumen `sgp-prese
 ### Ubicaciones (RF6)
 | Metodo | Ruta | Rol |
 |--------|------|-----|
-| GET | `/api/ubicaciones?departamento=&ciudad=` | Publico |
-| POST | `/api/ubicaciones` | Admin |
+| GET | `/api/ubicaciones?departamento=&ciudad=` | Publico (portada y total de imagenes) |
+| GET | `/api/ubicaciones/:id/imagenes` | Publico |
+| POST | `/api/ubicaciones` | Admin (hasta 6 imagenes) |
 | PUT | `/api/ubicaciones/:id` | Admin |
 | DELETE | `/api/ubicaciones/:id` | Admin |
+
+### Notificaciones (RF8)
+| Metodo | Ruta | Rol |
+|--------|------|-----|
+| GET | `/api/notificaciones/me?solo_no_leidas=1` | Autenticado |
+| GET | `/api/notificaciones/me/contador` | Autenticado |
+| PUT | `/api/notificaciones/me/:id/leida` | Autenticado |
+| PUT | `/api/notificaciones/me/leidas` | Autenticado |
 
 ### Reservas (RF2, RF8)
 | Metodo | Ruta | Rol |
@@ -319,6 +332,7 @@ La presentacion usa una base separada `sgp_presentacion` y el volumen `sgp-prese
 | PUT | `/api/reservas/jornada` | Admin |
 | GET | `/api/reservas/jornada/plantilla` | Publico |
 | PUT | `/api/reservas/jornada/plantilla` | Admin |
+| PUT | `/api/reservas/jornada/plantilla/todas` | Admin (aplica a todas las sedes) |
 | POST | `/api/reservas/jornada/festivo` | Admin |
 | GET | `/api/reservas/festivos?desde&hasta` | Publico |
 | GET | `/api/reservas/empleado-tiempos-servicio` | Admin |
@@ -423,9 +437,9 @@ Formato de respuesta: `{ "ok": true, "data": {...} }` o `{ "ok": false, "error":
 - Ventana validacion QR: +-120 minutos
 - Check-in y cobro son atomicos; al validar la reserva queda `cobrado`
 - Un solo cobro por reserva (restriccion UNIQUE + transaccion)
-- La reserva valida que el empleado ofrezca el servicio y este dentro de su disponibilidad semanal en esa sede; la duracion se toma de `empleado_tiempo_servicio`
+- La reserva valida que el empleado ofrezca el servicio y este dentro de su disponibilidad semanal en esa sede; la duracion se toma de `empleado_tiempo_servicio` y se multiplica por la cantidad de personas
 - Creacion de reserva con advisory lock por empleado/dia (evita carreras de horario)
-- Cantidad de personas: 1 a 5
+- Cantidad de personas: 1 a 5; la cita debe caber completa antes del cierre de la sede y del turno del estilista
 - Cliente bloqueado no inicia sesion ni reserva
 - Un solo cobro por reserva
 - Cambio de sede cancela las reservas futuras del dia cambiado en la sede anterior, con motivo `"El empleado cambió de sede"` y notificacion WebSocket `reserva.actualizada`

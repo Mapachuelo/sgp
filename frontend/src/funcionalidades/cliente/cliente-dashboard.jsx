@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   CalendarDays,
   Clock3,
+  Mail,
   MapPin,
   QrCode,
   RefreshCw,
@@ -200,6 +201,7 @@ function DetalleReserva({ reserva, abierto, onClose, onPagar, onCancelar }) {
           {reserva.ubicacion_imagen_url && (
             <ImagenSede
               sede={{
+                id: reserva.ubicacion_id,
                 nombre: reserva.ubicacion_nombre,
                 direccion: reserva.ubicacion_direccion,
                 ciudad: reserva.ubicacion_ciudad,
@@ -315,6 +317,7 @@ export default function ClienteDashboard() {
   const [pagoReserva, setPagoReserva] = useState(null);
   const [cancelarReserva, setCancelarReserva] = useState(null);
   const [cancelando, setCancelando] = useState(false);
+  const [mensajesNuevos, setMensajesNuevos] = useState(0);
 
   const cargarReservas = async () => {
     try {
@@ -330,10 +333,18 @@ export default function ClienteDashboard() {
 
   useEffect(() => {
     cargarReservas();
+    api.notificaciones.contador()
+      .then((data) => setMensajesNuevos(Number(data?.no_leidas) || 0))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (ultimoEvento?.tipo === 'reserva.actualizada') cargarReservas();
+    if (ultimoEvento?.tipo === 'reserva.actualizada') {
+      cargarReservas();
+      api.notificaciones.contador()
+        .then((data) => setMensajesNuevos(Number(data?.no_leidas) || 0))
+        .catch(() => {});
+    }
   }, [ultimoEvento]);
 
   const activas = useMemo(
@@ -419,6 +430,23 @@ export default function ClienteDashboard() {
           </>
         }
       />
+
+      {mensajesNuevos > 0 && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-acento/30 bg-acento/[0.04]">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-acento/30 bg-acento/10 text-acento">
+              <Mail className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-texto-principal">
+                Tienes {mensajesNuevos} mensaje{mensajesNuevos === 1 ? '' : 's'} sin leer
+              </p>
+              <p className="text-[11px] text-texto-secundario">Revisa los avisos de tus citas.</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => navigate('/cliente/mensajes')}>Ver mensajes</Button>
+        </Card>
+      )}
 
       {!proxima ? (
         <EmptyState

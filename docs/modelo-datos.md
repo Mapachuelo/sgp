@@ -46,6 +46,17 @@ app_user 1───N cobro (registrado_por)
 
 `imagen_url` se edita solo desde Admin → Sedes y se muestra en la selección de sede del cliente, la sede del empleado y la portada pública.
 
+### 2.1.1 `ubicacion_imagen`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| ubicacion_id | integer | FK `ubicacion(id)` ON DELETE CASCADE |
+| imagen_url | text | NOT NULL; Data URL comprimida JPG/PNG/WebP |
+| orden | integer | NOT NULL, DEFAULT 1 |
+| creado_en | timestamptz | DEFAULT now() |
+
+UNIQUE `(ubicacion_id, orden)`. Máximo 6 imágenes por sede, validado en la aplicación. La primera imagen (orden 1) es la portada y se copia a `ubicacion.imagen_url` en cada actualización.
+
 ### 2.2 `app_user`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
@@ -251,6 +262,21 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 
 Índices: `idx_pago_reserva_id`, `idx_pago_estado`, `idx_pago_referencia`.
 
+### 2.12.1 `notificacion`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| usuario_id | integer | FK `app_user(id)` ON DELETE CASCADE |
+| reserva_id | integer | FK `reserva(id)` ON DELETE SET NULL; opcional |
+| tipo | varchar(40) | NOT NULL, DEFAULT `reserva` |
+| titulo | varchar(160) | NOT NULL |
+| mensaje | text | NOT NULL |
+| metadata | jsonb | NOT NULL, DEFAULT `{}` |
+| leida_en | timestamptz | NULL hasta que el usuario abre el mensaje |
+| creado_en | timestamptz | DEFAULT now() |
+
+Índice: `idx_notificacion_usuario_leida (usuario_id, leida_en, creado_en DESC)`.
+
 ### 2.13 `preferencia_usuario`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
@@ -297,6 +323,7 @@ Clave inicial: `max_servicios_reserva = 5`; el admin la edita entre 1 y 10.
 - Un cobro por reserva (UNIQUE + transacción del check-in).
 - Un pago aprobado crea/vincula el `cobro` online con `pago_id` y mueve la reserva a `confirmada`; el servicio solo puede iniciar si hay pago en línea aprobado o cobro en efectivo. Al finalizar, la reserva pasa a `cobrado` y se registra `fin_servicio`.
 - La cola de atención se deriva de `llego_en` + estado: programado, en espera, en curso o atendido. Referencias de pago únicas; webhook idempotente por `transaction_id`/estado final.
+- Cada cancelación del salón crea una fila en `notificacion` con el motivo y el estado del reembolso; el cliente la consulta en `/cliente/mensajes`.
 - Estados válidos de reserva restringidos por CHECK.
 - Cantidad de personas entre 1 y 5.
 - Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro y sus pagos.

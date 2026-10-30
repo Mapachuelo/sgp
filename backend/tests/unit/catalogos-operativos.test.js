@@ -14,6 +14,7 @@ const {
 } = require('./helpers');
 const reservasService = require('../../src/features/reservas/reservas.service');
 const authService = require('../../src/features/auth/auth.service');
+const authModel = require('../../src/features/auth/auth.model');
 const clientesService = require('../../src/features/clientes/clientes.service');
 const { leerArchivo, exportarLineas, filtrarLogs } = require('../../src/features/logs/logs.service');
 
@@ -214,6 +215,32 @@ test('reservas: jornada por sede', async () => {
   assert.equal(restantes[0].fecha.toISOString().slice(0, 10), '2026-11-02');
 });
 
+test('reservas: aplica plantilla semanal a todas las sedes', async () => {
+  const sedeA = await crearSede();
+  const sedeB = await crearSede();
+  ids.sedes.push(sedeA.id, sedeB.id);
+  const items = [1, 2, 3, 4, 5].map((dia) => ({
+    dia_semana: dia,
+    abierto: true,
+    hora_inicio: '08:30',
+    hora_fin: '19:30',
+  })).concat([6, 7].map((dia) => ({
+    dia_semana: dia,
+    abierto: false,
+    hora_inicio: '00:00',
+    hora_fin: '00:00',
+  })));
+
+  const resultado = await reservasService.updateJornadaPlantillaTodas(items);
+  assert.ok(resultado.sedes >= 2);
+  const plantillaA = await reservasService.getJornadaPlantilla(sedeA.id);
+  const plantillaB = await reservasService.getJornadaPlantilla(sedeB.id);
+  assert.equal(plantillaA.length, 7);
+  assert.equal(plantillaB.length, 7);
+  assert.equal(plantillaA[0].hora_inicio, '08:30:00');
+  assert.equal(plantillaB[5].abierto, false);
+});
+
 test('reservas: tiempos de servicio por empleado', async () => {
   const empleadoId = await crearUsuario({ rol: 'empleado' });
   const servicio = await crearServicio('Cat Tiempos', 30, 30000);
@@ -288,6 +315,36 @@ test('auth: empleados CRUD y verificacion/reenevio exitosos', async () => {
 
   const sinFoto = await authService.updateEmpleado(empleado.id, { foto_url: null });
   assert.equal(sinFoto.foto_url, null);
+
+  const admin = await authService.createEmpleado({
+    rol: 'admin',
+    email: `admin.${sufijo()}@unit.local`,
+    nombre: 'Admin',
+    apellido: 'Unit',
+    password: 'admin123',
+    telefono: '+573001112255',
+  });
+  ids.usuarios.push(admin.id);
+  assert.equal(admin.rol, 'admin');
+  assert.equal(admin.identificacion, null);
+  const { rows: perfilAdmin } = await pool.query(
+    'SELECT 1 FROM empleado_perfil WHERE usuario_id = $1',
+    [admin.id]
+  );
+  assert.equal(perfilAdmin.length, 0);
+  await assert.rejects(
+    () => authService.updateEmpleado(admin.id, { rol: 'empleado' }),
+    /rol/
+  );
+  const adminEditado = await authService.updateEmpleado(admin.id, { nombre: 'Admin Editado' });
+  assert.equal(adminEditado.nombre, 'Admin Editado');
+  await assert.rejects(
+    () => authService.deleteEmpleado(admin.id, admin.id),
+    /propia cuenta/
+  );
+
+  const usuariosStaff = await authModel.findAllUsuarios();
+  assert.ok(usuariosStaff.some((item) => item.id === admin.id && item.rol === 'admin'));
 
   const nuevosEmpleados = await authService.getMe(empleado.id);
   assert.equal(nuevosEmpleados.email, email);

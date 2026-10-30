@@ -1,6 +1,6 @@
 const disponibilidadModel = require('./disponibilidad.model');
 const reservasModel = require('../reservas/reservas.model');
-const { cancelarReservasConReembolso } = require('../reservas/cancelacion-reservas');
+const { cancelarReservasConReembolso, cancelarReservasPorIds } = require('../reservas/cancelacion-reservas');
 const HttpError = require('../../shared/http-error');
 const { esFestivo } = require('../../shared/festivos-colombia');
 
@@ -152,8 +152,8 @@ const disponibilidadService = {
       );
       if (reservasFuturas.length > 0) {
         const ids = reservasFuturas.map((r) => r.id);
-        const canceladas = await reservasModel.cancelReservasFuturas(ids, MOTIVO_CAMBIO_SEDE);
-        reservasCanceladas.push(...canceladas);
+        const canceladas = await cancelarReservasPorIds(ids, MOTIVO_CAMBIO_SEDE);
+        reservasCanceladas.push(...canceladas.map((item) => item.reserva_id));
       }
     }
 

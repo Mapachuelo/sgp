@@ -1,4 +1,18 @@
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sgp-presentacion-media
+  labels:
+    app: sgp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
 kind: Pod
 metadata:
   name: sgp-app
@@ -6,6 +20,10 @@ metadata:
     app: sgp
 spec:
   hostname: sgp-app
+  volumes:
+    - name: presentacion-media
+      persistentVolumeClaim:
+        claimName: sgp-presentacion-media
   containers:
     - name: backend
       image: localhost/sgp-backend:latest
@@ -13,6 +31,10 @@ spec:
       env:
         - name: DATABASE_URL
           value: postgresql://sgp_user:sgp_password@sgp-db:5432/sgp
+        - name: PRESENTACION_DATABASE_URL
+          value: postgresql://sgp_user:sgp_password@sgp-db:5432/sgp_presentacion
+        - name: PRESENTACION_MEDIA_DIR
+          value: /app/presentacion-media
         - name: JWT_SECRET
           value: sgp_super_secret_2026
         - name: AES_SECRET
@@ -40,7 +62,10 @@ spec:
         - name: WOMPI_EVENTS_SECRET
           value: pon_aqui_tu_test_events
         - name: WOMPI_REDIRECT_URL
-          value: http://localhost:8080/cliente/reservar
+          value: https://TU_DOMINIO/cliente/reservar
+      volumeMounts:
+        - name: presentacion-media
+          mountPath: /app/presentacion-media
 
     - name: frontend
       image: localhost/sgp-frontend:latest

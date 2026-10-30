@@ -854,64 +854,60 @@ export default function EmpleadoDisponibilidad() {
                 <Button variant="outline" size="sm" onClick={limpiarDescansos} disabled={guardandoDescanso}>Quitar descansos</Button>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              <div className="w-44">
-                <Select
-                  label="Tipo de descanso"
-                  value={modoDescanso}
-                  onChange={(e) => setModoDescanso(e.target.value)}
-                  options={[
-                    { value: 'todo', label: 'Todo el día' },
-                    { value: 'rango', label: 'Rango de horas' },
-                  ]}
-                />
-              </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-start">
+              <Select
+                label="Tipo de descanso"
+                value={modoDescanso}
+                onChange={(e) => setModoDescanso(e.target.value)}
+                options={[
+                  { value: 'todo', label: 'Todo el día' },
+                  { value: 'rango', label: 'Rango de horas' },
+                ]}
+              />
               {modoDescanso === 'rango' && (
-                <div className="min-w-[280px] flex-1 space-y-2">
+                <div className="min-w-0 rounded-lg border border-borde bg-panel/30 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[11px] font-medium text-texto-secundario">Rangos de descanso</span>
                     <Button type="button" variant="outline" size="sm" onClick={agregarRangoDescanso} disabled={guardandoDescanso}>
                       <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Agregar otro
                     </Button>
                   </div>
-                  {descansosRango.map((rango, indice) => (
-                    <div key={indice} className="flex flex-wrap items-end gap-2">
-                      <div className="w-28">
+                  <div className="mt-2 space-y-2">
+                    {descansosRango.map((rango, indice) => (
+                      <div key={indice} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
                         <Input
-                          label={indice === 0 ? 'Desde' : undefined}
+                          label={`Desde${descansosRango.length > 1 ? ` ${indice + 1}` : ''}`}
                           aria-label={`Desde descanso ${indice + 1}`}
                           type="time"
                           value={rango.inicio}
                           onChange={(e) => cambiarRangoDescanso(indice, 'inicio', e.target.value)}
                         />
-                      </div>
-                      <div className="w-28">
                         <Input
-                          label={indice === 0 ? 'Hasta' : undefined}
+                          label={`Hasta${descansosRango.length > 1 ? ` ${indice + 1}` : ''}`}
                           aria-label={`Hasta descanso ${indice + 1}`}
                           type="time"
                           value={rango.fin}
                           onChange={(e) => cambiarRangoDescanso(indice, 'fin', e.target.value)}
                         />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Quitar descanso ${indice + 1}`}
+                          onClick={() => quitarRangoDescanso(indice)}
+                          disabled={descansosRango.length <= 1 || guardandoDescanso}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Quitar descanso ${indice + 1}`}
-                        onClick={() => quitarRangoDescanso(indice)}
-                        disabled={descansosRango.length <= 1 || guardandoDescanso}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
-              <span className="pb-1 text-[11px] text-texto-secundario" aria-live="polite">
-                {guardandoDescanso ? 'Guardando descanso…' : 'Se guarda automáticamente'}
-              </span>
             </div>
+            <p className="mt-2 text-[11px] text-texto-secundario" aria-live="polite">
+              {guardandoDescanso ? 'Guardando descanso…' : 'Se guarda automáticamente'}
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {DIAS.map((dia, indice) => {
                 const diaActual = dias[indice];

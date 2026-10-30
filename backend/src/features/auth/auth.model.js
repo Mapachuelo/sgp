@@ -86,16 +86,34 @@ const authModel = {
     return rows[0];
   },
 
-  async findAllEmpleados() {
+  async findAllUsuarios({ rol } = {}) {
     const { rows } = await pool.query(
       `SELECT u.id, u.email, u.rol, u.nombre, u.apellido, u.telefono, u.esta_bloqueado,
               ep.identificacion, ep.ubicacion_base_id, ep.foto_url, ep.comision_porcentaje, u.creado_en
        FROM app_user u
        LEFT JOIN empleado_perfil ep ON u.id = ep.usuario_id
-       WHERE u.rol = 'empleado'
-       ORDER BY u.creado_en DESC`
+       WHERE u.rol IN ('empleado', 'admin')
+         AND ($1::text IS NULL OR u.rol = $1)
+       ORDER BY u.rol DESC, u.creado_en DESC`,
+      [rol || null]
     );
     return rows.map(conTelefonoDescifrado);
+  },
+
+  async findAllEmpleados() {
+    return authModel.findAllUsuarios({ rol: 'empleado' });
+  },
+
+  async findUsuarioGestionado(id) {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.email, u.rol, u.nombre, u.apellido, u.telefono, u.esta_bloqueado,
+              ep.identificacion, ep.ubicacion_base_id, ep.foto_url, ep.comision_porcentaje, u.creado_en
+       FROM app_user u
+       LEFT JOIN empleado_perfil ep ON u.id = ep.usuario_id
+       WHERE u.id = $1 AND u.rol IN ('empleado', 'admin')`,
+      [id]
+    );
+    return conTelefonoDescifrado(rows[0] || null);
   },
 
   async findEmpleadoById(id) {
@@ -155,12 +173,47 @@ const authModel = {
     return authModel.findEmpleadoById(id);
   },
 
+  async updateUsuarioBase(id, data) {
+    const fields = [];
+    const values = [];
+    let idx = 1;
+    if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email); }
+    if (data.nombre !== undefined) { fields.push(`nombre = $${idx++}`); values.push(data.nombre); }
+    if (data.apellido !== undefined) { fields.push(`apellido = $${idx++}`); values.push(data.apellido); }
+    if (data.telefono !== undefined) { fields.push(`telefono = $${idx++}`); values.push(cifrarTelefono(data.telefono)); }
+    if (data.password_hash !== undefined) { fields.push(`password_hash = $${idx++}`); values.push(data.password_hash); }
+    if (fields.length === 0) return authModel.findUsuarioGestionado(id);
+    fields.push('actualizado_en = NOW()');
+    values.push(id);
+    await pool.query(
+      `UPDATE app_user SET ${fields.join(', ')}
+       WHERE id = $${idx} AND rol IN ('empleado', 'admin')`,
+      values
+    );
+    return authModel.findUsuarioGestionado(id);
+  },
+
   async deleteEmpleado(id) {
     const { rows } = await pool.query(
       'DELETE FROM app_user WHERE id = $1 AND rol = $2 RETURNING id',
       [id, 'empleado']
     );
     return rows[0] || null;
+  },
+
+  async deleteUsuarioGestionado(id) {
+    const { rows } = await pool.query(
+      "DELETE FROM app_user WHERE id = $1 AND rol IN ('empleado', 'admin') RETURNING id, rol",
+      [id]
+    );
+    return rows[0] || null;
+  },
+
+  async countAdmins() {
+    const { rows } = await pool.query(
+      "SELECT COUNT(*)::int AS total FROM app_user WHERE rol = 'admin'"
+    );
+    return Number(rows[0]?.total || 0);
   },
 
   async hasCobros(empleado_id) {

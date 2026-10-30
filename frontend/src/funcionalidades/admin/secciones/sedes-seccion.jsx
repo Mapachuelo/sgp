@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ImageOff, MapPin, Pencil, Plus, Trash2, Upload } from 'lucide-react';
-import { PageHeader, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
+import { ArrowLeft, ArrowRight, MapPin, Pencil, Plus, Trash2, Upload } from 'lucide-react';
+import { Badge, PageHeader, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
 import SelectorUbicacion from '../../../componentes/mapa/selector-ubicacion.jsx';
 import ImagenSede from '../../../componentes/ubicaciones/imagen-sede.jsx';
 import { comprimirImagen } from '../../../lib/imagen.js';
 import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
 import { DEPARTAMENTOS, ciudadesDeDepartamento } from '../../../lib/colombia.js';
+
+const MAX_IMAGENES = 6;
 
 const FORM_INICIAL = {
   nombre: '',
@@ -15,7 +17,7 @@ const FORM_INICIAL = {
   ciudad: '',
   latitud: '',
   longitud: '',
-  imagen_url: '',
+  imagenes: [],
 };
 
 export default function SedesSeccion() {
@@ -76,19 +78,56 @@ export default function SedesSeccion() {
     setCiudadManual(false);
   };
 
-  const subirImagen = async (event) => {
-    const archivo = event.target.files?.[0];
+  const subirImagenes = async (event) => {
+    const archivos = [...(event.target.files || [])];
     event.target.value = '';
-    if (!archivo) return;
+    if (!archivos.length) return;
+    const disponibles = Math.max(0, MAX_IMAGENES - form.imagenes.length);
+    if (disponibles === 0) {
+      avisarAdmin(`Máximo ${MAX_IMAGENES} imágenes por sede`, 'warning');
+      return;
+    }
     setSubiendoImagen(true);
     try {
-      const imagen = await comprimirImagen(archivo, { maxLado: 1200, maxBytes: 300 * 1024 });
-      setForm((previo) => ({ ...previo, imagen_url: imagen }));
+      const nuevas = [];
+      for (const archivo of archivos.slice(0, disponibles)) {
+        nuevas.push(await comprimirImagen(archivo, { maxLado: 1200, maxBytes: 300 * 1024 }));
+      }
+      setForm((previo) => ({
+        ...previo,
+        imagenes: [...previo.imagenes, ...nuevas].slice(0, MAX_IMAGENES),
+      }));
     } catch (error) {
       avisarAdmin(error.message, 'error');
     } finally {
       setSubiendoImagen(false);
     }
+  };
+
+  const moverImagen = (indice, delta) => {
+    setForm((previo) => {
+      const destino = indice + delta;
+      if (destino < 0 || destino >= previo.imagenes.length) return previo;
+      const imagenes = [...previo.imagenes];
+      [imagenes[indice], imagenes[destino]] = [imagenes[destino], imagenes[indice]];
+      return { ...previo, imagenes };
+    });
+  };
+
+  const hacerPortada = (indice) => {
+    setForm((previo) => {
+      if (indice <= 0 || indice >= previo.imagenes.length) return previo;
+      const imagenes = [...previo.imagenes];
+      const [portada] = imagenes.splice(indice, 1);
+      return { ...previo, imagenes: [portada, ...imagenes] };
+    });
+  };
+
+  const quitarImagen = (indice) => {
+    setForm((previo) => ({
+      ...previo,
+      imagenes: previo.imagenes.filter((_, posicion) => posicion !== indice),
+    }));
   };
 
   const guardar = async () => {
@@ -110,7 +149,7 @@ export default function SedesSeccion() {
     }
     setGuardando(true);
     try {
-      const body = { ...form, latitud, longitud, imagen_url: form.imagen_url || null };
+      const body = { ...form, latitud, longitud, imagenes: form.imagenes };
       if (editId) await api.ubicaciones.update(editId, body);
       else await api.ubicaciones.create(body);
       avisarAdmin(editId ? 'Sede actualizada' : 'Sede creada');
@@ -134,7 +173,7 @@ export default function SedesSeccion() {
     }
   };
 
-  const editar = (sede) => {
+  const editar = async (sede) => {
     setEditId(sede.id);
     setMostrarForm(true);
     setCiudadManual(true);
@@ -145,8 +184,18 @@ export default function SedesSeccion() {
       ciudad: sede.ciudad || '',
       latitud: sede.latitud ?? '',
       longitud: sede.longitud ?? '',
-      imagen_url: sede.imagen_url || '',
+      imagenes: sede.imagen_url ? [sede.imagen_url] : [],
     });
+    try {
+      const data = await api.ubicaciones.imagenes(sede.id);
+      const urls = (Array.isArray(data) ? data : [])
+        .sort((a, b) => Number(a.orden) - Number(b.orden))
+        .map((imagen) => imagen.imagen_url)
+        .filter(Boolean);
+      if (urls.length > 0) setForm((previo) => ({ ...previo, imagenes: urls }));
+    } catch {
+      avisarAdmin('No se pudieron cargar todas las imágenes de la sede', 'warning');
+    }
   };
 
   return (
@@ -229,43 +278,86 @@ export default function SedesSeccion() {
               <Input label="Longitud" type="number" step="any" value={form.longitud} onChange={(e) => setForm((p) => ({ ...p, longitud: e.target.value }))} />
             </div>
             <div className="mt-4">
-              <span className="block text-xs font-medium text-texto-principal">Imagen del local</span>
-              <div className="mt-1.5 flex flex-wrap items-start gap-3 rounded-md border border-borde bg-panel/40 p-3">
-                {form.imagen_url ? (
-                  <>
-                    <ImagenSede
-                      sede={{ ...form, nombre: form.nombre || 'Sede' }}
-                      className="h-28 w-44 rounded-md"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => inputImagenRef.current?.click()} disabled={subiendoImagen}>
-                        {subiendoImagen ? <Spinner /> : <><Upload className="h-3.5 w-3.5" aria-hidden="true" /> Cambiar</>}
-                      </Button>
-                      <Button type="button" variant="dangerSuave" size="sm" onClick={() => setForm((previo) => ({ ...previo, imagen_url: '' }))}>
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Quitar
-                      </Button>
+              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                <span className="block text-xs font-medium text-texto-principal">Imágenes del local</span>
+                <span className="num text-[11px] text-tenue">{form.imagenes.length}/{MAX_IMAGENES}</span>
+              </div>
+              <div className="rounded-md border border-borde bg-panel/40 p-3">
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+                  {form.imagenes.map((imagen, indice) => (
+                    <div key={`${indice}-${imagen.slice(-18)}`} className="group relative overflow-hidden rounded-md border border-borde bg-superficie">
+                      <img
+                        src={imagen}
+                        alt={`Imagen ${indice + 1} de ${form.nombre || 'sede'}`}
+                        className="aspect-[4/3] w-full object-cover"
+                      />
+                      {indice === 0 && <Badge variant="accent" className="absolute left-1.5 top-1.5">Portada</Badge>}
+                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-superficie p-1">
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moverImagen(indice, -1)}
+                            disabled={indice === 0}
+                            aria-label={`Mover imagen ${indice + 1} a la izquierda`}
+                            className="flex h-7 w-7 items-center justify-center rounded border border-borde text-texto-secundario hover:bg-panel disabled:opacity-35"
+                          >
+                            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moverImagen(indice, 1)}
+                            disabled={indice === form.imagenes.length - 1}
+                            aria-label={`Mover imagen ${indice + 1} a la derecha`}
+                            className="flex h-7 w-7 items-center justify-center rounded border border-borde text-texto-secundario hover:bg-panel disabled:opacity-35"
+                          >
+                            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                        <div className="flex gap-1">
+                          {indice > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => hacerPortada(indice)}
+                              className="h-7 rounded border border-borde px-1.5 text-[10px] font-medium text-texto-secundario hover:bg-panel"
+                            >
+                              Portada
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => quitarImagen(indice)}
+                            aria-label={`Quitar imagen ${indice + 1}`}
+                            className="flex h-7 w-7 items-center justify-center rounded border border-error/30 text-error hover:bg-error/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => inputImagenRef.current?.click()}
-                    disabled={subiendoImagen}
-                    className="flex h-28 w-44 flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-control bg-superficie px-3 text-center text-[11px] font-medium text-texto-secundario transition-colors hover:border-acento hover:text-acento disabled:opacity-50"
-                  >
-                    {subiendoImagen ? <Spinner /> : <><ImageOff className="h-4 w-4" aria-hidden="true" /> Subir imagen</>}
-                  </button>
-                )}
+                  ))}
+                  {form.imagenes.length < MAX_IMAGENES && (
+                    <button
+                      type="button"
+                      onClick={() => inputImagenRef.current?.click()}
+                      disabled={subiendoImagen}
+                      className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-control bg-superficie px-3 text-center text-[11px] font-medium text-texto-secundario transition-colors hover:border-acento hover:text-acento disabled:opacity-50"
+                    >
+                      {subiendoImagen ? <Spinner /> : <Upload className="h-4 w-4" aria-hidden="true" />}
+                      {subiendoImagen ? 'Comprimiendo...' : 'Agregar imágenes'}
+                    </button>
+                  )}
+                </div>
                 <input
                   ref={inputImagenRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
+                  multiple
                   className="sr-only"
-                  onChange={subirImagen}
-                  aria-label="Imagen del local"
+                  onChange={subirImagenes}
+                  aria-label="Imágenes del local"
                 />
-                <p className="max-w-xs text-[11px] leading-5 text-tenue">
-                  JPG, PNG o WebP. Se comprime automáticamente y solo el administrador puede cambiarla.
+                <p className="mt-2 text-[11px] leading-4 text-tenue">
+                  JPG, PNG o WebP. Máximo {MAX_IMAGENES} imágenes; la primera es la portada. Se comprimen automáticamente y solo el administrador puede cambiarlas.
                 </p>
               </div>
             </div>
@@ -321,7 +413,7 @@ export default function SedesSeccion() {
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{sede.departamento || 'Sin departamento'}</td>
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{sede.ciudad || 'Sin ciudad'}</td>
                     <td className="py-2.5 px-3">
-                      <ImagenSede sede={sede} className="h-10 w-14 rounded-md" placeholder />
+                      <ImagenSede sede={sede} className="h-10 w-14 rounded-md" placeholder compacto />
                     </td>
                     <td className="py-2.5 px-3 font-semibold text-texto-principal">{sede.nombre}</td>
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{sede.direccion}</td>

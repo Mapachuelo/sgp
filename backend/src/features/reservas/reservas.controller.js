@@ -91,6 +91,15 @@ const reservasController = {
       throw new HttpError(400, 'ubicacion_id e items son requeridos');
     }
     const result = await reservasService.updateJornadaPlantilla(ubicacion_id, items);
+    result.reservas_canceladas.forEach((id) => emitReservaActualizada(id, 'cancelada'));
+    res.json({ ok: true, data: result });
+  }),
+
+  updateJornadaPlantillaTodas: asyncHandler(async (req, res) => {
+    const { items } = req.body;
+    if (!items) throw new HttpError(400, 'items es requerido');
+    const result = await reservasService.updateJornadaPlantillaTodas(items);
+    result.reservas_canceladas.forEach((id) => emitReservaActualizada(id, 'cancelada'));
     res.json({ ok: true, data: result });
   }),
 
@@ -110,6 +119,7 @@ const reservasController = {
       throw new HttpError(400, 'ubicacion_id e items son requeridos');
     }
     const result = await reservasService.updateJornada(ubicacion_id, items);
+    result.reservas_canceladas.forEach((id) => emitReservaActualizada(id, 'cancelada'));
     res.json({ ok: true, data: result });
   }),
 

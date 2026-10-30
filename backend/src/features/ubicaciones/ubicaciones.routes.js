@@ -5,6 +5,7 @@ const { authenticate, authorize } = require('../../shared/middlewares/auth.middl
 const router = Router();
 
 router.get('/', ubicacionesController.listar);
+router.get('/:id/imagenes', ubicacionesController.imagenes);
 router.post('/', authenticate, authorize('admin'), ubicacionesController.crear);
 router.put('/:id', authenticate, authorize('admin'), ubicacionesController.actualizar);
 router.delete('/:id', authenticate, authorize('admin'), ubicacionesController.eliminar);

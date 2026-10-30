@@ -109,7 +109,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita, recargarK
       const desde = formatearFechaLocal(semanaInicio);
       const hasta = formatearFechaLocal(sumarDias(semanaInicio, 6));
       const [emps, ubis, disp, ag, plantillaData, festivosData, temporalesData] = await Promise.all([
-        api.auth.empleados.list(),
+        api.auth.empleados.list({ rol: 'empleado' }),
         api.ubicaciones.list(),
         api.disponibilidad.todas(),
         api.reservas.agenda({ desde, hasta }),

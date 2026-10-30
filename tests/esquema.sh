@@ -140,6 +140,24 @@ validar "ubicacion.ciudad existe" \
 validar "ubicacion.imagen_url existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion' AND column_name='imagen_url' AND data_type='text')"
 
+validar "ubicacion_imagen existe" \
+  "SELECT to_regclass('public.ubicacion_imagen') IS NOT NULL"
+
+validar "ubicacion_imagen.ubicacion_id existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion_imagen' AND column_name='ubicacion_id')"
+
+validar "ubicacion_imagen.imagen_url existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ubicacion_imagen' AND column_name='imagen_url' AND data_type='text')"
+
+validar "notificacion existe" \
+  "SELECT to_regclass('public.notificacion') IS NOT NULL"
+
+validar "notificacion.usuario_id existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='notificacion' AND column_name='usuario_id')"
+
+validar "notificacion.leida_en existe" \
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='notificacion' AND column_name='leida_en' AND data_type='timestamp with time zone')"
+
 validar "preferencia_usuario.ciudad_preferida existe" \
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='preferencia_usuario' AND column_name='ciudad_preferida')"
 

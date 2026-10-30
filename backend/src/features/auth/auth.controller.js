@@ -83,16 +83,17 @@ const authController = {
 
   listarEmpleados: asyncHandler(async (req, res) => {
     const authModel = require('./auth.model');
-    const empleados = await authModel.findAllEmpleados();
+    const rol = req.query.rol === 'empleado' || req.query.rol === 'admin' ? req.query.rol : null;
+    const usuarios = await authModel.findAllUsuarios({ rol });
     res.json({
       ok: true,
-      data: empleados,
+      data: usuarios,
     });
   }),
 
   crearEmpleado: asyncHandler(async (req, res) => {
     const empleado = await authService.createEmpleado(req.body);
-    logger.info({ email: req.body.email }, 'Empleado creado por admin');
+    logger.info({ email: req.body.email, rol: empleado.rol }, 'Usuario creado por admin');
     res.status(201).json({
       ok: true,
       data: empleado,
@@ -108,7 +109,7 @@ const authController = {
   }),
 
   eliminarEmpleado: asyncHandler(async (req, res) => {
-    const resultado = await authService.deleteEmpleado(parseInt(req.params.id, 10));
+    const resultado = await authService.deleteEmpleado(parseInt(req.params.id, 10), req.usuario.id);
     res.json({
       ok: true,
       data: resultado,

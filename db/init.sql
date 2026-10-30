@@ -111,6 +111,23 @@ CREATE TABLE IF NOT EXISTS servicio_imagen (
   UNIQUE(servicio_id, orden)
 );
 
+CREATE TABLE IF NOT EXISTS ubicacion_imagen (
+  id SERIAL PRIMARY KEY,
+  ubicacion_id INTEGER NOT NULL REFERENCES ubicacion(id) ON DELETE CASCADE,
+  imagen_url TEXT NOT NULL,
+  orden INTEGER NOT NULL DEFAULT 1,
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(ubicacion_id, orden)
+);
+
+INSERT INTO ubicacion_imagen (ubicacion_id, imagen_url, orden)
+SELECT u.id, u.imagen_url, 1
+FROM ubicacion u
+WHERE u.imagen_url IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM ubicacion_imagen ui WHERE ui.ubicacion_id = u.id
+  );
+
 CREATE TABLE IF NOT EXISTS empleado_tiempo_servicio (
   id SERIAL PRIMARY KEY,
   empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
@@ -273,6 +290,21 @@ ALTER TABLE cobro ADD COLUMN IF NOT EXISTS reembolsado_en TIMESTAMPTZ;
 ALTER TABLE pago ADD COLUMN IF NOT EXISTS reembolso_estado VARCHAR(20);
 ALTER TABLE pago ADD COLUMN IF NOT EXISTS reembolsado_en TIMESTAMPTZ;
 
+CREATE TABLE IF NOT EXISTS notificacion (
+  id SERIAL PRIMARY KEY,
+  usuario_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  reserva_id INTEGER REFERENCES reserva(id) ON DELETE SET NULL,
+  tipo VARCHAR(40) NOT NULL DEFAULT 'reserva',
+  titulo VARCHAR(160) NOT NULL,
+  mensaje TEXT NOT NULL,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  leida_en TIMESTAMPTZ,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notificacion_usuario_leida
+  ON notificacion (usuario_id, leida_en, creado_en DESC);
+
 CREATE TABLE IF NOT EXISTS preferencia_usuario (
   id SERIAL PRIMARY KEY,
   usuario_id INTEGER UNIQUE NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
@@ -302,6 +334,7 @@ CREATE INDEX IF NOT EXISTS idx_pago_referencia ON pago(referencia);
 CREATE INDEX IF NOT EXISTS idx_app_user_rol_bloqueado ON app_user(rol, esta_bloqueado);
 CREATE INDEX IF NOT EXISTS idx_servicio_catalogo_categoria_id ON servicio_catalogo(categoria_id);
 CREATE INDEX IF NOT EXISTS idx_servicio_imagen_servicio ON servicio_imagen(servicio_id, orden);
+CREATE INDEX IF NOT EXISTS idx_ubicacion_imagen_ubicacion ON ubicacion_imagen(ubicacion_id, orden);
 CREATE INDEX IF NOT EXISTS idx_reserva_servicio_reserva_id ON reserva_servicio(reserva_id);
 CREATE INDEX IF NOT EXISTS idx_reserva_servicio_empleado_inicia ON reserva_servicio(empleado_id, inicia_en);
 CREATE INDEX IF NOT EXISTS idx_reserva_servicio_servicio_id ON reserva_servicio(servicio_id);

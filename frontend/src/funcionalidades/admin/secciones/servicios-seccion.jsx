@@ -101,7 +101,7 @@ export default function ServiciosSeccion() {
       const [servs, cats, emps, cfg] = await Promise.all([
         api.reservas.servicios({ incluir_inactivos: 1 }),
         api.reservas.categorias(),
-        api.auth.empleados.list(),
+        api.auth.empleados.list({ rol: 'empleado' }),
         api.reservas.configuracion().catch(() => ({ max_servicios_reserva: 5 })),
       ]);
       setServicios(Array.isArray(servs) ? servs : []);
