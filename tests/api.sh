@@ -205,6 +205,16 @@ verificar "GET /empleados/disponibilidad/todas con admin devuelve 200" "200" "$R
 RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/empleados/disponibilidad/todas")
 verificar "GET /empleados/disponibilidad/todas sin token devuelve 401" "401" "$RESP"
 
+DESDE_TEMP=$(date +%Y-%m-%d)
+HASTA_TEMP=$(date -d "+14 days" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
+RESP=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/empleados/disponibilidad/descansos/temporales?desde=$DESDE_TEMP&hasta=$HASTA_TEMP" \
+  -H "Authorization: Bearer $TOKEN_EMPLEADO")
+verificar "GET descansos temporales del empleado devuelve 200" "200" "$RESP"
+
+RESP=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/empleados/disponibilidad/descansos/temporales?desde=$DESDE_TEMP&hasta=$HASTA_TEMP" \
+  -H "Authorization: Bearer $TOKEN_EMPLEADO")
+verificar "DELETE descansos temporales por rango devuelve 200" "200" "$RESP"
+
 DESDE=$(date +%Y-%m-%d)
 HASTA=$(date -d "+7 days" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
 RESP=$(curl -s -o /tmp/sgp_resp.json -w "%{http_code}" "$BASE_URL/reservas/agenda?desde=$DESDE&hasta=$HASTA" \

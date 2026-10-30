@@ -202,6 +202,21 @@ CREATE TABLE IF NOT EXISTS empleado_bloqueo_fecha (
 CREATE INDEX IF NOT EXISTS idx_bloqueo_fecha
   ON empleado_bloqueo_fecha (fecha, empleado_id);
 
+CREATE TABLE IF NOT EXISTS empleado_descanso_temporal (
+  id SERIAL PRIMARY KEY,
+  empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+  fecha DATE NOT NULL,
+  descanso BOOLEAN NOT NULL DEFAULT FALSE,
+  descansos JSONB NOT NULL DEFAULT '[]'::jsonb,
+  motivo VARCHAR(240),
+  creado_por INTEGER REFERENCES app_user(id) ON DELETE SET NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(empleado_id, fecha)
+);
+
+CREATE INDEX IF NOT EXISTS idx_descanso_temporal_empleado_fecha
+  ON empleado_descanso_temporal (empleado_id, fecha);
+
 CREATE TABLE IF NOT EXISTS empleado_festivo (
   id SERIAL PRIMARY KEY,
   empleado_id INTEGER NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,

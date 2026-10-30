@@ -533,6 +533,17 @@ const openapi = {
       get: { tags: ['Disponibilidad'], summary: 'Disponibilidad semanal propia (empleado)', responses: { 200: { description: 'Bloques' } } },
       put: { tags: ['Disponibilidad'], summary: 'Actualiza disponibilidad semanal; cancela reservas futuras del dia cambiado en la sede anterior', responses: { 200: { description: 'Disponibilidad actualizada' } } },
     },
+    '/empleados/disponibilidad/descansos': {
+      put: { tags: ['Disponibilidad'], summary: 'Guarda descansos fijos semanales; si hay conflicto responde CONFLICTOS_DESCANSO', responses: { 200: { description: 'Descansos guardados' }, 409: { description: 'Conflictos con citas futuras' } } },
+    },
+    '/empleados/disponibilidad/descansos/temporales': {
+      get: { tags: ['Disponibilidad'], summary: 'Descansos temporales del empleado por rango de fechas', parameters: [{ name: 'desde', in: 'query', schema: { type: 'string', format: 'date' } }, { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date' } }], responses: { 200: { description: 'Descansos temporales' } } },
+      put: { tags: ['Disponibilidad'], summary: 'Guarda un descanso para una fecha concreta; si hay conflicto responde CONFLICTOS_DESCANSO', responses: { 200: { description: 'Descanso temporal guardado' }, 409: { description: 'Conflictos con citas futuras' } } },
+      delete: { tags: ['Disponibilidad'], summary: 'Elimina descansos temporales en un rango de fechas', parameters: [{ name: 'desde', in: 'query', required: true, schema: { type: 'string', format: 'date' } }, { name: 'hasta', in: 'query', required: true, schema: { type: 'string', format: 'date' } }], responses: { 200: { description: 'Descansos eliminados' } } },
+    },
+    '/empleados/disponibilidad/descansos/temporales/{fecha}': {
+      delete: { tags: ['Disponibilidad'], summary: 'Elimina el descanso temporal de una fecha', parameters: [{ name: 'fecha', in: 'path', required: true, schema: { type: 'string', format: 'date' } }], responses: { 200: { description: 'Descanso eliminado' } } },
+    },
     '/empleados/{empleadoId}/disponibilidad': {
       get: { tags: ['Disponibilidad'], summary: 'Disponibilidad de un empleado (admin)', parameters: [{ name: 'empleadoId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Bloques' } } },
       put: { tags: ['Disponibilidad'], summary: 'Actualiza disponibilidad de un empleado (admin)', parameters: [{ name: 'empleadoId', in: 'path', required: true, schema: { type: 'integer' } }], responses: { 200: { description: 'Disponibilidad actualizada' } } },

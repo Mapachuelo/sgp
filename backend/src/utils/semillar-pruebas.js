@@ -80,8 +80,8 @@ function referencia(prefijo, indice) {
 async function resetear(client) {
   await client.query(`
     TRUNCATE TABLE
-      pago, cobro, reserva_servicio, reserva, empleado_disponibilidad, empleado_tiempo_servicio,
-      jornada, empleado_perfil, preferencia_usuario, app_user, servicio_catalogo,
+      pago, cobro, reserva_servicio, reserva, empleado_disponibilidad, empleado_descanso_temporal,
+      empleado_tiempo_servicio, jornada, empleado_perfil, preferencia_usuario, app_user, servicio_catalogo,
       servicio_categoria, configuracion, ubicacion
     RESTART IDENTITY CASCADE
   `);

@@ -20,17 +20,17 @@ Estrategia de verificación del SGP. Relaciona cada requisito (RF/RNF) con prueb
 
 | Suite | Resultado | Fecha |
 |-------|-----------|-------|
-| `tests/api.sh` | 67/67 | 2026-10-29 |
+| `tests/api.sh` | 69/69 | 2026-10-30 |
 | `tests/datos.sh` | 18/18 | 2026-10-29 |
-| `tests/esquema.sh` | 98/98 | 2026-10-29 |
-| `tests/unit/*.test.js` | 62/62 | 2026-10-29 |
-| `tests/e2e.py` | 47/47 | 2026-10-29 |
-| `tests/regresion_10x10.py` | 129/129 | 2026-10-29 |
-| `tests/verificacion_semana.py` | 70/70 | 2026-10-29 |
-| `tests/presentacion.sh` | 6/6 | 2026-10-29 |
-| Cobertura (líneas / ramas / funciones) | **86.35 % / 67.70 % / 88.86 %** (RNF5) | 2026-10-29 |
+| `tests/esquema.sh` | 101/101 | 2026-10-30 |
+| `tests/unit/*.test.js` | 63/63 | 2026-10-30 |
+| `tests/e2e.py` | 47/47 | 2026-10-30 |
+| `tests/regresion_10x10.py` | 129/129 | 2026-10-30 |
+| `tests/verificacion_semana.py` | 64/64 | 2026-10-30 (varía según el día) |
+| `tests/presentacion.sh` | 6/6 | 2026-10-30 |
+| Cobertura (líneas / ramas / funciones) | **86.47 % / 68.03 % / 88.59 %** (RNF5) | 2026-10-30 |
 
-Verificación semanal 2026-10-29: `tests/verificacion_semana.py` crea reservas en los días futuros de la semana (canceladas, pagadas con webhook Wompi aprobado, pendientes y una declinada), valida agenda, reportes de los 7 días, catálogo, galería, sedes, cliente y empleado, exporta `pg_dump` + CSV, reimporta el CSV en una tabla temporal y restaura el dump en una base temporal del contenedor con conteos idénticos. Resultado 70/70 (varía según el día de la semana). Ampliaciones 2026-10-29: kanban de disponibilidad de 7 columnas, descanso global/manual, cancelación de un día por imprevisto con bloqueo de fecha, notificación y reembolso de pagos online, y corrección del ancho de la tabla del planificador. También incluye descansos múltiples, filtros, cambios temporales con retorno automático, festivos de Colombia con opt-in por empleado, plantilla semanal fija por sede, selección masiva de días, semana navegable, nómina con porcentaje por empleado y PDF. Ampliación 2026-10-29: el descanso semanal se guarda automáticamente al tocar el día (día completo o rango), el backend cancela y notifica las citas afectadas con confirmación previa, el calendario del cliente muestra las franjas como Descanso y el dashboard del empleado agrega cortes realizados y ganado por mes; pruebas unitarias `descansos-automaticos` y `mi-resumen`. Ampliación 2026-10-29: el panel admite varios rangos de descanso por día, las sedes tienen galería de hasta 6 imágenes con modal para cliente/empleado/portada y el admin puede subir o quitar la foto del empleado; si no hay foto se muestran iniciales. También se agregaron el buzón persistente de mensajes del cliente, la creación de cuentas administradoras, la plantilla semanal global para todas las sedes y la duración de reservas multiplicada por personas con validación de jornada. Ampliaciones 2026-10-28: portada pública con carrusel de imágenes y videos en base separada `sgp_presentacion` y volumen propio, carrusel de servicios con detalle ampliado y galería, botón de regreso a la portada en autenticación, secciones de administración como páginas independientes, pestaña Servicios del empleado con detalle de galería y edición exclusiva de duración, foto opcional del empleado, validación de inicio de servicio por turno/jornada/reservas y corrección del planificador. Ampliaciones 2026-10-27: detalle de servicio con carrusel de hasta 6 imagenes y flechas laterales (`servicio_imagen`), panel fijo de servicios con scroll interno, sedes alternativas con mapa cuando no hay estilista, pagos pendientes y pago en linea desde el dashboard del cliente, categorias/titulos de servicio con portada y precio editable, reservas con varios servicios y estilistas por segmento (`reserva_servicio`), disponibilidad combinada, maximo configurable de servicios, precios congelados y reportes proporcionales. Ampliaciones 2026-10-26: cola de atencion (`llego_en`, `inicio_servicio`, `fin_servicio`), cobro vinculado a `pago_id` y `pagado_antes`, QR de pago Wompi, bloqueo de inicio sin pago, llegada/inicio/finalizacion, telefonos internacionales, selector de mapa en sedes, seed determinista 10x10 y suite de regresion con 10 clientes y 10 empleados. Las unitarias cubren cola, pago aprobado, acceso por empleado, QR y validacion internacional.
+Verificación semanal 2026-10-29: `tests/verificacion_semana.py` crea reservas en los días futuros de la semana (canceladas, pagadas con webhook Wompi aprobado, pendientes y una declinada), valida agenda, reportes de los 7 días, catálogo, galería, sedes, cliente y empleado, exporta `pg_dump` + CSV, reimporta el CSV en una tabla temporal y restaura el dump en una base temporal del contenedor con conteos idénticos. Resultado 70/70 (varía según el día de la semana). Ampliaciones 2026-10-29: kanban de disponibilidad de 7 columnas, descanso global/manual, cancelación de un día por imprevisto con bloqueo de fecha, notificación y reembolso de pagos online, y corrección del ancho de la tabla del planificador. También incluye descansos múltiples, filtros, cambios temporales con retorno automático, festivos de Colombia con opt-in por empleado, plantilla semanal fija por sede, selección masiva de días, semana navegable, nómina con porcentaje por empleado y PDF. Ampliación 2026-10-29: el descanso semanal se guarda automáticamente al tocar el día (día completo o rango), el backend cancela y notifica las citas afectadas con confirmación previa, el calendario del cliente muestra las franjas como Descanso y el dashboard del empleado agrega cortes realizados y ganado por mes; pruebas unitarias `descansos-automaticos` y `mi-resumen`. Ampliación 2026-10-29: el panel admite varios rangos de descanso por día, las sedes tienen galería de hasta 6 imágenes con modal para cliente/empleado/portada y el admin puede subir o quitar la foto del empleado; si no hay foto se muestran iniciales. También se agregaron el buzón persistente de mensajes del cliente, la creación de cuentas administradoras, la plantilla semanal global para todas las sedes y la duración de reservas multiplicada por personas con validación de jornada. Ampliación 2026-10-30: descansos fijos vs temporales, borrado de cualquier rango o día y validación automática al sumar personas en el paso de confirmación. Ampliaciones 2026-10-28: portada pública con carrusel de imágenes y videos en base separada `sgp_presentacion` y volumen propio, carrusel de servicios con detalle ampliado y galería, botón de regreso a la portada en autenticación, secciones de administración como páginas independientes, pestaña Servicios del empleado con detalle de galería y edición exclusiva de duración, foto opcional del empleado, validación de inicio de servicio por turno/jornada/reservas y corrección del planificador. Ampliaciones 2026-10-27: detalle de servicio con carrusel de hasta 6 imagenes y flechas laterales (`servicio_imagen`), panel fijo de servicios con scroll interno, sedes alternativas con mapa cuando no hay estilista, pagos pendientes y pago en linea desde el dashboard del cliente, categorias/titulos de servicio con portada y precio editable, reservas con varios servicios y estilistas por segmento (`reserva_servicio`), disponibilidad combinada, maximo configurable de servicios, precios congelados y reportes proporcionales. Ampliaciones 2026-10-26: cola de atencion (`llego_en`, `inicio_servicio`, `fin_servicio`), cobro vinculado a `pago_id` y `pagado_antes`, QR de pago Wompi, bloqueo de inicio sin pago, llegada/inicio/finalizacion, telefonos internacionales, selector de mapa en sedes, seed determinista 10x10 y suite de regresion con 10 clientes y 10 empleados. Las unitarias cubren cola, pago aprobado, acceso por empleado, QR y validacion internacional.
 
 Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` (red), `src/server.js` y `src/utils/semillar-*.js` (seeds), por ser infraestructura o utilidades de datos, no lógica de negocio.
 
@@ -38,23 +38,23 @@ Exclusiones de cobertura: `src/config/**`, `src/docs/**`, `src/integrations/**` 
 
 | Módulo | Cobertura |
 |--------|-----------|
-| auth.model / auth.service | 96.36 % / 86.51 % |
+| auth.model / auth.service | 96.36 % / 86.05 % |
 | purga.service (registros sin verificar) | 100 % |
 | checkin.model / checkin.service | 87.78 % / 85.81 % |
 | pagos.model / pagos.service | 97.22 % / 72.79 % |
 | cola.test (llegada, efectivo, inicio, fin y acceso) | 100 % de los casos nuevos |
 | clientes.model / clientes.service | 84.51 % / 76.34 % |
-| disponibilidad.model / service | 72.61 % / 84.95 % |
+| disponibilidad.model / service | 72.06 % / 86.03 % |
 | logs.service | 94.03 % |
 | preferencias.model / service | 100 % / 89.19 % |
 | reportes.model / service | 100 % / 95.03 % |
-| reservas.model / reservas.service | 83.38 % / 82.76 % |
+| reservas.model / reservas.service | 84.40 % / 83.81 % |
 | ubicaciones.model / service | 100 % / 94.16 % |
 | notificaciones.model / service | 100 % / 94.44 % |
 | shared (http-error, logger) | 100 % |
 | utils (encriptacion, telefono) | 100 % / 95.65 % |
 
-> Nota: con 62 unitarias el agregado es **86.35 % líneas / 67.70 % ramas / 88.86 % funciones**, por encima del 80 % exigido por RNF5 en líneas. Nuevas funcionalidades deben mantener o mejorar este porcentaje.
+> Nota: con 63 unitarias el agregado es **86.47 % líneas / 68.03 % ramas / 88.59 % funciones**, por encima del 80 % exigido por RNF5 en líneas. Nuevas funcionalidades deben mantener o mejorar este porcentaje.
 
 ## 3. Trazabilidad RF/RNF → prueba
 

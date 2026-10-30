@@ -19,6 +19,11 @@ router.delete('/disponibilidad/festivos/:fecha', authenticate, authorize('emplea
 
 router.put('/disponibilidad/descansos', authenticate, authorize('empleado'), disponibilidadController.updateDescansos);
 
+router.get('/disponibilidad/descansos/temporales', authenticate, authorize('empleado'), disponibilidadController.getDescansosTemporales);
+router.put('/disponibilidad/descansos/temporales', authenticate, authorize('empleado'), disponibilidadController.updateDescansoTemporal);
+router.delete('/disponibilidad/descansos/temporales', authenticate, authorize('empleado'), disponibilidadController.deleteDescansosTemporalesRango);
+router.delete('/disponibilidad/descansos/temporales/:fecha', authenticate, authorize('empleado'), disponibilidadController.deleteDescansoTemporal);
+
 router.get('/disponibilidad', authenticate, authorize('empleado'), disponibilidadController.get);
 router.put('/disponibilidad', authenticate, authorize('empleado'), disponibilidadController.update);
 

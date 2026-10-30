@@ -40,6 +40,36 @@ const disponibilidadController = {
     res.json({ ok: true, data: result });
   }),
 
+  getDescansosTemporales: asyncHandler(async (req, res) => {
+    const data = await disponibilidadService.getDescansosTemporales(req.usuario.id, req.query);
+    res.json({ ok: true, data });
+  }),
+
+  updateDescansoTemporal: asyncHandler(async (req, res) => {
+    const result = await disponibilidadService.actualizarDescansoTemporal(
+      req.usuario.id,
+      req.body || {}
+    );
+    logger.info({ empleado_id: req.usuario.id, fecha: result.fecha || result.descanso?.fecha }, 'Descanso temporal actualizado');
+    emitDisponibilidadActualizada(req.usuario.id, new Date().toISOString());
+    emitirCancelaciones(result);
+    res.json({ ok: true, data: result });
+  }),
+
+  deleteDescansoTemporal: asyncHandler(async (req, res) => {
+    const result = await disponibilidadService.eliminarDescansoTemporal(req.usuario.id, req.params.fecha);
+    logger.info({ empleado_id: req.usuario.id, fecha: req.params.fecha }, 'Descanso temporal eliminado');
+    emitDisponibilidadActualizada(req.usuario.id, new Date().toISOString());
+    res.json({ ok: true, data: result });
+  }),
+
+  deleteDescansosTemporalesRango: asyncHandler(async (req, res) => {
+    const result = await disponibilidadService.eliminarDescansosTemporalesRango(req.usuario.id, req.query);
+    logger.info({ empleado_id: req.usuario.id, ...result }, 'Descansos temporales eliminados');
+    emitDisponibilidadActualizada(req.usuario.id, new Date().toISOString());
+    res.json({ ok: true, data: result });
+  }),
+
   getByAdmin: asyncHandler(async (req, res) => {
     const empleadoId = parseInt(req.params.empleadoId, 10);
     const disponibilidad = await disponibilidadService.getDisponibilidad(empleadoId);

@@ -178,6 +178,18 @@ const api = {
     get: () => request('/empleados/disponibilidad'),
     update: (body) => request('/empleados/disponibilidad', { method: 'PUT', body: JSON.stringify(body) }),
     descansos: (body) => request('/empleados/disponibilidad/descansos', { method: 'PUT', body: JSON.stringify(body) }),
+    descansosTemporales: (params = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+      ).toString();
+      return request(`/empleados/disponibilidad/descansos/temporales${query ? `?${query}` : ''}`);
+    },
+    guardarDescansoTemporal: (body) => request('/empleados/disponibilidad/descansos/temporales', { method: 'PUT', body: JSON.stringify(body) }),
+    eliminarDescansoTemporal: (fecha) => request(`/empleados/disponibilidad/descansos/temporales/${fecha}`, { method: 'DELETE' }),
+    eliminarDescansosTemporales: (params) => {
+      const query = new URLSearchParams(params).toString();
+      return request(`/empleados/disponibilidad/descansos/temporales?${query}`, { method: 'DELETE' });
+    },
     getByAdmin: (empleadoId) => request(`/empleados/${empleadoId}/disponibilidad`),
     updateByAdmin: (empleadoId, body) => request(`/empleados/${empleadoId}/disponibilidad`, { method: 'PUT', body: JSON.stringify(body) }),
     todas: () => request('/empleados/disponibilidad/todas'),

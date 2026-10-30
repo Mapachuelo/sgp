@@ -732,3 +732,12 @@
 - La plantilla ahora incluye la URL `sgp-db:5432/sgp_presentacion`, el PVC `sgp-presentacion-media` y el montaje `/app/presentacion-media`.
 - `env.js` deriva la URL de presentación desde `DATABASE_URL` cuando falta y reemplaza hosts locales por el host de la base principal cuando corresponde. `database-init-presentacion.js` reintenta hasta 5 veces, ignora `42P04`, registra host/base/código/mensaje y el arranque informa el detalle del fallo.
 - Verificado con `tests/presentacion.sh` 6/6, `tests/esquema.sh` 98/98, `tests/api.sh` 67/67 y unitarias 62/62. `/api/presentacion/admin` responde 200 con `Host: sgp.mapstest.tech`; las tablas de presentación existen. Dataset limpio.
+
+## Personas automáticas, QR y descansos fijos/temporales — 30 Octubre 2026
+
+- El paso 5 de reserva ya no vuelve al calendario al cambiar personas. Valida el mismo `inicia_en` con `disponibilidad-combo`, actualiza plan, fin, duración y total, y si no cabe mantiene la cantidad anterior con el mensaje **No se puede agregar más personas por tiempo de turno**.
+- El QR de la cita del paso 6 y el de la pantalla final quedaron en un contenedor `mx-auto` de ancho máximo, con la imagen y el token centrados.
+- `empleado_descanso_temporal` permite descansos de una fecha sin tocar la plantilla semanal. Se combinó con los descansos fijos en `findDisponibilidadEfectiva`, `findDisponibilidadEmpleados` y la disponibilidad combinada; también aplica a check-in y creación de reservas.
+- Endpoints nuevos: `GET/PUT /api/empleados/disponibilidad/descansos/temporales` y `DELETE` por rango o por `:fecha`. Los conflictos con citas reutilizan cancelación, notificación, correo y reembolso.
+- El panel permite borrar el primer/único rango, quitar un día con la papelera, alternar **Fijo semanal** / **Solo esta fecha** y limpiar fijos o temporales. Las tarjetas muestran el horario resultante y la vigencia.
+- Verificado con Playwright: permanencia en el paso 5 al sumar personas, QR centrado (centro de imagen = centro del contenedor), descanso temporal solo en la fecha elegida, borrado de rangos y limpieza. Suites finales: esquema 101/101, API 69/69, datos 18/18, unitarias 63/63, E2E 47/47, regresión 129/129, semana 64/64 (varía según el día), presentación 6/6. Cobertura 86.47 % líneas / 68.03 % ramas / 88.59 % funciones.
