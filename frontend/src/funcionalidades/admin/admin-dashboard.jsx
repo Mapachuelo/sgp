@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   BadgeDollarSign,
   ChevronLeft,
   ChevronRight,
   MapPin,
-  QrCode,
   RefreshCw,
 } from 'lucide-react';
-import { toast as notificar } from 'sonner';
 import {
   Badge,
   Button,
@@ -21,15 +19,8 @@ import {
   StatusPill,
 } from '../../componentes/ui/index.jsx';
 import api from '../../api/cliente.js';
-import ValidarQrModal from './secciones/validar-qr-modal.jsx';
-import CobroModal from './secciones/cobro-modal.jsx';
-import EmpleadosSeccion from './secciones/empleados-seccion.jsx';
-import ServiciosSeccion from './secciones/servicios-seccion.jsx';
-import SedesSeccion from './secciones/sedes-seccion.jsx';
-import HorariosSeccion from './secciones/horarios-seccion.jsx';
-import ReportesSeccion from './secciones/reportes-seccion.jsx';
-import ClientesSeccion from './secciones/clientes-seccion.jsx';
-import LogsSeccion from './secciones/logs-seccion.jsx';
+import CobroCitaSheet from '../../componentes/pagos/cobro-cita-sheet.jsx';
+import { avisarAdmin } from './secciones/avisos.js';
 import { estadoLabel, formatearFechaLocal, horaBogotaDeIso, hoy, sumarDias } from './utils.js';
 
 const INICIO_DIA = 8 * 60;
@@ -178,26 +169,17 @@ function RielDia({ reservas, fecha }) {
   );
 }
 
-export default function AdminDashboard({ seccionInicial = null }) {
-  const navigate = useNavigate();
-  const [activeSheet, setActiveSheet] = useState(seccionInicial);
-  const [tokenQr, setTokenQr] = useState('');
+export default function AdminDashboard() {
+  const [cobroAbierto, setCobroAbierto] = useState(false);
+  const [cobroReserva, setCobroReserva] = useState(null);
   const [kpi, setKpi] = useState({ ventas: null, citas: 0, ocupacion: null, recurrentes: 0, loading: true });
   const [ubicaciones, setUbicaciones] = useState([]);
   const [reservas, setReservas] = useState([]);
   const [reservasLoading, setReservasLoading] = useState(true);
   const [sedeFilter, setSedeFilter] = useState('');
+  const [departamentoFilter, setDepartamentoFilter] = useState('');
+  const [ciudadFilter, setCiudadFilter] = useState('');
   const [fechaFiltro, setFechaFiltro] = useState(hoy());
-
-  useEffect(() => {
-    setActiveSheet(seccionInicial);
-  }, [seccionInicial]);
-
-  const mostrarToast = useCallback((message, type = 'success') => {
-    if (type === 'error') notificar.error(message);
-    else if (type === 'warning') notificar.warning(message);
-    else notificar.success(message);
-  }, []);
 
   const cargarUbicaciones = useCallback(async () => {
     try {
@@ -207,11 +189,38 @@ export default function AdminDashboard({ seccionInicial = null }) {
     }
   }, []);
 
+  const departamentosAdmin = useMemo(
+    () => [...new Set(ubicaciones.map((u) => u.departamento).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [ubicaciones]
+  );
+
+  const ciudadesAdmin = useMemo(
+    () =>
+      [...new Set(
+        ubicaciones
+          .filter((u) => !departamentoFilter || u.departamento === departamentoFilter)
+          .map((u) => u.ciudad)
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b)),
+    [ubicaciones, departamentoFilter]
+  );
+
+  const ubicacionesDisponibles = useMemo(
+    () =>
+      ubicaciones.filter((u) => {
+        if (departamentoFilter && u.departamento !== departamentoFilter) return false;
+        if (ciudadFilter && u.ciudad !== ciudadFilter) return false;
+        return true;
+      }),
+    [ubicaciones, departamentoFilter, ciudadFilter]
+  );
+
   const cargarKpi = useCallback(async () => {
     try {
+      const filtros = { ciudad: ciudadFilter, departamento: departamentoFilter };
       const [ventas, ocupacion, recurrentes] = await Promise.all([
-        api.reportes.ventasDiarias(hoy()).catch(() => null),
-        api.reportes.ocupacion(hoy()).catch(() => null),
+        api.reportes.ventasDiarias(fechaFiltro, filtros).catch(() => null),
+        api.reportes.ocupacion(fechaFiltro, filtros).catch(() => null),
         api.reportes.clientesRecurrentes().catch(() => null),
       ]);
       setKpi({
@@ -227,25 +236,34 @@ export default function AdminDashboard({ seccionInicial = null }) {
     } catch {
       setKpi((prev) => ({ ...prev, loading: false }));
     }
-  }, []);
+  }, [fechaFiltro, ciudadFilter, departamentoFilter]);
 
   const cargarReservas = useCallback(async () => {
     setReservasLoading(true);
     try {
       const params = { fecha: fechaFiltro };
       if (sedeFilter) params.ubicacion_id = sedeFilter;
+      if (ciudadFilter) params.ciudad = ciudadFilter;
+      if (departamentoFilter) params.departamento = departamentoFilter;
       setReservas((await api.reservas.list(params)) || []);
     } catch (error) {
-      mostrarToast(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setReservasLoading(false);
     }
-  }, [fechaFiltro, sedeFilter, mostrarToast]);
+  }, [fechaFiltro, sedeFilter, ciudadFilter, departamentoFilter]);
 
   useEffect(() => {
     cargarUbicaciones();
+  }, [cargarUbicaciones]);
+
+  useEffect(() => {
     cargarKpi();
-  }, [cargarUbicaciones, cargarKpi]);
+  }, [cargarKpi]);
+
+  useEffect(() => {
+    setSedeFilter('');
+  }, [departamentoFilter, ciudadFilter]);
 
   useEffect(() => {
     cargarReservas();
@@ -256,21 +274,15 @@ export default function AdminDashboard({ seccionInicial = null }) {
     cargarReservas();
   }, [cargarKpi, cargarReservas]);
 
-  const cerrarSeccion = () => {
-    setActiveSheet(null);
-    setTokenQr('');
+  const cerrarCobro = () => {
+    setCobroAbierto(false);
+    setCobroReserva(null);
     recargar();
-    if (seccionInicial) navigate('/admin');
   };
 
-  const abrirQr = (token = '') => {
-    setTokenQr(token);
-    setActiveSheet('qr');
-  };
-
-  const abrirCobro = (token = '') => {
-    setTokenQr(token);
-    setActiveSheet('cobro');
+  const abrirCobro = (reserva) => {
+    setCobroReserva(reserva || null);
+    setCobroAbierto(true);
   };
 
   const sinPago = reservas.filter(
@@ -293,7 +305,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
     enEspera.forEach((r) => {
       if (vistos.has(r.id)) return;
       vistos.add(r.id);
-      items.push({ tipo: 'espera', reserva: r, etiqueta: 'En espera', accion: 'Validar QR' });
+      items.push({ tipo: 'espera', reserva: r, etiqueta: 'En espera', accion: 'Atender' });
     });
     reservas
       .filter((r) => ['declinado', 'error'].includes(r.pago_estado))
@@ -374,7 +386,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
               <Button
                 variant="ghost"
                 size="xs"
-                onClick={() => (item.tipo === 'pago' ? abrirCobro(item.reserva.qr_token) : abrirQr(item.reserva.qr_token))}
+                onClick={() => abrirCobro(item.reserva)}
               >
                 {item.accion}
               </Button>
@@ -419,7 +431,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
       className: 'hidden lg:table-cell',
       render: (r) => (
         <span className="text-texto-secundario">
-          {r.empleado_nombre || '—'} {r.empleado_apellido || ''}
+          {r.equipo_nombre || `${r.empleado_nombre || ''} ${r.empleado_apellido || ''}`.trim() || '—'}
         </span>
       ),
     },
@@ -429,7 +441,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
       align: 'right',
       width: '14%',
       render: (r) => {
-        const monto = Number(r.monto ?? r.precio_base ?? 0) * (r.monto != null ? 1 : Number(r.cantidad_personas || 1));
+        const monto = Number(r.monto ?? r.precio_total ?? r.precio_base ?? 0) * (r.monto != null ? 1 : Number(r.cantidad_personas || 1));
         return <span className="num font-medium text-texto-principal">{dinero(monto)}</span>;
       },
     },
@@ -452,7 +464,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
       align: 'right',
       render: (r) =>
         ['pendiente', 'confirmada'].includes(r.estado) ? (
-          <Button variant="ghost" size="sm" onClick={() => abrirQr(r.qr_token || '')}>
+          <Button variant="ghost" size="sm" onClick={() => abrirCobro(r)}>
             Validar
           </Button>
         ) : (
@@ -496,11 +508,8 @@ export default function AdminDashboard({ seccionInicial = null }) {
             <Button variant="secundario" size="sm" onClick={recargar} aria-label="Actualizar datos">
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button size="sm" onClick={() => abrirQr('')}>
-              <QrCode className="h-4 w-4" aria-hidden="true" /> Validar QR
-            </Button>
-            <Button variant="secundario" size="sm" onClick={() => abrirCobro('')}>
-              <BadgeDollarSign className="h-4 w-4" aria-hidden="true" /> Cobro
+            <Button size="sm" onClick={() => abrirCobro(null)}>
+              <BadgeDollarSign className="h-4 w-4" aria-hidden="true" /> Cobrar
             </Button>
           </>
         }
@@ -515,20 +524,53 @@ export default function AdminDashboard({ seccionInicial = null }) {
               <div>
                 <h2 className="text-base font-semibold text-texto-principal">El día en el salón</h2>
                 <p className="mt-0.5 text-xs text-texto-secundario">
-                  {sedeFilter ? `Filtrando por ${ubicaciones.find((u) => String(u.id) === sedeFilter)?.nombre || 'sede'}` : 'Todas las sedes'}
+                  {sedeFilter
+                    ? `Filtrando por ${ubicaciones.find((u) => String(u.id) === sedeFilter)?.nombre || 'sede'}`
+                    : ciudadFilter
+                      ? `Sedes de ${ciudadFilter}`
+                      : departamentoFilter
+                        ? `Sedes de ${departamentoFilter}`
+                        : 'Todas las sedes'}
                 </p>
               </div>
-              <select
-                value={sedeFilter}
-                onChange={(e) => setSedeFilter(e.target.value)}
-                aria-label="Filtrar por sede"
-                className="h-8 rounded-md border border-control bg-superficie px-2 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
-              >
-                <option value="">Todas las sedes</option>
-                {ubicaciones.map((u) => (
-                  <option key={u.id} value={String(u.id)}>{u.nombre}</option>
-                ))}
-              </select>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={departamentoFilter}
+                  onChange={(e) => {
+                    setDepartamentoFilter(e.target.value);
+                    setCiudadFilter('');
+                  }}
+                  aria-label="Filtrar por departamento"
+                  className="h-8 max-w-[170px] rounded-md border border-control bg-superficie px-2 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+                >
+                  <option value="">Todos los departamentos</option>
+                  {departamentosAdmin.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+                <select
+                  value={ciudadFilter}
+                  onChange={(e) => setCiudadFilter(e.target.value)}
+                  aria-label="Filtrar por ciudad"
+                  className="h-8 max-w-[150px] rounded-md border border-control bg-superficie px-2 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+                >
+                  <option value="">Todas las ciudades</option>
+                  {ciudadesAdmin.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+                <select
+                  value={sedeFilter}
+                  onChange={(e) => setSedeFilter(e.target.value)}
+                  aria-label="Filtrar por sede"
+                  className="h-8 max-w-[180px] rounded-md border border-control bg-superficie px-2 text-xs text-texto-principal focus:border-acento focus:outline-none focus:ring-2 focus:ring-acento/20"
+                >
+                  <option value="">Todas las sedes</option>
+                  {ubicacionesDisponibles.map((u) => (
+                    <option key={u.id} value={String(u.id)}>{u.nombre}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             {reservasLoading ? (
               <div className="flex justify-center py-10"><Spinner /></div>
@@ -604,7 +646,7 @@ export default function AdminDashboard({ seccionInicial = null }) {
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <StatusPill estado={r.estado}>{estadoLabel(r.estado)}</StatusPill>
                         {['pendiente', 'confirmada'].includes(r.estado) && (
-                          <Button variant="ghost" size="xs" onClick={() => abrirQr(r.qr_token || '')}>
+                          <Button variant="ghost" size="xs" onClick={() => abrirCobro(r)}>
                             Validar
                           </Button>
                         )}
@@ -664,31 +706,13 @@ export default function AdminDashboard({ seccionInicial = null }) {
         </aside>
       </div>
 
-      <ValidarQrModal
-        open={activeSheet === 'qr'}
-        tokenInicial={tokenQr}
-        onClose={cerrarSeccion}
-        onToast={mostrarToast}
-        onActualizar={recargar}
+      <CobroCitaSheet
+        open={cobroAbierto}
+        reserva={cobroReserva}
+        onClose={cerrarCobro}
+        onToast={avisarAdmin}
+        onActualizado={recargar}
       />
-      <CobroModal
-        open={activeSheet === 'cobro'}
-        onClose={cerrarSeccion}
-        onToast={mostrarToast}
-        onActualizar={recargar}
-      />
-      <EmpleadosSeccion open={activeSheet === 'empleados'} onClose={cerrarSeccion} onToast={mostrarToast} />
-      <ServiciosSeccion open={activeSheet === 'servicios'} onClose={cerrarSeccion} onToast={mostrarToast} />
-      <SedesSeccion open={activeSheet === 'sedes'} onClose={cerrarSeccion} onToast={mostrarToast} />
-      <HorariosSeccion
-        open={activeSheet === 'horarios'}
-        onClose={cerrarSeccion}
-        onToast={mostrarToast}
-        onValidarCita={(cita) => abrirQr(cita.qr_token || '')}
-      />
-      <ReportesSeccion open={activeSheet === 'reportes'} onClose={cerrarSeccion} onToast={mostrarToast} />
-      <ClientesSeccion open={activeSheet === 'clientes'} onClose={cerrarSeccion} onToast={mostrarToast} />
-      <LogsSeccion open={activeSheet === 'logs'} onClose={cerrarSeccion} onToast={mostrarToast} />
     </div>
   );
 }

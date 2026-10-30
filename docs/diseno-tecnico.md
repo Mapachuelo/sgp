@@ -22,7 +22,7 @@ Pod sgp-db
 ```
 
 - **Patrón backend:** feature-based `routes -> controller -> service -> model` (CommonJS, sin ORM).
-- **Patrón frontend:** funcionalidades por rol (`auth`, `cliente`, `empleado`, `admin`) con componentes UI propios, contexto de autenticación, i18n y hooks.
+- **Patrón frontend:** funcionalidades por rol (`auth`, `cliente`, `empleado`, `admin`) con componentes UI propios, contexto de autenticación y hooks.
 - **Realtime:** `ws-hub.js` emite `conexion`, `disponibilidad.actualizada` y `reserva.actualizada`.
 - **Documentación API:** spec OpenAPI 3 en `backend/src/docs/openapi.js`, servida en `/api/docs`.
 
@@ -50,9 +50,10 @@ Los diagramas se regeneran con `node scripts/generar-drawio.js` (idempotente; ag
 | Cancelación por cambio de sede por **día** cambiado y motivo literal | Cumple RF9 y permite notificar por WebSocket a los paneles abiertos. |
 | Cifrado AES-256-CBC del teléfono en aplicación (`telefono.js`) | Datos sensibles en reposo; migración automática de valores en claro al arrancar. |
 | Fechas de negocio comparadas en `America/Bogota` (`AT TIME ZONE`) | Evita desfases UTC en reportes, agenda y filtros del timeline. |
-| i18n por diccionario ES→EN con observador DOM y recarga al cambiar | Traduce toda la interfaz sin reescribir cada componente; preferencia por usuario. |
-| Ventanas flotantes (2 modales + 7 sheets) en el admin | Cumple RF11 y mantiene el dashboard visible de fondo. |
-| Planificador por empleado en sheet ancho | La matriz empleados × días con citas requiere más ancho que un sheet estándar. |
+| Interfaz siempre en español | Se eliminó el diccionario ES→EN y la preferencia de idioma para reducir superficie y evitar traducciones incompletas. |
+| Secciones del admin en rutas independientes con shell fijo | Cada gestión conserva su URL, carga al entrar y usa el ancho completo sin tapar el dashboard. |
+| Validar QR y Cobro como modales centrados | Son acciones rápidas y transaccionales; el resto de secciones son páginas. |
+| Planificador por empleado en página completa | La matriz empleados × días con citas necesita el ancho del contenido y scroll interno. |
 | Pruebas con `node:test` y `--experimental-test-coverage` | Cobertura sin dependencias adicionales; se ejecutan dentro del contenedor backend. |
 
 ## 4. Estructura del código
@@ -74,9 +75,8 @@ frontend/src/
   contexto/          auth-context
   hooks/             use-auth, use-websocket
   funcionalidades/   auth, cliente, empleado, admin/secciones
-  i18n/              diccionario + proveedor
   lib/               descargas (QR, texto)
-db/init.sql          11 tablas + seeds + migraciones idempotentes
+db/init.sql          19 tablas + seeds + migraciones idempotentes
 ```
 
 ## 5. Seguridad

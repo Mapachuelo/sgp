@@ -12,6 +12,14 @@ function validarDatosPerfil(data) {
   if (data.email !== undefined && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) {
     throw new HttpError(400, 'El correo no tiene un formato valido');
   }
+  if (data.foto_url !== undefined && data.foto_url !== null && data.foto_url !== '') {
+    if (typeof data.foto_url !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/i.test(data.foto_url)) {
+      throw new HttpError(400, 'La foto debe ser una imagen JPG, PNG o WebP');
+    }
+    if (data.foto_url.length > 2_500_000) {
+      throw new HttpError(400, 'La foto es demasiado grande');
+    }
+  }
 }
 
 const clientesService = {

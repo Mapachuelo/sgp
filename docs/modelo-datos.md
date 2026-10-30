@@ -15,8 +15,13 @@ app_user 1───1 preferencia_usuario
 app_user 1───N reserva (cliente y empleado)
 app_user 1───N empleado_disponibilidad
 app_user 1───N empleado_tiempo_servicio
+servicio_categoria 1───N servicio_catalogo
+servicio_catalogo 1───N servicio_imagen
 servicio_catalogo 1───N empleado_tiempo_servicio
 servicio_catalogo 1───N reserva
+servicio_catalogo 1───N reserva_servicio
+app_user 1───N reserva_servicio (estilista del segmento)
+reserva 1───N reserva_servicio
 reserva 1───0..1 cobro
 reserva 1───N pago
 cobro 0..1───1 pago (pago_id)
@@ -31,8 +36,15 @@ app_user 1───N cobro (registrado_por)
 | id | serial | PK |
 | nombre | varchar(200) | NOT NULL |
 | direccion | text | NOT NULL |
+| departamento | varchar(120) | NOT NULL, DEFAULT `Sin departamento` |
+| ciudad | varchar(120) | NOT NULL, DEFAULT `Sin ciudad` |
 | latitud | double precision | NOT NULL |
 | longitud | double precision | NOT NULL |
+| imagen_url | text | Foto opcional del local; Data URL comprimida JPG/PNG/WebP |
+
+Índice: `idx_ubicacion_departamento_ciudad (departamento, ciudad)`.
+
+`imagen_url` se edita solo desde Admin → Sedes y se muestra en la selección de sede del cliente, la sede del empleado y la portada pública.
 
 ### 2.2 `app_user`
 | Columna | Tipo | Restricciones |
@@ -59,8 +71,21 @@ app_user 1───N cobro (registrado_por)
 | identificacion | varchar(30) | — |
 | password_asignada_hash | text | Hash de la contraseña asignada por el admin |
 | ubicacion_base_id | integer | FK `ubicacion(id)` ON DELETE SET NULL |
+| foto_url | text | Data URL opcional de la foto del empleado |
+| comision_porcentaje | numeric(5,2) | Porcentaje que recibe el empleado; DEFAULT 50 |
 
-### 2.4 `servicio_catalogo`
+### 2.4 `servicio_categoria`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| nombre | varchar(120) | NOT NULL, único por `LOWER(nombre)` |
+| descripcion | text | — |
+| orden | integer | NOT NULL, DEFAULT 0 |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+Representa los títulos del menú que ve el cliente: Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos y Otros.
+
+### 2.5 `servicio_catalogo`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -68,8 +93,24 @@ app_user 1───N cobro (registrado_por)
 | descripcion | text | — |
 | precio_base | decimal(10,2) | NOT NULL |
 | duracion_base_minutos | integer | NOT NULL |
+| categoria_id | integer | FK `servicio_categoria(id)` ON DELETE RESTRICT |
+| imagen_url | text | Portada sincronizada con la primera imagen de `servicio_imagen`; opcional |
+| activo | boolean | NOT NULL, DEFAULT TRUE |
 
-### 2.5 `empleado_tiempo_servicio`
+La galería completa vive en `servicio_imagen`; `imagen_url` se conserva como portada para tarjetas y listados.
+
+### 2.6 `servicio_imagen`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| servicio_id | integer | NOT NULL, FK `servicio_catalogo(id)` ON DELETE CASCADE |
+| imagen_url | text | NOT NULL; Data URL comprimida JPG/PNG/WebP |
+| orden | integer | NOT NULL, DEFAULT 1 |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(servicio_id, orden)`. Máximo 6 imágenes por servicio, validado en la aplicación. La primera imagen (orden 1) es la portada y se copia a `servicio_catalogo.imagen_url` en cada actualización.
+
+### 2.7 `empleado_tiempo_servicio`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -79,17 +120,19 @@ app_user 1───N cobro (registrado_por)
 
 UNIQUE `(empleado_id, servicio_id)`.
 
-### 2.6 `jornada`
+### 2.8 `jornada`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
 | ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
 | fecha | date | NOT NULL |
 | hora_inicio / hora_fin | time | NOT NULL |
+| cerrado | boolean | NOT NULL, DEFAULT FALSE |
+| motivo | varchar(200) | Motivo del cierre o festivo |
 
-UNIQUE `(ubicacion_id, fecha)`.
+UNIQUE `(ubicacion_id, fecha)`. Las filas de `jornada` son excepciones por fecha; si no existe una excepción, se aplica la plantilla semanal.
 
-### 2.7 `empleado_disponibilidad`
+### 2.9 `empleado_disponibilidad`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -97,10 +140,61 @@ UNIQUE `(ubicacion_id, fecha)`.
 | ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
 | dia_semana | integer | NOT NULL, CHECK 1..7 (ISO: lunes=1) |
 | hora_inicio / hora_fin | time | NOT NULL |
+| descansos | jsonb | Arreglo de descansos `{inicio, fin}`; DEFAULT `[]` |
+| descanso | boolean | Día de descanso sin atención; DEFAULT FALSE |
 
 UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día** se garantiza en el servicio (`disponibilidad.service.js`) y en el planificador del administrador; el generador de datos también la respeta.
 
-### 2.8 `reserva`
+### 2.9.1 `jornada_plantilla`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
+| dia_semana | integer | NOT NULL, CHECK 1..7 |
+| abierto | boolean | NOT NULL, DEFAULT TRUE |
+| hora_inicio / hora_fin | time | NOT NULL |
+| actualizado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(ubicacion_id, dia_semana)`. Define la semana fija de cada sede. Las excepciones de `jornada` mandan sobre esta plantilla.
+
+### 2.9.2 `empleado_bloqueo_fecha`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` CASCADE |
+| fecha | date | NOT NULL |
+| motivo | varchar(240) | NOT NULL |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(empleado_id, fecha)`. Bloquea una fecha concreta por un imprevisto; el empleado no aparece disponible y no se aceptan nuevas reservas ese día.
+
+### 2.9.3 `empleado_sede_temporal`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` CASCADE |
+| ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
+| desde / hasta | date | NOT NULL, `hasta >= desde` |
+| dias_semana | integer[] | Días afectados; por defecto 1..7 |
+| creado_por | integer | FK `app_user(id)` ON DELETE SET NULL |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+Mientras está vigente, la sede temporal reemplaza la sede base en los días seleccionados. Al terminar, la disponibilidad semanal vuelve a su sede base salvo que el empleado elija una nueva.
+
+### 2.9.4 `empleado_festivo`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` CASCADE |
+| ubicacion_id | integer | NOT NULL, FK `ubicacion(id)` CASCADE |
+| fecha | date | NOT NULL |
+| hora_inicio / hora_fin | time | NOT NULL |
+| descansos | jsonb | Arreglo de descansos; DEFAULT `[]` |
+| creado_en | timestamptz | DEFAULT NOW() |
+
+UNIQUE `(empleado_id, fecha)`. Registra el opt-in del empleado para trabajar un festivo abierto por el administrador. Si no existe, el empleado no está disponible ese festivo.
+
+### 2.10 `reserva`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -121,7 +215,7 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 
 Índices: `idx_reserva_inicia_en`, `idx_reserva_cliente_id`, `idx_reserva_empleado_id`, `idx_reserva_estado`, `idx_reserva_ubicacion_id`, `idx_reserva_llego_en`.
 
-### 2.9 `cobro`
+### 2.11 `cobro`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -132,10 +226,11 @@ UNIQUE `(empleado_id, ubicacion_id, dia_semana)`. La regla **una sede por día**
 | registrado_por | integer | FK `app_user(id)` (NULL si lo generó el webhook de Wompi) |
 | pago_id | integer | FK `pago(id)` ON DELETE SET NULL; UNIQUE |
 | pagado_antes | boolean | DEFAULT false; pagado antes de la hora de la cita |
+| reembolsado_en | timestamptz | Fecha en que el cobro fue reembolsado |
 
 Índices: `idx_cobro_cobrado_en`, `idx_cobro_pago_id`. El UNIQUE de `reserva_id` garantiza un solo cobro por reserva.
 
-### 2.10 `pago`
+### 2.12 `pago`
 Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede tener varios intentos; solo un pago `aprobado` confirma la reserva.
 
 | Columna | Tipo | Restricciones |
@@ -145,16 +240,18 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 | proveedor | varchar(20) | NOT NULL, DEFAULT `wompi` |
 | referencia | varchar(100) | **UNIQUE**, NOT NULL (referencia propia `SGP-<reserva>-<aleatorio>`) |
 | transaction_id | varchar(100) | **UNIQUE** (id de la transacción en Wompi) |
-| monto | decimal(10,2) | NOT NULL (calculado en el servidor: `precio_base × cantidad_personas`) |
+| monto | decimal(10,2) | NOT NULL (calculado en el servidor: suma de `reserva_servicio.precio` × `cantidad_personas`) |
 | moneda | varchar(3) | NOT NULL, DEFAULT `COP` |
 | metodo | varchar(30) | `CARD`, `NEQUI`, `PSE`, `BANCOLOMBIA_TRANSFER`, ... (lo reporta Wompi) |
 | estado | varchar(20) | NOT NULL, CHECK `pendiente|aprobado|declinado|error|anulado` |
+| reembolso_estado | varchar(20) | `pendiente`, `procesado`, `fallido` o `no_aplica` |
+| reembolsado_en | timestamptz | Fecha del reembolso |
 | payload | jsonb | Objeto completo de la transacción de Wompi |
 | creado_en / actualizado_en | timestamptz | DEFAULT now() |
 
 Índices: `idx_pago_reserva_id`, `idx_pago_estado`, `idx_pago_referencia`.
 
-### 2.11 `preferencia_usuario`
+### 2.13 `preferencia_usuario`
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
 | id | serial | PK |
@@ -162,19 +259,64 @@ Transacción de pago digital con Wompi (sandbox/producción). Una reserva puede 
 | rango_hora_desde / rango_hora_hasta | time | DEFAULT `06:00` / `22:00` |
 | granularidad_calendario | integer | DEFAULT 30 |
 | tema | varchar(10) | DEFAULT `claro` |
-| idioma | varchar(5) | DEFAULT `es` (ES/EN) |
+| departamento_preferido | varchar(120) | Opcional |
+| ciudad_preferida | varchar(120) | Opcional |
+
+### 2.14 Base de presentación
+
+La portada pública usa una base separada `sgp_presentacion`, con `presentacion_config`, `presentacion_media` y `presentacion_fuente`. No tiene claves foráneas hacia la base de negocio. Los archivos viven en el volumen `sgp-presentacion-media`.
+
+### 2.15 `reserva_servicio`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| id | serial | PK |
+| reserva_id | integer | NOT NULL, FK `reserva(id)` CASCADE |
+| servicio_id | integer | FK `servicio_catalogo(id)` SET NULL |
+| empleado_id | integer | NOT NULL, FK `app_user(id)` RESTRICT |
+| nombre | varchar(200) | NOT NULL; foto del nombre al reservar |
+| precio | decimal(10,2) | NOT NULL; precio congelado al reservar |
+| duracion_minutos | integer | NOT NULL; duración congelada |
+| inicia_en / termina_en | timestamptz | NOT NULL; franja del segmento |
+| orden | integer | NOT NULL; secuencia dentro de la reserva |
+
+UNIQUE `(reserva_id, orden)`. Es la fuente real de servicios, estilistas y precios de una reserva; `reserva.servicio_id` y `reserva.empleado_id` se conservan como primer servicio/estilista para compatibilidad.
+
+### 2.16 `configuracion`
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| clave | varchar(80) | PK |
+| valor | text | NOT NULL |
+| actualizado_en | timestamptz | DEFAULT NOW() |
+
+Clave inicial: `max_servicios_reserva = 5`; el admin la edita entre 1 y 10.
 
 ## 3. Reglas de integridad
 
+- Una reserva puede tener 1..N servicios; cada segmento en `reserva_servicio` tiene su propio estilista, horario y precio congelado. La duración y el total de la reserva son la suma de sus segmentos.
+- El máximo de servicios por reserva se lee de `configuracion.max_servicios_reserva`; el servidor lo valida además de la interfaz.
 - Un cobro por reserva (UNIQUE + transacción del check-in).
 - Un pago aprobado crea/vincula el `cobro` online con `pago_id` y mueve la reserva a `confirmada`; el servicio solo puede iniciar si hay pago en línea aprobado o cobro en efectivo. Al finalizar, la reserva pasa a `cobrado` y se registra `fin_servicio`.
 - La cola de atención se deriva de `llego_en` + estado: programado, en espera, en curso o atendido. Referencias de pago únicas; webhook idempotente por `transaction_id`/estado final.
 - Estados válidos de reserva restringidos por CHECK.
 - Cantidad de personas entre 1 y 5.
 - Eliminaciones en cascada coherentes: borrar usuario elimina sus reservas y perfiles; borrar reserva elimina su cobro y sus pagos.
-- Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `idioma` y `telefono` a TEXT; el teléfono en claro se cifra al arrancar (`database-init.js`).
+- Migraciones idempotentes: `ALTER ... IF NOT EXISTS` para `verificado`, `token_verificacion`, `departamento`, `ciudad`, `ciudad_preferida`, `telefono` a TEXT, `categoria_id`, `servicio_catalogo.imagen_url`, `ubicacion.imagen_url` y `activo`; el teléfono en claro se cifra al arrancar (`database-init.js`). La migración elimina `preferencia_usuario.idioma`.
+- Las reservas históricas se backfillean a `reserva_servicio` al arrancar, usando el precio del cobro si existe y la duración real de la cita.
+- El servicio con reservas no se elimina: se marca `activo = FALSE` para conservar el histórico; una categoría con servicios no se puede eliminar.
+- Un servicio puede tener de 0 a 6 imágenes en `servicio_imagen`; si se elimina el servicio, sus imágenes se eliminan en cascada. La portada de `servicio_catalogo` se mantiene sincronizada con la primera imagen.
+- El listado del catálogo devuelve solo la portada y `total_imagenes`; la galería se consulta bajo demanda con `GET /api/reservas/servicios/:id/imagenes`.
+- El cliente puede pagar en línea desde el dashboard cualquier reserva activa sin pago aprobado; el servidor recalcula el monto desde los segmentos congelados.
+- Cada sede tiene departamento y ciudad obligatorios; el catálogo público puede filtrarse por sede o empleado y el cliente puede reservar por estilista o por servicio.
+- La foto del empleado es opcional y se guarda comprimida como data URL en `empleado_perfil.foto_url`; si no existe, la interfaz usa iniciales.
+- La nómina usa `empleado_perfil.comision_porcentaje`; el salón recibe el porcentaje complementario.
+- El cobro se confirma con QR (cámara o token), lista de citas del día o un solo toque; `POST /checkin/confirmar-pago` registra el cobro sin finalizar el servicio.
+- La disponibilidad semanal admite varios descansos por día; las reservas y el check-in validan los tramos efectivos.
+- El empleado puede bloquear una fecha por imprevisto; se cancelan las citas completas afectadas, se notifica al cliente y se intenta reembolsar el pago online (tarjeta) o se deja pendiente (otros medios).
+- Los festivos de Colombia se cierran por defecto. El admin puede abrir una o varias sedes y cada empleado decide si trabaja mediante `empleado_festivo`.
+- Los cambios temporales de sede conservan la disponibilidad semanal y vuelven a la sede base al terminar; el empleado o el admin pueden finalizarlos antes.
 
 ## 4. Seeds
 
-- **Base (`db/init.sql`):** Sede Centro, 4 servicios, admin/empleado con credenciales conocidas, jornadas y disponibilidad del empleado semilla, tiempos de servicio.
+- **Base (`db/init.sql`):** Sede Centro, 7 categorías, 4 servicios, backfill de `servicio_imagen`, admin/empleado con credenciales conocidas, jornadas y disponibilidad del empleado semilla, tiempos de servicio, configuración inicial y backfill de `reserva_servicio`.
 - **Masivo (`backend/src/utils/semillar-demo.js`):** 6 sedes, 10 servicios, 15 empleados, 80 clientes, ~1270 reservas y ~725 cobros en ±30 días, con rotación multi-sede y validaciones.
+- **Pruebas (`backend/src/utils/semillar-pruebas.js`):** 10 clientes, 10 empleados, 3 sedes, 5 servicios, 30 reservas y segmentos `reserva_servicio`; algunas reservas futuras combinan dos servicios para ejercitar el flujo multi-servicio.

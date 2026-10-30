@@ -29,7 +29,7 @@ backend/src/integrations/  email (Brevo), realtime (ws-hub)
 backend/src/shared/        logger, errors, middlewares, utils (AES, phone)
 backend/src/docs/          OpenAPI 3 + Swagger UI
 backend/tests/unit/        node:test unit tests
-frontend/src/              app, components, context, hooks, i18n, lib
+frontend/src/              app, components, context, hooks, lib
 frontend/src/funcionalidades/  auth, cliente, empleado, admin/secciones
 db/init.sql                schema, idempotent migrations and seeds
 tests/                     api.sh, datos.sh, esquema.sh, e2e.py
@@ -79,8 +79,8 @@ Interactive documentation: `http://localhost:8080/api/docs` (OpenAPI 3).
 | Bookings | `/api/reservas` (create/list), `/me`, `/agenda`, services, shifts, availability, times |
 | Check-in / queue | `POST /api/checkin/consultar`, `/llegada`, `/cobro-efectivo`, `/iniciar`, `/finalizar`; `/validar` (legacy shortcut) |
 | Payments | `POST /api/pagos/intencion`, `GET /api/pagos/:id`, `POST /api/pagos/:id/verificar`, `POST /api/pagos/webhook` |
-| Reports | `/api/reportes/ventas-diarias`, `/ocupacion`, `/clientes-recurrentes` |
-| Availability | `/api/empleados/disponibilidad`, `/disponibilidad/todas`, `/:id/disponibilidad` |
+| Reports | `/api/reportes/ventas-diarias`, `/ocupacion`, `/clientes-recurrentes`, `/mi-resumen`, `/nomina`, `/nomina/pdf` |
+| Availability | `/api/empleados/disponibilidad`, `/disponibilidad/descansos`, `/disponibilidad/todas`, `/:id/disponibilidad` |
 | Logs | `/api/logs/actividad`, `/errores`, `/exportar` |
 | Preferences | `/api/preferencias` |
 | Realtime | `ws://.../ws` (`conexion`, `disponibilidad.actualizada`, `reserva.actualizada`) |

@@ -78,15 +78,27 @@ function EditorHorario({ empleado, dia, fecha, filaActual, sedes, onGuardar, onC
   );
 }
 
-export default function PlanificadorHorarios({ onToast, onValidarCita }) {
+function nombreSedeCorto(nombre) {
+  return String(nombre || '').replace(/^(Pruebas|Demo) Sede /, '');
+}
+
+export default function PlanificadorHorarios({ onToast, onValidarCita, recargarKey = 0 }) {
   const [empleados, setEmpleados] = useState([]);
   const [sedes, setSedes] = useState([]);
   const [disponibilidad, setDisponibilidad] = useState([]);
   const [agenda, setAgenda] = useState([]);
+  const [plantillas, setPlantillas] = useState([]);
+  const [festivos, setFestivos] = useState([]);
+  const [jornadasPorSede, setJornadasPorSede] = useState({});
+  const [temporales, setTemporales] = useState([]);
+  const [festivosEmpleado, setFestivosEmpleado] = useState([]);
+  const [bloqueos, setBloqueos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [semanaInicio, setSemanaInicio] = useState(() => lunesDeSemana(fechaHoyBogota()));
   const [filtroNombre, setFiltroNombre] = useState('');
+  const [filtroDepartamento, setFiltroDepartamento] = useState('');
+  const [filtroCiudad, setFiltroCiudad] = useState('');
   const [filtroSede, setFiltroSede] = useState('');
   const [soloConHorario, setSoloConHorario] = useState(false);
   const [seleccion, setSeleccion] = useState(null);
@@ -96,22 +108,47 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
     try {
       const desde = formatearFechaLocal(semanaInicio);
       const hasta = formatearFechaLocal(sumarDias(semanaInicio, 6));
-      const [emps, ubis, disp, ag] = await Promise.all([
+      const [emps, ubis, disp, ag, plantillaData, festivosData, temporalesData] = await Promise.all([
         api.auth.empleados.list(),
         api.ubicaciones.list(),
         api.disponibilidad.todas(),
         api.reservas.agenda({ desde, hasta }),
+        api.reservas.jornada.getPlantilla().catch(() => []),
+        api.reservas.festivos(desde, hasta).catch(() => []),
+        api.disponibilidad.temporales().catch(() => []),
       ]);
+      const ubicaciones = Array.isArray(ubis) ? ubis : [];
+      const jornadas = await Promise.all(
+        ubicaciones.map((sede) => api.reservas.jornada.get(sede.id).catch(() => []))
+      );
+      const mapaJornadas = {};
+      ubicaciones.forEach((sede, indice) => {
+        mapaJornadas[sede.id] = Array.isArray(jornadas[indice]) ? jornadas[indice] : [];
+      });
+      const festivosSemana = (Array.isArray(festivosData) ? festivosData : [])
+        .filter((festivo) => festivo.fecha >= desde && festivo.fecha <= hasta);
+      const [optIns, bloqueosData] = await Promise.all([
+        Promise.all(
+          festivosSemana.map((festivo) => api.disponibilidad.festivosAdmin(festivo.fecha).catch(() => []))
+        ),
+        api.disponibilidad.bloqueos({ desde, hasta }).catch(() => []),
+      ]);
+      setFestivosEmpleado(optIns.flat());
+      setBloqueos(Array.isArray(bloqueosData) ? bloqueosData : []);
       setEmpleados(Array.isArray(emps) ? emps : []);
-      setSedes(Array.isArray(ubis) ? ubis : []);
+      setSedes(ubicaciones);
       setDisponibilidad(Array.isArray(disp) ? disp : []);
       setAgenda(Array.isArray(ag) ? ag : []);
+      setPlantillas(Array.isArray(plantillaData) ? plantillaData : []);
+      setFestivos(Array.isArray(festivosData) ? festivosData : []);
+      setTemporales(Array.isArray(temporalesData) ? temporalesData : []);
+      setJornadasPorSede(mapaJornadas);
     } catch (error) {
       onToast?.(error.message, 'error');
     } finally {
       setCargando(false);
     }
-  }, [semanaInicio, onToast]);
+  }, [semanaInicio, onToast, recargarKey]);
 
   useEffect(() => {
     cargar();
@@ -143,6 +180,59 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
     return { ...dia, fecha: formatearFechaLocal(fecha), fechaObj: fecha };
   });
 
+  const mapaFestivos = useMemo(() => new Map(festivos.map((festivo) => [festivo.fecha, festivo])), [festivos]);
+
+  const jornadaDe = useCallback((sedeId, fecha) => {
+    if (!sedeId) return null;
+    const exacta = (jornadasPorSede[sedeId] || []).find((jornada) => String(jornada.fecha).slice(0, 10) === fecha);
+    if (exacta) return exacta;
+    if (mapaFestivos.has(fecha)) return { cerrado: true, motivo: `Festivo: ${mapaFestivos.get(fecha).nombre}` };
+    const diaSemana = new Date(`${fecha}T00:00:00Z`).getUTCDay() || 7;
+    const fila = plantillas.find((item) => Number(item.ubicacion_id) === Number(sedeId) && Number(item.dia_semana) === diaSemana);
+    if (!fila) return null;
+    return { ...fila, cerrado: !fila.abierto };
+  }, [jornadasPorSede, mapaFestivos, plantillas]);
+
+  const temporalDe = useCallback((empleadoId, fecha) => temporales.find((temporal) => {
+    const desde = String(temporal.desde).slice(0, 10);
+    const hasta = String(temporal.hasta).slice(0, 10);
+    const dia = new Date(`${fecha}T00:00:00Z`).getUTCDay() || 7;
+    return Number(temporal.empleado_id) === Number(empleadoId)
+      && fecha >= desde && fecha <= hasta
+      && (temporal.dias_semana || []).map(Number).includes(dia);
+  }), [temporales]);
+
+  const departamentos = useMemo(
+    () => [...new Set(sedes.map((s) => s.departamento).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [sedes]
+  );
+
+  const ciudades = useMemo(
+    () =>
+      [...new Set(
+        sedes
+          .filter((s) => !filtroDepartamento || s.departamento === filtroDepartamento)
+          .map((s) => s.ciudad)
+          .filter(Boolean)
+      )].sort((a, b) => a.localeCompare(b)),
+    [sedes, filtroDepartamento]
+  );
+
+  const sedesFiltradas = useMemo(
+    () =>
+      sedes.filter((sede) => {
+        if (filtroDepartamento && sede.departamento !== filtroDepartamento) return false;
+        if (filtroCiudad && sede.ciudad !== filtroCiudad) return false;
+        return true;
+      }),
+    [sedes, filtroDepartamento, filtroCiudad]
+  );
+
+  const idsSedesFiltradas = useMemo(
+    () => new Set(sedesFiltradas.map((sede) => sede.id)),
+    [sedesFiltradas]
+  );
+
   const empleadosFiltrados = useMemo(() => {
     const termino = filtroNombre.trim().toLowerCase();
     return empleados.filter((emp) => {
@@ -150,10 +240,15 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
       if (termino && !nombreCompleto.includes(termino)) return false;
       const filas = disponibilidad.filter((d) => d.empleado_id === emp.id);
       if (soloConHorario && filas.length === 0) return false;
+      if ((filtroDepartamento || filtroCiudad) && !filas.some((d) => idsSedesFiltradas.has(d.ubicacion_id))) return false;
       if (filtroSede && !filas.some((d) => String(d.ubicacion_id) === String(filtroSede))) return false;
       return true;
     });
-  }, [empleados, disponibilidad, filtroNombre, filtroSede, soloConHorario]);
+  }, [empleados, disponibilidad, filtroNombre, filtroDepartamento, filtroCiudad, filtroSede, soloConHorario, idsSedesFiltradas]);
+
+  useEffect(() => {
+    setFiltroSede('');
+  }, [filtroDepartamento, filtroCiudad]);
 
   const totalCitasSemana = agenda.length;
   const rangoTexto = `${dias[0].fechaObj.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })} – ${dias[6].fechaObj.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}`;
@@ -178,13 +273,18 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
         ubicacion_id: d.ubicacion_id,
         hora_inicio: d.hora_inicio,
         hora_fin: d.hora_fin,
+        descansos: d.descansos || [],
+        descanso: Boolean(d.descanso),
       }));
     if (!datos.descanso) {
+      const existente = disponibilidad.find((d) => d.empleado_id === empleado.id && d.dia_semana === dia.numero);
       items.push({
         dia_semana: dia.numero,
         ubicacion_id: Number(datos.sedeId),
         hora_inicio: datos.horaInicio,
         hora_fin: datos.horaFin,
+        descansos: existente?.descansos || [],
+        descanso: Boolean(existente?.descanso),
       });
     }
 
@@ -210,16 +310,16 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
       <div className="space-y-4 min-w-0">
         <Card padding={false} className="p-4 space-y-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" aria-label="Semana anterior" onClick={() => setSemanaInicio((s) => sumarDias(s, -7))}>
                 <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               </Button>
-              <div className="text-center px-2">
-                <p className="text-sm font-bold text-texto-principal flex items-center gap-2">
-                  <CalendarRange className="w-4 h-4 text-primario" aria-hidden="true" /> {rangoTexto}
+              <div className="min-w-0 px-1">
+                <p className="flex items-center gap-2 whitespace-nowrap text-sm font-bold text-texto-principal">
+                  <CalendarRange className="h-4 w-4 shrink-0 text-primario" aria-hidden="true" /> {rangoTexto}
                 </p>
-                <p className="text-[11px] text-texto-secundario">{empleadosFiltrados.length} empleado(s) · {totalCitasSemana} cita(s)</p>
+                <p className="mt-0.5 whitespace-nowrap text-[11px] text-texto-secundario">{empleadosFiltrados.length} empleado(s) · {totalCitasSemana} segmento(s) de cita</p>
               </div>
               <Button variant="outline" size="sm" aria-label="Semana siguiente" onClick={() => setSemanaInicio((s) => sumarDias(s, 7))}>
                 <ChevronRight className="w-4 h-4" aria-hidden="true" />
@@ -228,8 +328,8 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                 Hoy
               </Button>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <div className="relative w-full sm:w-auto">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="relative w-full sm:w-52">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-texto-secundario" aria-hidden="true" />
                 <input
                   type="text"
@@ -241,17 +341,42 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                 />
               </div>
               <select
+                value={filtroDepartamento}
+                onChange={(e) => {
+                  setFiltroDepartamento(e.target.value);
+                  setFiltroCiudad('');
+                }}
+                aria-label="Filtrar por departamento"
+                className="w-full sm:w-auto min-w-0 px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+              >
+                <option value="">Todos los departamentos</option>
+                {departamentos.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <select
+                value={filtroCiudad}
+                onChange={(e) => setFiltroCiudad(e.target.value)}
+                aria-label="Filtrar por ciudad"
+                className="w-full sm:w-auto min-w-0 px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+              >
+                <option value="">Todas las ciudades</option>
+                {ciudades.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <select
                 value={filtroSede}
                 onChange={(e) => setFiltroSede(e.target.value)}
                 aria-label="Filtrar por sede"
-                className="w-full sm:w-auto px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
+                className="w-full sm:w-auto min-w-0 px-3 py-2 border border-borde rounded-lg text-xs bg-superficie focus:outline-none"
               >
                 <option value="">Todas las sedes</option>
-                {sedes.map((u) => (
+                {sedesFiltradas.map((u) => (
                   <option key={u.id} value={String(u.id)}>{u.nombre}</option>
                 ))}
               </select>
-              <label className="flex items-center gap-2 text-xs font-semibold text-texto-secundario select-none cursor-pointer">
+              <label className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-texto-secundario select-none cursor-pointer">
                 <input
                   type="checkbox"
                   checked={soloConHorario}
@@ -271,10 +396,10 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
         ) : (
           <Card padding={false} className="overflow-hidden">
             <div className="overflow-x-auto max-h-[62vh] overflow-y-auto">
-              <table className="w-full text-xs border-collapse min-w-[880px] sm:min-w-[1080px]">
+              <table className="w-full table-fixed text-xs border-collapse min-w-[760px]">
                 <thead className="sticky top-0 z-20">
                   <tr className="bg-superficie border-b border-borde">
-                    <th className="sticky left-0 z-30 bg-fondo/95 text-left px-4 py-3 font-bold text-texto-secundario uppercase tracking-wider w-36 sm:w-56">
+                    <th className="sticky left-0 z-30 w-[190px] bg-fondo/95 text-left px-3 py-3 font-bold text-texto-secundario uppercase tracking-wider">
                       Empleado
                     </th>
                     {dias.map((dia) => {
@@ -291,19 +416,44 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                 <tbody>
                   {empleadosFiltrados.map((emp) => (
                     <tr key={emp.id} className="border-b border-borde/40 align-top hover:bg-fondo/20 transition-colors">
-                      <th scope="row" className="sticky left-0 z-10 bg-superficie text-left px-4 py-3 font-semibold text-texto-principal">
+                      <th scope="row" className="sticky left-0 z-10 w-[190px] bg-superficie text-left px-3 py-3 font-semibold text-texto-principal">
                         <span className="flex items-center gap-2">
                           <span className="w-7 h-7 rounded-full bg-primario/10 text-primario text-[10px] font-bold flex items-center justify-center">
                             {(emp.nombre?.[0] || '') + (emp.apellido?.[0] || '')}
                           </span>
                           <span>
-                            <span className="block">{emp.nombre} {emp.apellido}</span>
-                            <span className="block text-[10px] font-normal text-texto-secundario">{emp.email}</span>
+                            <span className="block truncate">{emp.nombre} {emp.apellido}</span>
+                            <span className="block truncate text-[10px] font-normal text-texto-secundario">{emp.email}</span>
                           </span>
                         </span>
                       </th>
                       {dias.map((dia) => {
-                        const fila = mapaDisponibilidad.get(`${emp.id}-${dia.numero}`);
+                        const filaBase = mapaDisponibilidad.get(`${emp.id}-${dia.numero}`);
+                        const temporal = temporalDe(emp.id, dia.fecha);
+                        const festivo = mapaFestivos.get(dia.fecha);
+                        const bloqueo = bloqueos.find(
+                          (item) => Number(item.empleado_id) === Number(emp.id)
+                            && String(item.fecha).slice(0, 10) === dia.fecha
+                        );
+                        const optIn = festivosEmpleado.find(
+                          (item) => Number(item.empleado_id) === Number(emp.id)
+                            && String(item.fecha).slice(0, 10) === dia.fecha
+                        );
+                        let fila = temporal && filaBase
+                          ? { ...filaBase, ubicacion_id: temporal.ubicacion_id, ubicacion_nombre: temporal.ubicacion_nombre }
+                          : filaBase;
+                        if (festivo) {
+                          fila = optIn
+                            ? {
+                              ...optIn,
+                              ubicacion_nombre: optIn.ubicacion_nombre,
+                              hora_inicio: String(optIn.hora_inicio).slice(0, 5),
+                              hora_fin: String(optIn.hora_fin).slice(0, 5),
+                              descansos: optIn.descansos || [],
+                            }
+                            : null;
+                        }
+                        const jornada = jornadaDe(fila?.ubicacion_id || optIn?.ubicacion_id, dia.fecha);
                         const citas = mapaAgenda.get(`${emp.id}-${dia.fecha}`) || [];
                         const activa = seleccion?.empleado?.id === emp.id && seleccion?.dia?.numero === dia.numero;
                         return (
@@ -316,16 +466,37 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
                               }`}
                               aria-label={`Editar horario de ${emp.nombre} el ${dia.nombre}`}
                             >
-                              {fila ? (
+                              {bloqueo ? (
+                                <span className="inline-flex w-full min-w-0 flex-col rounded-md border border-error/30 bg-[var(--pill-negative-bg)] px-1.5 py-1 text-[10px] font-bold leading-tight text-[var(--pill-negative-ink)]">
+                                  <span>Bloqueado</span>
+                                  <span className="line-clamp-2 font-normal">{bloqueo.motivo}</span>
+                                </span>
+                              ) : festivo && !optIn ? (
+                                <span className="inline-flex w-full min-w-0 flex-col rounded-md border border-advertencia/40 bg-advertencia/10 px-1.5 py-1 text-[10px] font-bold leading-tight text-advertencia">
+                                  <span>Festivo</span>
+                                  <span className="font-normal">Sin opt-in</span>
+                                </span>
+                              ) : jornada?.cerrado ? (
+                                <span className="inline-flex w-full min-w-0 flex-col rounded-md border border-advertencia/40 bg-advertencia/10 px-1.5 py-1 text-[10px] font-bold leading-tight text-advertencia">
+                                  <span className="line-clamp-2">{jornada.motivo || 'Sede cerrada'}</span>
+                                </span>
+                              ) : fila?.descanso ? (
+                                <span className="inline-flex w-full min-w-0 flex-col rounded-md border border-borde bg-panel px-1.5 py-1 text-[10px] font-bold leading-tight text-texto-secundario">
+                                  <span>Descanso</span>
+                                </span>
+                              ) : fila ? (
                                 <span
-                                  className="inline-flex flex-col rounded-md border px-1.5 py-1 text-[10px] font-bold leading-tight"
+                                  className="inline-flex w-full min-w-0 flex-col rounded-md border px-1.5 py-1 text-[10px] font-bold leading-tight"
                                   style={estiloSede(indiceSede(fila.ubicacion_id))}
                                 >
-                                  <span>{fila.ubicacion_nombre.replace('Demo Sede ', '')}</span>
+                                  <span className="truncate" title={fila.ubicacion_nombre}>{nombreSedeCorto(fila.ubicacion_nombre)}</span>
                                   <span className="font-normal">{fila.hora_inicio.slice(0, 5)}-{fila.hora_fin.slice(0, 5)}</span>
+                                  {Array.isArray(fila.descansos) && fila.descansos.length > 0 && (
+                                    <span className="font-normal">{fila.descansos.length} descanso(s)</span>
+                                  )}
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-texto-secundario/70 border border-dashed border-borde rounded-md px-1.5 py-1 inline-block">
+                                <span className="inline-block max-w-full truncate text-[10px] text-texto-secundario/70 border border-dashed border-borde rounded-md px-1.5 py-1">
                                   Sin horario
                                 </span>
                               )}
@@ -394,7 +565,7 @@ export default function PlanificadorHorarios({ onToast, onValidarCita }) {
             dia={seleccion.dia}
             fecha={seleccion.dia.fecha}
             filaActual={mapaDisponibilidad.get(`${seleccion.empleado.id}-${seleccion.dia.numero}`)}
-            sedes={sedes}
+            sedes={sedesFiltradas}
             guardando={guardando}
             onGuardar={(datos) => guardarDia(seleccion.empleado, seleccion.dia, datos)}
             onCerrar={() => setSeleccion(null)}

@@ -33,6 +33,8 @@ spec:
           value: https://sandbox.wompi.co/v1
         - name: WOMPI_PUBLIC_KEY
           value: pon_aqui_tu_pub_test
+        - name: WOMPI_PRIVATE_KEY
+          value: pon_aqui_tu_priv_test
         - name: WOMPI_INTEGRITY_SECRET
           value: pon_aqui_tu_test_integrity
         - name: WOMPI_EVENTS_SECRET

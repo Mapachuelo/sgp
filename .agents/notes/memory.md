@@ -618,3 +618,99 @@
 - **Mapas**: filtro CSS al `.leaflet-tile-pane` en oscuro; marcadores/popups/controles no se invierten. QR siempre sobre blanco.
 - **Documentación**: `docs/diseno/nueva-interfaz.md`, `.agents/skills/diseno-sgp/SKILL.md`, `AGENTS.md`, `contexto.md`, `architecture.md`.
 - **Verificación**: Chromium en claro/oscuro para login, cliente, admin, empleado, reserva, disponibilidad, sheets y perfil; cambio sin recarga, persistencia, sistema oscuro/claro y sin errores de consola.
+
+## Servicios multi-servicio — 27 Octubre 2026
+
+- **Catálogo jerárquico**: `servicio_categoria` (Peluqueada, Planchada, Barba, Color, Peinado, Tratamientos, Otros) → `servicio_catalogo` con `categoria_id`, `imagen_url` (data URL comprimida), `activo`, precio y duración editables.
+- **Admin**: pestañas Catálogo, Categorías, Duraciones y Configuración. Formulario con imagen, duración, precio y categoría; borrado protegido (servicio con reservas se desactiva, categoría con servicios no se elimina).
+- **Reserva del cliente**: 6 pasos (Sede → Servicios → Equipo → Horario → Confirmar → Pago), carrito de hasta `max_servicios_reserva`, búsqueda de servicios y equipo por servicio con `BuscadorSelect`.
+- **Multi-estilista**: `reserva_servicio` guarda servicio, `empleado_id`, `inicia_en`, `termina_en`, `nombre`, `precio` y `duracion_minutos` congelados. `reserva.servicio_id`/`empleado_id` son el primer segmento.
+- **Calendario**: `POST /reservas/disponibilidad-combo` calcula slots donde toda la secuencia cabe y cada estilista está libre.
+- **Pagos/check-in/reportes**: usan la suma de `reserva_servicio`; los reportes reparten el cobro proporcionalmente entre servicios.
+- **Configuración**: `configuracion.max_servicios_reserva` (1..10, default 5) editable en Servicios → Configuración.
+- **Pruebas**: unitarias 51, api 46, datos 10, esquema 66, e2e 47, regresión 128; cobertura 89.69 % líneas / 72.25 % ramas / 91.37 % funciones. `tests/fixtures/seed-10x10.json` actualizado.
+
+## Galería, panel fijo y pagos del cliente — 27 Octubre 2026
+
+- **Imágenes múltiples**: nueva tabla `servicio_imagen` (servicio, data URL, orden, UNIQUE servicio+orden, FK CASCADE). `servicio_catalogo.imagen_url` queda como portada sincronizada con la primera imagen. Backfill automático al arrancar y máximo 6 imágenes por servicio.
+- **API**: `GET /reservas/servicios` devuelve portada y `total_imagenes`; `GET /reservas/servicios/:id/imagenes` carga la galería bajo demanda; `POST/PUT` aceptan `imagenes: []` y reemplazan la galería en transacción. Body limit 8 MB y Nginx 10 MB.
+- **Admin**: carga múltiple comprimida, cuadrícula de miniaturas, portada, mover izquierda/derecha y quitar. La tabla muestra la portada y el número de fotos.
+- **Cliente**: la tarjeta abre un modal de detalle con carrusel, flechas laterales, contador, miniaturas, precio, duración y acción agregar/quitar. El panel de servicios tiene altura fija con scroll interno en ordenador y móvil; categorías, buscador y barra de resumen quedan fijos.
+- **Sin estilista**: `GET /reservas/sedes-por-servicio` lista sedes con estilistas que ofrecen el servicio. Modal con mapa, lista de sedes, cobertura y acciones “Cambiar a sede” o “Quedarme y quitar el servicio”.
+- **Dashboard cliente**: estados `Pagado`, `Pago pendiente`, `Pago en proceso` y `Pago no completado`; sección “Otros pagos pendientes” y botones de pago en la próxima cita y en cada fila. Modal de pago con resumen y monto; recarga al cerrar y por WebSocket.
+- **Nginx**: `index.html` sin caché y `/assets/` inmutable; `client_max_body_size 10m`.
+- **Pruebas**: unitarias 52, API 53, datos 13, esquema 74, e2e 47, regresión 128; cobertura 90.15 % líneas / 72.58 % ramas / 92.08 % funciones.
+- **Despliegue**: imágenes `sgp-backend` y `sgp-frontend` reconstruidas, pod recreado, seed 10x10 final (10 clientes, 10 empleados, 30 reservas, 34 segmentos, 5 servicios, 7 categorías, 0 imágenes hasta que el admin suba las suyas), `index.html` y `/api/` sin caché, `/assets/` inmutable.
+
+## Verificación semanal con datos reales — 27 Octubre 2026
+
+- **Script**: `tests/verificacion_semana.py` (79/79). Crea 15 reservas de miércoles a domingo sobre el seed 10x10; lunes y martes vienen del seed. Cada día futuro tiene una cancelada, una pagada con webhook Wompi aprobado y una pendiente; una pendiente queda con pago declinado.
+- **Validaciones**: healthcheck, catálogo, categorías, configuración, sedes por servicio, galería, agenda semanal admin, reportes de ventas/ocupación de los 7 días, clientes recurrentes, logs, portal del cliente (pago aprobado + pendiente), agenda de empleado, `reserva_servicio` sin solapes y pagos/cobros coherentes.
+- **Entrada/salida**: exporta `pg_dump` y CSV de la semana a `/tmp/opencode/sgp-verificacion-<timestamp>/`, verifica el dump con `pg_restore -l` y reimporta el CSV en una tabla temporal del contenedor; las filas importadas coinciden con el CSV.
+- **Estado dejado**: 10 clientes, 10 empleados, 45 reservas (30 seed + 15 semana), 50 segmentos, 3 sedes, 5 servicios, 7 categorías. Para volver al 10x10: `pnpm run seed:pruebas`.
+- **UI verificada**: dashboard de cliente01/cliente02 con pagado, pendiente y cancelada; agenda semanal admin con 36 segmentos y agenda de empleado01 del sábado 31 con el combo pagado.
+
+## Interfaz español, sedes por departamento/ciudad y cobro QR — 28 Octubre 2026
+
+- Se eliminó el conmutador ES/EN, `I18nProvider`, el diccionario y `preferencia_usuario.idioma`; la interfaz queda siempre en español.
+- `ubicacion` ahora exige `departamento` y `ciudad`; `preferencia_usuario` guarda `departamento_preferido` y `ciudad_preferida`. Admin → Sedes filtra por ambos, el formulario los pide antes de nombre/dirección y el mapa intenta detectarlos con Nominatim; si falla, quedan manuales.
+- El cliente filtra por departamento/ciudad, puede usar “Usar mi ubicación” para elegir la sede más cercana y guarda su preferencia en el perfil.
+- La reserva ofrece dos modos: elegir estilista (solo sus servicios) o buscar servicio (solo los de la sede y sus estilistas). En modo estilista se omite el paso Equipo y el progreso muestra 5 pasos.
+- `/empleado/disponibilidad` tiene vista Lista/Semana, selector de intervalo dentro del modal de edición, servicios con imagen/precio y duración editable por el empleado.
+- El cobro quedó en un único panel `CobroCitaSheet` con cámara QR real (`jsQR`), lista de citas del día, token manual opcional y botón “Aceptar pago”. Admin y empleado comparten el flujo; se eliminaron `CobroModal` y `ValidarQrModal`.
+- Se agregó `POST /checkin/confirmar-pago`, que registra cobro físico u online sin finalizar el servicio. El QR nuevo codifica el UUID; el backend acepta también JSON legado y URLs.
+- Pruebas: unitarias 53/53, API 56/56, datos 15/15, esquema 76/76, E2E 47/47, regresión 128/128, verificación semanal 76/76. Cobertura 89.29 % líneas / 71.05 % ramas / 91.54 % funciones.
+- Dataset final limpio: 10 clientes, 10 empleados, 30 reservas, 3 sedes en Bogotá D.C. / Bogotá.
+
+## Portada pública, medios, servicios del empleado y control de inicio — 28 Octubre 2026
+
+- Presentación pública en `/` con dirección editorial “hoja de turnos”, carrusel mixto de imágenes/videos, catálogo real y accesos a reserva/login.
+- Nueva pestaña Admin → Presentación para editar textos y medios. Usa base separada `sgp_presentacion` (`presentacion_config`, `presentacion_media`, `presentacion_fuente`) y volumen `sgp-presentacion-media`; no toca la base de negocio.
+- Subida con `multer`, límite 200 MB por archivo y 4 versiones por video. Se aceptan MP4/M4V/WebM/OGG/MOV; el navegador elige entre varios `<source>`. AV1/H.264 se soportan como códecs dentro de esos contenedores; no hay transcodificación en servidor.
+- Nueva pestaña `/empleado/servicios`: autoservicio de servicios, precio de solo lectura y duración editable. Se retiró la edición de servicios de Disponibilidad.
+- Foto opcional del empleado en `empleado_perfil.foto_url`, subida desde su perfil, mostrada en cabecera, agenda y selección de estilista.
+- `checkin.iniciar` ahora exige llegada, ventana de 30 minutos antes, turno del empleado, jornada de sede, duración real y ausencia de cruces con otras reservas. El botón Atender se deshabilita hasta la ventana.
+- Planificador de Horarios corregido para la ventana flotante: sheet más ancho, encabezado en dos filas, fecha sin cortes y matriz con scroll interno.
+- Suites finales: unitarias 54/54, API 58/58, datos 15/15, esquema 77/77, presentación 6/6, E2E 47/47, regresión 129/129, semana 76/76. Cobertura 88.74 % líneas / 70.16 % ramas / 91.07 % funciones.
+- Dataset final limpio: 10 clientes, 10 empleados, 30 reservas; presentación sin medios de prueba.
+
+## Carrusel de servicios, login y secciones admin como páginas — 28 Octubre 2026
+
+- La portada `/` muestra los servicios activos en un carrusel horizontal con scroll-snap, flechas, contador, teclado y swipe; cada tarjeta abre un modal grande con galería, flechas, miniaturas y CTA de reserva. La galería se extrajo a `componentes/servicios/galeria-servicio.jsx` y se reutiliza en `nueva-reserva.jsx`.
+- El login, registro y verificación comparten un botón visible “Volver al inicio” en `AuthShell`; la marca SGP también enlaza a `/`.
+- Las secciones de admin (equipo, servicios, presentación, sedes, horarios/agenda, clientes, reportes y actividad) dejaron de abrirse como `SheetAdmin`: ahora son páginas independientes en sus rutas dentro del shell fijo. El dashboard `/admin` conserva solo KPIs, agenda y acciones rápidas.
+- Validar QR y Cobro siguen como ventanas flotantes; confirmaciones, carga de medios y vista previa siguen siendo modales de acción.
+- El empleado ve el detalle de cada servicio en un modal con galería; el precio es de solo lectura y la única edición sigue siendo la duración en la tarjeta, que se refleja en el modal.
+- Verificado con Chromium en 1440, 768 y 390, tema claro y oscuro; sin scroll horizontal de página. Build y lint correctos.
+
+## Disponibilidad kanban, cambios temporales y festivos — 29 Octubre 2026
+
+- `Mi disponibilidad` se reemplazó por un kanban semanal con filtros por sede, estado, departamento y ciudad. Cada día tiene sede fija, horario, descansos múltiples y estado de descanso.
+- La tabla `empleado_disponibilidad` ahora guarda `descansos` JSONB y `descanso`; las reservas y el check-in validan los tramos efectivos.
+- Se agregó `empleado_sede_temporal`: empleado o admin pueden programar una sede temporal por rango de fechas y días seleccionados. Al finalizar, vuelve a la sede base o actualiza la base si se elige una sede de retorno.
+- Se agregó `jornada_plantilla` con la semana fija por sede. `jornada` conserva las excepciones por fecha con `cerrado` y `motivo`.
+- La página Admin → Horarios → Jornada por sede permite editar la plantilla, seleccionar múltiples días, aplicar horarios/cierres y restablecer excepciones.
+- Se agregó el cálculo de festivos de Colombia (`shared/festivos-colombia.js`). Los festivos se cierran por defecto; el admin puede abrir una o varias sedes y cada empleado decide trabajar mediante `empleado_festivo` con su horario prellenado y editable.
+- La plantilla cerrada elimina la disponibilidad de los empleados en esa sede/día; la creación de reservas y el planificador respetan cierres, descansos, cambios temporales y opt-in de festivos.
+- Se corrigió el icono del buscador de `Mis servicios`: el contenedor se estiraba a 62 px por el `Select` vecino y el icono quedaba 11 px bajo.
+- Verificado con Chromium: kanban, navegación de semanas, descanso por rango, cambio temporal, festivo con opt-in, plantilla, selección múltiple y bloqueo por imprevisto; sin scroll horizontal a 390 px en tema claro y oscuro. Suites: esquema 92/92, API 61/61, datos 15/15, unitarias 60/60, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 85.92 % líneas / 67.33 % ramas / 89.02 % funciones. La nómina reparte reservas multi-servicio de forma proporcional y el filtro por empleado no altera el total del cobro.
+- Se agregó nómina en Reportes con porcentaje de comisión por empleado, filtros de sede/período y PDF generado con PDFKit; solo cuenta reservas cobradas y no reembolsadas.
+
+
+## Descanso automático y desempeño del empleado — 29 Octubre 2026
+
+- El panel de descanso guarda automáticamente al tocar cada día, sin botón Aplicar; admite día completo o rango horario y conserva las horas base para poder quitarlo después.
+- `PUT /api/empleados/disponibilidad/descansos` actualiza solo `descanso`/`descansos`. Si detecta citas futuras, responde 409 con `CONFLICTOS_DESCANSO`; al confirmar, cancela las citas completas, notifica y reutiliza el flujo de reembolso.
+- `disponibilidad-combo` devuelve `descansos`; la tabla del cliente muestra las celdas como **Descanso** deshabilitadas, incluyendo día completo y rangos que se cruzan con la duración del servicio.
+- `GET /api/reportes/mi-resumen` es exclusivo del empleado y devuelve servicios, bruto, comisión y ganado del mes; el dashboard agrega la tarjeta **Mi desempeño** con navegación de meses.
+- Verificado con Playwright a 1440 y 390 en claro y oscuro: descanso guardado sin botón, bloqueo visible en la tabla del cliente, modal de conflicto, dashboard con cortes/ganado y sin scroll horizontal.
+- Suites finales: esquema 92/92, API 61/61, datos 15/15, unitarias 60/60, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 85.92 % líneas / 67.33 % ramas / 89.02 % funciones.
+
+
+## Descansos múltiples, imágenes de sede y foto del empleado — 29 Octubre 2026
+
+- El panel automático de descanso permite uno o más rangos por día con **Agregar otro**; cada clic guarda el conjunto completo y el cliente ve todas las franjas como **Descanso**. El backend ya soportaba el arreglo y ahora se probó con dos rangos y solapes.
+- `ubicacion.imagen_url` guarda una imagen opcional del local (data URL comprimida). Solo el admin la edita; cliente, empleado y portada pública la muestran con modal de ampliación. `disponibilidad-combo`, `sedes-por-servicio` y las reservas incluyen la imagen.
+- El admin puede subir, cambiar o quitar la foto del empleado desde Equipo; el empleado conserva la edición desde Perfil. `auth.service` valida la foto y `createEmpleadoPerfil` la guarda. Si no hay foto se muestran iniciales. El formulario de Equipo preserva descansos al guardar.
+- Verificado con Playwright: dos descansos visibles en el calendario, imagen de sede ampliada, foto de empleado en selección de estilista, formulario admin con carga de archivo y guardado sin perder descansos.
+- Suites finales: esquema 92/92, API 61/61, datos 15/15, unitarias 60/60, E2E 47/47, regresión 129/129, semana 70/70, presentación 6/6. Cobertura 85.92 % líneas / 67.33 % ramas / 89.02 % funciones.

@@ -9,7 +9,10 @@ function conTelefonoDescifrado(usuario) {
 const authModel = {
   async findByEmail(email) {
     const { rows } = await pool.query(
-      'SELECT * FROM app_user WHERE email = $1',
+      `SELECT u.*, ep.foto_url
+       FROM app_user u
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
+       WHERE u.email = $1`,
       [email]
     );
     return conTelefonoDescifrado(rows[0] || null);
@@ -17,7 +20,11 @@ const authModel = {
 
   async findById(id) {
     const { rows } = await pool.query(
-      'SELECT id, email, rol, nombre, apellido, telefono, esta_bloqueado, verificado, creado_en, actualizado_en FROM app_user WHERE id = $1',
+      `SELECT u.id, u.email, u.rol, u.nombre, u.apellido, u.telefono, u.esta_bloqueado,
+              u.verificado, u.creado_en, u.actualizado_en, ep.foto_url
+       FROM app_user u
+       LEFT JOIN empleado_perfil ep ON ep.usuario_id = u.id
+       WHERE u.id = $1`,
       [id]
     );
     return conTelefonoDescifrado(rows[0] || null);
@@ -62,16 +69,19 @@ const authModel = {
   },
 
   async createEmpleadoPerfil(usuario_id, data) {
-    const { identificacion, password_asignada_hash, ubicacion_base_id } = data;
+    const { identificacion, password_asignada_hash, ubicacion_base_id, comision_porcentaje, foto_url } = data;
     const { rows } = await pool.query(
-      `INSERT INTO empleado_perfil (usuario_id, identificacion, password_asignada_hash, ubicacion_base_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO empleado_perfil
+         (usuario_id, identificacion, password_asignada_hash, ubicacion_base_id, comision_porcentaje, foto_url)
+       VALUES ($1, $2, $3, $4, COALESCE($5, 50), $6)
        ON CONFLICT (usuario_id) DO UPDATE
        SET identificacion = EXCLUDED.identificacion,
            password_asignada_hash = EXCLUDED.password_asignada_hash,
-           ubicacion_base_id = EXCLUDED.ubicacion_base_id
+           ubicacion_base_id = EXCLUDED.ubicacion_base_id,
+           comision_porcentaje = EXCLUDED.comision_porcentaje,
+           foto_url = EXCLUDED.foto_url
        RETURNING *`,
-      [usuario_id, identificacion, password_asignada_hash, ubicacion_base_id]
+      [usuario_id, identificacion, password_asignada_hash, ubicacion_base_id, comision_porcentaje ?? null, foto_url ?? null]
     );
     return rows[0];
   },
@@ -79,7 +89,7 @@ const authModel = {
   async findAllEmpleados() {
     const { rows } = await pool.query(
       `SELECT u.id, u.email, u.rol, u.nombre, u.apellido, u.telefono, u.esta_bloqueado,
-              ep.identificacion, ep.ubicacion_base_id, u.creado_en
+              ep.identificacion, ep.ubicacion_base_id, ep.foto_url, ep.comision_porcentaje, u.creado_en
        FROM app_user u
        LEFT JOIN empleado_perfil ep ON u.id = ep.usuario_id
        WHERE u.rol = 'empleado'
@@ -91,7 +101,7 @@ const authModel = {
   async findEmpleadoById(id) {
     const { rows } = await pool.query(
       `SELECT u.id, u.email, u.rol, u.nombre, u.apellido, u.telefono, u.esta_bloqueado,
-              ep.identificacion, ep.ubicacion_base_id
+              ep.identificacion, ep.ubicacion_base_id, ep.foto_url, ep.comision_porcentaje
        FROM app_user u
        LEFT JOIN empleado_perfil ep ON u.id = ep.usuario_id
        WHERE u.id = $1 AND u.rol = 'empleado'`,
@@ -120,14 +130,25 @@ const authModel = {
       );
     }
 
-    if (data.identificacion !== undefined || data.ubicacion_base_id !== undefined) {
+    if (data.identificacion !== undefined || data.ubicacion_base_id !== undefined || data.foto_url !== undefined || data.comision_porcentaje !== undefined) {
       await pool.query(
-        `INSERT INTO empleado_perfil (usuario_id, identificacion, ubicacion_base_id)
-         VALUES ($1, $2, $3)
+        `INSERT INTO empleado_perfil
+           (usuario_id, identificacion, ubicacion_base_id, foto_url, comision_porcentaje)
+         VALUES ($1, $2, $3, $4, COALESCE($6, 50))
          ON CONFLICT (usuario_id) DO UPDATE
          SET identificacion = COALESCE(EXCLUDED.identificacion, empleado_perfil.identificacion),
-             ubicacion_base_id = COALESCE(EXCLUDED.ubicacion_base_id, empleado_perfil.ubicacion_base_id)`,
-        [id, data.identificacion || null, data.ubicacion_base_id || null]
+             ubicacion_base_id = COALESCE(EXCLUDED.ubicacion_base_id, empleado_perfil.ubicacion_base_id),
+             foto_url = CASE WHEN $5::boolean THEN EXCLUDED.foto_url ELSE empleado_perfil.foto_url END,
+             comision_porcentaje = CASE WHEN $7::boolean THEN EXCLUDED.comision_porcentaje ELSE empleado_perfil.comision_porcentaje END`,
+        [
+          id,
+          data.identificacion || null,
+          data.ubicacion_base_id || null,
+          data.foto_url ?? null,
+          data.foto_url !== undefined,
+          data.comision_porcentaje ?? 50,
+          data.comision_porcentaje !== undefined,
+        ]
       );
     }
 
@@ -145,6 +166,16 @@ const authModel = {
   async hasCobros(empleado_id) {
     const { rows } = await pool.query(
       'SELECT COUNT(*) as count FROM cobro WHERE registrado_por = $1',
+      [empleado_id]
+    );
+    return parseInt(rows[0].count, 10) > 0;
+  },
+
+  async hasReservas(empleado_id) {
+    const { rows } = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM reserva WHERE empleado_id = $1) +
+         (SELECT COUNT(*) FROM reserva_servicio WHERE empleado_id = $1) AS count`,
       [empleado_id]
     );
     return parseInt(rows[0].count, 10) > 0;

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Search, ShieldCheck, ShieldOff, Trash2 } from 'lucide-react';
-import { Badge, Button, Card, Spinner } from '../../../componentes/ui/index.jsx';
-import { SheetAdmin } from './navegacion.jsx';
+import { PageHeader, Badge, Button, Card, Spinner } from '../../../componentes/ui/index.jsx';
+import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
 
-export default function ClientesSeccion({ open, onClose, onToast }) {
+export default function ClientesSeccion() {
   const [clientes, setClientes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [bloqueoId, setBloqueoId] = useState(null);
@@ -17,36 +17,36 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
       const data = await api.clientes.list();
       setClientes(Array.isArray(data) ? data : []);
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     } finally {
       setCargando(false);
     }
-  }, [onToast]);
+  }, []);
 
   useEffect(() => {
-    if (open) cargar();
-  }, [open, cargar]);
+    cargar();
+  }, [cargar]);
 
   const bloquear = async () => {
-    if (!motivo.trim()) return onToast?.('Ingresa un motivo de bloqueo', 'warning');
+    if (!motivo.trim()) return avisarAdmin('Ingresa un motivo de bloqueo', 'warning');
     try {
       await api.clientes.block(bloqueoId, motivo);
-      onToast?.('Cliente bloqueado');
+      avisarAdmin('Cliente bloqueado');
       setBloqueoId(null);
       setMotivo('');
       await cargar();
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     }
   };
 
   const desbloquear = async (id) => {
     try {
       await api.clientes.unblock(id);
-      onToast?.('Cliente desbloqueado');
+      avisarAdmin('Cliente desbloqueado');
       await cargar();
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     }
   };
 
@@ -54,10 +54,10 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
     if (!window.confirm(`¿Eliminar permanentemente a "${cliente.nombre} ${cliente.apellido}"? Esta accion es irreversible.`)) return;
     try {
       await api.clientes.delete(cliente.id);
-      onToast?.('Cliente eliminado');
+      avisarAdmin('Cliente eliminado');
       await cargar();
     } catch (error) {
-      onToast?.(error.message, 'error');
+      avisarAdmin(error.message, 'error');
     }
   };
 
@@ -66,7 +66,11 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
   );
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Moderación de clientes">
+    <div className="space-y-5">
+      <PageHeader
+        title="Clientes"
+        subtitle="Cuentas registradas, bloqueos y eliminación por no-shows."
+      />
       <div className="space-y-4">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-texto-secundario" aria-hidden="true" />
@@ -146,6 +150,6 @@ export default function ClientesSeccion({ open, onClose, onToast }) {
           Un cliente solo puede eliminarse si acumula 3 o mas no-shows.
         </Card>
       </div>
-    </SheetAdmin>
+    </div>
   );
 }

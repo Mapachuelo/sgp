@@ -1,13 +1,27 @@
 const pool = require('../../config/db');
 
+const RESERVA_SELECT = `
+  SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
+         COALESCE(rs.precio_total, s.precio_base) AS precio_total,
+         COALESCE(rs.precio_total, s.precio_base) AS precio_base,
+         COALESCE(rs.servicio_nombre, s.nombre) AS servicio_nombre,
+         COALESCE(rs.empleados_ids, ARRAY[]::int[]) AS empleados_ids
+  FROM reserva r
+  JOIN app_user cli ON r.cliente_id = cli.id
+  LEFT JOIN servicio_catalogo s ON r.servicio_id = s.id
+  LEFT JOIN LATERAL (
+    SELECT SUM(rsx.precio) AS precio_total,
+           STRING_AGG(rsx.nombre, ' + ' ORDER BY rsx.orden) AS servicio_nombre,
+           ARRAY_AGG(DISTINCT rsx.empleado_id) AS empleados_ids
+    FROM reserva_servicio rsx
+    WHERE rsx.reserva_id = r.id
+  ) rs ON true
+`;
+
 const checkinModel = {
   async findReservaByQrTokenForUpdate(qr_token, db = pool) {
     const { rows } = await db.query(
-      `SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
-              s.nombre AS servicio_nombre, s.precio_base
-       FROM reserva r
-       JOIN app_user cli ON r.cliente_id = cli.id
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+      `${RESERVA_SELECT}
        WHERE r.qr_token = $1::uuid
        FOR UPDATE OF r`,
       [qr_token]
@@ -17,11 +31,7 @@ const checkinModel = {
 
   async findReservaByIdForUpdate(id, db = pool) {
     const { rows } = await db.query(
-      `SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
-              s.nombre AS servicio_nombre, s.precio_base
-       FROM reserva r
-       JOIN app_user cli ON r.cliente_id = cli.id
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+      `${RESERVA_SELECT}
        WHERE r.id = $1
        FOR UPDATE OF r`,
       [id]
@@ -31,15 +41,61 @@ const checkinModel = {
 
   async findReservaByQrToken(qr_token, db = pool) {
     const { rows } = await db.query(
-      `SELECT r.*, cli.nombre AS cliente_nombre, cli.apellido AS cliente_apellido,
-              s.nombre AS servicio_nombre, s.precio_base
-       FROM reserva r
-       JOIN app_user cli ON r.cliente_id = cli.id
-       JOIN servicio_catalogo s ON r.servicio_id = s.id
+      `${RESERVA_SELECT}
        WHERE r.qr_token = $1::uuid`,
       [qr_token]
     );
     return rows[0] || null;
+  },
+
+  async findSegmentosEmpleado(reserva_id, empleado_id, db = pool) {
+    const { rows } = await db.query(
+      `SELECT inicia_en, termina_en, duracion_minutos
+       FROM reserva_servicio
+       WHERE reserva_id = $1 AND empleado_id = $2
+       ORDER BY orden`,
+      [reserva_id, empleado_id]
+    );
+    return rows;
+  },
+
+  async findDisponibilidadEmpleado(empleado_id, ubicacion_id, inicia_en, db = pool) {
+    const { rows } = await db.query(
+      `SELECT hora_inicio, hora_fin, descansos, descanso
+       FROM empleado_disponibilidad
+       WHERE empleado_id = $1
+         AND ubicacion_id = $2
+         AND dia_semana = EXTRACT(ISODOW FROM ($3::timestamptz AT TIME ZONE 'America/Bogota'))::int`,
+      [empleado_id, ubicacion_id, inicia_en]
+    );
+    return rows[0] || null;
+  },
+
+  async findJornada(ubicacion_id, inicia_en, db = pool) {
+    const { rows } = await db.query(
+      `SELECT hora_inicio, hora_fin
+       FROM jornada
+       WHERE ubicacion_id = $1
+         AND fecha = ($2::timestamptz AT TIME ZONE 'America/Bogota')::date`,
+      [ubicacion_id, inicia_en]
+    );
+    return rows[0] || null;
+  },
+
+  async findReservasEmpleadoEnRango(empleado_id, desde, hasta, excluir_reserva_id, db = pool) {
+    const { rows } = await db.query(
+      `SELECT rs.reserva_id, rs.inicia_en, rs.termina_en, rs.nombre
+       FROM reserva_servicio rs
+       JOIN reserva r ON r.id = rs.reserva_id
+       WHERE rs.empleado_id = $1
+         AND rs.reserva_id <> $4
+         AND r.estado IN ('pendiente', 'confirmada', 'en_curso')
+         AND rs.inicia_en < $3::timestamptz
+         AND rs.termina_en > $2::timestamptz
+       ORDER BY rs.inicia_en`,
+      [empleado_id, desde, hasta, excluir_reserva_id]
+    );
+    return rows;
   },
 
   async findPagoAprobado(reserva_id, db = pool) {

@@ -120,6 +120,9 @@
   --slot-no-disponible-bg: #eef0f2;
   --slot-no-disponible-border: #d5d9dd;
   --slot-no-disponible-ink: #5e646b;
+  --slot-descanso-bg: #f6f1e7;
+  --slot-descanso-border: #d9c9a7;
+  --slot-descanso-ink: #6b552b;
   --sede-1-bg: #e6f1f3;
   --sede-1-border: #9fc9d1;
   --sede-1-ink: #0f4550;
@@ -215,6 +218,9 @@
   --slot-no-disponible-bg: #1a1d1a;
   --slot-no-disponible-border: #2a2e2a;
   --slot-no-disponible-ink: #8a8f8a;
+  --slot-descanso-bg: #241f16;
+  --slot-descanso-border: #4d3f26;
+  --slot-descanso-ink: #d8bd88;
   --sede-1-bg: #123239;
   --sede-1-border: #1f5661;
   --sede-1-ink: #b8e6ee;
@@ -454,6 +460,14 @@ button,
   color: var(--slot-no-disponible-ink);
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.slot-descanso {
+  background: var(--slot-descanso-bg);
+  border: 1px dashed var(--slot-descanso-border);
+  color: var(--slot-descanso-ink);
+  cursor: not-allowed;
+  opacity: 0.85;
 }
 
 @media (pointer: coarse) {

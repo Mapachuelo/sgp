@@ -43,13 +43,27 @@ Reglas que no se negocian:
 
 - Los tokens viven en `frontend/src/index.css`; no usar colores sueltos.
 - El shell de empleado/admin es fijo: sidebar y barra superior no scrollean; el contenido sí.
+- Las secciones de admin (equipo, servicios, presentación, sedes, horarios/agenda, clientes, reportes, actividad) son páginas independientes; solo cobro, QR y acciones puntuales usan ventana flotante.
 - Los sheets tienen altura automática, `max-height` y scroll interno; no deben dejar bloques blancos.
 - Las acciones de formularios, reservas y sheets van en barras sticky.
 - No gradientes, glass, sombras en tarjetas, iconos en KPI ni tablas con cebra.
 - Usar los componentes de `frontend/src/componentes/ui/` antes de crear variantes nuevas.
-- Revisar ES/EN, móvil, foco visible y `prefers-reduced-motion`.
+- Para listas largas usar `BuscadorSelect`; no dejar un `<select>` con decenas de opciones.
+- El catálogo es jerárquico: `servicio_categoria` (título) → `servicio_catalogo` (servicio con portada, precio y duración) → `servicio_imagen` (galería de hasta 6 imágenes).
+- El listado devuelve solo la portada y `total_imagenes`; la galería se carga bajo demanda con `GET /reservas/servicios/:id/imagenes`.
+- El detalle del servicio se abre en modal con carrusel y flechas laterales; no crear una página nueva para el detalle.
+- Una reserva usa `reserva_servicio`: 1..N segmentos, cada uno con servicio, estilista, horario y precio congelado. `reserva.servicio_id` y `reserva.empleado_id` son solo el primer segmento para compatibilidad.
+- El máximo de servicios por reserva vive en `configuracion.max_servicios_reserva` y se edita en Servicios → Configuración (1 a 10).
+- No calcular totales desde el navegador: el servidor suma los precios congelados de `reserva_servicio`.
+- El dashboard del cliente muestra el estado de pago de cada cita y permite pagar en línea las reservas activas impagas.
+- Si no hay estilista en la sede, mostrar las sedes alternativas con mapa y permitir cambiar de sede o quitar el servicio; no dejar un aviso sin salida.
+- Revisar español, móvil, foco visible y `prefers-reduced-motion`.
 - Mantener tema claro y oscuro: tokens en `:root[data-theme="dark"]`, preferencia en `sgp_tema`, QR sobre blanco y mapas con filtro solo al tile pane.
 - `TemaProvider`, `BotonTema` y `TemaSelect` viven en `frontend/src/contexto/`, `componentes/tema/` y `hooks/use-tema.js`.
+- La portada pública vive en `/`; su contenido se edita en Admin → Presentación y usa la base separada `sgp_presentacion` y el volumen `sgp-presentacion-media`.
+- La foto del empleado es opcional y se sube desde su perfil; si no existe se usan iniciales.
+- El empleado no inicia un servicio antes de 30 minutos de la cita; el backend valida llegada, turno, jornada, descansos, duración y cruces con otras reservas.
+- La disponibilidad semanal es una plantilla fija por día con sede, horario y descansos; los cambios temporales vuelven a la sede base y los festivos de Colombia se cierran por defecto salvo apertura del admin y opt-in del empleado.
 
 Verificación de UI:
 
@@ -76,13 +90,15 @@ pnpm install                          # Instalar dependencias
 pnpm --filter backend dev             # Backend en :3000
 pnpm --filter frontend dev            # Frontend en :5173
 pnpm run lint                         # ESLint
-bash tests/api.sh                     # Pruebas de integración (34)
-bash tests/datos.sh                   # Integridad del dataset (6)
-bash tests/esquema.sh                 # Esquema vs modelo de datos (48)
-pnpm run test:unit                    # Unitarias en el contenedor backend (50)
+bash tests/api.sh                     # Pruebas de integración (61)
+bash tests/datos.sh                   # Integridad del dataset (15)
+bash tests/esquema.sh                 # Esquema vs modelo de datos (92)
+pnpm run test:unit                    # Unitarias en el contenedor backend (60)
 pnpm run test:coverage                # Cobertura (>= 80%)
-python3 tests/e2e.py                  # Extremo a extremo (42)
-python3 tests/regresion_10x10.py      # Regresión funcional 10x10 (122)
+python3 tests/e2e.py                  # Extremo a extremo (47)
+python3 tests/regresion_10x10.py      # Regresión funcional 10x10 (129)
+python3 tests/verificacion_semana.py  # Verificación semanal con canceladas, pagadas y pendientes (70; varía según el día); deja datos de la semana cargados
+bash tests/presentacion.sh            # Esquema y API de la base separada de presentación (6)
 pnpm run seed:pruebas                 # Seed determinista 10 clientes / 10 empleados
 pnpm run seed:demo -- --reset         # Datos de demostración
 node scripts/generar-drawio.js        # Regenerar diagramas draw.io
@@ -98,7 +114,7 @@ Leer las carpetas `.agents/`, `docs/` y `plan.md` para entender el proyecto a fo
 - `docs/formato_ieee830.md` — requisitos, apéndices A/B/C y matriz de trazabilidad.
 - `docs/diseno-tecnico.md` y `docs/modelos-uml.drawio` — arquitectura, UML y ER.
 - `docs/diseno/nueva-interfaz.md` — dirección visual, tokens, shell, componentes, motion y verificación.
-- `docs/mockups.md` y `docs/img/` — capturas por rol (ES/EN, móvil).
+- `docs/mockups.md` y `docs/img/` — capturas por rol (español, móvil).
 - `docs/modelo-datos.md` — diccionario de datos y correspondencia con UML.
 - `docs/plan-pruebas.md` — estrategia, matriz RF↔prueba y cobertura.
 - `docs/despliegue.md` — guía Podman y operación.

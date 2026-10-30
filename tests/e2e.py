@@ -119,6 +119,15 @@ empleado_id = int(sql("SELECT id FROM app_user WHERE email = 'empleado01@sgp.loc
 hoy_bogota = datetime.now(BOGOTA)
 dias_hasta_lunes = (7 - hoy_bogota.weekday()) % 7 or 7
 lunes = (hoy_bogota + timedelta(days=dias_hasta_lunes)).date()
+
+
+def es_festivo(fecha):
+    status, data = req('GET', f'/reservas/festivos?desde={fecha.isoformat()}&hasta={fecha.isoformat()}')
+    return status == 200 and bool(data.get('data'))
+
+
+while es_festivo(lunes):
+    lunes += timedelta(days=7)
 _, disponibilidad = req('GET', f'/empleados/{empleado_id}/disponibilidad', token=token_admin)
 bloque_lunes = next(
     (b for b in (disponibilidad.get('data') or []) if b.get('dia_semana') == lunes.isoweekday()),
@@ -178,6 +187,30 @@ status, data = req('POST', '/reservas', {
 reserva3 = data.get('data') or {}
 check('Tercera reserva para pago digital', status == 201 and bool(reserva3.get('id')), f'{status} {data}')
 
+inicio4_local = datetime(lunes.year, lunes.month, lunes.day, 13, 0, tzinfo=BOGOTA)
+inicia4 = inicio4_local.astimezone(ZoneInfo('UTC')).isoformat().replace('+00:00', 'Z')
+status, data = req('POST', '/reservas', {
+    'empleado_id': empleado_id, 'ubicacion_id': ubicacion_id,
+    'inicia_en': inicia4, 'cantidad_personas': 1,
+    'servicios': [
+        {'servicio_id': 1, 'empleado_id': empleado_id},
+        {'servicio_id': 2, 'empleado_id': empleado_id},
+    ],
+}, token_cli)
+reserva4 = data.get('data') or {}
+check('Reserva con dos servicios creada', status == 201 and len(reserva4.get('servicios', [])) == 2, f'{status} {data}')
+inicio4_dt = datetime.fromisoformat(reserva4.get('inicia_en', '').replace('Z', '+00:00'))
+fin4_dt = datetime.fromisoformat(reserva4.get('termina_en', '').replace('Z', '+00:00'))
+check('Duracion de la reserva combo = suma de servicios', (fin4_dt - inicio4_dt) == timedelta(minutes=75), (fin4_dt - inicio4_dt))
+check('Precio congelado del combo = suma de servicios', float(reserva4.get('precio_total', 0)) == 85000, reserva4.get('precio_total'))
+
+status, data = req('POST', '/pagos/intencion', {'reserva_id': reserva4.get('id')}, token_cli)
+combo_intencion = data.get('data') or {}
+check('Intencion de pago del combo usa el total', status == 201 and combo_intencion.get('monto_en_centavos') == 8500000, f'{status} {data}')
+
+status, _ = req('DELETE', f"/reservas/me/{reserva4.get('id')}", token=token_cli)
+check('Cancelar reserva combo de prueba', status == 200, status)
+
 status, data = req('POST', '/pagos/intencion', {'reserva_id': reserva3.get('id')}, token_cli)
 intencion = data.get('data') or {}
 check('Intencion de pago Wompi creada (201)', status == 201 and intencion.get('monto_en_centavos') == 6000000, f'{status} {data}')
@@ -216,7 +249,7 @@ check('Check-in de reserva pagada por Wompi', status == 200 and resultado.get('m
 check('Cobro online registra el monto real del pago', resultado.get('monto') == 60000 and resultado.get('pagado_online') is True, resultado)
 
 status, data = req('POST', '/ubicaciones', {
-    'nombre': f'Sede E2E {int(time.time())}', 'direccion': 'Calle 1 #2-3, Bogota',
+    'nombre': f'Sede E2E {int(time.time())}', 'direccion': 'Calle 1 #2-3, Bogotá', 'departamento': 'Bogotá D.C.', 'ciudad': 'Bogotá',
     'latitud': 4.65, 'longitud': -74.05,
 }, token_admin)
 sede2 = (data.get('data') or {}).get('id')

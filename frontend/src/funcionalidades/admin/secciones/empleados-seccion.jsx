@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
-import { Badge, Button, Card, Input, Spinner } from '../../../componentes/ui/index.jsx';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ImageOff, Pencil, Plus, Search, Trash2, Upload, Users } from 'lucide-react';
+import { PageHeader, Avatar, Badge, Button, Card, Input, Select, Spinner } from '../../../componentes/ui/index.jsx';
 import CampoTelefono from '../../../componentes/telefono/campo-telefono.jsx';
-import { SheetAdmin } from './navegacion.jsx';
+import { avisarAdmin } from './avisos.js';
 import api from '../../../api/cliente.js';
+import { comprimirImagen } from '../../../lib/imagen.js';
+
+const dinero = (valor) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
+    .format(Number(valor) || 0)
+    .replace(/\u00a0/g, '');
 
 const DIAS = [
   { dia: 1, label: 'Lunes' },
@@ -18,7 +24,13 @@ const DIAS = [
 function crearHorarioDefault() {
   const horario = {};
   for (let d = 1; d <= 7; d++) {
-    horario[d] = { disponible: d <= 5, hora_inicio: '08:00', hora_fin: '17:00' };
+    horario[d] = {
+      disponible: d <= 5,
+      hora_inicio: '08:00',
+      hora_fin: '17:00',
+      descanso: false,
+      descansos: [],
+    };
   }
   return horario;
 }
@@ -26,7 +38,13 @@ function crearHorarioDefault() {
 function crearHorarioVacio() {
   const horario = {};
   for (let d = 1; d <= 7; d++) {
-    horario[d] = { disponible: false, hora_inicio: '08:00', hora_fin: '17:00' };
+    horario[d] = {
+      disponible: false,
+      hora_inicio: '08:00',
+      hora_fin: '17:00',
+      descanso: false,
+      descansos: [],
+    };
   }
   return horario;
 }
@@ -38,12 +56,14 @@ const FORM_INICIAL = {
   password: '',
   telefono: '',
   identificacion: '',
+  comision_porcentaje: 50,
+  foto_url: '',
   sedes_asignadas: [],
   horarios: {},
   servicios_asignados: {},
 };
 
-export default function EmpleadosSeccion({ open, onClose, onToast }) {
+export default function EmpleadosSeccion() {
   const [empleados, setEmpleados] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
   const [servicios, setServicios] = useState([]);
@@ -54,7 +74,11 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [sedeActiva, setSedeActiva] = useState(null);
   const [busqueda, setBusqueda] = useState('');
+  const [busquedaServicios, setBusquedaServicios] = useState('');
+  const [categoriaServicio, setCategoriaServicio] = useState('');
   const [error, setError] = useState('');
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const inputFotoRef = useRef(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -68,15 +92,37 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       setUbicaciones(Array.isArray(ubis) ? ubis : []);
       setServicios(Array.isArray(servs) ? servs : []);
     } catch (errorCarga) {
-      onToast?.(errorCarga.message, 'error');
+      avisarAdmin(errorCarga.message, 'error');
     } finally {
       setCargando(false);
     }
-  }, [onToast]);
+  }, []);
 
   useEffect(() => {
-    if (open) cargar();
-  }, [open, cargar]);
+    cargar();
+  }, [cargar]);
+
+  const categoriasServicios = useMemo(() => {
+    const mapa = new Map();
+    servicios.forEach((servicio) => {
+      if (servicio.categoria_id && !mapa.has(servicio.categoria_id)) {
+        mapa.set(servicio.categoria_id, servicio.categoria_nombre || 'Sin categoría');
+      }
+    });
+    return [...mapa.entries()].map(([id, nombre]) => ({ value: String(id), label: nombre }));
+  }, [servicios]);
+
+  const serviciosFiltrados = useMemo(() => {
+    const termino = busquedaServicios.trim().toLowerCase();
+    return servicios.filter((servicio) => {
+      const coincideTexto =
+        !termino ||
+        `${servicio.nombre} ${servicio.categoria_nombre || ''}`.toLowerCase().includes(termino);
+      const coincideCategoria =
+        !categoriaServicio || String(servicio.categoria_id) === String(categoriaServicio);
+      return coincideTexto && coincideCategoria;
+    });
+  }, [servicios, busquedaServicios, categoriaServicio]);
 
   const resetForm = () => {
     setForm(FORM_INICIAL);
@@ -114,7 +160,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       if (duplicada) {
         const nombreSede = ubicaciones.find((u) => u.id === Number(duplicada[0]))?.nombre || `Sede #${duplicada[0]}`;
         const nombreDia = DIAS.find((d) => d.dia === dia)?.label || `Dia ${dia}`;
-        onToast?.(`El empleado ya tiene horario en ${nombreSede} el ${nombreDia}`, 'error');
+        avisarAdmin(`El empleado ya tiene horario en ${nombreSede} el ${nombreDia}`, 'error');
         return;
       }
     }
@@ -127,6 +173,21 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       };
       return { ...prev, horarios };
     });
+  };
+
+  const subirFoto = async (event) => {
+    const archivo = event.target.files?.[0];
+    event.target.value = '';
+    if (!archivo) return;
+    setSubiendoFoto(true);
+    try {
+      const foto = await comprimirImagen(archivo, { maxLado: 512, maxBytes: 180 * 1024 });
+      setForm((previo) => ({ ...previo, foto_url: foto }));
+    } catch (errorFoto) {
+      avisarAdmin(errorFoto.message, 'error');
+    } finally {
+      setSubiendoFoto(false);
+    }
   };
 
   const guardar = async () => {
@@ -151,6 +212,8 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
               dia_semana: Number(diaSemana),
               hora_inicio: config.hora_inicio || '08:00',
               hora_fin: config.hora_fin || '17:00',
+              descanso: Boolean(config.descanso),
+              descansos: Array.isArray(config.descansos) ? config.descansos : [],
             });
           }
         });
@@ -175,11 +238,11 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
         await api.disponibilidad.updateByAdmin(empleadoId, disponibilidadItems);
         await api.reservas.empleadoTiempos.update({ empleado_id: empleadoId, items: serviciosItems });
       }
-      onToast?.(editId ? 'Empleado actualizado' : 'Empleado creado');
+      avisarAdmin(editId ? 'Empleado actualizado' : 'Empleado creado');
       resetForm();
       await cargar();
     } catch (errorGuardar) {
-      onToast?.(errorGuardar.message, 'error');
+      avisarAdmin(errorGuardar.message, 'error');
     } finally {
       setGuardando(false);
     }
@@ -189,10 +252,10 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
     if (!window.confirm(`¿Eliminar a ${empleado.nombre} ${empleado.apellido}?`)) return;
     try {
       await api.auth.empleados.delete(empleado.id);
-      onToast?.('Empleado eliminado');
+      avisarAdmin('Empleado eliminado');
       await cargar();
     } catch (errorEliminar) {
-      onToast?.(errorEliminar.message, 'error');
+      avisarAdmin(errorEliminar.message, 'error');
     }
   };
 
@@ -207,6 +270,8 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       password: '',
       telefono: empleado.telefono || '',
       identificacion: empleado.identificacion || '',
+      comision_porcentaje: empleado.comision_porcentaje ?? 50,
+      foto_url: empleado.foto_url || '',
       sedes_asignadas: [],
       horarios: {},
       servicios_asignados: {},
@@ -227,6 +292,8 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
           disponible: true,
           hora_inicio: (item.hora_inicio || '').slice(0, 5) || '08:00',
           hora_fin: (item.hora_fin || '').slice(0, 5) || '17:00',
+          descanso: Boolean(item.descanso),
+          descansos: Array.isArray(item.descansos) ? item.descansos : [],
         };
       });
       const serviciosMap = {};
@@ -236,7 +303,7 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
       setForm((prev) => ({ ...prev, sedes_asignadas: sedes, horarios: horariosMap, servicios_asignados: serviciosMap }));
       setSedeActiva(sedes[0] || null);
     } catch {
-      onToast?.('Error al cargar los datos del empleado', 'error');
+      avisarAdmin('Error al cargar los datos del empleado', 'error');
     }
   };
 
@@ -245,7 +312,11 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
   );
 
   return (
-    <SheetAdmin open={open} onClose={onClose} title="Gestión de empleados">
+    <div className="space-y-5">
+      <PageHeader
+        title="Equipo"
+        subtitle="Gestiona empleados, sedes, horarios y servicios que realizan."
+      />
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative">
@@ -270,6 +341,33 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
               <Users className="w-5 h-5 text-primario" aria-hidden="true" />
               {editId ? 'Editar empleado' : 'Nuevo empleado'}
             </h3>
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-borde bg-panel/40 p-3">
+              <Avatar nombre={form.nombre} apellido={form.apellido} fotoUrl={form.foto_url} size="lg" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-texto-principal">Foto del empleado</p>
+                <p className="mt-0.5 text-[11px] leading-5 text-texto-secundario">
+                  Opcional. Si no tiene foto, el cliente verá sus iniciales. También puede cambiarla desde su perfil.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => inputFotoRef.current?.click()} disabled={subiendoFoto}>
+                    {subiendoFoto ? <Spinner /> : <><Upload className="h-3.5 w-3.5" aria-hidden="true" /> {form.foto_url ? 'Cambiar foto' : 'Subir foto'}</>}
+                  </Button>
+                  {form.foto_url && (
+                    <Button type="button" variant="dangerSuave" size="sm" onClick={() => setForm((previo) => ({ ...previo, foto_url: '' }))}>
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Quitar foto
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <input
+                ref={inputFotoRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={subirFoto}
+                aria-label="Foto del empleado"
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <Input label="Nombre" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
               <Input label="Apellido" value={form.apellido} onChange={(e) => setForm((p) => ({ ...p, apellido: e.target.value }))} />
@@ -277,6 +375,16 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
               <Input label={editId ? 'Nuevo password (opcional)' : 'Password'} type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={editId ? 'Dejar vacio para no cambiar' : ''} />
               <CampoTelefono label="Teléfono" value={form.telefono} onChange={(telefono) => setForm((p) => ({ ...p, telefono }))} />
               <Input label="Identificación" value={form.identificacion} onChange={(e) => setForm((p) => ({ ...p, identificacion: e.target.value }))} />
+              <Input
+                label="Comisión del empleado (%)"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={form.comision_porcentaje}
+                onChange={(e) => setForm((p) => ({ ...p, comision_porcentaje: e.target.value }))}
+                hint="El salón recibe el porcentaje restante."
+              />
             </div>
 
             <div className="mt-5 space-y-2">
@@ -351,19 +459,45 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
 
             <div className="mt-5 border-t border-borde/60 pt-4 space-y-3">
               <span className="block text-[11px] font-medium text-texto-secundario">Servicios y duraciones</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                {servicios.map((servicio) => {
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_180px]">
+                <Input
+                  placeholder="Buscar servicio..."
+                  value={busquedaServicios}
+                  onChange={(evento) => setBusquedaServicios(evento.target.value)}
+                  aria-label="Buscar servicio"
+                />
+                <Select
+                  options={[{ value: '', label: 'Todas las categorías' }, ...categoriasServicios]}
+                  value={categoriaServicio}
+                  onChange={(evento) => setCategoriaServicio(evento.target.value)}
+                  aria-label="Filtrar servicios por categoría"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1 scroll-thin">
+                {serviciosFiltrados.map((servicio) => {
                   const config = form.servicios_asignados?.[servicio.id] || { checked: false, duracion: servicio.duracion_base_minutos || 30 };
                   return (
-                    <div key={servicio.id} className="flex items-center justify-between p-2 bg-fondo/40 rounded-xl border border-borde/40 text-xs">
-                      <label className="flex items-center gap-2 font-semibold text-texto-principal cursor-pointer select-none">
+                    <div key={servicio.id} className="flex items-center justify-between gap-2 p-2 bg-fondo/40 rounded-xl border border-borde/40 text-xs">
+                      <label className="flex min-w-0 items-center gap-2 font-semibold text-texto-principal cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={config.checked}
                           onChange={(e) => setForm((p) => ({ ...p, servicios_asignados: { ...p.servicios_asignados, [servicio.id]: { ...config, checked: e.target.checked } } }))}
                           className="rounded border-borde text-primario w-4 h-4 cursor-pointer"
                         />
-                        {servicio.nombre}
+                        {servicio.imagen_url ? (
+                          <img src={servicio.imagen_url} alt="" className="h-8 w-8 shrink-0 rounded border border-borde object-cover" loading="lazy" />
+                        ) : (
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-borde bg-panel text-tenue">
+                            <ImageOff className="h-3.5 w-3.5" aria-hidden="true" />
+                          </span>
+                        )}
+                        <span className="block min-w-0">
+                          <span className="block truncate">{servicio.nombre}</span>
+                          <span className="block truncate text-[10px] font-normal text-texto-secundario">
+                            {servicio.categoria_nombre || 'Sin categoría'} · {dinero(servicio.precio_base)}
+                          </span>
+                        </span>
                       </label>
                       {config.checked && (
                         <span className="flex items-center gap-1.5">
@@ -381,6 +515,11 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
                     </div>
                   );
                 })}
+                {serviciosFiltrados.length === 0 && (
+                  <p className="rounded-lg border border-dashed border-control bg-panel/40 p-4 text-center text-xs text-texto-secundario sm:col-span-2">
+                    No hay servicios para los filtros seleccionados.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -411,7 +550,12 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
               <tbody>
                 {filtrados.map((emp) => (
                   <tr key={emp.id} className="border-t border-borde/50 hover:bg-fondo/30 transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-texto-principal">{emp.nombre} {emp.apellido}</td>
+                    <td className="py-2.5 px-3 font-semibold text-texto-principal">
+                      <span className="flex items-center gap-2">
+                        <Avatar nombre={emp.nombre} apellido={emp.apellido} fotoUrl={emp.foto_url} size="sm" />
+                        {emp.nombre} {emp.apellido}
+                      </span>
+                    </td>
                     <td className="py-2.5 px-3 text-xs text-texto-secundario">{emp.email}</td>
                     <td className="py-2.5 px-3 text-xs">{emp.telefono}</td>
                     <td className="py-2.5 px-3 text-xs">{emp.identificacion}</td>
@@ -435,6 +579,6 @@ export default function EmpleadosSeccion({ open, onClose, onToast }) {
           </div>
         )}
       </div>
-    </SheetAdmin>
+    </div>
   );
 }

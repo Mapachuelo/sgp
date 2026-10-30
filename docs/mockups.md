@@ -65,18 +65,21 @@ QR de ingreso, elección entre **Efectivo en Local** y **Pago en línea**, guía
 ![Pago paso 5](img/cliente-pago-wompi.png)
 
 ### 2.6 Pago pendiente desde el tablero
-El detalle de una reserva sin pago muestra la insignia **Pago pendiente**, el total y el botón **Pagar en línea**, que abre el checkout de Wompi sin volver al paso 5.
+El dashboard muestra el estado de pago de cada cita, una sección de **Otros pagos pendientes** cuando hay más de una cita por pagar y el botón **Pagar ahora** en la próxima cita y en cada fila. El modal muestra servicio, fecha, total y abre el checkout de Wompi sin volver al paso 5; también recuerda que se puede pagar en efectivo en recepción.
 
 ![Pago pendiente cliente](img/cliente-pago-pendiente.png)
+
+### 2.6b Detalle de servicio
+Al hacer clic en una tarjeta del paso **Servicios** se abre un modal con la galería del servicio (hasta 6 imágenes), flechas laterales, contador, miniaturas, precio, duración y las acciones **Agregar a la cita** o **Quitar de la cita**. El listado solo carga la portada; la galería se consulta bajo demanda.
 
 ### 2.7 Perfil (`/cliente/perfil`)
 
 ![Perfil cliente](img/cliente-perfil.png)
 
-### 2.8 Interfaz en inglés y móvil
-Conmutador ES/EN en la barra de navegación; menú hamburguesa y layout apilado en móvil.
+### 2.8 Interfaz móvil
+Menú hamburguesa y layout apilado en móvil; la interfaz se mantiene siempre en español.
 
-![Kanban en inglés](img/cliente-kanban-en.png)
+![Kanban móvil](img/cliente-kanban-movil.png)
 
 ![Kanban móvil](img/cliente-kanban-movil.png)
 
@@ -100,7 +103,7 @@ Grilla semanal por sede, servicios asignados con duración y leyenda; una sede p
 ## 4. Rol administrador
 
 ### 4.1 Dashboard (`/admin`)
-KPIs reales, timeline de todas las sedes y tarjeta de Gestión con los 9 accesos. Todas las ventanas flotantes (Validar QR, Cobro, Empleados, Servicios, Sedes, Horarios, Reportes, Moderación de clientes y Logs) incluyen un riel lateral con las 9 secciones como guía de uso: permite saltar entre secciones sin cerrar la ventana. En móvil el riel se convierte en chips con scroll horizontal y el sheet ocupa el ancho completo.
+KPIs reales, timeline de todas las sedes y tarjeta de Gestión con los accesos. Empleados, Servicios, Presentación, Sedes, Horarios/Agenda, Reportes, Moderación de clientes y Logs se abren como páginas independientes dentro del shell; Validar QR y Cobro se mantienen como ventanas flotantes. En móvil la navegación se resuelve con el menú lateral.
 
 ![Dashboard admin](img/admin-dashboard.png)
 

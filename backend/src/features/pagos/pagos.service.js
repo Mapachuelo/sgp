@@ -24,6 +24,12 @@ function generarReferencia(reservaId) {
   return `SGP-${reservaId}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
 }
 
+function empleadoAsignado(registro, usuario) {
+  if (usuario.rol !== 'empleado') return true;
+  if (registro.empleado_id === usuario.id) return true;
+  return Array.isArray(registro.empleados_ids) && registro.empleados_ids.includes(usuario.id);
+}
+
 function construirCheckoutUrl({ referencia, montoEnCentavos, firma, email }) {
   const parametros = [
     `public-key=${encodeURIComponent(env.wompiPublicKey)}`,
@@ -49,6 +55,8 @@ function formatear(pago) {
     metodo: pago.metodo,
     monto: Number(pago.monto),
     moneda: pago.moneda,
+    reembolso_estado: pago.reembolso_estado || null,
+    reembolsado_en: pago.reembolsado_en || null,
     actualizado_en: pago.actualizado_en,
   };
 }
@@ -122,7 +130,7 @@ const pagosService = {
     if (usuario.rol === 'cliente' && reserva.cliente_id !== usuario.id) {
       throw new HttpError(403, 'No puede pagar una reserva de otro cliente');
     }
-    if (usuario.rol === 'empleado' && reserva.empleado_id !== usuario.id) {
+    if (usuario.rol === 'empleado' && !empleadoAsignado(reserva, usuario)) {
       throw new HttpError(403, 'No puede cobrar una reserva de otro empleado');
     }
     if (reserva.estado === 'cancelada') {
@@ -140,7 +148,7 @@ const pagosService = {
       throw new HttpError(409, 'La reserva ya tiene un pago registrado');
     }
 
-    const monto = Number(reserva.precio_base) * Number(reserva.cantidad_personas || 1);
+    const monto = Number(reserva.precio_total) * Number(reserva.cantidad_personas || 1);
     if (!Number.isFinite(monto) || monto <= 0) {
       throw new HttpError(400, 'El monto de la reserva no es valido');
     }
@@ -194,7 +202,7 @@ const pagosService = {
     if (usuario.rol === 'cliente' && pago.cliente_id !== usuario.id) {
       throw new HttpError(403, 'No tiene acceso a este pago');
     }
-    if (usuario.rol === 'empleado' && pago.empleado_id !== usuario.id) {
+    if (usuario.rol === 'empleado' && !empleadoAsignado(pago, usuario)) {
       throw new HttpError(403, 'No tiene acceso a este pago');
     }
     return formatear(pago);
@@ -216,7 +224,7 @@ const pagosService = {
     if (usuario.rol === 'cliente' && pago.cliente_id !== usuario.id) {
       throw new HttpError(403, 'No tiene acceso a este pago');
     }
-    if (usuario.rol === 'empleado' && pago.empleado_id !== usuario.id) {
+    if (usuario.rol === 'empleado' && !empleadoAsignado(pago, usuario)) {
       throw new HttpError(403, 'No tiene acceso a este pago');
     }
     if (ESTADOS_FINALES.has(pago.estado)) {

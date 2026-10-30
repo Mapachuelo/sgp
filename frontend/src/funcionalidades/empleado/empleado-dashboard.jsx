@@ -27,7 +27,8 @@ import {
   Spinner,
   StatusPill,
 } from '../../componentes/ui/index.jsx';
-import PagoReservaModal from '../../componentes/pagos/pago-reserva-modal.jsx';
+import CobroCitaSheet from '../../componentes/pagos/cobro-cita-sheet.jsx';
+import ImagenSede from '../../componentes/ubicaciones/imagen-sede.jsx';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -45,6 +46,31 @@ const formatearFechaLocal = (date) => {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+};
+
+const fechaHoyBogota = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Bogota',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).format(new Date());
+
+const rangoDelMes = (mes) => {
+  const [anio, numeroMes] = mes.split('-').map(Number);
+  const ultimoDia = new Date(Date.UTC(anio, numeroMes, 0)).getUTCDate();
+  return {
+    desde: `${mes}-01`,
+    hasta: `${mes}-${String(ultimoDia).padStart(2, '0')}`,
+  };
+};
+
+const etiquetaDelMes = (mes) => {
+  const [anio, numeroMes] = mes.split('-').map(Number);
+  const texto = new Intl.DateTimeFormat('es-CO', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(anio, numeroMes - 1, 1));
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 };
 
 const formatearHoraLocal = (isoString) => {
@@ -274,71 +300,6 @@ function LlegadaQRModal({ open, onClose, onSuccess, qrInicial = '' }) {
   );
 }
 
-function CobroEfectivoModal({ open, cita, onClose, onSuccess, onToast }) {
-  const [monto, setMonto] = useState('');
-  const [cargando, setCargando] = useState(false);
-
-  const total = cita ? Number(cita.precio_base || 0) * Number(cita.cantidad_personas || 1) : 0;
-
-  useEffect(() => {
-    if (open && cita) setMonto(String(total || ''));
-  }, [open, cita, total]);
-
-  const cobrar = async () => {
-    const valor = Number(monto);
-    if (!Number.isFinite(valor) || valor <= 0) {
-      onToast?.('Ingresa un monto mayor a 0', 'warning');
-      return;
-    }
-    setCargando(true);
-    try {
-      await api.checkin.cobroEfectivo(cita.id, valor);
-      onToast?.('Cobro en efectivo registrado');
-      onSuccess?.();
-      onClose?.();
-    } catch (err) {
-      onToast?.(err.message, 'error');
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  const recibido = Number(monto) || 0;
-  const cambio = Math.max(0, recibido - total);
-
-  return (
-    <Modal open={open} onClose={onClose} title="Cobro en efectivo" size="sm">
-      {cita && (
-        <div className="space-y-4">
-          <div className="rounded-md border border-borde bg-panel/60 p-3">
-            <p className="text-sm font-medium text-texto-principal">{cita.cliente_nombre || 'Cliente'}</p>
-            <p className="mt-0.5 text-xs text-texto-secundario">
-              {cita.servicio_nombre || 'Servicio'} · Total {dinero(total)}
-            </p>
-          </div>
-          <Input
-            label="Monto recibido"
-            type="number"
-            min="1"
-            step="100"
-            inputMode="decimal"
-            value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-          />
-          {recibido > total && (
-            <p className="text-xs text-texto-secundario">
-              Cambio: <span className="num font-medium text-texto-principal">{dinero(cambio)}</span>
-            </p>
-          )}
-          <Button className="w-full" onClick={cobrar} disabled={cargando}>
-            {cargando ? <Spinner /> : 'Registrar cobro'}
-          </Button>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
 export default function EmpleadoDashboard({ vista = 'cola' }) {
   const { usuario } = useAuth();
   const { ultimoEvento } = useWebSocket();
@@ -346,16 +307,24 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [modalQR, setModalQR] = useState(false);
-  const [pagoReserva, setPagoReserva] = useState(null);
-  const [cobroEfectivoCita, setCobroEfectivoCita] = useState(null);
+  const [cobroCita, setCobroCita] = useState(null);
   const [finalizarCita, setFinalizarCita] = useState(null);
   const [finalizando, setFinalizando] = useState(false);
   const [fecha, setFecha] = useState(formatearFechaLocal(new Date()));
+  const [mesResumen, setMesResumen] = useState(() => fechaHoyBogota().slice(0, 7));
+  const [resumen, setResumen] = useState(null);
+  const [cargandoResumen, setCargandoResumen] = useState(true);
+  const [, setReloj] = useState(Date.now());
 
   const fechaRef = useRef(fecha);
   useEffect(() => {
     fechaRef.current = fecha;
   }, [fecha]);
+
+  useEffect(() => {
+    const intervalo = setInterval(() => setReloj(Date.now()), 30000);
+    return () => clearInterval(intervalo);
+  }, []);
 
   const [sedeHoy, setSedeHoy] = useState(null);
   const [disponibilidadHoy, setDisponibilidadHoy] = useState(null);
@@ -408,16 +377,33 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
     }
   }, []);
 
+  const cargarResumen = useCallback(async () => {
+    setCargandoResumen(true);
+    try {
+      const data = await api.reportes.resumenEmpleado(rangoDelMes(mesResumen));
+      setResumen(data);
+    } catch {
+      setResumen(null);
+    } finally {
+      setCargandoResumen(false);
+    }
+  }, [mesResumen]);
+
   useEffect(() => {
     cargarCitas(fecha);
     cargarSedeHoy(fecha);
   }, [fecha, cargarCitas, cargarSedeHoy]);
 
   useEffect(() => {
+    cargarResumen();
+  }, [cargarResumen]);
+
+  useEffect(() => {
     if (!ultimoEvento) return;
     if (ultimoEvento.tipo === 'reserva.actualizada') {
       cargarCitas(fechaRef.current);
       cargarSedeHoy(fechaRef.current);
+      cargarResumen();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ultimoEvento]);
@@ -428,19 +414,26 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const enAtencion = enCurso[0] || null;
   const enEspera = citas
     .filter((c) => c.llego_en && !['en_curso', 'cobrado', 'completada', 'cancelada'].includes(c.estado))
-    .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en));
+    .sort((a, b) => new Date(a.mi_inicia_en || a.inicia_en) - new Date(b.mi_inicia_en || b.inicia_en));
   const programados = citas
     .filter((c) => !c.llego_en && ['pendiente', 'confirmada'].includes(c.estado))
-    .sort((a, b) => new Date(a.inicia_en) - new Date(b.inicia_en));
+    .sort((a, b) => new Date(a.mi_inicia_en || a.inicia_en) - new Date(b.mi_inicia_en || b.inicia_en));
   const siguientes = enEspera.length > 0 ? enEspera : programados;
   const totalRevenue = cobrados.reduce(
-    (sum, c) => sum + (parseFloat(c.monto) || parseFloat(c.precio) || parseFloat(c.precio_base) || 0),
+    (sum, c) => sum + (parseFloat(c.monto) || parseFloat(c.precio) || parseFloat(c.precio_total) || parseFloat(c.precio_base) || 0),
     0
   );
 
   const refrescar = () => {
     cargarCitas(fecha);
     cargarSedeHoy(fecha);
+    cargarResumen();
+  };
+
+  const cambiarMes = (offset) => {
+    const [anio, numeroMes] = mesResumen.split('-').map(Number);
+    const fechaMes = new Date(anio, numeroMes - 1 + offset, 1);
+    setMesResumen(`${fechaMes.getFullYear()}-${String(fechaMes.getMonth() + 1).padStart(2, '0')}`);
   };
 
   const handleRegistrarLlegada = async (cita) => {
@@ -455,8 +448,8 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
 
   const handleAtender = async (cita) => {
     if (!estaPagada(cita)) {
-      setPagoReserva(cita);
-      notificar.warning('Primero registra el pago por QR o en efectivo');
+      setCobroCita(cita);
+      notificar.warning('Primero registra el pago de la cita');
       return;
     }
     try {
@@ -485,9 +478,9 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
 
   const timelineCitas = (() => {
     if (!disponibilidadHoy?.hora_inicio || !disponibilidadHoy?.hora_fin) {
-      return [...citas].sort((a, b) => (a.inicia_en || '').localeCompare(b.inicia_en || ''));
+      return [...citas].sort((a, b) => (a.mi_inicia_en || a.inicia_en || '').localeCompare(b.mi_inicia_en || b.inicia_en || ''));
     }
-    const sortedCitas = [...citas].sort((a, b) => (a.inicia_en || '').localeCompare(b.inicia_en || ''));
+    const sortedCitas = [...citas].sort((a, b) => (a.mi_inicia_en || a.inicia_en || '').localeCompare(b.mi_inicia_en || b.inicia_en || ''));
     const timeline = [];
     const toMinutes = (timeStr) => {
       const [h, m] = timeStr.split(':').map(Number);
@@ -502,9 +495,9 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
     const endMin = toMinutes(disponibilidadHoy.hora_fin.slice(0, 5));
     let currentMin = startMin;
     sortedCitas.forEach((cita) => {
-      const cStart = new Date(cita.inicia_en);
+      const cStart = new Date(cita.mi_inicia_en || cita.inicia_en);
       const cStartMin = cStart.getHours() * 60 + cStart.getMinutes();
-      const cEnd = new Date(cita.termina_en);
+      const cEnd = new Date(cita.mi_termina_en || cita.termina_en);
       const cEndMin = cEnd.getHours() * 60 + cEnd.getMinutes();
       if (cStartMin > currentMin) {
         timeline.push({
@@ -546,12 +539,21 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
   const CitaRow = ({ cita, compacta = false }) => {
     const pagada = estaPagada(cita);
     const espera = minutosDesde(cita.llego_en);
+    const inicioCita = new Date(cita.mi_inicia_en || cita.inicia_en);
+    const ventanaDesde = new Date(inicioCita.getTime() - 30 * 60000);
+    const puedeAtender = Date.now() >= ventanaDesde.getTime();
+    const horaVentana = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(ventanaDesde);
     return (
       <div className={`rounded-lg border border-borde bg-superficie ${compacta ? 'px-3 py-2.5' : 'p-3.5'}`}>
         <div className="flex flex-wrap items-start gap-3">
           <div className="w-12 shrink-0 text-center">
-            <p className="num text-base font-semibold leading-tight text-texto-principal">{formatearHoraLocal(cita.inicia_en)}</p>
-            <p className="mt-0.5 text-[10px] text-tenue">{(cita.duracion_minutos || 30)} min</p>
+            <p className="num text-base font-semibold leading-tight text-texto-principal">{formatearHoraLocal(cita.mi_inicia_en || cita.inicia_en)}</p>
+            <p className="mt-0.5 text-[10px] text-tenue">{(cita.mi_duracion_minutos || cita.duracion_minutos || 30)} min</p>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -560,7 +562,7 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
               {!pagada && <Badge variant="warning">Sin pago</Badge>}
             </div>
             <p className="mt-0.5 truncate text-xs text-texto-secundario">
-              {cita.servicio_nombre || 'Servicio'} · {cita.ubicacion_nombre || 'Sede'}
+              {cita.mis_servicios || cita.servicio_nombre || 'Servicio'} · {cita.ubicacion_nombre || 'Sede'}
             </p>
             {cita.llego_en && (
               <p className="mt-1 text-[11px] text-tenue">
@@ -575,18 +577,18 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
                 Finalizar
               </Button>
             ) : cita.llego_en && pagada ? (
-              <Button size="sm" onClick={() => handleAtender(cita)}>
-                Atender
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                {!puedeAtender && (
+                  <span className="text-[10px] text-tenue">Disponible desde {horaVentana}</span>
+                )}
+                <Button size="sm" onClick={() => handleAtender(cita)} disabled={!puedeAtender} title={!puedeAtender ? `Podrás atender desde ${horaVentana}` : undefined}>
+                  Atender
+                </Button>
+              </div>
             ) : cita.llego_en && !pagada ? (
-              <>
-                <Button size="sm" onClick={() => setPagoReserva(cita)}>
-                  Cobrar QR
-                </Button>
-                <Button variant="secundario" size="sm" onClick={() => setCobroEfectivoCita(cita)}>
-                  Efectivo
-                </Button>
-              </>
+              <Button size="sm" onClick={() => setCobroCita(cita)}>
+                Cobrar
+              </Button>
             ) : (
               <Button variant="secundario" size="sm" onClick={() => handleRegistrarLlegada(cita)}>
                 Registrar llegada
@@ -680,6 +682,46 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
         </div>
       </div>
 
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-texto-principal">Mi desempeño</h2>
+            <p className="mt-0.5 text-xs leading-5 text-texto-secundario">
+              Solo servicios cobrados y no reembolsados. Tu comisión actual es {resumen ? `${resumen.porcentaje}%` : '—'}.
+            </p>
+          </div>
+          <div className="flex items-center gap-1 rounded-md border border-borde bg-superficie p-0.5">
+            <Button variant="ghost" size="sm" onClick={() => cambiarMes(-1)} aria-label="Mes anterior">
+              ←
+            </Button>
+            <span className="min-w-[112px] px-2 text-center text-xs font-medium text-texto-principal" aria-live="polite">
+              {etiquetaDelMes(mesResumen)}
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => cambiarMes(1)} aria-label="Mes siguiente">
+              →
+            </Button>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-borde bg-panel/30 px-4 py-3">
+            <p className="text-[11px] text-texto-secundario">Cortes realizados</p>
+            <p className="num mt-1 text-2xl font-medium text-texto-principal">
+              {cargandoResumen || !resumen ? '—' : resumen.servicios}
+            </p>
+            <p className="mt-1 text-[10px] text-tenue">Incluye todos los servicios cobrados</p>
+          </div>
+          <div className="rounded-lg border border-borde bg-panel/30 px-4 py-3">
+            <p className="text-[11px] text-texto-secundario">Ganado</p>
+            <p className="num mt-1 text-2xl font-medium text-texto-principal">
+              {cargandoResumen || !resumen ? '—' : dinero(resumen.ganado)}
+            </p>
+            <p className="mt-1 text-[10px] text-tenue">
+              {resumen ? `${resumen.porcentaje}% de comisión · Bruto ${dinero(resumen.bruto)}` : 'Sin servicios cobrados en el mes'}
+            </p>
+          </div>
+        </div>
+      </Card>
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-5">
           {!esVistaAgenda && (
@@ -694,7 +736,7 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
                   </div>
                   {siguientes[0] && !enAtencion && (
                     <Badge variant="accent">
-                      Siguiente: {siguientes[0].cliente_nombre || 'cliente'} · {formatearHoraLocal(siguientes[0].inicia_en)}
+                      Siguiente: {siguientes[0].cliente_nombre || 'cliente'} · {formatearHoraLocal(siguientes[0].mi_inicia_en || siguientes[0].inicia_en)}
                     </Badge>
                   )}
                 </div>
@@ -708,7 +750,7 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
                           {enAtencion.cliente_nombre || 'Cliente'}
                         </p>
                         <p className="mt-1 text-sm text-texto-secundario">
-                          {enAtencion.servicio_nombre || 'Servicio'} · {formatearHoraLocal(enAtencion.inicia_en)}
+                          {enAtencion.mis_servicios || enAtencion.servicio_nombre || 'Servicio'} · {formatearHoraLocal(enAtencion.mi_inicia_en || enAtencion.inicia_en)}
                         </p>
                         <p className="mt-2 text-xs text-texto-secundario">
                           Inició {formatearHoraLocal(enAtencion.inicio_servicio)}
@@ -837,6 +879,9 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
             </Card>
           ) : sedeHoy ? (
             <Card padding={false} className="overflow-hidden">
+              {sedeHoy.imagen_url && (
+                <ImagenSede sede={sedeHoy} className="h-32 w-full" />
+              )}
               <div className="relative z-0 h-36 bg-panel">
                 {Number.isFinite(Number(sedeHoy.latitud)) && Number.isFinite(Number(sedeHoy.longitud)) ? (
                   <MapContainer
@@ -907,24 +952,11 @@ export default function EmpleadoDashboard({ vista = 'cola' }) {
 
       <LlegadaQRModal open={modalQR} onClose={() => setModalQR(false)} onSuccess={() => refrescar()} />
 
-      <PagoReservaModal
-        open={Boolean(pagoReserva)}
-        reservaId={pagoReserva?.id}
-        modo="qr"
-        onClose={() => setPagoReserva(null)}
-        onPagado={refrescar}
-        onToast={(mensaje, tipo) => {
-          if (tipo === 'error') notificar.error(mensaje);
-          else if (tipo === 'warning') notificar.warning(mensaje);
-          else notificar.success(mensaje);
-        }}
-      />
-
-      <CobroEfectivoModal
-        open={Boolean(cobroEfectivoCita)}
-        cita={cobroEfectivoCita}
-        onClose={() => setCobroEfectivoCita(null)}
-        onSuccess={refrescar}
+      <CobroCitaSheet
+        open={Boolean(cobroCita)}
+        reserva={cobroCita}
+        onClose={() => setCobroCita(null)}
+        onActualizado={refrescar}
         onToast={(mensaje, tipo) => {
           if (tipo === 'error') notificar.error(mensaje);
           else if (tipo === 'warning') notificar.warning(mensaje);

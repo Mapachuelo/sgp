@@ -25,7 +25,7 @@ function instanteBogota(objetivo, hora) {
 }
 
 test('reservas: CRUD de servicios y validaciones del catalogo', async () => {
-  await assert.rejects(() => reservasService.createServicio({}), /requeridos/);
+  await assert.rejects(() => reservasService.createServicio({}), /obligatorio|requeridos/);
   const servicio = await reservasService.createServicio({ nombre: `Cat ${sufijo()}`, precio_base: 10000, duracion_base_minutos: 20 });
   ids.servicios.push(servicio.id);
 
@@ -38,6 +38,159 @@ test('reservas: CRUD de servicios y validaciones del catalogo', async () => {
 
   await reservasService.deleteServicio(servicio.id);
   await assert.rejects(() => reservasService.deleteServicio(servicio.id), /no encontrado/);
+});
+
+test('reservas: galeria de imagenes y sedes que ofrecen un servicio', async () => {
+  const imagenA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+  const imagenB = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EH//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EH//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EH//2Q==';
+
+  const servicio = await reservasService.createServicio({
+    nombre: `Galeria ${sufijo()}`,
+    precio_base: 10000,
+    duracion_base_minutos: 20,
+    imagenes: [imagenA, imagenB],
+  });
+  ids.servicios.push(servicio.id);
+
+  assert.equal(servicio.imagen_url, imagenA);
+  const galeria = await reservasService.getImagenesServicio(servicio.id);
+  assert.equal(galeria.length, 2);
+  assert.equal(galeria[0].imagen_url, imagenA);
+  assert.equal(galeria[1].imagen_url, imagenB);
+
+  const actualizado = await reservasService.updateServicio(servicio.id, { imagenes: [imagenB] });
+  assert.equal(actualizado.imagen_url, imagenB);
+  const galeriaActualizada = await reservasService.getImagenesServicio(servicio.id);
+  assert.equal(galeriaActualizada.length, 1);
+  assert.equal(galeriaActualizada[0].imagen_url, imagenB);
+
+  await assert.rejects(
+    () => reservasService.createServicio({
+      nombre: `Galeria excedida ${sufijo()}`,
+      precio_base: 10000,
+      duracion_base_minutos: 20,
+      imagenes: Array(7).fill(imagenA),
+    }),
+    /hasta 6 imagenes/
+  );
+  await assert.rejects(
+    () => reservasService.updateServicio(servicio.id, { imagenes: ['data:image/svg+xml;base64,PHN2Zy8+'] }),
+    /PNG, JPG o WebP/
+  );
+  await assert.rejects(() => reservasService.getImagenesServicio(999999), /no encontrado/);
+
+  const sedeA = await crearSede();
+  const sedeB = await crearSede();
+  const empleadoA = await crearUsuario({ rol: 'empleado' });
+  const empleadoB = await crearUsuario({ rol: 'empleado' });
+  ids.sedes.push(sedeA.id, sedeB.id);
+  ids.usuarios.push(empleadoA, empleadoB);
+  await asignarServicio(empleadoA, servicio.id, 20);
+  await crearDisponibilidad(empleadoA, sedeA.id, 1, '09:00', '18:00');
+  await crearDisponibilidad(empleadoB, sedeB.id, 1, '09:00', '18:00');
+
+  const sedes = await reservasService.getSedesPorServicio({ servicio_id: servicio.id });
+  assert.deepEqual(sedes.map((sede) => sede.id), [sedeA.id]);
+  assert.equal(sedes[0].total_estilistas, 1);
+  await assert.rejects(() => reservasService.getSedesPorServicio({}), /requerido/);
+  await assert.rejects(() => reservasService.getSedesPorServicio({ servicio_id: 999999 }), /no encontrado/);
+
+  await reservasService.deleteServicio(servicio.id);
+  await limpiar({ usuarios: [empleadoA, empleadoB], sedes: [sedeA.id, sedeB.id] });
+  ids.servicios = ids.servicios.filter((id) => id !== servicio.id);
+});
+
+test('reservas: categorias, varios servicios y varios estilistas', async () => {
+  const sufijoPrueba = sufijo();
+  const categoria = await reservasService.createCategoria({
+    nombre: `Cat Multi ${sufijoPrueba}`,
+    descripcion: 'Prueba multi-servicio',
+  });
+  const servicioA = await reservasService.createServicio({
+    nombre: `Multi A ${sufijoPrueba}`, precio_base: 12000, duracion_base_minutos: 20, categoria_id: categoria.id,
+  });
+  const servicioB = await reservasService.createServicio({
+    nombre: `Multi B ${sufijoPrueba}`, precio_base: 8000, duracion_base_minutos: 15, categoria_id: categoria.id,
+  });
+  ids.servicios.push(servicioA.id, servicioB.id);
+
+  await assert.rejects(
+    () => reservasService.deleteCategoria(categoria.id),
+    /servicios asignados/
+  );
+
+  const empleadoA = await crearUsuario({ rol: 'empleado' });
+  const empleadoB = await crearUsuario({ rol: 'empleado' });
+  const sede = await crearSede();
+  ids.usuarios.push(empleadoA, empleadoB);
+  ids.sedes.push(sede.id);
+  await asignarServicio(empleadoA, servicioA.id, 20);
+  await asignarServicio(empleadoB, servicioB.id, 15);
+  await crearDisponibilidad(empleadoA, sede.id, 1, '09:00', '18:00');
+  await crearDisponibilidad(empleadoB, sede.id, 1, '09:00', '18:00');
+
+  const lunes = proximoLunes();
+  const fecha = `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
+  const disponibles = await reservasService.getEmpleadosDisponibles({
+    fecha, ubicacion_id: sede.id, servicio_id: servicioA.id,
+  });
+  assert.ok(disponibles.some((empleado) => empleado.id === empleadoA));
+  assert.ok(!disponibles.some((empleado) => empleado.id === empleadoB));
+
+  const combo = await reservasService.getDisponibilidadCombo({
+    ubicacion_id: sede.id,
+    fecha,
+    granularidad: 30,
+    servicios: [
+      { servicio_id: servicioA.id, empleado_id: empleadoA },
+      { servicio_id: servicioB.id, empleado_id: empleadoB },
+    ],
+  });
+  assert.equal(combo.duracion_total, 35);
+  assert.equal(combo.precio_total, 20000);
+  assert.ok(combo.slots.length > 0);
+  assert.equal(combo.slots[0].plan.length, 2);
+  assert.equal(combo.slots[0].plan[1].empleado_id, empleadoB);
+
+  const clienteId = await crearUsuario({ rol: 'cliente' });
+  ids.usuarios.push(clienteId);
+  const horario = combo.slots.find((slot) => slot.hora === '10:00') || combo.slots[0];
+  const reserva = await reservasService.createReserva(clienteId, {
+    empleado_id: empleadoA,
+    ubicacion_id: sede.id,
+    inicia_en: horario.inicia_en,
+    cantidad_personas: 1,
+    servicios: [
+      { servicio_id: servicioA.id, empleado_id: empleadoA },
+      { servicio_id: servicioB.id, empleado_id: empleadoB },
+    ],
+  });
+  assert.equal(Number(reserva.precio_total), 20000);
+  assert.equal(Number(reserva.duracion_total), 35);
+  assert.equal(reserva.servicios.length, 2);
+  assert.equal(reserva.servicios[0].empleado_id, empleadoA);
+  assert.equal(reserva.servicios[1].empleado_id, empleadoB);
+  const inicio = new Date(reserva.inicia_en).getTime();
+  const fin = new Date(reserva.termina_en).getTime();
+  assert.equal((fin - inicio) / 60000, 35);
+
+  await assert.rejects(
+    () => reservasService.createReserva(clienteId, {
+      empleado_id: empleadoA,
+      ubicacion_id: sede.id,
+      inicia_en: horario.inicia_en,
+      cantidad_personas: 1,
+      servicios: [
+        { servicio_id: servicioA.id, empleado_id: empleadoA },
+        { servicio_id: servicioA.id, empleado_id: empleadoA },
+      ],
+    }),
+    /repetir/
+  );
+
+  await reservasService.deleteCategoria(categoria.id).catch(() => {});
+  await limpiar({ usuarios: [empleadoA, empleadoB, clienteId], sedes: [sede.id], servicios: [servicioA.id, servicioB.id] });
+  await reservasService.deleteCategoria(categoria.id).catch(() => {});
 });
 
 test('reservas: jornada por sede', async () => {
@@ -101,7 +254,7 @@ test('reservas: getAllReservas con filtros y agenda por rango', async () => {
   assert.ok(filtradas.some((r) => r.id === reserva.id));
 
   const agenda = await reservasService.getAgenda({ desde: fecha, hasta: fecha, empleado_id: empleadoId });
-  assert.ok(agenda.some((r) => r.id === reserva.id));
+  assert.ok(agenda.some((r) => r.reserva_id === reserva.id));
   assert.equal(agenda[0].ubicacion_nombre, sede.nombre);
 
   await assert.rejects(() => reservasService.getAgenda({ desde: '2026-99-99', hasta: fecha }), /formato/);
@@ -115,19 +268,26 @@ test('reservas: getDisponibilidad exige parametros', async () => {
 
 test('auth: empleados CRUD y verificacion/reenevio exitosos', async () => {
   const email = `emp.${sufijo()}@unit.local`;
+  const foto = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3Q6wAAAABJRU5ErkJggg==';
   const empleado = await authService.createEmpleado({
-    email, nombre: 'Emp', apellido: 'Unit', telefono: '+573001112244', identificacion: '123',
+    email, nombre: 'Emp', apellido: 'Unit', telefono: '+573001112244', identificacion: '123', foto_url: foto,
   });
   ids.usuarios.push(empleado.id);
   assert.equal(empleado.rol, 'empleado');
+  assert.equal(empleado.foto_url, foto);
 
   await assert.rejects(() => authService.createEmpleado({ email, nombre: 'Dup' }), /ya esta registrado/);
+  await assert.rejects(() => authService.updateEmpleado(empleado.id, { foto_url: 'no-es-imagen' }), /foto/);
   await assert.rejects(() => authService.updateEmpleado(empleado.id, { telefono: '300' }), /telefono/);
   await assert.rejects(() => authService.updateEmpleado(999999, { nombre: 'x' }), /no encontrado/);
 
   const actualizado = await authService.updateEmpleado(empleado.id, { identificacion: '999', nombre: 'Emp2', password: 'nueva123' });
   assert.equal(actualizado.identificacion, '999');
   assert.equal(actualizado.nombre, 'Emp2');
+  assert.equal(actualizado.foto_url, foto);
+
+  const sinFoto = await authService.updateEmpleado(empleado.id, { foto_url: null });
+  assert.equal(sinFoto.foto_url, null);
 
   const nuevosEmpleados = await authService.getMe(empleado.id);
   assert.equal(nuevosEmpleados.email, email);

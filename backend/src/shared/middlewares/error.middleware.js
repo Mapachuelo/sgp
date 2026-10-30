@@ -1,6 +1,11 @@
 const logger = require('../logger');
 
 function errorMiddleware(err, _req, res, _next) {
+  if (err.type === 'entity.too.large' || err.status === 413) {
+    err.statusCode = 413;
+    err.message = 'El contenido enviado es demasiado grande';
+  }
+
   if (!err.statusCode) {
     if (err.code === '23505') {
       err.statusCode = 409;
@@ -23,10 +28,12 @@ function errorMiddleware(err, _req, res, _next) {
     err.message = 'Error interno del servidor';
   }
 
-  res.status(err.statusCode).json({
+  const respuesta = {
     ok: false,
     error: err.message,
-  });
+  };
+  if (err.detalles) respuesta.detalles = err.detalles;
+  res.status(err.statusCode).json(respuesta);
 }
 
 module.exports = errorMiddleware;

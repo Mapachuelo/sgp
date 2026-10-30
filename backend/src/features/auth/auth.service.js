@@ -14,6 +14,18 @@ function validarEmail(email) {
   return typeof email === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 }
 
+function validarFotoEmpleado(foto) {
+  if (foto === undefined) return undefined;
+  if (foto === null || foto === '') return null;
+  if (typeof foto !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/i.test(foto)) {
+    throw new HttpError(400, 'La foto debe ser una imagen JPG, PNG o WebP');
+  }
+  if (foto.length > 2_500_000) {
+    throw new HttpError(400, 'La foto es demasiado grande');
+  }
+  return foto;
+}
+
 function normalizarTelefonoRequerido(telefono) {
   const normalizado = normalizarTelefono(telefono);
   if (!validarTelefono(normalizado)) {
@@ -86,6 +98,7 @@ const authService = {
         apellido: usuario.apellido,
         telefono: usuario.telefono,
         rol: usuario.rol,
+        foto_url: usuario.foto_url || null,
       },
       correoEnviado,
       expiraEn: expiracion.toISOString(),
@@ -186,6 +199,7 @@ const authService = {
         apellido: usuario.apellido,
         telefono: usuario.telefono,
         rol: usuario.rol,
+        foto_url: usuario.foto_url || null,
       },
     };
   },
@@ -204,6 +218,11 @@ const authService = {
     }
     if (data.telefono) {
       data.telefono = normalizarTelefonoRequerido(data.telefono);
+    }
+
+    const comision = data.comision_porcentaje === undefined ? 50 : Number(data.comision_porcentaje);
+    if (!Number.isFinite(comision) || comision < 0 || comision > 100) {
+      throw new HttpError(400, 'El porcentaje del empleado debe estar entre 0 y 100');
     }
 
     const existente = await authModel.findByEmail(data.email);
@@ -228,6 +247,8 @@ const authService = {
       identificacion: data.identificacion || null,
       password_asignada_hash: password_hash,
       ubicacion_base_id: data.ubicacion_base_id || null,
+      comision_porcentaje: comision,
+      foto_url: validarFotoEmpleado(data.foto_url) ?? null,
     });
 
     return authModel.findEmpleadoById(usuario.id);
@@ -247,6 +268,16 @@ const authService = {
     if (data.password) {
       data.password_hash = await bcrypt.hash(data.password, 12);
     }
+    if (data.foto_url !== undefined) {
+      data.foto_url = validarFotoEmpleado(data.foto_url);
+    }
+    if (data.comision_porcentaje !== undefined) {
+      const comision = Number(data.comision_porcentaje);
+      if (!Number.isFinite(comision) || comision < 0 || comision > 100) {
+        throw new HttpError(400, 'El porcentaje del empleado debe estar entre 0 y 100');
+      }
+      data.comision_porcentaje = comision;
+    }
     return authModel.updateEmpleado(id, data);
   },
 
@@ -259,6 +290,10 @@ const authService = {
     const tieneCobros = await authModel.hasCobros(id);
     if (tieneCobros) {
       throw new HttpError(409, 'No se puede eliminar el empleado porque tiene cobros asociados');
+    }
+    const tieneReservas = await authModel.hasReservas(id);
+    if (tieneReservas) {
+      throw new HttpError(409, 'No se puede eliminar el empleado porque tiene reservas asociadas');
     }
 
     await authModel.deleteEmpleado(id);

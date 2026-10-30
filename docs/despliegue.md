@@ -15,6 +15,7 @@ Despliegue del SGP con Podman (`kube play`), dos pods sobre una red privada y vo
 | `backend/Containerfile` | Imagen backend (Node 22 Alpine + pnpm). |
 | `frontend/Containerfile` | Imagen frontend (build Vite + Nginx Alpine). |
 | `sgp-db-pod.yaml` | Pod PostgreSQL 17 + PVC `sgp-pgdata`. |
+| `sgp-app-pod.yaml` | Backend, frontend, base `sgp_presentacion` y PVC `sgp-presentacion-media`. |
 | `sgp-app-pod.yaml` | Pod backend + Nginx (hostPort 8080). |
 | `example.sgp-db-pod.yaml` / `example.sgp-app-pod.yaml` | Plantillas seguras (placeholders). |
 | `.env.example` | Variables para desarrollo local. |
@@ -108,3 +109,4 @@ podman volume rm sgp-pgdata   # elimina también los datos
 - Servir todo por HTTPS mediante un proxy externo (Nginx/Let's Encrypt) para habilitar cámara y proteger credenciales.
 - Rotar `JWT_SECRET`, `AES_SECRET` y la API key de Brevo; no reutilizar los valores del repositorio.
 - Considerar respaldos del volumen `sgp-pgdata` (`podman volume export`).
+- Respaldar también `sgp-presentacion-media` y la base `sgp_presentacion` (`pg_dump -d sgp_presentacion`).
